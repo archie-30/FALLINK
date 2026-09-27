@@ -47,7 +47,10 @@ export class Player {
         this.stv=0;
         this.kick=0;
         this.poseStep=-1;
-        this.events={onDash:null};
+        this.fireCd=0;
+        this.hp=TUNING.player.maxHp;
+        this.invuln=0;
+        this.events={onDash:null,onFire:null,onHurt:null,onDown:null};
         this.build(parent);
     }
 
@@ -147,15 +150,87 @@ export class Player {
         this.renderPos.copy(p);
         this.vel.set(0,0,0);
         this.root.position.copy(p);
+        this.hp=TUNING.player.maxHp;
+        this.invuln=0;
     }
 
     recoil() {
         this.kick=1;
     }
 
-    update(dt,input,room,aim) {
+    isInvulnerable() {
+        return this.invuln>0||(TUNING.player.dashInvuln&&this.dashT>0);
+    }
+
+    hurt(dmg,dx,dz) {
         const P=TUNING.player;
+        if (this.isInvulnerable()||this.hp<=0) {
+            return false;
+        }
+        this.hp=Math.max(0,this.hp-dmg);
+        this.invuln=P.invulnTime;
+        this.vel.x+=dx*P.hurtKnockback;
+        this.vel.z+=dz*P.hurtKnockback;
+        this.sqv+=TUNING.feel.hurtSquash;
+        if (this.events.onHurt) {
+            this.events.onHurt(this,dx,dz);
+        }
+        if (this.hp<=0&&this.events.onDown) {
+            this.events.onDown(this);
+        }
+        return true;
+    }
+
+    hitBullet(x,z,r,dmg,vx,vz) {
+        const rr=TUNING.player.radius*0.8+r;
+        const ex=x-this.pos.x;
+        const ez=z-this.pos.z;
+        if (ex*ex+ez*ez>=rr*rr) {
+            return false;
+        }
+        if (this.isInvulnerable()) {
+            return false;
+        }
+        const l=Math.hypot(vx,vz)||1;
+        this.hurt(dmg,vx/l,vz/l);
+        return true;
+    }
+
+    fire(ctx,aim) {
+        const W=TUNING.weapon;
+        const c=Math.cos(this.aimYaw);
+        const sn=Math.sin(this.aimYaw);
+        const lx=W.muzzleSide;
+        const lz=W.muzzleForward;
+        const mx=this.pos.x+lx*c+lz*sn;
+        const mz=this.pos.z-lx*sn+lz*c;
+        let dx=this.aimDirX;
+        let dz=this.aimDirZ;
+        if (aim.mode==='point') {
+            const ax=aim.point.x-mx;
+            const az=aim.point.z-mz;
+            const al=Math.hypot(ax,az);
+            if (al>1.2) {
+                dx=ax/al;
+                dz=az/al;
+            }
+        }
+        const a=Math.atan2(dz,dx)+(Math.random()*2-1)*W.spread;
+        dx=Math.cos(a);
+        dz=Math.sin(a);
+        ctx.playerBullets.spawn(mx,mz,dx,dz,W.bulletSpeed,W.damage,W.bulletLife);
+        this.recoil();
+        this.stv-=0.6;
+        if (this.events.onFire) {
+            this.events.onFire(this,mx,mz,dx,dz);
+        }
+    }
+
+    update(dt,input,ctx,aim) {
+        const P=TUNING.player;
+        const room=ctx.room;
         this.prev.copy(this.pos);
+        this.invuln=Math.max(0,this.invuln-dt);
         input.getMove(_mv);
         const moveLen=Math.hypot(_mv.x,_mv.z);
         if (aim.mode==='point') {
@@ -240,6 +315,17 @@ export class Player {
         this.sq=Math.max(-0.45,Math.min(0.45,this.sq));
         this.st=Math.max(-0.45,Math.min(0.8,this.st));
         this.kick*=Math.exp(-18*dt);
+        this.fireCd-=dt;
+        if (input.isFiring()&&this.fireCd<=0&&this.hp>0) {
+            this.fireCd+=TUNING.weapon.fireInterval;
+            if (this.fireCd<0) {
+                this.fireCd=0;
+            }
+            this.fire(ctx,aim);
+        }
+        else if (this.fireCd<0) {
+            this.fireCd=0;
+        }
     }
 
     applyPose() {
@@ -276,5 +362,11 @@ export class Player {
             this.applyPose();
         }
         this.aimFrame.rotation.y=this.aimYaw-this.poseMoveYaw;
+        if (this.invuln>0) {
+            this.moveFrame.visible=Math.floor(time.real*TUNING.player.flickerFps)%2===0;
+        }
+        else {
+            this.moveFrame.visible=true;
+        }
     }
 }

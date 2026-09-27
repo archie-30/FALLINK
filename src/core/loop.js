@@ -48,6 +48,10 @@ export function createLoop(update,render) {
         acc+=dt*time.timeScale;
         let n=0;
         while (acc>=step&&n<8) {
+            if (time.timeScale<=0) {
+                acc=0;
+                break;
+            }
             update(step);
             acc-=step;
             time.game+=step;

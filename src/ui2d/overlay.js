@@ -4,6 +4,7 @@ import {t} from '../data/strings.js';
 import {device} from '../core/settings.js';
 import {time} from '../core/loop.js';
 import {hash1} from '../core/rng.js';
+import {Hud} from './hud.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -15,6 +16,7 @@ export class Overlay {
         this.height=1;
         this.dpr=1;
         this.showDebug=false;
+        this.hud=new Hud();
     }
 
     resize(w,h) {
@@ -58,6 +60,8 @@ export class Overlay {
         ctx.lineCap='round';
         ctx.lineJoin='round';
         const touchUi=device.mobile||input.lastDevice==='touch';
+        this.hud.drawHp(ctx,player);
+        this.hud.drawLegend(ctx,this.width,this.height,touchUi);
         if (touchUi) {
             this.drawSticks(input);
             this.drawDash(input,player);
@@ -143,14 +147,15 @@ export class Overlay {
         ctx.textBaseline='top';
         const w=230;
         const h=lines.length*19+14;
+        const x=this.width-w-10;
         ctx.fillStyle=rgba('paper',0.85);
-        ctx.fillRect(10,10,w,h);
+        ctx.fillRect(x,10,w,h);
         ctx.strokeStyle=PALETTE.ink;
         ctx.lineWidth=1.5;
-        ctx.strokeRect(10,10,w,h);
+        ctx.strokeRect(x,10,w,h);
         ctx.fillStyle=PALETTE.ink;
         for (let i=0;i<lines.length;i++) {
-            ctx.fillText(lines[i],20,18+i*19);
+            ctx.fillText(lines[i],x+10,18+i*19);
         }
     }
 }

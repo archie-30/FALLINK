@@ -24,6 +24,12 @@ uniform vec3 uRuleColor;
 uniform vec4 uRule;
 uniform vec2 uGrain;
 uniform float uInvert;
+uniform sampler2D tFx;
+uniform float uBleed;
+uniform vec3 uRed;
+uniform vec3 uDarkRed;
+uniform float uFlash;
+uniform vec3 uFlashColor;
 varying vec2 vUv;
 float edgeAt(vec2 uv,vec2 px) {
     vec4 a=texture2D(tGBuf,uv+vec2(-px.x,px.y));
@@ -54,6 +60,8 @@ void main() {
     edge*=mix(1.0,uLine.z,fade)*(0.55+0.45*grain);
     vec3 col=texture2D(tColor,uv).rgb;
     col=mix(col,uInk,clamp(edge,0.0,1.0));
+    vec4 fxc=texture2D(tFx,uv);
+    col=col*(1.0-fxc.a)+fxc.rgb;
     #ifdef USE_RULES
     float sp=uRule.x*uPx;
     float ry=abs(mod(gl_FragCoord.y,sp)-sp*0.5);
@@ -63,10 +71,22 @@ void main() {
     col*=mix(vec3(1.0),uRuleColor,rl*uRule.y);
     col*=mix(vec3(1.0),uRuleColor,ml*uRule.w);
     #endif
+    if (uBleed>0.001) {
+        vec2 q=uv-0.5;
+        q.x*=uRes.x/uRes.y;
+        float bn=texture2D(tNoise,uv*vec2(uRes.x/uRes.y,1.0)*1.1+uBoilSeed*vec2(0.13,0.07)).r;
+        float bn2=texture2D(tNoise,uv*6.0+uBoilSeed*0.31).b;
+        float v=length(q)*1.25+(bn-0.5)*0.45+(bn2-0.5)*0.08;
+        float t=mix(1.45,0.62,clamp(uBleed,0.0,1.0));
+        float m=smoothstep(t,t+0.035,v);
+        vec3 rc=mix(uRed,uDarkRed,smoothstep(t+0.08,t+0.45,v));
+        col=mix(col,rc,m);
+    }
     #ifdef USE_GRAIN
     col*=mix(1.0,grain/0.9,uGrain.x);
     #endif
     col=mix(col,1.0-col,uInvert);
+    col=mix(col,uFlashColor,uFlash);
     gl_FragColor=vec4(col,1.0);
 }
 `;

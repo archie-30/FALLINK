@@ -1,0 +1,27 @@
+export const ENEMIES={
+    doodle:{
+        nameKey:'enemy.doodle',
+        hp:30,
+        radius:0.55,
+        scale:1.25,
+        speed:2.6,
+        accel:14,
+        range:[5,9],
+        strafe:0.6,
+        fireInterval:[1.4,2.6],
+        firstShot:[1.2,2.0],
+        telegraph:0.5,
+        telegraphLength:7,
+        bulletSpeed:9,
+        bulletDamage:1,
+        bulletLife:3.2,
+        contactDamage:1,
+        spawnTime:0.55,
+        shards:[5,8],
+        tones:{
+            body:{light:'farGray',mid:'midGray',dark:'nearGray'},
+            head:{light:'paper',mid:'farGray',dark:'midGray'},
+            limb:{light:'midGray',mid:'nearGray',dark:'ink'}
+        }
+    }
+};

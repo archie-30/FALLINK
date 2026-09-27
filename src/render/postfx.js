@@ -3,6 +3,7 @@ import {FullScreenQuad} from 'three/addons/postprocessing/Pass.js';
 import {POST_VERT,POST_FRAG} from './shaders/post.js';
 import {TUNING} from '../data/tuning.js';
 import {pal,shared} from './materials.js';
+import {tweens} from '../core/tween.js';
 
 export class PostFX {
     constructor(renderer) {
@@ -17,6 +18,16 @@ export class PostFX {
             stencilBuffer:false,
             generateMipmaps:false
         });
+        this.fxTarget=new THREE.WebGLRenderTarget(1,1,{
+            type:THREE.UnsignedByteType,
+            format:THREE.RGBAFormat,
+            minFilter:THREE.LinearFilter,
+            magFilter:THREE.LinearFilter,
+            depthBuffer:false,
+            stencilBuffer:false,
+            generateMipmaps:false
+        });
+        shared.tGBuf.value=this.target.textures[1];
         const O=TUNING.outline;
         const B=TUNING.boil;
         const P=TUNING.paper;
@@ -37,8 +48,17 @@ export class PostFX {
             uRuleColor:{value:pal('farGray').clone()},
             uRule:{value:new THREE.Vector4(P.ruleSpacing,P.ruleAlpha,P.marginX,P.marginAlpha)},
             uGrain:{value:new THREE.Vector2(P.grain,1)},
-            uInvert:{value:0}
+            uInvert:{value:0},
+            tFx:{value:this.fxTarget.texture},
+            uBleed:{value:0},
+            uRed:{value:pal('red').clone()},
+            uDarkRed:{value:pal('darkRed').clone()},
+            uFlash:{value:0},
+            uFlashColor:{value:pal('paper').clone()}
         };
+        this.invertFrames=0;
+        this.flashTween=null;
+        this.transparent=new THREE.Color(0,0,0);
         this.material=new THREE.ShaderMaterial({
             vertexShader:POST_VERT,
             fragmentShader:POST_FRAG,
@@ -74,18 +94,37 @@ export class PostFX {
         const pw=Math.max(1,Math.floor(w*pr));
         const ph=Math.max(1,Math.floor(h*pr));
         this.target.setSize(pw,ph);
+        this.fxTarget.setSize(pw,ph);
+        shared.uScreen.value.set(pw,ph);
         this.uniforms.uRes.value.set(pw,ph);
         this.uniforms.uPx.value=pr;
         this.uniforms.uGrain.value.y=1;
     }
 
-    render(scene,camera) {
+    flash(colorKey,duration,strength) {
+        if (this.flashTween) {
+            this.flashTween.kill();
+        }
+        this.uniforms.uFlashColor.value.copy(pal(colorKey));
+        this.uniforms.uFlash.value=strength;
+        this.flashTween=tweens.to(this.uniforms.uFlash,{value:0},{duration,ease:'easeOutQuad',unscaled:true});
+    }
+
+    render(scene,fxScene,camera) {
         const r=this.renderer;
         r.setClearColor(this.clearColor,1);
         r.setRenderTarget(this.target);
         r.clear(true,true,false);
         r.render(scene,camera);
+        r.setClearColor(this.transparent,0);
+        r.setRenderTarget(this.fxTarget);
+        r.clear(true,false,false);
+        r.render(fxScene,camera);
         r.setRenderTarget(null);
+        this.uniforms.uInvert.value=this.invertFrames>0?1:0;
+        if (this.invertFrames>0) {
+            this.invertFrames--;
+        }
         this.quad.render(r);
     }
 }

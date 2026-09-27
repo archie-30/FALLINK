@@ -2,6 +2,7 @@ import*as THREE from 'three';
 import {PALETTE} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {TOON_VERT,TOON_FRAG,HULL_VERT,HULL_FRAG,UNLIT_VERT,UNLIT_FRAG,SHADOW_VERT,SHADOW_FRAG} from './shaders/toon.js';
+import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG} from './shaders/fx.js';
 
 const colorCache={};
 
@@ -25,7 +26,9 @@ export const shared={
     uFogLift:{value:new THREE.Color()},
     uFogColor:{value:new THREE.Color()},
     uFog:{value:new THREE.Vector3()},
-    uJitterScale:{value:1}
+    uJitterScale:{value:1},
+    tGBuf:{value:null},
+    uScreen:{value:new THREE.Vector2(1,1)}
 };
 
 const cache=new Map();
@@ -68,8 +71,8 @@ export function toonMaterial(opts={}) {
     const jitter=opts.jitter??0;
     const shift=opts.shift??0;
     const grid=opts.grid||null;
-    const key='toon|'+light+'|'+mid+'|'+dark+'|'+jitter+'|'+shift+'|'+(grid?grid.join(','):'')+'|'+(opts.unique?Math.random():'');
-    if (cache.has(key)) {
+    const key='toon|'+light+'|'+mid+'|'+dark+'|'+jitter+'|'+shift+'|'+(grid?grid.join(','):'');
+    if (!opts.unique&&cache.has(key)) {
         return cache.get(key);
     }
     const defines={};
@@ -107,7 +110,9 @@ export function toonMaterial(opts={}) {
         side:opts.side??THREE.FrontSide
     });
     track(mat,jitter);
-    cache.set(key,mat);
+    if (!opts.unique) {
+        cache.set(key,mat);
+    }
     return mat;
 }
 
@@ -116,7 +121,7 @@ export function hullMaterial(opts={}) {
     const width=opts.width??TUNING.outline.hullWidth;
     const jitter=opts.jitter??0;
     const key='hull|'+color+'|'+width+'|'+jitter;
-    if (cache.has(key)) {
+    if (!opts.unique&&cache.has(key)) {
         return cache.get(key);
     }
     const mat=new THREE.ShaderMaterial({
@@ -132,7 +137,9 @@ export function hullMaterial(opts={}) {
         side:THREE.BackSide
     });
     track(mat,jitter);
-    cache.set(key,mat);
+    if (!opts.unique) {
+        cache.set(key,mat);
+    }
     return mat;
 }
 
@@ -201,4 +208,87 @@ export function setShadowQuality(hatched) {
     for (const m of shadowMeshes) {
         m.material=shadowMaterial(hatched);
     }
+}
+
+function fxUniforms(extra) {
+    return Object.assign({
+        tGBuf:shared.tGBuf,
+        uScreen:shared.uScreen,
+        uFar:shared.uFar,
+        tNoise:shared.tNoise,
+        uBoilSeed:shared.uBoilSeed
+    },extra);
+}
+
+export function particleMaterial() {
+    return new THREE.ShaderMaterial({
+        vertexShader:PARTICLE_VERT,
+        fragmentShader:PARTICLE_FRAG,
+        uniforms:fxUniforms({}),
+        depthTest:false,
+        depthWrite:false
+    });
+}
+
+export function trailMaterial(color) {
+    return new THREE.ShaderMaterial({
+        vertexShader:TRAIL_VERT,
+        fragmentShader:TRAIL_FRAG,
+        uniforms:fxUniforms({uColor:{value:pal(color).clone()}}),
+        transparent:true,
+        depthTest:false,
+        depthWrite:false,
+        side:THREE.DoubleSide
+    });
+}
+
+export function flashMaterial(atlas) {
+    const extra={
+        tAtlas:{value:atlas},
+        uFrame:{value:0},
+        uRot:{value:0},
+        uScale:{value:1},
+        uColor:{value:pal('ink').clone()}
+    };
+    return new THREE.ShaderMaterial({
+        vertexShader:FLASH_VERT,
+        fragmentShader:FLASH_FRAG,
+        uniforms:fxUniforms(extra),
+        depthTest:false,
+        depthWrite:false
+    });
+}
+
+export function lineMaterial(color) {
+    const extra={
+        uColor:{value:pal(color).clone()},
+        uLength:{value:1}
+    };
+    return new THREE.ShaderMaterial({
+        vertexShader:LINE_VERT,
+        fragmentShader:LINE_FRAG,
+        uniforms:fxUniforms(extra),
+        depthTest:false,
+        depthWrite:false
+    });
+}
+
+export function decalMaterial(atlas) {
+    return new THREE.ShaderMaterial({
+        vertexShader:DECAL_VERT,
+        fragmentShader:DECAL_FRAG,
+        uniforms:{
+            tSplat:{value:atlas},
+            tNoise:shared.tNoise,
+            uFar:shared.uFar,
+            uVariant:{value:0},
+            uAge:{value:0},
+            uSeed:{value:0},
+            uColor:{value:pal('red').clone()},
+            uColorOld:{value:pal('darkRed').clone()}
+        },
+        polygonOffset:true,
+        polygonOffsetFactor:-3,
+        polygonOffsetUnits:-3
+    });
 }

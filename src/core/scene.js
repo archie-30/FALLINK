@@ -9,5 +9,7 @@ export function createScene() {
     const fx=new THREE.Group();
     fx.name='fx';
     scene.add(world,actors,fx);
-    return {scene,world,actors,fx};
+    const fxScene=new THREE.Scene();
+    fxScene.matrixWorldAutoUpdate=true;
+    return {scene,world,actors,fx,fxScene};
 }
