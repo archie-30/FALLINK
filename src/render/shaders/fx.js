@@ -267,3 +267,71 @@ void main() {
     gl_FragColor=vec4(uColor,uAlpha);
 }
 `;
+
+export const TRAP_FRAG=`
+${OCCLUDE}
+uniform vec3 uColor;
+uniform float uProgress;
+uniform float uAlpha;
+uniform sampler2D tNoise;
+uniform float uBoilSeed;
+varying vec2 vUv;
+varying float vDepth;
+varying vec3 vWorldPos;
+void main() {
+    if (occluded(vDepth)) {
+        discard;
+    }
+    vec2 c=vUv*2.0-1.0;
+    float r=length(c);
+    if (r>1.0) {
+        discard;
+    }
+    float a=atan(c.y,c.x)/6.2831853+0.5;
+    float n=(texture2D(tNoise,vec2(a*2.0,uBoilSeed*0.3)).r-0.5)*0.06;
+    float ring=abs(r-0.92+n);
+    if (ring<0.04&&a<uProgress) {
+        gl_FragColor=vec4(uColor,uAlpha);
+        return;
+    }
+    float ring2=abs(r-0.8-n*0.5);
+    if (ring2<0.012&&a<uProgress*0.9&&fract(a*40.0)<0.5) {
+        gl_FragColor=vec4(uColor,uAlpha*0.8);
+        return;
+    }
+    float h=fract((vWorldPos.x+vWorldPos.z)*1.6+n*2.0);
+    if (r<0.78&&h<0.14&&a<uProgress) {
+        gl_FragColor=vec4(uColor,uAlpha*0.45);
+        return;
+    }
+    discard;
+}
+`;
+
+export const INK_FRAG=`
+${OCCLUDE}
+uniform vec3 uColor;
+uniform float uAlpha;
+uniform float uLength;
+uniform sampler2D tNoise;
+uniform float uBoilSeed;
+varying vec2 vUv;
+varying float vDepth;
+varying vec3 vWorldPos;
+void main() {
+    if (occluded(vDepth)) {
+        discard;
+    }
+    float across=abs(vUv.y*2.0-1.0);
+    float n=texture2D(tNoise,vec2(vUv.x*uLength*0.3,uBoilSeed*0.21)).r;
+    float w=0.55+n*0.45;
+    if (across>w) {
+        discard;
+    }
+    float g=texture2D(tNoise,vWorldPos.xz*1.3).b;
+    if (g<1.0-uAlpha*0.9) {
+        discard;
+    }
+    gl_FragColor=vec4(uColor,0.92);
+}
+`;

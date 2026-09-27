@@ -233,7 +233,25 @@ export const TUNING={
         executeStop:150,
         executeShake:0.8,
         missRadius:1.6,
-        missDamage:40
+        missDamage:40,
+        eraserSweep:0.28,
+        shieldRadius:1.05,
+        shieldSpin:2.4,
+        dashSpeed:26,
+        dashTime:0.24,
+        timeStopFade:0.18,
+        cloneFire:0.22,
+        cloneRange:14,
+        redrawTime:0.7
+    },
+    terrain:{
+        wallThickness:0.4,
+        wallHeight:1.4,
+        growTime:0.6,
+        maxWalls:4,
+        pathStep:0.3,
+        minPath:1.0,
+        eraseTime:0.8
     },
     hud:{
         hpPos:[24,22],

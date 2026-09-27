@@ -32,6 +32,8 @@ export class BulletSystem {
         this.age=new Uint16Array(cap);
         this.hist=new Float32Array(cap*K*2);
         this.pierce=!!o.pierce;
+        this.owner=o.owner||'player';
+        this.frozen=0;
         this.homing=o.homing||0;
         this.hits=new Int32Array(cap*6);
         this.hitN=new Uint8Array(cap);
@@ -159,12 +161,36 @@ export class BulletSystem {
         this.vz[i]=Math.sin(a)*sp;
     }
 
+    killWhere(fn,onKill) {
+        for (let i=this.n-1;i>=0;i--) {
+            if (fn(this.x[i],this.z[i])) {
+                if (onKill) {
+                    onKill(this.x[i],this.z[i]);
+                }
+                this.kill(i);
+            }
+        }
+    }
+
     update(dt,room) {
         const K=this.K;
         const cols=room.colliders;
         const b=room.bounds;
         const r=this.radius;
+        const frozen=this.frozen>0;
+        if (frozen) {
+            this.frozen-=dt;
+        }
+        const own=this.owner==='player';
         for (let i=this.n-1;i>=0;i--) {
+            if (frozen) {
+                this.ox[i]=this.x[i];
+                this.oz[i]=this.z[i];
+                if (this.onHit&&this.onHit(this.x[i],this.z[i],r,this.dmg[i],this.vx[i],this.vz[i],this,i)) {
+                    this.kill(i);
+                }
+                continue;
+            }
             const h=i*K*2;
             this.hist.copyWithin(h+2,h,h+K*2-2);
             this.hist[h]=this.x[i];
@@ -186,16 +212,20 @@ export class BulletSystem {
                 this.kill(i);
                 continue;
             }
-            let wall=false;
+            let wall=null;
             for (let c=0;c<cols.length;c++) {
-                if (circleVs(x,z,r,cols[c],hit)) {
-                    wall=true;
+                const col=cols[c];
+                if (own&&col.passPlayer) {
+                    continue;
+                }
+                if (circleVs(x,z,r,col,hit)) {
+                    wall=col;
                     break;
                 }
             }
             if (wall) {
                 if (this.onWall) {
-                    this.onWall(x-this.vx[i]*dt*0.5,z-this.vz[i]*dt*0.5,this.vx[i],this.vz[i]);
+                    this.onWall(x-this.vx[i]*dt*0.5,z-this.vz[i]*dt*0.5,this.vx[i],this.vz[i],wall);
                 }
                 this.kill(i);
                 continue;

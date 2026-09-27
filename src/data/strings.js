@@ -84,7 +84,29 @@ export const STRINGS={
     'card.rapid.name':'連射',
     'card.rapid.desc':'{duration} 秒內射速提升為 {mult} 倍。',
     'card.execute.name':'紅墨處決',
-    'card.execute.desc':'對目標附近最近的敵人造成 {damage} 點毀滅性傷害。'
+    'card.execute.desc':'對目標附近最近的敵人造成 {damage} 點毀滅性傷害。',
+    'card.pencilWall.name':'鉛筆牆',
+    'card.pencilWall.desc':'在地上畫出最長 {length} 的路徑，長出一道擋住敵彈的牆（耐久 {hp}）。',
+    'card.eraser.name':'橡皮擦',
+    'card.eraser.desc':'朝指定方向揮動橡皮擦，擦掉扇形範圍內所有敵彈。',
+    'card.eraseCover.name':'擦除掩體',
+    'card.eraseCover.desc':'擦掉目標附近 {radius} 內的一塊掩體或牆。',
+    'card.trap.name':'陷阱圈',
+    'card.trap.desc':'在地上畫一個圈，{duration} 秒內圈中敵人減速 {pct}%。',
+    'card.paperShield.name':'紙盾',
+    'card.paperShield.desc':'召喚 {hits} 片環繞的紙盾，每片可抵擋一次攻擊。',
+    'card.inkDash.name':'閃避墨跡',
+    'card.inkDash.desc':'朝指定方向衝刺，留下墨跡，{duration} 秒內每秒造成 {dps} 傷害。',
+    'card.timeStop.name':'時停',
+    'card.timeStop.desc':'凍結所有敵彈 {duration} 秒，世界翻轉為負片。',
+    'card.clone.name':'分身',
+    'card.clone.desc':'在目標位置畫出一個分身，{duration} 秒內自動射擊（每發 {damage}）。',
+    'card.redraw.name':'重畫',
+    'card.redraw.desc':'重新繪製整個房間：清除所有敵彈並獲得 {ink} 墨水。',
+    'legend.draw.key':'拖曳鉛筆牆',
+    'legend.draw':'在地上畫出牆的路徑',
+    'legend.touch.draw.key':'拖曳鉛筆牆',
+    'legend.touch.draw':'在地上畫出牆的路徑'
 };
 
 export function t(key,params) {

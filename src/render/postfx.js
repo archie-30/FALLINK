@@ -57,6 +57,7 @@ export class PostFX {
             uFlashColor:{value:pal('paper').clone()}
         };
         this.invertFrames=0;
+        this.invertHold={value:0};
         this.flashTween=null;
         this.transparent=new THREE.Color(0,0,0);
         this.material=new THREE.ShaderMaterial({
@@ -121,7 +122,7 @@ export class PostFX {
         r.clear(true,false,false);
         r.render(fxScene,camera);
         r.setRenderTarget(null);
-        this.uniforms.uInvert.value=this.invertFrames>0?1:0;
+        this.uniforms.uInvert.value=Math.max(this.invertFrames>0?1:0,this.invertHold.value);
         if (this.invertFrames>0) {
             this.invertFrames--;
         }
