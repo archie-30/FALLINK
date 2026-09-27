@@ -31,6 +31,11 @@ export class Shards {
         this.n=0;
     }
 
+    clear() {
+        this.n=0;
+        this.mesh.count=0;
+    }
+
     burst(x,y,z,count,dirX=0,dirZ=0,scale=1) {
         const S=TUNING.shards;
         for (let k=0;k<count;k++) {

@@ -294,6 +294,7 @@ void main() {
         gl_FragColor=vec4(uColor,uAlpha);
         return;
     }
+    #ifndef NO_FILL
     float ring2=abs(r-0.8-n*0.5);
     if (ring2<0.012&&a<uProgress*0.9&&fract(a*40.0)<0.5) {
         gl_FragColor=vec4(uColor,uAlpha*0.8);
@@ -304,6 +305,7 @@ void main() {
         gl_FragColor=vec4(uColor,uAlpha*0.45);
         return;
     }
+    #endif
     discard;
 }
 `;

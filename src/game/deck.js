@@ -15,6 +15,15 @@ export class Deck {
         this.events={onDraw:null,onReshuffleStart:null,onReshuffleEnd:null};
     }
 
+    reset(list) {
+        this.drawPile=this.shuffle(list.map(c=>createCard(c.id,c.upgraded)));
+        this.hand=[];
+        this.discardPile=[];
+        this.timers=[];
+        this.locked=false;
+        this.reshuffleT=0;
+    }
+
     shuffle(a) {
         for (let i=a.length-1;i>0;i--) {
             const j=Math.floor(this.rng.next()*(i+1));

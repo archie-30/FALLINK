@@ -63,6 +63,7 @@ export const TUNING={
         lookAhead:2.4,
         mouseLookFactor:0.22,
         boundsMargin:[6,-2,4],
+        bossBias:0.5,
         maxOffset:0.55,
         maxRoll:0.045,
         shakeFreq:22,
@@ -243,6 +244,9 @@ export const TUNING={
         cloneFire:0.22,
         cloneRange:14,
         redrawTime:0.7
+    },
+    run:{
+        bossHeal:4
     },
     terrain:{
         wallThickness:0.4,

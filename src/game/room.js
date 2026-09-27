@@ -1,39 +1,78 @@
-import {rng} from '../core/rng.js';
-
-export class Sandbox {
-    constructor(room,enemies) {
-        this.room=room;
+export class RoomDirector {
+    constructor(plan,enemies,room,rng) {
+        this.plan=plan;
         this.enemies=enemies;
-        this.timer=0.6;
+        this.room=room;
+        this.rng=rng;
+        this.wave=-1;
+        this.queue=[];
+        this.spawnT=0;
+        this.nextT=1.0;
+        this.cleared=false;
+        this.boss=null;
+        this.events=[];
     }
 
     pickPoint(player) {
         const pts=this.room.def.spawnPoints;
-        let best=pts[0];
-        let bestScore=-1;
-        for (let k=0;k<4;k++) {
-            const p=rng.pick(pts);
-            const d=Math.hypot(p[0]-player.pos.x,p[1]-player.pos.z);
-            if (d>bestScore) {
-                bestScore=d;
-                best=p;
-            }
-        }
-        return best;
+        const ok=pts.filter(p=>Math.hypot(p[0]-player.pos.x,p[1]-player.pos.z)>7);
+        const list=ok.length>0?ok:pts;
+        return list[Math.floor(this.rng.next()*list.length)];
+    }
+
+    totalWaves() {
+        return this.plan.waves.length;
     }
 
     update(dt,player) {
-        const def=this.room.def;
-        if (this.enemies.aliveCount()>=def.enemyCount) {
-            this.timer=def.respawnDelay;
-            return null;
+        this.events.length=0;
+        if (this.cleared) {
+            return;
         }
-        this.timer-=dt;
-        if (this.timer>0) {
-            return null;
+        if (this.queue.length>0) {
+            this.spawnT-=dt;
+            if (this.spawnT<=0) {
+                const s=this.queue.shift();
+                let x;
+                let z;
+                if (s.boss) {
+                    const b=this.room.def.bossSpawn||[0,-3];
+                    x=b[0];
+                    z=b[1];
+                }
+                else {
+                    const p=this.pickPoint(player);
+                    x=p[0]+this.rng.range(-0.8,0.8);
+                    z=p[1]+this.rng.range(-0.8,0.8);
+                }
+                const e=this.enemies.spawn(s.type,x,z,{hpMult:this.plan.hpMult*(s.boss?this.plan.bossHp:1)});
+                if (s.boss) {
+                    this.boss=e;
+                }
+                this.events.push(e);
+                this.spawnT=0.35;
+            }
+            return;
         }
-        this.timer=def.respawnDelay*0.5;
-        const p=this.pickPoint(player);
-        return this.enemies.spawn(rng.pick(def.enemyTypes),p[0],p[1]);
+        const alive=this.enemies.aliveCount();
+        if (this.boss&&!this.boss.alive) {
+            this.cleared=true;
+            return;
+        }
+        if (this.wave>=this.plan.waves.length-1) {
+            if (alive===0) {
+                this.cleared=true;
+            }
+            return;
+        }
+        if (alive<=1||this.wave<0) {
+            this.nextT-=dt;
+            if (this.nextT<=0) {
+                this.wave++;
+                this.queue=this.plan.waves[this.wave].slice();
+                this.spawnT=0;
+                this.nextT=1.2;
+            }
+        }
     }
 }

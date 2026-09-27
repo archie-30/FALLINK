@@ -111,6 +111,21 @@ export class Hand {
         this._g={x:0,y:0,z:0};
     }
 
+    reset() {
+        this.views.length=0;
+        this.flying.length=0;
+        this.stubs.length=0;
+        this.strokes.length=0;
+        this.ghosts.length=0;
+        this.hover=null;
+        this.press=null;
+        this.targetView=null;
+        this.path=null;
+        this.reshuffling=false;
+        this.lastDiscard=null;
+        this.api.preview.hide();
+    }
+
     resize(w,h) {
         this.width=w;
         this.height=h;

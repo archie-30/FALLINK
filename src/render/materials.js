@@ -71,7 +71,7 @@ export function toonMaterial(opts={}) {
     const jitter=opts.jitter??0;
     const shift=opts.shift??0;
     const grid=opts.grid||null;
-    const fxKey=(opts.reveal?'r':'')+(opts.dissolve?'d':'')+(opts.ghost?'g':'');
+    const fxKey=(opts.reveal?'r':'')+(opts.dissolve?'d':'')+(opts.ghost?'g':'')+(opts.yreveal?'y':'');
     const key='toon|'+light+'|'+mid+'|'+dark+'|'+jitter+'|'+shift+'|'+(grid?grid.join(','):'')+'|'+fxKey+'|'+(opts.side??0);
     if (!opts.unique&&cache.has(key)) {
         return cache.get(key);
@@ -110,6 +110,10 @@ export function toonMaterial(opts={}) {
         uniforms.uDissolve={value:0};
         uniforms.uSwipe={value:new THREE.Vector4(1,0,-1,1)};
         uniforms.uEdgeColor={value:pal('paper').clone()};
+    }
+    if (opts.yreveal) {
+        defines.USE_YREVEAL='';
+        uniforms.uRevealY={value:100};
     }
     if (opts.ghost) {
         defines.USE_GHOST='';
@@ -363,7 +367,7 @@ export function dissolveVariant(mat) {
     return toonMaterial({...o,dissolve:true,unique:true});
 }
 
-export function trapMaterial(color) {
+export function trapMaterial(color,noFill=false) {
     const extra={
         uColor:{value:pal(color).clone()},
         uProgress:{value:0},
@@ -373,6 +377,7 @@ export function trapMaterial(color) {
         vertexShader:LINE_VERT,
         fragmentShader:TRAP_FRAG,
         uniforms:fxUniforms(extra),
+        defines:noFill?{NO_FILL:''}:{},
         transparent:true,
         depthTest:false,
         depthWrite:false

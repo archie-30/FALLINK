@@ -31,7 +31,10 @@ import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
 import {EnemyManager} from './game/enemy.js';
-import {Sandbox} from './game/room.js';
+import {Run} from './game/run.js';
+import {RewardView} from './ui2d/reward.js';
+import {RunSummary} from './ui2d/menu.js';
+import {Transition} from './ui2d/transition.js';
 
 const QUALITY_ORDER=['low','mid','high'];
 
@@ -75,11 +78,10 @@ function boot() {
     };
     initMaterials(textures);
     const {scene,world,actors,fxScene}=createScene();
-    const room=buildRoom(LEVELS.test,world,fxScene);
+    const game={room:null};
     const player=new Player(actors);
-    player.spawn(room.spawn);
+    player.spawn(new THREE.Vector3(0,0,4));
     const rig=new CameraRig(1);
-    rig.setBounds(room.bounds);
     rig.follow(player.pos,0,0);
     rig.snap();
     fx.init(rig,renderer.post);
@@ -90,11 +92,19 @@ function boot() {
     const H=W.height;
     const particles=new Particles(fxScene,500);
     const muzzle=new MuzzleFlashes(fxScene);
-    const shards=new Shards(world,toonMaterial({...ENEMIES.doodle.tones.body,jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}));
+    const enemyShards=new Map();
+    function shardsFor(e) {
+        const key=e.type+'|'+e.def.shardTone;
+        let sh=enemyShards.get(key);
+        if (!sh) {
+            sh=new Shards(world,toonMaterial({...e.def.tones[e.def.shardTone],jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),e.def.boss?64:40);
+            enemyShards.set(key,sh);
+        }
+        return sh;
+    }
     const decals=new Decals(world);
     const terrainShards=new Shards(world,toonMaterial({light:'farGray',mid:'midGray',dark:'nearGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),48);
     const paperShards=new Shards(world,toonMaterial({light:'paper',mid:'farGray',dark:'midGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),24);
-    room.shards=terrainShards;
     const clones=[new Clone(fxScene),new Clone(fxScene)];
     const playerBullets=new BulletSystem(actors,fxScene,{color:'ink',...TUNING.bullet.player});
     const enemyBullets=new BulletSystem(actors,fxScene,{color:'red',owner:'enemy',...TUNING.bullet.enemy});
@@ -105,16 +115,22 @@ function boot() {
     const rings=new Rings(fxScene);
     const preview=new Preview(fxScene);
     const enemies=new EnemyManager(actors,fxScene);
-    const sandbox=new Sandbox(room,enemies);
-    const ctx={room,player,playerBullets,enemyBullets,muzzle,particles,enemies:[]};
+    const ctx={room:null,player,playerBullets,enemyBullets,muzzle,particles,fx,lobs,enemies:[]};
     const ink=new Ink();
     const seedParam=Number(new URLSearchParams(location.search).get('seed'));
     const deckParam=new URLSearchParams(location.search).get('deck');
-    const deck=new Deck(deckParam==='all'?ALL_CARDS:STARTING_DECK,seedParam||(Date.now()&0xffff));
+    const startIds=()=>deckParam==='all'?ALL_CARDS:STARTING_DECK;
+    const deck=new Deck(startIds(),seedParam||(Date.now()&0xffff));
     const art=new CardArt();
     const deckView=new DeckView();
     ctx.enemyMgr=enemies;
-    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room,clones,ink,scene:actors,fxScene},TUNING);
+    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene},TUNING);
+    ctx.onPuddle=(x,z,r,dur,slow)=>{
+        game.room.zones.addPuddle(x,z,r,dur,slow);
+        decals.spawn(x,z,r*3.2,'ink','nearGray');
+        particles.burst(x,0.3,z,12,{color:'ink',speed:[2,5],up:[2,5],size:[0.1,0.2]});
+        fx.cameraShake(0.2);
+    };
     const tmpV=new THREE.Vector3();
     const tmpG=new THREE.Vector3();
     function openDeck() {
@@ -147,7 +163,12 @@ function boot() {
         },
         mouseScreen:()=>input.lastDevice==='mouse'&&input.mouse.inside?input.mouse:null,
         execute:(card,target)=>effects.run(card,target),
-        openDeck
+        openDeck,
+        onPlayStart:()=>{
+            if (run.stats) {
+                run.stats.cards++;
+            }
+        }
     });
     deck.events.onDraw=c=>hand.onDraw(c);
     deck.events.onReshuffleStart=n=>hand.onReshuffleStart(n);
@@ -168,15 +189,19 @@ function boot() {
     };
     enemyBullets.onWall=(x,z,vx,vz,col)=>{
         if (col&&col.piece) {
-            room.damagePiece(col.piece,1);
+            game.room.damagePiece(col.piece,1);
         }
         particles.burst(x,H,z,PT.wallPuff,{color:'darkRed',speed:[1,3],up:[1,3],size:[0.07,0.13],life:[0.2,0.4],dirX:-vx,dirZ:-vz,cone:1.3});
     };
-    enemies.onHit=(e,x,z,dx,dz,dead,quiet)=>{
+    enemies.onHit=(e,x,z,dx,dz,dead,quiet,crit)=>{
         if (dead) {
             return;
         }
         ink.add(TUNING.ink.perHit);
+        if (crit) {
+            particles.burst(x,1.4,z,5,{color:'red',dirX:dx,dirZ:dz,cone:1.2,speed:[3,7],up:[2,5]});
+            fx.cameraShake(0.12);
+        }
         if (quiet) {
             particles.burst(x,0.8,z,2,{color:'ink',speed:[1,3],up:[1,3]});
             return;
@@ -195,7 +220,29 @@ function boot() {
         fx.cameraShake(F.shakeKill);
         fx.fovPunch(F.fovKill);
         fx.flash('paper',F.killFlash*3,0.35);
-        shards.burst(x,0.9,z,Math.round(e.def.shards[0]+Math.random()*(e.def.shards[1]-e.def.shards[0])),dx,dz,e.def.scale);
+        if (run.stats) {
+            run.stats.kills++;
+        }
+        const sh=shardsFor(e);
+        const n=Math.round(e.def.shards[0]+Math.random()*(e.def.shards[1]-e.def.shards[0]));
+        if (e.def.boss) {
+            for (let i=0;i<4;i++) {
+                sh.burst(x+Math.cos(i*1.57)*1.2,1.5+i*0.8,z+Math.sin(i*1.57)*1.2,Math.ceil(n/4),dx,dz,2.2);
+                if (i%2===0) {
+                    decals.spawn(x+Math.cos(i*1.57+0.7)*2.0,z+Math.sin(i*1.57+0.7)*2.0,2.6);
+                }
+            }
+            fx.slowMo(0.3,1.0);
+            fx.invertFrame(4);
+            fx.cameraShake(1.0);
+            enemyBullets.killWhere(()=>true,null);
+            for (const o of enemies.list.slice()) {
+                enemies.damage(o,99999,0,0,true);
+            }
+        }
+        else {
+            sh.burst(x,0.9,z,n,dx,dz,e.def.scale);
+        }
         decals.spawn(x+dx*0.6,z+dz*0.6,D.size[0]+Math.random()*(D.size[1]-D.size[0]));
         particles.burst(x,1.0,z,PT.inkKill,{color:'ink',speed:[2,8],up:[2,7],size:[0.1,0.22]});
         particles.burst(x,1.0,z,PT.redKill,{color:'red',dirX:dx,dirZ:dz,cone:0.8,speed:[4,10],up:[1,5],size:[0.08,0.18]});
@@ -214,6 +261,9 @@ function boot() {
         fx.cameraShake(F.shakeHurt);
         fx.fovPunch(F.fovHurt);
         bleed=Math.min(1,bleed+DF.bleed);
+        if (run.stats) {
+            run.stats.damage++;
+        }
         particles.burst(p.pos.x,1.0,p.pos.z,PT.redHurt,{color:'red',speed:[2,6],up:[2,6],size:[0.08,0.16]});
     };
     player.events.onShield=(p,idx,dx,dz)=>{
@@ -222,26 +272,121 @@ function boot() {
         paperShards.burst(p.pos.x-dx*0.8,1.0,p.pos.z-dz*0.8,4,-dx,-dz,0.8);
         particles.burst(p.pos.x,1.0,p.pos.z,6,{color:'farGray',speed:[2,5],up:[2,4]});
     };
-    room.onBreak=piece=>{
+    const onBreak=piece=>{
         fx.cameraShake(0.2);
         particles.burst(piece.x,0.8,piece.z,10,{color:'midGray',speed:[2,5],up:[2,5]});
     };
-    player.events.onDown=p=>{
-        fx.invertFrame(8);
-        fx.flash('paper',0.6,0.7);
-        const revive=()=>{
-            p.hp=TUNING.player.maxHp;
-            p.invuln=TUNING.player.respawnInvuln;
-            enemyBullets.clear();
-        };
-        tweens.to({},{},{duration:0.3,unscaled:true,onComplete:revive});
-    };
+    player.events.onDown=()=>run.playerDown();
+    const reward=new RewardView();
+    const summary=new RunSummary();
+    const transition=new Transition();
+    function allShards() {
+        return [...enemyShards.values(),terrainShards,paperShards];
+    }
+    function clearWorld() {
+        enemies.clear();
+        playerBullets.clear();
+        enemyBullets.clear();
+        pierceBullets.clear();
+        homingBullets.clear();
+        lobs.clear();
+        particles.clear();
+        for (const sh of allShards()) {
+            sh.clear();
+        }
+        decals.clear();
+        for (const c of clones) {
+            c.stop();
+        }
+        effects.sweeps.length=0;
+        effects.eraserMesh.visible=false;
+        effects.redrawLine.visible=false;
+        preview.hide();
+        renderer.post.invertHold.value=0;
+    }
+    function enterRoom(plan,deckList) {
+        clearWorld();
+        if (game.room) {
+            game.room.destroy();
+        }
+        const r=buildRoom(plan.layout,world,fxScene);
+        r.shards=terrainShards;
+        r.onBreak=onBreak;
+        game.room=r;
+        ctx.room=r;
+        effects.g.room=r;
+        enemies.hpMult=plan.hpMult;
+        enemies.act=plan.act;
+        player.enterRoom(r.spawn);
+        rig.setBounds(r.bounds);
+        look.x=0;
+        look.z=0;
+        rig.follow(player.pos,0,0);
+        rig.snap();
+        hand.reset();
+        deck.reset(deckList);
+        deck.start();
+        fx.paused=false;
+        return r;
+    }
+    const run=new Run({
+        enemies,
+        enterRoom,
+        banner:(kind,rn)=>{
+            const p=rn.plan;
+            if (kind==='boss') {
+                overlay.hud.banner(t('run.bossTitle',{name:t('enemy.inkBottle')}),t('run.bossSub',{act:p.act+1}),2.6);
+            }
+            else {
+                overlay.hud.banner(t('run.roomTitle',{act:p.act+1,page:p.index+1}),t('run.roomSub'),2.0);
+            }
+        },
+        onSpawn:e=>{
+            particles.burst(e.pos.x,0.4,e.pos.z,e.def.boss?30:PT.spawnPuff,{color:'midGray',speed:[1,4],up:[1,4],size:[0.1,0.2],life:[0.3,0.6]});
+        },
+        onCleared:plan=>{
+            enemyBullets.killWhere(()=>true,(x,z)=>particles.burst(x,1.0,z,1,{color:'farGray',speed:[0.5,2],up:[1,2]}));
+            fx.slowMo(0.4,0.6);
+            if (plan.boss) {
+                const heal=TUNING.run.bossHeal;
+                player.hp=Math.min(TUNING.player.maxHp,player.hp+heal);
+                overlay.hud.banner(t('run.cleared'),t('run.healed',{hp:heal}),1.6);
+            }
+            else {
+                overlay.hud.banner(t('run.cleared'),'',1.3);
+            }
+        },
+        openReward:(cards,cb)=>{
+            fx.paused=true;
+            hand.cancelTargeting();
+            art.warm(cards);
+            const d=hand.drawRect;
+            reward.show(cards,run.plan.boss?t('reward.bossTitle'):t('reward.title'),cb,{x:d.x+d.w/2,y:d.y+d.h/2});
+        },
+        transition:mid=>transition.run(mid),
+        onDeath:()=>{
+            fx.slowMo(0.25,1.4);
+            fx.invertFrame(10);
+            fx.flash('paper',0.5,0.5);
+            fx.cameraShake(0.8);
+        },
+        showSummary:(victory,stats)=>{
+            fx.paused=true;
+            hand.cancelTargeting();
+            summary.show(victory,stats,()=>{
+                player.hp=TUNING.player.maxHp;
+                ink.value=TUNING.ink.start;
+                run.start(startIds());
+            });
+        }
+    },seedParam||(Date.now()&0xffff));
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
     ink.events.onFail=()=>overlay.hud.inkFail();
     const aim={mode:'none',point:new THREE.Vector3(),dx:0,dz:-1,sx:0,sy:0};
     const look={x:0,z:0};
+    const bias={x:0,z:0};
     function applyQuality() {
         const q=qualityConfig();
         textures.hatch.anisotropy=Math.min(q.anisotropy,renderer.gl.capabilities.getMaxAnisotropy());
@@ -260,6 +405,8 @@ function boot() {
         input.resize(w,h);
         hand.resize(w,h);
         deckView.resize(w,h);
+        reward.resize(w,h);
+        summary.resize(w,h);
         art.setScale(overlay.dpr*hand.s*1.2);
         rig.setAspect(w/h);
     }
@@ -277,6 +424,15 @@ function boot() {
     input.onToggleLegend=()=>overlay.hud.toggleLegend();
     input.ui={
         down:(x,y,id,type,button)=>{
+            if (summary.open) {
+                return summary.down(x,y);
+            }
+            if (reward.open) {
+                return reward.down(x,y);
+            }
+            if (transition.active) {
+                return true;
+            }
             if (deckView.open) {
                 closeDeck();
                 return true;
@@ -289,15 +445,21 @@ function boot() {
         },
         move:(x,y,id,type)=>hand.move(x,y,id,type),
         up:(x,y,id,type,button)=>hand.up(x,y,id,type,button),
-        hover:(x,y)=>hand.hoverAt(x,y),
+        hover:(x,y)=>{
+            reward.hoverAt(x,y);
+            hand.hoverAt(x,y);
+        },
         leave:()=>hand.leave()
     };
     input.onCardKey=i=>{
-        if (!deckView.open) {
+        if (!deckView.open&&!reward.open&&!summary.open&&run.state==='combat') {
             hand.keyPlay(i);
         }
     };
     input.onDeckKey=()=>{
+        if (reward.open||summary.open) {
+            return;
+        }
         if (deckView.open) {
             closeDeck();
         }
@@ -327,10 +489,13 @@ function boot() {
     resize();
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
-    const gameUi={ink,hand,art,deckView,deck};
+    const gameUi={ink,hand,art,deckView,deck,run,enemies,reward,summary,transition,dt:0};
     function update(dt) {
-        player.update(dt,input,ctx,aim);
+        if (run.state!=='dead') {
+            player.update(dt,input,ctx,aim);
+        }
         enemies.update(dt,ctx);
+        const room=game.room;
         playerBullets.update(dt,room);
         enemyBullets.update(dt,room);
         pierceBullets.update(dt,room);
@@ -342,15 +507,12 @@ function boot() {
         for (const c of clones) {
             c.update(dt,ctx);
         }
-        terrainShards.update(dt);
-        paperShards.update(dt);
-        particles.update(dt);
-        shards.update(dt);
-        decals.update(dt);
-        const e=sandbox.update(dt,player);
-        if (e) {
-            particles.burst(e.pos.x,0.4,e.pos.z,PT.spawnPuff,{color:'midGray',speed:[1,4],up:[1,4],size:[0.1,0.2],life:[0.3,0.6]});
+        for (const sh of allShards()) {
+            sh.update(dt);
         }
+        particles.update(dt);
+        decals.update(dt);
+        run.update(dt,player);
     }
     function updateDamageFx(dt) {
         bleed=Math.max(0,bleed-DF.bleedDecay*dt);
@@ -382,9 +544,13 @@ function boot() {
         preview.update(dt);
         hand.update(dt);
         deckView.update(dt);
-        shards.render();
-        terrainShards.render();
-        paperShards.render();
+        for (const sh of allShards()) {
+            sh.render();
+        }
+        reward.update(dt);
+        summary.update(dt);
+        transition.update(dt);
+        gameUi.dt=dt;
         for (const c of clones) {
             c.sync(alpha);
         }
@@ -417,7 +583,16 @@ function boot() {
         const k=1-Math.exp(-5*dt);
         look.x+=(lx-look.x)*k;
         look.z+=(lz-look.z)*k;
-        rig.follow(player.renderPos,look.x,look.z);
+        const bossE=enemies.boss();
+        let bx=0;
+        let bz=0;
+        if (bossE) {
+            bx=(bossE.renderPos.x-player.renderPos.x)*TUNING.camera.bossBias;
+            bz=(bossE.renderPos.z-player.renderPos.z)*TUNING.camera.bossBias;
+        }
+        bias.x+=(bx-bias.x)*(1-Math.exp(-3*dt));
+        bias.z+=(bz-bias.z)*(1-Math.exp(-3*dt));
+        rig.follow(player.renderPos,look.x+bias.x,look.z+bias.z);
         rig.update(dt);
         input.getAim(aim);
         if (aim.mode==='point') {
@@ -438,8 +613,8 @@ function boot() {
     const loop=createLoop(update,render);
     loop.start();
     art.warm(deck.drawPile);
-    deck.start();
-    window.INKFALL={hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,room,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    run.start(startIds());
+    window.INKFALL={hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,summary,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

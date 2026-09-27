@@ -203,6 +203,18 @@ export class Player {
         }
     }
 
+    enterRoom(p) {
+        this.pos.copy(p);
+        this.prev.copy(p);
+        this.renderPos.copy(p);
+        this.vel.set(0,0,0);
+        this.root.position.copy(p);
+        this.dashT=0;
+        this.rapidT=0;
+        this.invuln=1.0;
+        this.setShield(0);
+    }
+
     spawn(p) {
         this.pos.copy(p);
         this.prev.copy(p);
@@ -353,8 +365,9 @@ export class Player {
             this.dashT-=dt;
         }
         else {
-            const tx=_mv.x*P.speed;
-            const tz=_mv.z*P.speed;
+            const slow=room.zones.playerSlowAt(this.pos.x,this.pos.z);
+            const tx=_mv.x*P.speed*slow;
+            const tz=_mv.z*P.speed*slow;
             const rate=(moveLen>0.05?P.accel:P.friction)*dt;
             const ex=tx-this.vel.x;
             const ez=tz-this.vel.z;
@@ -488,6 +501,11 @@ export class Clone {
         for (const m of f.ghostMats) {
             m.uniforms.uAlpha.value=0.75;
         }
+    }
+
+    stop() {
+        this.active=false;
+        this.fig.root.visible=false;
     }
 
     update(dt,ctx) {

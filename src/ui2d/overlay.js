@@ -61,7 +61,12 @@ export class Overlay {
             this.drawDash(input,player);
         }
         if (game) {
+            this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
+            this.hud.drawBanner(ctx,this.width,this.height,game.dt);
             game.deckView.draw(ctx,game.art,game.deck);
+            game.reward.draw(ctx,game.art);
+            game.summary.draw(ctx);
+            game.transition.draw(ctx,this.width,this.height);
         }
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             this.drawCrosshair(input.mouse.x,input.mouse.y,input.mouse.down);
