@@ -30,6 +30,9 @@ uniform vec3 uRed;
 uniform vec3 uDarkRed;
 uniform float uFlash;
 uniform vec3 uFlashColor;
+uniform float uDrawIn;
+uniform vec3 uPaperCol;
+uniform vec2 uDeath;
 varying vec2 vUv;
 float edgeAt(vec2 uv,vec2 px) {
     vec4 a=texture2D(tGBuf,uv+vec2(-px.x,px.y));
@@ -59,8 +62,21 @@ void main() {
     float grain=texture2D(tPaper,gl_FragCoord.xy/(uGrain.y*uPx)).r;
     edge*=mix(1.0,uLine.z,fade)*(0.55+0.45*grain);
     vec3 col=texture2D(tColor,uv).rgb;
+    float fillMask=1.0;
+    if (uDrawIn<1.0) {
+        float sw=uv.x*0.65+(1.0-uv.y)*0.35+(texture2D(tNoise,uv*2.3).r-0.5)*0.16;
+        float lk=uDrawIn*1.75-0.1;
+        float fk=uDrawIn*1.75-0.65;
+        edge*=smoothstep(sw,sw+0.03,lk);
+        float fo=smoothstep(sw,sw+0.18,fk);
+        float dth=texture2D(tNoise,gl_FragCoord.xy*0.021).b;
+        fillMask=step(1.0-fo,dth+fo*0.3);
+        col=mix(uPaperCol,col,fillMask);
+        float tip=smoothstep(0.012,0.0,abs(sw-lk))*step(0.0,lk);
+        edge=max(edge,tip*0.6*step(0.5,texture2D(tNoise,gl_FragCoord.xy*0.08).b));
+    }
     col=mix(col,uInk,clamp(edge,0.0,1.0));
-    vec4 fxc=texture2D(tFx,uv);
+    vec4 fxc=texture2D(tFx,uv)*fillMask;
     col=col*(1.0-fxc.a)+fxc.rgb;
     #ifdef USE_RULES
     float sp=uRule.x*uPx;
@@ -88,6 +104,13 @@ void main() {
     float sat=max(col.r,max(col.g,col.b))-min(col.r,min(col.g,col.b));
     vec3 inv=mix(1.0-col,col,smoothstep(0.12,0.3,sat));
     col=mix(col,inv,uInvert);
+    if (uDeath.x>0.0) {
+        float red=smoothstep(0.12,0.3,sat);
+        col=mix(col,mix(uInk,col,red),uDeath.x);
+        float lum=dot(col,vec3(0.299,0.587,0.114));
+        vec3 gray=mix(uInk,uPaperCol,0.55)+vec3(lum*0.08);
+        col=mix(col,gray,uDeath.y);
+    }
     col=mix(col,uFlashColor,uFlash);
     gl_FragColor=vec4(col,1.0);
 }

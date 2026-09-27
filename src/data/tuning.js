@@ -248,6 +248,10 @@ export const TUNING={
     run:{
         bossHeal:4
     },
+    transition:{
+        drawIn:1.2,
+        drawInDelay:0.35
+    },
     terrain:{
         wallThickness:0.4,
         wallHeight:1.4,
@@ -264,7 +268,7 @@ export const TUNING={
         legendPad:14
     },
     quality:{
-        low:{pixelRatio:1.0,grain:false,rules:true,hatchedShadow:false,anisotropy:1,particles:120},
+        low:{pixelRatio:1.0,grain:false,rules:true,hatchedShadow:false,anisotropy:1,particles:120,hulls:false},
         mid:{pixelRatio:1.25,grain:true,rules:true,hatchedShadow:true,anisotropy:2,particles:250},
         high:{pixelRatio:2.0,grain:true,rules:true,hatchedShadow:true,anisotropy:4,particles:500}
     },

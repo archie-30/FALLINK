@@ -1,7 +1,7 @@
 import*as THREE from 'three';
 import {TUNING} from '../data/tuning.js';
 import {ENEMIES} from '../data/enemies.js';
-import {toonMaterial,hullMaterial,unlitMaterial,lineMaterial,trapMaterial,registerShadow,pal} from '../render/materials.js';
+import {toonMaterial,hullMaterial,unlitMaterial,lineMaterial,trapMaterial,registerShadow,pal,renderFlags} from '../render/materials.js';
 import {resolveCircle,clampToBounds,circleVs} from '../core/collision.js';
 import {EASE} from '../core/easing.js';
 import {RNG} from '../core/rng.js';
@@ -328,8 +328,9 @@ export class Enemy {
             m.uniforms.uRevealY.value=ry;
         }
         this.hull.uniforms.uColor.value.copy(pal(fl?'paper':'ink'));
-        if (this.hullShown!==!spawning) {
-            this.hullShown=!spawning;
+        const hs=!spawning&&renderFlags.hulls;
+        if (this.hullShown!==hs) {
+            this.hullShown=hs;
             for (const h of this.hulls) {
                 h.visible=this.hullShown;
             }

@@ -25,6 +25,7 @@ export class Input {
         this.onCardKey=null;
         this.onDeckKey=null;
         this.onEscape=null;
+        this.onPauseKey=null;
         this.ui=null;
         this.uiPointers=new Set();
         this.bind();
@@ -103,6 +104,12 @@ export class Input {
         if (dm&&!e.repeat) {
             if (this.onCardKey) {
                 this.onCardKey(Number(dm[1])-1);
+            }
+            return;
+        }
+        if (e.code==='KeyP'&&!e.repeat) {
+            if (this.onPauseKey) {
+                this.onPauseKey();
             }
             return;
         }

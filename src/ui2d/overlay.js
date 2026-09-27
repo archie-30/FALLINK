@@ -1,7 +1,7 @@
 import {PALETTE,rgba} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
-import {device} from '../core/settings.js';
+import {device,settings} from '../core/settings.js';
 import {time} from '../core/loop.js';
 import {hash1} from '../core/rng.js';
 import {Hud} from './hud.js';
@@ -23,7 +23,8 @@ export class Overlay {
     resize(w,h) {
         this.width=w;
         this.height=h;
-        this.dpr=Math.min(window.devicePixelRatio||1,2);
+        const cap=device.mobile?(settings.quality==='high'?2:1.5):2;
+        this.dpr=Math.min(window.devicePixelRatio||1,cap);
         this.canvas.width=Math.floor(w*this.dpr);
         this.canvas.height=Math.floor(h*this.dpr);
     }
@@ -47,27 +48,32 @@ export class Overlay {
         ctx.lineCap='round';
         ctx.lineJoin='round';
         const touchUi=device.mobile||input.lastDevice==='touch';
-        this.hud.drawHp(ctx,player);
-        if (game) {
+        game.transition.draw(ctx,this.width,this.height);
+        const dying=game.run.state==='dead';
+        if (game.mode==='play'&&dying) {
+            game.summary.draw(ctx);
+        }
+        if (game.mode==='play'&&!dying) {
+            this.hud.drawHp(ctx,player);
             this.hud.drawInk(ctx,game.ink);
             this.hud.drawBuffs(ctx,player);
-        }
-        this.hud.drawLegend(ctx,this.width,this.height,touchUi);
-        if (game) {
+            this.hud.drawLegend(ctx,this.width,this.height,touchUi);
             game.hand.draw(ctx,game.art);
-        }
-        if (touchUi) {
-            this.drawSticks(input);
-            this.drawDash(input,player);
-        }
-        if (game) {
+            if (touchUi) {
+                this.drawSticks(input);
+                this.drawDash(input,player);
+            }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
+            this.hud.drawPause(ctx,this.width);
             game.deckView.draw(ctx,game.art,game.deck);
             game.reward.draw(ctx,game.art);
             game.summary.draw(ctx);
-            game.transition.draw(ctx,this.width,this.height);
+            game.pause.draw(ctx);
         }
+        game.mainMenu.draw(ctx);
+        game.settingsMenu.draw(ctx);
+        game.codex.draw(ctx,game.art);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             this.drawCrosshair(input.mouse.x,input.mouse.y,input.mouse.down);
         }
@@ -151,13 +157,13 @@ export class Overlay {
         const h=lines.length*19+14;
         const x=this.width-w-10;
         ctx.fillStyle=rgba('paper',0.85);
-        ctx.fillRect(x,10,w,h);
+        ctx.fillRect(x,70,w,h);
         ctx.strokeStyle=PALETTE.ink;
         ctx.lineWidth=1.5;
-        ctx.strokeRect(x,10,w,h);
+        ctx.strokeRect(x,70,w,h);
         ctx.fillStyle=PALETTE.ink;
         for (let i=0;i<lines.length;i++) {
-            ctx.fillText(lines[i],x+10,18+i*19);
+            ctx.fillText(lines[i],x+10,78+i*19);
         }
     }
 }
