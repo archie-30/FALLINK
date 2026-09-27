@@ -22,7 +22,11 @@ export class Input {
         this.onCycleQuality=null;
         this.onFirstTouch=null;
         this.onToggleLegend=null;
-        this.uiTap=null;
+        this.onCardKey=null;
+        this.onDeckKey=null;
+        this.onEscape=null;
+        this.ui=null;
+        this.uiPointers=new Set();
         this.bind();
     }
 
@@ -35,6 +39,9 @@ export class Input {
         el.addEventListener('pointerleave',e=>{
             if (e.pointerType==='mouse') {
                 this.mouse.inside=false;
+                if (this.ui) {
+                    this.ui.leave();
+                }
             }
         });
         el.addEventListener('contextmenu',e=>e.preventDefault());
@@ -57,6 +64,7 @@ export class Input {
     clear() {
         this.keys.clear();
         this.mouse.down=false;
+        this.uiPointers.clear();
         this.releaseStick(this.move);
         this.releaseStick(this.aim);
         this.dash.id=-1;
@@ -75,6 +83,26 @@ export class Input {
             e.preventDefault();
             if (this.onCycleQuality) {
                 this.onCycleQuality();
+            }
+            return;
+        }
+        if (e.code==='Tab') {
+            e.preventDefault();
+            if (!e.repeat&&this.onDeckKey) {
+                this.onDeckKey();
+            }
+            return;
+        }
+        if (e.code==='Escape') {
+            if (this.onEscape) {
+                this.onEscape();
+            }
+            return;
+        }
+        const dm=/^Digit([1-4])$/.exec(e.code);
+        if (dm&&!e.repeat) {
+            if (this.onCardKey) {
+                this.onCardKey(Number(dm[1])-1);
             }
             return;
         }
@@ -106,6 +134,22 @@ export class Input {
         catch (err) {
         }
         if (e.pointerType==='mouse') {
+            this.mouse.x=x;
+            this.mouse.y=y;
+            this.mouse.inside=true;
+            this.lastDevice='mouse';
+        }
+        else if (this.lastDevice!=='touch'&&this.onFirstTouch) {
+            this.onFirstTouch();
+        }
+        if (this.ui&&this.ui.down(x,y,e.pointerId,e.pointerType,e.button)) {
+            this.uiPointers.add(e.pointerId);
+            if (e.pointerType!=='mouse') {
+                this.lastDevice='touch';
+            }
+            return;
+        }
+        if (e.pointerType==='mouse') {
             this.lastDevice='mouse';
             this.mouse.x=x;
             this.mouse.y=y;
@@ -118,9 +162,6 @@ export class Input {
             }
             return;
         }
-        if (this.lastDevice!=='touch'&&this.onFirstTouch) {
-            this.onFirstTouch();
-        }
         this.lastDevice='touch';
         this.touches.set(e.pointerId,{x,y,t:performance.now()});
         if (this.touches.size>=3&&this.multiTapArmed) {
@@ -128,9 +169,6 @@ export class Input {
             if (this.onToggleDebug) {
                 this.onToggleDebug();
             }
-        }
-        if (this.uiTap&&this.uiTap(x,y)) {
-            return;
         }
         const d=this.dash;
         if (d.id<0&&Math.hypot(x-d.x,y-d.y)<=d.r*1.25) {
@@ -151,6 +189,17 @@ export class Input {
 
     pointerMove(e) {
         const [x,y]=this.local(e);
+        if (this.uiPointers.has(e.pointerId)) {
+            if (e.pointerType==='mouse') {
+                this.mouse.x=x;
+                this.mouse.y=y;
+            }
+            this.ui.move(x,y,e.pointerId,e.pointerType);
+            return;
+        }
+        if (e.pointerType==='mouse'&&this.ui) {
+            this.ui.hover(x,y);
+        }
         if (e.pointerType==='mouse') {
             if (this.lastDevice!=='mouse'&&Math.hypot(x-this.mouse.x,y-this.mouse.y)<2) {
                 return;
@@ -175,6 +224,12 @@ export class Input {
     }
 
     pointerUp(e) {
+        if (this.uiPointers.has(e.pointerId)) {
+            this.uiPointers.delete(e.pointerId);
+            const [x,y]=this.local(e);
+            this.ui.up(x,y,e.pointerId,e.pointerType,e.button);
+            return;
+        }
         if (e.pointerType==='mouse') {
             if (e.button===0||e.type==='pointercancel') {
                 this.mouse.down=false;

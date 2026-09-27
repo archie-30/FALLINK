@@ -8,6 +8,7 @@ import {RNG} from '../core/rng.js';
 import {time} from '../core/loop.js';
 
 const rng=new RNG(1234);
+let uidCounter=0;
 
 function capsule(r,len) {
     return new THREE.CapsuleGeometry(r,len,3,8);
@@ -125,6 +126,7 @@ export class Enemy {
         this.renderPos.copy(this.pos);
         this.vel.set(0,0,0);
         this.hp=d.hp;
+        this.uid=++uidCounter;
         this.alive=true;
         this.state='spawn';
         this.t=0;
@@ -375,9 +377,63 @@ export class EnemyManager {
         }
     }
 
-    hitBullet(x,z,r,dmg,vx,vz) {
+    nearest(x,z,range) {
+        let best=null;
+        let bd=range*range;
         for (const e of this.list) {
             if (e.state==='spawn') {
+                continue;
+            }
+            const dx=e.pos.x-x;
+            const dz=e.pos.z-z;
+            const d=dx*dx+dz*dz;
+            if (d<bd) {
+                bd=d;
+                best=e;
+            }
+        }
+        return best;
+    }
+
+    damage(e,dmg,dx,dz) {
+        if (!e.alive) {
+            return false;
+        }
+        const dead=e.hurt(dmg,dx,dz);
+        if (this.onHit) {
+            this.onHit(e,e.pos.x,e.pos.z,dx,dz,dead);
+        }
+        if (dead) {
+            this.kill(e,dx,dz);
+        }
+        return dead;
+    }
+
+    damageRadius(x,z,r,dmg) {
+        const hit=[];
+        for (const e of this.list) {
+            if (e.state==='spawn') {
+                continue;
+            }
+            const d=Math.hypot(e.pos.x-x,e.pos.z-z);
+            if (d<=r+e.def.radius) {
+                hit.push([e,d]);
+            }
+        }
+        for (const [e,d] of hit) {
+            const l=d||1;
+            const f=1-Math.min(1,d/(r+e.def.radius))*0.5;
+            this.damage(e,dmg*f,(e.pos.x-x)/l,(e.pos.z-z)/l);
+        }
+        return hit.length;
+    }
+
+    hitBullet(x,z,r,dmg,vx,vz,sys,bi) {
+        for (const e of this.list) {
+            if (e.state==='spawn') {
+                continue;
+            }
+            if (sys&&sys.pierce&&sys.hasHit(bi,e.uid)) {
                 continue;
             }
             const rr=e.def.radius+r;
@@ -394,9 +450,9 @@ export class EnemyManager {
                 if (dead) {
                     this.kill(e,dx,dz);
                 }
-                return true;
+                return e;
             }
         }
-        return false;
+        return null;
     }
 }

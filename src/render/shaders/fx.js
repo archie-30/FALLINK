@@ -211,3 +211,59 @@ void main() {
     gBuf=vec4(normalize(vViewNormal)*0.5+0.5,vDepth/uFar);
 }
 `;
+
+export const DASH_FRAG=`
+${OCCLUDE}
+uniform vec3 uColor;
+uniform float uLength;
+uniform float uDash;
+uniform float uTime;
+uniform float uAlpha;
+varying vec2 vUv;
+varying float vDepth;
+varying vec3 vWorldPos;
+void main() {
+    if (occluded(vDepth)) {
+        discard;
+    }
+    float d=fract(vUv.x*uLength/uDash-uTime);
+    if (d>0.55) {
+        discard;
+    }
+    float across=abs(vUv.y*2.0-1.0);
+    if (across>0.8) {
+        discard;
+    }
+    gl_FragColor=vec4(uColor,uAlpha);
+}
+`;
+
+export const RING_FRAG=`
+${OCCLUDE}
+uniform vec3 uColor;
+uniform float uAlpha;
+uniform float uWidth;
+uniform float uDash;
+uniform float uTime;
+uniform sampler2D tNoise;
+uniform float uBoilSeed;
+varying vec2 vUv;
+varying float vDepth;
+varying vec3 vWorldPos;
+void main() {
+    if (occluded(vDepth)) {
+        discard;
+    }
+    vec2 c=vUv*2.0-1.0;
+    float r=length(c);
+    float a=atan(c.y,c.x);
+    float n=(texture2D(tNoise,vec2(a*0.3+0.5,uBoilSeed*0.31)).r-0.5)*0.08;
+    if (abs(r-(1.0-uWidth*0.5)+n)>uWidth*0.5) {
+        discard;
+    }
+    if (uDash>0.0&&fract(a/6.2831853*uDash-uTime)>0.55) {
+        discard;
+    }
+    gl_FragColor=vec4(uColor,uAlpha);
+}
+`;

@@ -5,6 +5,7 @@ import {device} from '../core/settings.js';
 import {time} from '../core/loop.js';
 import {hash1} from '../core/rng.js';
 import {Hud} from './hud.js';
+import {sketchCircle,drawShape} from './sketch.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -33,27 +34,13 @@ export class Overlay {
 
     ring(x,y,r,width,color,seed) {
         const ctx=this.ctx;
-        ctx.strokeStyle=color;
-        ctx.lineWidth=width;
-        ctx.beginPath();
-        const n=24;
-        const start=this.wobble(seed,0.4);
-        for (let i=0;i<=n+1;i++) {
-            const a=start+i/n*Math.PI*2;
-            const rr=r+this.wobble(seed+i,r*0.035);
-            const px=x+Math.cos(a)*rr;
-            const py=y+Math.sin(a)*rr;
-            if (i===0) {
-                ctx.moveTo(px,py);
-            }
-            else {
-                ctx.lineTo(px,py);
-            }
-        }
-        ctx.stroke();
+        ctx.save();
+        ctx.translate(x,y);
+        drawShape(ctx,sketchCircle(0,0,r,{width:width*1.2,seed,jitter:1}),color);
+        ctx.restore();
     }
 
-    draw(input,player,debug) {
+    draw(input,player,debug,game) {
         const ctx=this.ctx;
         ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
         ctx.clearRect(0,0,this.width,this.height);
@@ -61,10 +48,20 @@ export class Overlay {
         ctx.lineJoin='round';
         const touchUi=device.mobile||input.lastDevice==='touch';
         this.hud.drawHp(ctx,player);
+        if (game) {
+            this.hud.drawInk(ctx,game.ink);
+            this.hud.drawBuffs(ctx,player);
+        }
         this.hud.drawLegend(ctx,this.width,this.height,touchUi);
+        if (game) {
+            game.hand.draw(ctx,game.art);
+        }
         if (touchUi) {
             this.drawSticks(input);
             this.drawDash(input,player);
+        }
+        if (game) {
+            game.deckView.draw(ctx,game.art,game.deck);
         }
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             this.drawCrosshair(input.mouse.x,input.mouse.y,input.mouse.down);

@@ -1,6 +1,7 @@
 import*as THREE from 'three';
 import {TUNING} from '../data/tuning.js';
-import {particleMaterial,flashMaterial,pal} from './materials.js';
+import {particleMaterial,flashMaterial,ringMaterial,pal} from './materials.js';
+import {EASE} from '../core/easing.js';
 import {RNG} from '../core/rng.js';
 
 const _m=new THREE.Matrix4();
@@ -208,6 +209,54 @@ export class MuzzleFlashes {
                 continue;
             }
             it.mesh.material.uniforms.uFrame.value=f;
+        }
+    }
+}
+
+export class Rings {
+    constructor(parent,count=8) {
+        const geo=new THREE.PlaneGeometry(2,2);
+        geo.rotateX(-Math.PI/2);
+        this.items=[];
+        for (let i=0;i<count;i++) {
+            const m=new THREE.Mesh(geo,ringMaterial('ink'));
+            m.visible=false;
+            m.frustumCulled=false;
+            parent.add(m);
+            this.items.push({mesh:m,t:0,dur:0.3,r:1,active:false});
+        }
+        this.next=0;
+    }
+
+    spawn(x,z,radius,color='ink',dur=0.32) {
+        const it=this.items[this.next];
+        this.next=(this.next+1)%this.items.length;
+        it.active=true;
+        it.t=0;
+        it.dur=dur;
+        it.r=radius;
+        it.mesh.visible=true;
+        it.mesh.position.set(x,0.06,z);
+        it.mesh.material.uniforms.uColor.value.copy(pal(color));
+    }
+
+    update(dt) {
+        for (const it of this.items) {
+            if (!it.active) {
+                continue;
+            }
+            it.t+=dt;
+            const p=Math.min(1,it.t/it.dur);
+            if (p>=1) {
+                it.active=false;
+                it.mesh.visible=false;
+                continue;
+            }
+            const r=Math.max(0.05,it.r*EASE.easeOutCubic(p));
+            it.mesh.scale.set(r,1,r);
+            const u=it.mesh.material.uniforms;
+            u.uWidth.value=0.3*(1-p)+0.03;
+            u.uAlpha.value=1-p*p;
         }
     }
 }

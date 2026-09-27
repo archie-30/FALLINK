@@ -1,6 +1,6 @@
 import*as THREE from 'three';
 import {TUNING} from '../data/tuning.js';
-import {decalMaterial} from './materials.js';
+import {decalMaterial,pal} from './materials.js';
 import {RNG} from '../core/rng.js';
 import {EASE} from '../core/easing.js';
 
@@ -80,7 +80,7 @@ export class Decals {
         this.next=0;
     }
 
-    spawn(x,z,size) {
+    spawn(x,z,size,color='red',old='darkRed') {
         const it=this.items[this.next];
         this.next=(this.next+1)%this.items.length;
         it.active=true;
@@ -95,6 +95,8 @@ export class Decals {
         u.uVariant.value=rng.int(0,2);
         u.uSeed.value=rng.next();
         u.uAge.value=0;
+        u.uColor.value.copy(pal(color));
+        u.uColorOld.value.copy(pal(old));
     }
 
     update(dt) {

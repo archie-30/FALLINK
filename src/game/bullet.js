@@ -1,6 +1,6 @@
 import*as THREE from 'three';
 import {TUNING} from '../data/tuning.js';
-import {unlitMaterial,trailMaterial} from '../render/materials.js';
+import {unlitMaterial,trailMaterial,registerShadow} from '../render/materials.js';
 import {circleVs} from '../core/collision.js';
 
 const _m=new THREE.Matrix4();
@@ -31,9 +31,14 @@ export class BulletSystem {
         this.dmg=new Float32Array(cap);
         this.age=new Uint16Array(cap);
         this.hist=new Float32Array(cap*K*2);
+        this.pierce=!!o.pierce;
+        this.homing=o.homing||0;
+        this.hits=new Int32Array(cap*6);
+        this.hitN=new Uint8Array(cap);
         this.n=0;
         this.onWall=null;
         this.onHit=null;
+        this.onSeek=null;
         const geo=new THREE.OctahedronGeometry(1,0);
         geo.scale(0.6,0.6,1.5);
         this.heads=new THREE.InstancedMesh(geo,unlitMaterial({color:o.color}),cap);
@@ -89,6 +94,7 @@ export class BulletSystem {
         this.life[i]=life;
         this.dmg[i]=dmg;
         this.age[i]=0;
+        this.hitN[i]=0;
         const K=this.K;
         for (let j=0;j<K;j++) {
             this.hist[(i*K+j)*2]=x;
@@ -111,12 +117,46 @@ export class BulletSystem {
         this.life[i]=this.life[j];
         this.dmg[i]=this.dmg[j];
         this.age[i]=this.age[j];
+        this.hitN[i]=this.hitN[j];
+        this.hits.copyWithin(i*6,j*6,j*6+6);
         const K2=this.K*2;
         this.hist.copyWithin(i*K2,j*K2,j*K2+K2);
     }
 
     clear() {
         this.n=0;
+    }
+
+    hasHit(i,uid) {
+        const n=this.hitN[i];
+        for (let k=0;k<n;k++) {
+            if (this.hits[i*6+k]===uid) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    steer(i,dt) {
+        const tg=this.onSeek(this.x[i],this.z[i]);
+        if (!tg) {
+            return;
+        }
+        const vx=this.vx[i];
+        const vz=this.vz[i];
+        const sp=Math.hypot(vx,vz);
+        const cur=Math.atan2(vz,vx);
+        let want=Math.atan2(tg.z-this.z[i],tg.x-this.x[i])-cur;
+        while (want>Math.PI) {
+            want-=Math.PI*2;
+        }
+        while (want<-Math.PI) {
+            want+=Math.PI*2;
+        }
+        const mx=this.homing*dt;
+        const a=cur+Math.max(-mx,Math.min(mx,want));
+        this.vx[i]=Math.cos(a)*sp;
+        this.vz[i]=Math.sin(a)*sp;
     }
 
     update(dt,room) {
@@ -131,6 +171,9 @@ export class BulletSystem {
             this.hist[h+1]=this.z[i];
             this.ox[i]=this.x[i];
             this.oz[i]=this.z[i];
+            if (this.homing&&this.onSeek) {
+                this.steer(i,dt);
+            }
             this.x[i]+=this.vx[i]*dt;
             this.z[i]+=this.vz[i]*dt;
             this.life[i]-=dt;
@@ -157,8 +200,17 @@ export class BulletSystem {
                 this.kill(i);
                 continue;
             }
-            if (this.onHit&&this.onHit(x,z,r,this.dmg[i],this.vx[i],this.vz[i])) {
-                this.kill(i);
+            if (this.onHit) {
+                const e=this.onHit(x,z,r,this.dmg[i],this.vx[i],this.vz[i],this,i);
+                if (e) {
+                    if (this.pierce&&this.hitN[i]<6) {
+                        this.hits[i*6+this.hitN[i]]=e.uid;
+                        this.hitN[i]++;
+                    }
+                    else {
+                        this.kill(i);
+                    }
+                }
             }
         }
     }
@@ -219,5 +271,82 @@ export class BulletSystem {
         this.tPos.needsUpdate=true;
         this.tAlpha.needsUpdate=true;
         this.trails.geometry.setDrawRange(0,this.n*(K-1)*6);
+    }
+}
+
+export class Lobs {
+    constructor(scene,count=6) {
+        const geo=new THREE.IcosahedronGeometry(0.36,1);
+        const mat=unlitMaterial({color:'ink',jitter:0.02});
+        this.items=[];
+        for (let i=0;i<count;i++) {
+            const m=new THREE.Mesh(geo,mat);
+            m.visible=false;
+            scene.add(m);
+            const sh=new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.2),null);
+            sh.rotation.x=-Math.PI/2;
+            sh.position.y=0.03;
+            sh.visible=false;
+            registerShadow(sh);
+            scene.add(sh);
+            this.items.push({mesh:m,shadow:sh,active:false,t:0,pt:0,dur:1,x0:0,z0:0,x1:0,z1:0,y0:1,arc:3,onLand:null});
+        }
+    }
+
+    launch(x0,z0,x1,z1,dur,arc,onLand) {
+        const it=this.items.find(o=>!o.active);
+        if (!it) {
+            onLand(x1,z1);
+            return;
+        }
+        it.active=true;
+        it.t=0;
+        it.pt=0;
+        it.dur=dur;
+        it.x0=x0;
+        it.z0=z0;
+        it.x1=x1;
+        it.z1=z1;
+        it.y0=TUNING.weapon.height;
+        it.arc=arc;
+        it.onLand=onLand;
+        it.mesh.visible=true;
+        it.shadow.visible=true;
+    }
+
+    update(dt) {
+        for (const it of this.items) {
+            if (!it.active) {
+                continue;
+            }
+            it.pt=it.t;
+            it.t+=dt;
+            if (it.t>=it.dur) {
+                it.active=false;
+                it.mesh.visible=false;
+                it.shadow.visible=false;
+                it.onLand(it.x1,it.z1);
+            }
+        }
+    }
+
+    render(alpha) {
+        for (const it of this.items) {
+            if (!it.active) {
+                continue;
+            }
+            const t=it.pt+(it.t-it.pt)*alpha;
+            const p=Math.min(1,t/it.dur);
+            const x=it.x0+(it.x1-it.x0)*p;
+            const z=it.z0+(it.z1-it.z0)*p;
+            const y=it.y0*(1-p)+0.2*p+Math.sin(p*Math.PI)*it.arc;
+            it.mesh.position.set(x,y,z);
+            it.mesh.rotation.set(t*9,t*6,0);
+            const sq=1+Math.sin(p*Math.PI)*0.15;
+            it.mesh.scale.set(1/sq,sq,1/sq);
+            it.shadow.position.set(x,0.03,z);
+            const ss=Math.max(0.35,1-y*0.12);
+            it.shadow.scale.set(ss,ss,ss);
+        }
     }
 }

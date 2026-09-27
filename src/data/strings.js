@@ -36,9 +36,63 @@ export const STRINGS={
     'legend.touch.debug.key':'三指觸碰',
     'legend.touch.debug':'除錯資訊',
     'legend.touch.hide.key':'點標題',
-    'legend.touch.hide':'收合／展開'
+    'legend.touch.hide':'收合／展開',
+    'legend.card.key':'1–4／點卡牌',
+    'legend.card':'出牌（瞄準滑鼠位置）',
+    'legend.drag.key':'拖曳卡牌',
+    'legend.drag':'拖到戰場指定目標',
+    'legend.discard.key':'拖到棄牌堆',
+    'legend.discard':'棄掉這張牌',
+    'legend.deck.key':'Tab',
+    'legend.deck':'查看牌組',
+    'legend.cancel.key':'Esc／右鍵',
+    'legend.cancel':'取消瞄準',
+    'legend.touch.card.key':'點卡牌',
+    'legend.touch.card':'自動瞄準出牌',
+    'legend.touch.drag.key':'拖曳卡牌',
+    'legend.touch.drag':'拖到戰場指定目標',
+    'legend.touch.discard.key':'拖到棄牌堆',
+    'legend.touch.discard':'棄掉這張牌',
+    'legend.touch.deck.key':'點抽牌堆',
+    'legend.touch.deck':'查看牌組',
+    'hud.ink':'墨水',
+    'hud.rapid':'連射',
+    'hud.seconds':'秒',
+    'deck.draw':'抽牌堆',
+    'deck.discard':'棄牌堆',
+    'deck.reshuffle':'洗牌中…',
+    'deck.locked':'洗牌中，暫時無法出牌',
+    'deck.noInk':'墨水不足',
+    'deck.viewer':'牌組',
+    'deck.close':'關閉（Esc）',
+    'deck.empty':'（空）',
+    'deck.hand':'手牌',
+    'type.attack':'攻擊',
+    'type.terrain':'地形',
+    'type.defense':'防禦',
+    'type.utility':'輔助',
+    'rarity.common':'普通',
+    'rarity.rare':'稀有',
+    'card.scatter.name':'散射',
+    'card.scatter.desc':'朝指定方向射出 {count} 發擴散墨彈，每發 {damage} 傷害。',
+    'card.pierce.name':'穿透筆',
+    'card.pierce.desc':'射出巨型筆尖，貫穿路徑上所有敵人，造成 {damage} 傷害。',
+    'card.homing.name':'追蹤墨點',
+    'card.homing.desc':'放出 {count} 顆自動追蹤敵人的墨點，每顆 {damage} 傷害。',
+    'card.bomb.name':'爆墨',
+    'card.bomb.desc':'投出墨水炸彈，半徑 {radius} 內造成最多 {damage} 傷害。',
+    'card.rapid.name':'連射',
+    'card.rapid.desc':'{duration} 秒內射速提升為 {mult} 倍。',
+    'card.execute.name':'紅墨處決',
+    'card.execute.desc':'對目標附近最近的敵人造成 {damage} 點毀滅性傷害。'
 };
 
-export function t(key) {
-    return STRINGS[key]??key;
+export function t(key,params) {
+    let s=STRINGS[key]??key;
+    if (params) {
+        for (const k in params) {
+            s=s.split('{'+k+'}').join(String(params[k]));
+        }
+    }
+    return s;
 }

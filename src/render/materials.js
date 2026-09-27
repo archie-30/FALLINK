@@ -2,7 +2,7 @@ import*as THREE from 'three';
 import {PALETTE} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {TOON_VERT,TOON_FRAG,HULL_VERT,HULL_FRAG,UNLIT_VERT,UNLIT_FRAG,SHADOW_VERT,SHADOW_FRAG} from './shaders/toon.js';
-import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG} from './shaders/fx.js';
+import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,DASH_FRAG,RING_FRAG} from './shaders/fx.js';
 
 const colorCache={};
 
@@ -290,5 +290,43 @@ export function decalMaterial(atlas) {
         polygonOffset:true,
         polygonOffsetFactor:-3,
         polygonOffsetUnits:-3
+    });
+}
+
+export function dashMaterial(color) {
+    const extra={
+        uColor:{value:pal(color).clone()},
+        uLength:{value:1},
+        uDash:{value:0.5},
+        uTime:{value:0},
+        uAlpha:{value:0.85}
+    };
+    return new THREE.ShaderMaterial({
+        vertexShader:LINE_VERT,
+        fragmentShader:DASH_FRAG,
+        uniforms:fxUniforms(extra),
+        transparent:true,
+        depthTest:false,
+        depthWrite:false,
+        side:THREE.DoubleSide
+    });
+}
+
+export function ringMaterial(color) {
+    const extra={
+        uColor:{value:pal(color).clone()},
+        uAlpha:{value:1},
+        uWidth:{value:0.12},
+        uDash:{value:0},
+        uTime:{value:0}
+    };
+    return new THREE.ShaderMaterial({
+        vertexShader:LINE_VERT,
+        fragmentShader:RING_FRAG,
+        uniforms:fxUniforms(extra),
+        transparent:true,
+        depthTest:false,
+        depthWrite:false,
+        side:THREE.DoubleSide
     });
 }
