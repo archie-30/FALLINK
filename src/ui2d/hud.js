@@ -2,7 +2,7 @@ import {PALETTE,rgba} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
-import {hash1} from '../core/rng.js';
+import {sketchRect,sketchLine,sketchPath,drawShape} from './sketch.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -11,6 +11,11 @@ const DESKTOP_KEYS=[
     ['legend.aim.key','legend.aim'],
     ['legend.fire.key','legend.fire'],
     ['legend.dash.key','legend.dash'],
+    ['legend.card.key','legend.card'],
+    ['legend.drag.key','legend.drag'],
+    ['legend.discard.key','legend.discard'],
+    ['legend.cancel.key','legend.cancel'],
+    ['legend.deck.key','legend.deck'],
     ['legend.quality.key','legend.quality'],
     ['legend.debug.key','legend.debug'],
     ['legend.hide.key','legend.hide']
@@ -20,29 +25,34 @@ const TOUCH_KEYS=[
     ['legend.touch.move.key','legend.touch.move'],
     ['legend.touch.aim.key','legend.touch.aim'],
     ['legend.touch.dash.key','legend.touch.dash'],
+    ['legend.touch.card.key','legend.touch.card'],
+    ['legend.touch.drag.key','legend.touch.drag'],
+    ['legend.touch.discard.key','legend.touch.discard'],
+    ['legend.touch.deck.key','legend.touch.deck'],
     ['legend.touch.debug.key','legend.touch.debug'],
     ['legend.touch.hide.key','legend.touch.hide']
 ];
 
-function j(seed,amp) {
-    return (hash1(seed*131+time.boilIndex*7919)-0.5)*2*amp;
-}
-
 function wobblyLine(ctx,x1,y1,x2,y2,seed,amp=0.8) {
-    ctx.beginPath();
-    ctx.moveTo(x1+j(seed,amp),y1+j(seed+1,amp));
-    const mx=(x1+x2)/2+j(seed+2,amp);
-    const my=(y1+y2)/2+j(seed+3,amp);
-    ctx.quadraticCurveTo(mx,my,x2+j(seed+4,amp),y2+j(seed+5,amp));
-    ctx.stroke();
+    drawShape(ctx,sketchLine(x1,y1,x2,y2,{width:ctx.lineWidth*1.1,jitter:amp,seed,overshoot:1.5}),ctx.strokeStyle);
 }
 
 function wobblyRect(ctx,x,y,w,h,seed,amp=0.8) {
-    wobblyLine(ctx,x-2,y,x+w+2,y,seed,amp);
-    wobblyLine(ctx,x+w,y-2,x+w,y+h+2,seed+10,amp);
-    wobblyLine(ctx,x+w+2,y+h,x-2,y+h,seed+20,amp);
-    wobblyLine(ctx,x,y+h+2,x,y-2,seed+30,amp);
+    drawShape(ctx,sketchRect(x,y,w,h,{width:ctx.lineWidth*1.1,jitter:amp,seed,overshoot:2}),ctx.strokeStyle);
 }
+
+const BOTTLE_W=46;
+const BOTTLE_H=60;
+const BOTTLE_PTS=[[14,-14],[14,-4],[4,4],[0,14],[0,BOTTLE_H-6],[6,BOTTLE_H],[BOTTLE_W-6,BOTTLE_H],[BOTTLE_W,BOTTLE_H-6],[BOTTLE_W,14],[BOTTLE_W-4,4],[BOTTLE_W-14,-4],[BOTTLE_W-14,-14]];
+const BOTTLE_PATH=(()=>{
+    const p=new Path2D();
+    p.moveTo(BOTTLE_PTS[0][0],BOTTLE_PTS[0][1]);
+    for (const q of BOTTLE_PTS) {
+        p.lineTo(q[0],q[1]);
+    }
+    p.closePath();
+    return p;
+})();
 
 export class Hud {
     constructor() {
@@ -50,6 +60,18 @@ export class Hud {
         this.legendOpen=true;
         this.legendBox={x:0,y:0,w:0,h:0,titleH:0};
         this.touchCollapsedOnce=false;
+        this.inkShown=0;
+        this.slosh=0;
+        this.inkShakeT=0;
+    }
+
+    inkChanged(delta) {
+        this.slosh=Math.min(1.5,this.slosh+Math.abs(delta)*0.35+0.15);
+    }
+
+    inkFail() {
+        this.inkShakeT=0.4;
+        this.slosh=Math.min(1.5,this.slosh+0.5);
     }
 
     toggleLegend() {
@@ -61,9 +83,80 @@ export class Hud {
         return x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.titleH;
     }
 
-    update(dt,player) {
+    update(dt,player,ink) {
         const k=1-Math.exp(-8*dt);
         this.hpShown+=(player.hp-this.hpShown)*k;
+        if (ink) {
+            this.inkShown+=(ink.value-this.inkShown)*(1-Math.exp(-6*dt));
+        }
+        this.slosh*=Math.exp(-1.6*dt);
+        this.inkShakeT=Math.max(0,this.inkShakeT-dt);
+    }
+
+    drawInk(ctx,ink) {
+        const x0=TUNING.hud.hpPos[0]+2;
+        const y0=TUNING.hud.hpPos[1]+TUNING.hud.hpHeight+46;
+        const shake=this.inkShakeT>0?Math.sin(this.inkShakeT*60)*5*(this.inkShakeT/0.4):0;
+        ctx.save();
+        ctx.translate(x0+shake,y0);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fill(BOTTLE_PATH);
+        const frac=Math.max(0,Math.min(1,this.inkShown/ink.max));
+        const top=14;
+        const level=BOTTLE_H-(BOTTLE_H-top)*frac;
+        const amp=1.2+this.slosh*3;
+        const tt=time.real;
+        ctx.save();
+        ctx.clip(BOTTLE_PATH);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.beginPath();
+        ctx.moveTo(-2,BOTTLE_H+2);
+        for (let x=-2;x<=BOTTLE_W+2;x+=3) {
+            const y=level+Math.sin(x*0.22+tt*4.2)*amp+Math.sin(x*0.11-tt*2.6)*amp*0.6;
+            ctx.lineTo(x,y);
+        }
+        ctx.lineTo(BOTTLE_W+2,BOTTLE_H+2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle=rgba('paper',0.25);
+        ctx.fillRect(6,18,5,BOTTLE_H-28);
+        ctx.restore();
+        ctx.strokeStyle=PALETTE.midGray;
+        ctx.lineWidth=1;
+        for (let i=1;i<ink.max;i++) {
+            const y=BOTTLE_H-(BOTTLE_H-top)*i/ink.max;
+            drawShape(ctx,sketchLine(BOTTLE_W-9,y,BOTTLE_W-2,y,{width:1,seed:600+i,overshoot:0}),i%5===0?PALETTE.nearGray:PALETTE.midGray);
+        }
+        drawShape(ctx,sketchPath(BOTTLE_PTS.concat([BOTTLE_PTS[0]]),{width:2.2,seed:620,overshoot:1}),PALETTE.ink);
+        drawShape(ctx,sketchRect(11,-22,BOTTLE_W-22,9,{width:1.8,seed:621,overshoot:1}),PALETTE.ink);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 26px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='alphabetic';
+        ctx.fillText(String(Math.floor(ink.value)),BOTTLE_W+12,BOTTLE_H-14);
+        const nw=ctx.measureText(String(Math.floor(ink.value))).width;
+        ctx.font='14px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillText('/ '+ink.max,BOTTLE_W+16+nw,BOTTLE_H-14);
+        ctx.font='bold 12px '+FONT;
+        ctx.fillStyle=this.inkShakeT>0?PALETTE.red:PALETTE.ink;
+        ctx.fillText(this.inkShakeT>0?t('deck.noInk'):t('hud.ink'),BOTTLE_W+12,BOTTLE_H+4);
+        ctx.restore();
+    }
+
+    drawBuffs(ctx,player) {
+        if (player.rapidT<=0) {
+            return;
+        }
+        const x=TUNING.hud.hpPos[0];
+        const y=TUNING.hud.hpPos[1]+TUNING.hud.hpHeight+130;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 13px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillText(t('hud.rapid')+' ×'+player.rapidMult+'  '+player.rapidT.toFixed(1)+t('hud.seconds'),x,y);
+        const w=120*Math.min(1,player.rapidT/4);
+        drawShape(ctx,sketchLine(x,y+20,x+Math.max(2,Math.round(w)),y+20,{width:3,seed:640,overshoot:0}),PALETTE.ink);
     }
 
     drawHp(ctx,player) {

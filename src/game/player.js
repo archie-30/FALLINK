@@ -48,6 +48,8 @@ export class Player {
         this.kick=0;
         this.poseStep=-1;
         this.fireCd=0;
+        this.rapidT=0;
+        this.rapidMult=1;
         this.hp=TUNING.player.maxHp;
         this.invuln=0;
         this.events={onDash:null,onFire:null,onHurt:null,onDown:null};
@@ -196,14 +198,26 @@ export class Player {
         return true;
     }
 
-    fire(ctx,aim) {
+    muzzlePoint(out) {
         const W=TUNING.weapon;
         const c=Math.cos(this.aimYaw);
         const sn=Math.sin(this.aimYaw);
-        const lx=W.muzzleSide;
-        const lz=W.muzzleForward;
-        const mx=this.pos.x+lx*c+lz*sn;
-        const mz=this.pos.z-lx*sn+lz*c;
+        out.x=this.pos.x+W.muzzleSide*c+W.muzzleForward*sn;
+        out.z=this.pos.z-W.muzzleSide*sn+W.muzzleForward*c;
+        return out;
+    }
+
+    faceDir(dx,dz) {
+        this.aimDirX=dx;
+        this.aimDirZ=dz;
+        this.aimYaw=Math.atan2(dx,dz);
+    }
+
+    fire(ctx,aim) {
+        const W=TUNING.weapon;
+        const mp=this.muzzlePoint(this._mp||(this._mp={x:0,z:0}));
+        const mx=mp.x;
+        const mz=mp.z;
         let dx=this.aimDirX;
         let dz=this.aimDirZ;
         if (aim.mode==='point') {
@@ -316,15 +330,20 @@ export class Player {
         this.st=Math.max(-0.45,Math.min(0.8,this.st));
         this.kick*=Math.exp(-18*dt);
         this.fireCd-=dt;
+        this.rapidT=Math.max(0,this.rapidT-dt);
         if (input.isFiring()&&this.fireCd<=0&&this.hp>0) {
-            this.fireCd+=TUNING.weapon.fireInterval;
+            this.fireCd+=TUNING.weapon.fireInterval/(this.rapidT>0?this.rapidMult:1);
             if (this.fireCd<0) {
                 this.fireCd=0;
+        this.rapidT=0;
+        this.rapidMult=1;
             }
             this.fire(ctx,aim);
         }
         else if (this.fireCd<0) {
             this.fireCd=0;
+        this.rapidT=0;
+        this.rapidMult=1;
         }
     }
 

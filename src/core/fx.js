@@ -9,6 +9,7 @@ export const fx={
     stopCd:0,
     slowScale:1,
     slowTime:0,
+    paused:false,
 
     init(rig,post) {
         this.rig=rig;
@@ -60,6 +61,10 @@ export const fx={
             if (this.slowTime<=0) {
                 this.slowScale=1;
             }
+        }
+        if (this.paused) {
+            time.timeScale=0;
+            return;
         }
         if (this.stop>0) {
             this.stop-=dt;
