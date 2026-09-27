@@ -33,7 +33,10 @@ import {DeckView} from './ui2d/deckView.js';
 import {EnemyManager} from './game/enemy.js';
 import {Run} from './game/run.js';
 import {RewardView} from './ui2d/reward.js';
-import {RunSummary} from './ui2d/menu.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex} from './ui2d/menu.js';
+import {audio} from './core/audio.js';
+import {LAYOUTS} from './data/levels.js';
+import {renderFlags} from './render/materials.js';
 import {Transition} from './ui2d/transition.js';
 
 const QUALITY_ORDER=['low','mid','high'];
@@ -78,7 +81,8 @@ function boot() {
     };
     initMaterials(textures);
     const {scene,world,actors,fxScene}=createScene();
-    const game={room:null};
+    const game={room:null,mode:'menu'};
+    let menuAngle=0;
     const player=new Player(actors);
     player.spawn(new THREE.Vector3(0,0,4));
     const rig=new CameraRig(1);
@@ -162,15 +166,22 @@ function boot() {
             return e?e.pos:null;
         },
         mouseScreen:()=>input.lastDevice==='mouse'&&input.mouse.inside?input.mouse:null,
-        execute:(card,target)=>effects.run(card,target),
+        execute:(card,target)=>{
+            effects.run(card,target);
+            audio.play(card.def.id==='pencilWall'?'wall':(card.def.type==='terrain'?'erase':'card'));
+        },
         openDeck,
         onPlayStart:()=>{
+            audio.play('card');
             if (run.stats) {
                 run.stats.cards++;
             }
         }
     });
-    deck.events.onDraw=c=>hand.onDraw(c);
+    deck.events.onDraw=c=>{
+        hand.onDraw(c);
+        audio.play('draw',0.9+Math.random()*0.3);
+    };
     deck.events.onReshuffleStart=n=>hand.onReshuffleStart(n);
     deck.events.onReshuffleEnd=()=>hand.onReshuffleEnd();
     homingBullets.onSeek=(x,z)=>{
@@ -198,6 +209,7 @@ function boot() {
             return;
         }
         ink.add(TUNING.ink.perHit);
+        audio.play('hit',crit?1.5:0.9+Math.random()*0.2);
         if (crit) {
             particles.burst(x,1.4,z,5,{color:'red',dirX:dx,dirZ:dz,cone:1.2,speed:[3,7],up:[2,5]});
             fx.cameraShake(0.12);
@@ -216,6 +228,7 @@ function boot() {
         const z=e.pos.z;
         const D=TUNING.decals;
         ink.add(TUNING.ink.perKill);
+        audio.play(e.def.boss?'boss':'kill',0.8+Math.random()*0.4);
         fx.hitStop(F.hitStopKill,true);
         fx.cameraShake(F.shakeKill);
         fx.fovPunch(F.fovKill);
@@ -252,11 +265,13 @@ function boot() {
         fx.cameraShake(TUNING.player.dashTrauma);
     };
     player.events.onFire=(p,mx,mz)=>{
+        audio.play('shoot',0.85+Math.random()*0.3);
         muzzle.show(mx,H,mz,'ink',W.flashScale);
         fx.cameraShake(W.recoilTrauma);
         fx.fovPunch(W.recoilFov);
     };
     player.events.onHurt=p=>{
+        audio.play('hurt');
         fx.hitStop(F.hitStopHurt,true);
         fx.cameraShake(F.shakeHurt);
         fx.fovPunch(F.fovHurt);
@@ -306,6 +321,8 @@ function boot() {
     }
     function enterRoom(plan,deckList) {
         clearWorld();
+        renderer.post.resetDeath();
+        renderer.post.drawIn(TUNING.transition.drawIn,transition.active?TUNING.transition.drawInDelay:0);
         if (game.room) {
             game.room.destroy();
         }
@@ -345,6 +362,7 @@ function boot() {
             particles.burst(e.pos.x,0.4,e.pos.z,e.def.boss?30:PT.spawnPuff,{color:'midGray',speed:[1,4],up:[1,4],size:[0.1,0.2],life:[0.3,0.6]});
         },
         onCleared:plan=>{
+            audio.play('clear');
             enemyBullets.killWhere(()=>true,(x,z)=>particles.burst(x,1.0,z,1,{color:'farGray',speed:[0.5,2],up:[1,2]}));
             fx.slowMo(0.4,0.6);
             if (plan.boss) {
@@ -363,8 +381,13 @@ function boot() {
             const d=hand.drawRect;
             reward.show(cards,run.plan.boss?t('reward.bossTitle'):t('reward.title'),cb,{x:d.x+d.w/2,y:d.y+d.h/2});
         },
-        transition:mid=>transition.run(mid),
+        transition:mid=>{
+            audio.play('page');
+            transition.run(mid);
+        },
         onDeath:()=>{
+            audio.play('death');
+            renderer.post.death();
             fx.slowMo(0.25,1.4);
             fx.invertFrame(10);
             fx.flash('paper',0.5,0.5);
@@ -373,17 +396,122 @@ function boot() {
         showSummary:(victory,stats)=>{
             fx.paused=true;
             hand.cancelTargeting();
-            summary.show(victory,stats,()=>{
+            summary.show(victory,stats,toMenu=>{
+                audio.play('ui');
                 player.hp=TUNING.player.maxHp;
                 ink.value=TUNING.ink.start;
-                run.start(startIds());
+                renderer.post.resetDeath();
+                if (toMenu) {
+                    enterMenu();
+                }
+                else {
+                    run.start(startIds());
+                }
             });
         }
     },seedParam||(Date.now()&0xffff));
+    function enterMenu() {
+        clearWorld();
+        renderer.post.resetDeath();
+        if (game.room) {
+            game.room.destroy();
+        }
+        const r=buildRoom(LAYOUTS.crossroads,world,fxScene);
+        r.shards=terrainShards;
+        r.onBreak=onBreak;
+        game.room=r;
+        ctx.room=r;
+        effects.g.room=r;
+        player.enterRoom(new THREE.Vector3(0,0,1.5));
+        player.aimYaw=0.6;
+        enemies.hpMult=1;
+        enemies.spawn('doodle',-4,-3,{quick:true}).yaw=2.4;
+        enemies.spawn('blob',5,-2,{quick:true});
+        enemies.spawn('compass',-7,4,{quick:true});
+        hand.reset();
+        deck.reset([]);
+        run.state='idle';
+        run.plan=null;
+        game.mode='menu';
+        fx.paused=true;
+        pauseMenu.hide();
+        summary.open=false;
+        reward.open=false;
+        mainMenu.show();
+        renderer.post.drawIn(1.6,0.2);
+    }
+    function startGame() {
+        audio.play('ui');
+        mainMenu.hide();
+        game.mode='play';
+        player.hp=TUNING.player.maxHp;
+        ink.value=TUNING.ink.start;
+        run.start(startIds());
+    }
+    function openPause() {
+        if (game.mode!=='play'||pauseMenu.open||summary.open||reward.open||transition.active) {
+            return;
+        }
+        audio.play('ui');
+        hand.cancelTargeting();
+        deckView.hide();
+        pauseMenu.show();
+        fx.paused=true;
+    }
+    function closePause() {
+        audio.play('ui');
+        pauseMenu.hide();
+        fx.paused=false;
+    }
+    let settingsReturn=null;
+    function openSettings(from) {
+        audio.play('ui');
+        settingsReturn=from;
+        settingsMenu.show();
+    }
+    function settingsChanged() {
+        saveSettings();
+        applyQuality();
+        audio.setVolume(settings.volume);
+        overlay.showDebug=settings.showFps;
+    }
+    const mainMenu=new MainMenu({
+        start:startGame,
+        settings:()=>openSettings('menu'),
+        codex:()=>{
+            audio.play('ui');
+            codex.show();
+        }
+    });
+    const pauseMenu=new PauseMenu({
+        resume:closePause,
+        settings:()=>openSettings('pause'),
+        quit:()=>{
+            audio.play('ui');
+            enterMenu();
+        }
+    });
+    const settingsMenu=new SettingsMenu({
+        changed:settingsChanged,
+        back:()=>{
+            audio.play('ui');
+            settingsMenu.hide();
+        }
+    });
+    const codex=new Codex({
+        back:()=>{
+            audio.play('ui');
+            codex.hide();
+        }
+    });
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex];
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
-    ink.events.onFail=()=>overlay.hud.inkFail();
+    ink.events.onFail=()=>{
+        overlay.hud.inkFail();
+        audio.play('fail');
+    };
     const aim={mode:'none',point:new THREE.Vector3(),dx:0,dz:-1,sx:0,sy:0};
     const look={x:0,z:0};
     const bias={x:0,z:0};
@@ -393,7 +521,14 @@ function boot() {
         textures.hatch.needsUpdate=true;
         setShadowQuality(q.hatchedShadow);
         particles.setLimit(q.particles);
+        renderFlags.hulls=q.hulls!==false;
+        player.root.traverse(o=>{
+            if (o.name==='hull') {
+                o.visible=renderFlags.hulls;
+            }
+        });
         renderer.applyQuality();
+        overlay.resize(overlay.width,overlay.height);
         renderer.post.setBoilScale(boilScale());
         setJitterScale(boilScale());
     }
@@ -407,6 +542,9 @@ function boot() {
         deckView.resize(w,h);
         reward.resize(w,h);
         summary.resize(w,h);
+        for (const m of menus) {
+            m.resize(w,h);
+        }
         art.setScale(overlay.dpr*hand.s*1.2);
         rig.setAspect(w/h);
     }
@@ -424,6 +562,19 @@ function boot() {
     input.onToggleLegend=()=>overlay.hud.toggleLegend();
     input.ui={
         down:(x,y,id,type,button)=>{
+            audio.unlock();
+            if (settingsMenu.open) {
+                return settingsMenu.down(x,y);
+            }
+            if (codex.open) {
+                return codex.down(x,y);
+            }
+            if (mainMenu.open) {
+                return mainMenu.down(x,y);
+            }
+            if (pauseMenu.open) {
+                return pauseMenu.down(x,y);
+            }
             if (summary.open) {
                 return summary.down(x,y);
             }
@@ -437,15 +588,33 @@ function boot() {
                 closeDeck();
                 return true;
             }
+            if (overlay.hud.hitPause(x,y,overlay.width)) {
+                openPause();
+                return true;
+            }
             if (overlay.hud.hitLegendTitle(x,y)) {
                 overlay.hud.toggleLegend();
                 return true;
             }
             return hand.down(x,y,id,type,button);
         },
-        move:(x,y,id,type)=>hand.move(x,y,id,type),
-        up:(x,y,id,type,button)=>hand.up(x,y,id,type,button),
+        move:(x,y,id,type)=>{
+            if (settingsMenu.open) {
+                settingsMenu.move(x,y);
+                return;
+            }
+            hand.move(x,y,id,type);
+        },
+        up:(x,y,id,type,button)=>{
+            settingsMenu.up();
+            hand.up(x,y,id,type,button);
+        },
         hover:(x,y)=>{
+            for (const m of menus) {
+                if (m.open) {
+                    m.hover(x,y);
+                }
+            }
             reward.hoverAt(x,y);
             hand.hoverAt(x,y);
         },
@@ -468,13 +637,38 @@ function boot() {
         }
     };
     input.onEscape=()=>{
+        audio.unlock();
+        if (settingsMenu.open) {
+            settingsMenu.hide();
+            return;
+        }
+        if (codex.open) {
+            codex.hide();
+            return;
+        }
+        if (pauseMenu.open) {
+            closePause();
+            return;
+        }
         if (deckView.open) {
             closeDeck();
+            return;
+        }
+        if (hand.targetView||hand.press) {
+            hand.cancelTargeting();
+            return;
+        }
+        openPause();
+    };
+    input.onPauseKey=()=>{
+        if (pauseMenu.open) {
+            closePause();
         }
         else {
-            hand.cancelTargeting();
+            openPause();
         }
     };
+    window.addEventListener('keydown',()=>audio.unlock());
     input.onFirstTouch=()=>{
         if (device.mobile) {
             requestFullscreen();
@@ -489,7 +683,7 @@ function boot() {
     resize();
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
-    const gameUi={ink,hand,art,deckView,deck,run,enemies,reward,summary,transition,dt:0};
+    const gameUi={ink,hand,art,deckView,deck,run,enemies,reward,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex};
     function update(dt) {
         if (run.state!=='dead') {
             player.update(dt,input,ctx,aim);
@@ -512,7 +706,9 @@ function boot() {
         }
         particles.update(dt);
         decals.update(dt);
-        run.update(dt,player);
+        if (game.mode==='play') {
+            run.update(dt,player);
+        }
     }
     function updateDamageFx(dt) {
         bleed=Math.max(0,bleed-DF.bleedDecay*dt);
@@ -550,7 +746,11 @@ function boot() {
         reward.update(dt);
         summary.update(dt);
         transition.update(dt);
+        for (const m of menus) {
+            m.update(dt);
+        }
         gameUi.dt=dt;
+        gameUi.mode=game.mode;
         for (const c of clones) {
             c.sync(alpha);
         }
@@ -592,8 +792,21 @@ function boot() {
         }
         bias.x+=(bx-bias.x)*(1-Math.exp(-3*dt));
         bias.z+=(bz-bias.z)*(1-Math.exp(-3*dt));
-        rig.follow(player.renderPos,look.x+bias.x,look.z+bias.z);
-        rig.update(dt);
+        if (game.mode==='menu') {
+            menuAngle+=dt*0.12;
+            const cam=rig.camera;
+            cam.position.set(Math.sin(menuAngle)*24,15,Math.cos(menuAngle)*24);
+            cam.lookAt(0,0.5,0);
+            if (cam.fov!==TUNING.camera.fov) {
+                cam.fov=TUNING.camera.fov;
+                cam.updateProjectionMatrix();
+            }
+            cam.updateMatrixWorld();
+        }
+        else {
+            rig.follow(player.renderPos,look.x+bias.x,look.z+bias.z);
+            rig.update(dt);
+        }
         input.getAim(aim);
         if (aim.mode==='point') {
             if (!rig.screenToGround(aim.sx,aim.sy,renderer.width,renderer.height,TUNING.player.aimHeight,aim.point)) {
@@ -601,6 +814,9 @@ function boot() {
             }
         }
         renderer.render(scene,fxScene,rig.camera);
+        if (transition.state==='capture') {
+            transition.capture(renderer.gl.domElement,renderer.width,renderer.height);
+        }
         const st=renderer.stats();
         debugInfo.fps=time.fps;
         debugInfo.calls=st.calls;
@@ -613,8 +829,8 @@ function boot() {
     const loop=createLoop(update,render);
     loop.start();
     art.warm(deck.drawPile);
-    run.start(startIds());
-    window.INKFALL={hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,summary,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    enterMenu();
+    window.INKFALL={transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,summary,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

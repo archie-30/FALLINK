@@ -32,6 +32,8 @@ export const shared={
 };
 
 const cache=new Map();
+
+export const renderFlags={hulls:true};
 const jitterMaterials=[];
 
 export function initMaterials(textures) {

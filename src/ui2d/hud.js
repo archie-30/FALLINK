@@ -20,6 +20,7 @@ const DESKTOP_KEYS=[
     ['legend.deck.key','legend.deck'],
     ['legend.quality.key','legend.quality'],
     ['legend.debug.key','legend.debug'],
+    ['legend.pause.key','legend.pause'],
     ['legend.hide.key','legend.hide']
 ];
 
@@ -32,6 +33,7 @@ const TOUCH_KEYS=[
     ['legend.touch.draw.key','legend.touch.draw'],
     ['legend.touch.discard.key','legend.touch.discard'],
     ['legend.touch.deck.key','legend.touch.deck'],
+    ['legend.touch.pause.key','legend.touch.pause'],
     ['legend.touch.debug.key','legend.touch.debug'],
     ['legend.touch.hide.key','legend.touch.hide']
 ];
@@ -71,6 +73,25 @@ export class Hud {
         this.bannerT=0;
         this.bannerDur=0;
         this.bossShown=1;
+    }
+
+    pauseRect(w) {
+        return {x:w-62,y:12,w:46,h:46};
+    }
+
+    hitPause(x,y,w) {
+        const r=this.pauseRect(w);
+        return x>=r.x-6&&x<=r.x+r.w+6&&y>=r.y-6&&y<=r.y+r.h+6;
+    }
+
+    drawPause(ctx,w) {
+        const r=this.pauseRect(w);
+        ctx.fillStyle=rgba('paper',0.75);
+        ctx.fillRect(r.x,r.y,r.w,r.h);
+        drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:1.8,seed:760}),PALETTE.ink);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(r.x+15,r.y+13,5,20);
+        ctx.fillRect(r.x+26,r.y+13,5,20);
     }
 
     banner(text,sub,dur=2.2) {

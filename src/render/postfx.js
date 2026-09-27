@@ -54,7 +54,10 @@ export class PostFX {
             uRed:{value:pal('red').clone()},
             uDarkRed:{value:pal('darkRed').clone()},
             uFlash:{value:0},
-            uFlashColor:{value:pal('paper').clone()}
+            uFlashColor:{value:pal('paper').clone()},
+            uDrawIn:{value:1},
+            uPaperCol:{value:pal('paper').clone()},
+            uDeath:{value:new THREE.Vector2(0,0)}
         };
         this.invertFrames=0;
         this.invertHold={value:0};
@@ -100,6 +103,26 @@ export class PostFX {
         this.uniforms.uRes.value.set(pw,ph);
         this.uniforms.uPx.value=pr;
         this.uniforms.uGrain.value.y=1;
+    }
+
+    drawIn(duration=1.2,delay=0) {
+        const u=this.uniforms.uDrawIn;
+        tweens.killTweensOf(u);
+        u.value=0;
+        tweens.to(u,{value:1},{duration,delay,ease:'easeInOutQuad',unscaled:true});
+    }
+
+    death() {
+        const d=this.uniforms.uDeath.value;
+        tweens.killTweensOf(d);
+        d.set(0,0);
+        tweens.to(d,{x:1},{duration:0.05,unscaled:true}).then(d,{y:1},{duration:1.4,delay:0.9,ease:'easeInOutQuad',unscaled:true});
+    }
+
+    resetDeath() {
+        const d=this.uniforms.uDeath.value;
+        tweens.killTweensOf(d);
+        d.set(0,0);
     }
 
     flash(colorKey,duration,strength) {
