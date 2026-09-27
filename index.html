@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="">
+<title>INKFALL</title>
+<link rel="stylesheet" href="./style.css">
+<script type="importmap">
+{
+    "imports":{
+        "three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+        "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    }
+}
+</script>
+</head>
+<body>
+<div id="game">
+<canvas id="gl"></canvas>
+<canvas id="ui"></canvas>
+</div>
+<div id="rotate"><div id="rotate-text"></div></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
