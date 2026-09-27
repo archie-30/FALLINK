@@ -1,0 +1,25 @@
+export const LEVELS={
+    test:{
+        size:[30,20],
+        spawn:[0,3],
+        wallHeight:0.7,
+        wallThickness:0.6,
+        props:[
+            {type:'wall',x:-8,z:-3,w:5,h:1.1,d:0.8,rot:0.35},
+            {type:'wall',x:7.5,z:4.5,w:4,h:1.1,d:0.8,rot:-0.5},
+            {type:'pillar',x:5,z:-5,r:0.8,h:2.8},
+            {type:'pillar',x:-4,z:5.5,r:0.6,h:2.2},
+            {type:'pillar',x:11,z:-6.5,r:0.7,h:3.2},
+            {type:'box',x:2.5,z:2.5,w:1.6,h:1.6,d:1.6,rot:0.6},
+            {type:'box',x:-11,z:5,w:2.2,h:1.3,d:1.4,rot:-0.2},
+            {type:'box',x:-2,z:-7,w:1.2,h:2.4,d:1.2,rot:0.25},
+            {type:'pencil',x:-5,z:-16,len:20,r:1.0,rot:0.25},
+            {type:'eraser',x:13,z:-18,w:7,h:2.6,d:3.6,rot:-0.4},
+            {type:'books',x:-21,z:-9,w:5,d:7,rot:0.2,count:4},
+            {type:'crumple',x:3,z:-26,r:3.2},
+            {type:'crumple',x:-20,z:5,r:2.2},
+            {type:'eraser',x:20,z:3,w:5,h:2,d:2.8,rot:0.9},
+            {type:'pencil',x:6,z:13,len:12,r:0.7,rot:-0.2}
+        ]
+    }
+};
