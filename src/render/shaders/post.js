@@ -85,7 +85,9 @@ void main() {
     #ifdef USE_GRAIN
     col*=mix(1.0,grain/0.9,uGrain.x);
     #endif
-    col=mix(col,1.0-col,uInvert);
+    float sat=max(col.r,max(col.g,col.b))-min(col.r,min(col.g,col.b));
+    vec3 inv=mix(1.0-col,col,smoothstep(0.12,0.3,sat));
+    col=mix(col,inv,uInvert);
     col=mix(col,uFlashColor,uFlash);
     gl_FragColor=vec4(col,1.0);
 }

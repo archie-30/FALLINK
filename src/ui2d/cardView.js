@@ -114,6 +114,148 @@ const ICONS={
         for (let i=0;i<6;i++) {
             dot(ctx,cx+r.range(-30,30),cy+r.range(-26,26),r.range(1.2,2.6),PALETTE.red);
         }
+    },
+    pencilWall(ctx,v,cx,cy) {
+        const wall=[[cx-38,cy+20],[cx-18,cy+8],[cx+4,cy+14],[cx+26,cy+2]];
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.beginPath();
+        ctx.moveTo(wall[0][0],wall[0][1]);
+        for (const p of wall) {
+            ctx.lineTo(p[0],p[1]);
+        }
+        for (let i=wall.length-1;i>=0;i--) {
+            ctx.lineTo(wall[i][0],wall[i][1]-12);
+        }
+        ctx.fill();
+        drawShape(ctx,sketchPath(wall,{width:2,seed:101}),PALETTE.ink,v);
+        drawShape(ctx,sketchPath(wall.map(p=>[p[0],p[1]-12]),{width:2,seed:102}),PALETTE.ink,v);
+        const pen=[[cx+26,cy+2],[cx+33,cy-10],[cx+48,cy-34],[cx+42,cy-38],[cx+27,cy-14]];
+        ctx.fillStyle=PALETTE.paper;
+        ctx.beginPath();
+        ctx.moveTo(pen[0][0],pen[0][1]);
+        for (const p of pen) {
+            ctx.lineTo(p[0],p[1]);
+        }
+        ctx.closePath();
+        ctx.fill();
+        drawShape(ctx,sketchPolygon(pen,{width:1.6,seed:103,overshoot:1}),PALETTE.ink,v);
+        dot(ctx,cx+27,cy-1,2.4,PALETTE.ink);
+    },
+    eraser(ctx,v,cx,cy) {
+        for (let i=0;i<5;i++) {
+            const a=-1.1+i*0.35-Math.PI/2+Math.PI/2;
+            const x=cx-26+Math.cos(a)*44;
+            const y=cy+18+Math.sin(a)*44*-1;
+            drawShape(ctx,sketchLine(cx-26,cy+18,x,y,{width:1,seed:110+i,overshoot:0}),PALETTE.farGray,v);
+            drawShape(ctx,sketchCircle(x,y,3,{width:1,seed:115+i}),PALETTE.midGray,v);
+        }
+        ctx.save();
+        ctx.translate(cx-6,cy+2);
+        ctx.rotate(-0.5);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(-18,-9,24,18);
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.fillRect(6,-10,14,20);
+        drawShape(ctx,sketchRect(-18,-9,38,18,{width:1.8,seed:120,overshoot:1}),PALETTE.ink,v);
+        ctx.restore();
+    },
+    eraseCover(ctx,v,cx,cy) {
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.fillRect(cx-30,cy-16,26,32);
+        drawShape(ctx,sketchRect(cx-30,cy-16,26,32,{width:2,seed:130}),PALETTE.ink,v);
+        ctx.setLineDash([3,4]);
+        ctx.strokeStyle=PALETTE.midGray;
+        ctx.lineWidth=1.5;
+        ctx.strokeRect(cx-4,cy-16,26,32);
+        ctx.setLineDash([]);
+        const r=new RNG(131);
+        for (let i=0;i<8;i++) {
+            dot(ctx,cx+r.range(0,34),cy+r.range(-18,18),r.range(1,2.2),PALETTE.midGray);
+        }
+        ctx.save();
+        ctx.translate(cx+20,cy-18);
+        ctx.rotate(0.6);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(-12,-7,24,14);
+        drawShape(ctx,sketchRect(-12,-7,24,14,{width:1.5,seed:132,overshoot:1}),PALETTE.ink,v);
+        ctx.restore();
+    },
+    trap(ctx,v,cx,cy) {
+        drawShape(ctx,hatchFill([[cx-24,cy],[cx-17,cy-17],[cx,cy-24],[cx+17,cy-17],[cx+24,cy],[cx+17,cy+17],[cx,cy+24],[cx-17,cy+17]],{spacing:5,seed:140,width:0.9}),PALETTE.midGray,v);
+        drawShape(ctx,sketchCircle(cx,cy,27,{width:2.4,seed:141}),PALETTE.ink,v);
+        const pts=[];
+        for (let i=0;i<=16;i++) {
+            const a=i/16*Math.PI*3;
+            const rr=4+i*0.9;
+            pts.push([cx+Math.cos(a)*rr,cy+Math.sin(a)*rr]);
+        }
+        drawShape(ctx,sketchPath(pts,{width:1.6,seed:142,overshoot:0}),PALETTE.ink,v);
+    },
+    paperShield(ctx,v,cx,cy) {
+        for (let i=0;i<3;i++) {
+            const a=-2.2+i*1.1;
+            const pts=[];
+            for (let k=0;k<=6;k++) {
+                const b=a-0.4+k*0.8/6;
+                pts.push([cx+Math.cos(b)*28,cy+6+Math.sin(b)*28]);
+            }
+            drawShape(ctx,sketchPath(pts,{width:5,seed:150+i,taper:0.6,overshoot:0}),PALETTE.midGray,v);
+            drawShape(ctx,sketchPath(pts,{width:1.4,seed:153+i,overshoot:1}),PALETTE.ink,v);
+        }
+        dot(ctx,cx,cy+2,7,PALETTE.ink);
+        dot(ctx,cx,cy+18,9,PALETTE.ink);
+    },
+    inkDash(ctx,v,cx,cy) {
+        const r=new RNG(160);
+        ctx.fillStyle=PALETTE.ink;
+        for (let i=0;i<7;i++) {
+            const x=cx-36+i*9;
+            ctx.beginPath();
+            ctx.ellipse(x,cy+14+r.range(-2,2),6+i*0.4,3.5,0,0,Math.PI*2);
+            ctx.fill();
+        }
+        dot(ctx,cx+30,cy-4,8,PALETTE.ink);
+        for (let i=0;i<3;i++) {
+            drawShape(ctx,sketchLine(cx-8,cy-14+i*8,cx+16,cy-14+i*8,{width:1.3,seed:161+i}),PALETTE.midGray,v);
+        }
+    },
+    timeStop(ctx,v,cx,cy) {
+        drawShape(ctx,sketchCircle(cx,cy,24,{width:2.2,seed:170}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(cx,cy,cx,cy-16,{width:2.2,seed:171,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(cx,cy,cx+11,cy+5,{width:2.2,seed:172,overshoot:0}),PALETTE.ink,v);
+        for (let i=0;i<12;i++) {
+            const a=i/12*Math.PI*2;
+            dot(ctx,cx+Math.cos(a)*19,cy+Math.sin(a)*19,1.2,PALETTE.nearGray);
+        }
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(cx+26,cy-22,5,16);
+        ctx.fillRect(cx+34,cy-22,5,16);
+    },
+    clone(ctx,v,cx,cy) {
+        dot(ctx,cx-14,cy-12,8,PALETTE.ink);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(cx-22,cy-2,16,22);
+        drawShape(ctx,sketchCircle(cx+16,cy-12,8,{width:1.4,seed:180}),PALETTE.nearGray,v);
+        drawShape(ctx,hatchFill(rectPoly(cx+8,cy-2,16,22),{spacing:4,seed:181,width:0.9}),PALETTE.nearGray,v);
+        drawShape(ctx,sketchRect(cx+8,cy-2,16,22,{width:1.3,seed:182}),PALETTE.nearGray,v);
+    },
+    redraw(ctx,v,cx,cy) {
+        const pts=[];
+        for (let i=0;i<=14;i++) {
+            const a=-0.3+i/14*Math.PI*1.6;
+            pts.push([cx+Math.cos(a)*24,cy+Math.sin(a)*24]);
+        }
+        drawShape(ctx,sketchPath(pts,{width:2.4,seed:190}),PALETTE.ink,v);
+        const e=pts[pts.length-1];
+        ctx.fillStyle=PALETTE.ink;
+        ctx.beginPath();
+        ctx.moveTo(e[0]+8,e[1]-2);
+        ctx.lineTo(e[0]-4,e[1]-9);
+        ctx.lineTo(e[0]-2,e[1]+6);
+        ctx.closePath();
+        ctx.fill();
+        drawShape(ctx,sketchLine(cx-34,cy+28,cx+34,cy+28,{width:2.6,seed:191}),PALETTE.red,v);
+        dot(ctx,cx,cy,5,PALETTE.red);
     }
 };
 

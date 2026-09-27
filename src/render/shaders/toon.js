@@ -6,7 +6,14 @@ ${MODEL_MATRIX}
 varying vec3 vWorldPos;
 varying vec3 vWorldNormal;
 varying float vDepth;
+#ifdef USE_REVEAL
+attribute float aReveal;
+varying float vReveal;
+#endif
 void main() {
+    #ifdef USE_REVEAL
+    vReveal=aReveal;
+    #endif
     mat4 m=getModel();
     vec3 p=position+boilJitter(position);
     vec4 wp=m*vec4(p,1.0);
@@ -37,6 +44,23 @@ uniform vec3 uFog;
 uniform float uFar;
 uniform float uFlash;
 uniform vec3 uFlashColor;
+uniform float uAlpha;
+uniform vec3 uInk;
+#ifdef USE_REVEAL
+uniform float uReveal;
+uniform float uLen;
+uniform float uCrack;
+varying float vReveal;
+#endif
+#ifdef USE_DISSOLVE
+uniform float uDissolve;
+uniform vec4 uSwipe;
+uniform vec3 uEdgeColor;
+#endif
+#ifdef USE_GHOST
+uniform sampler2D tGBuf;
+uniform vec2 uScreen;
+#endif
 #ifdef USE_GRID
 uniform vec3 uGridColor;
 uniform vec3 uGrid;
@@ -62,6 +86,25 @@ vec3 hatchSample(vec3 wp,vec3 wn) {
     return texture2D(tHatch,uv+j*uHatchJitter).rgb;
 }
 void main() {
+    #ifdef USE_GHOST
+    if (vDepth>texture2D(tGBuf,gl_FragCoord.xy/uScreen).w*uFar+0.1) {
+        discard;
+    }
+    #endif
+    #ifdef USE_REVEAL
+    if (vReveal>uReveal) {
+        discard;
+    }
+    #endif
+    #ifdef USE_DISSOLVE
+    float sw=(dot(vWorldPos.xz,uSwipe.xy)-uSwipe.z)/max(0.001,uSwipe.w-uSwipe.z);
+    float dn=texture2D(tNoise,vWorldPos.xz*0.55+vWorldPos.y*0.37).b;
+    float dv=sw*0.72+dn*0.28;
+    float cut=uDissolve*1.35-0.2;
+    if (dv<cut) {
+        discard;
+    }
+    #endif
     vec3 n=normalize(vWorldNormal);
     if (!gl_FrontFacing) {
         n=-n;
@@ -93,12 +136,41 @@ void main() {
     float line=max(gg.x,gg.y)*inside.x*inside.y;
     col=mix(col,uGridColor,line*uGrid.z);
     #endif
+    #ifdef USE_REVEAL
+    if (uCrack>0.0) {
+        float c1=abs(texture2D(tNoise,vec2(vReveal*uLen*0.21,vWorldPos.y*0.42+0.3)).r-0.5);
+        float c2=abs(texture2D(tNoise,vec2(vReveal*uLen*0.33+0.5,vWorldPos.y*0.61+0.1)).g-0.5);
+        if (min(c1,c2)<uCrack*0.018) {
+            col=uInk;
+        }
+    }
+    if (vReveal>uReveal-0.025&&uReveal<0.999) {
+        col=uInk;
+    }
+    #endif
+    #ifdef USE_DISSOLVE
+    if (dv<cut+0.045) {
+        col=uEdgeColor;
+    }
+    else if (dv<cut+0.06) {
+        col=uColDark;
+    }
+    #endif
+    #ifdef USE_GHOST
+    vec3 hg=hatchSample(vWorldPos,n);
+    float rim=1.0-abs(dot(normalize((viewMatrix*vec4(n,0.0)).xyz),vec3(0.0,0.0,1.0)));
+    float lines=max(hg.r,hg.g*step(l,uBands.y));
+    if (lines<0.45&&rim<0.55) {
+        discard;
+    }
+    col=rim>=0.55?uInk:mix(uColMid,uColDark,lines);
+    #endif
     float f=smoothstep(uFog.x,uFog.y,vDepth);
     col=mix(col,max(col,uFogLift),f);
     col=mix(col,uFogColor,f*f*uFog.z);
     col=mix(col,uFlashColor,uFlash);
     vec3 vn=normalize((viewMatrix*vec4(n,0.0)).xyz);
-    gl_FragColor=vec4(col,1.0);
+    gl_FragColor=vec4(col,uAlpha);
     gBuf=vec4(vn*0.5+0.5,vDepth/uFar);
 }
 `;

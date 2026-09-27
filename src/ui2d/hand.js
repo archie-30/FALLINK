@@ -6,7 +6,7 @@ import {RNG} from '../core/rng.js';
 import {time} from '../core/loop.js';
 import {CARD_W,CARD_H,drawCost,rareBorderPath} from './cardView.js';
 import {sketchPath,sketchRect,drawShape} from './sketch.js';
-import {cardCost,cardRange} from '../game/card.js';
+import {cardCost,cardRange,cardParams} from '../game/card.js';
 
 const C=TUNING.cards;
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
@@ -95,6 +95,7 @@ export class Hand {
         this.hover=null;
         this.press=null;
         this.targetView=null;
+        this.path=null;
         this.pointer={x:0,y:0,active:false};
         this.width=1;
         this.height=1;
@@ -253,6 +254,21 @@ export class Hand {
             gz=this._g.z;
             has=true;
         }
+        if (tg==='drawPath') {
+            if (this.path&&this.path.pts.length>1) {
+                out.points=this.path.pts.slice();
+            }
+            else {
+                const cx=p.x+aim.x*2.8;
+                const cz=p.z+aim.z*2.8;
+                const px=-aim.z;
+                const pz=aim.x;
+                out.points=[{x:cx-px*2.2,z:cz-pz*2.2},{x:cx,z:cz},{x:cx+px*2.2,z:cz+pz*2.2}];
+            }
+            out.x=out.points[0].x;
+            out.z=out.points[0].z;
+            return out;
+        }
         if (tg==='direction') {
             if (has) {
                 const dx=gx-p.x;
@@ -365,7 +381,41 @@ export class Hand {
         this.hover=null;
     }
 
+    addPathPoint(sx,sy) {
+        const path=this.path;
+        if (!path||sy>=this.fieldBottom()) {
+            return;
+        }
+        if (!this.api.screenToGround(sx,sy,this._g)) {
+            return;
+        }
+        const pts=path.pts;
+        const max=cardParams(path.card).length||8;
+        const q={x:this._g.x,z:this._g.z};
+        if (pts.length===0) {
+            pts.push(q);
+            return;
+        }
+        const last=pts[pts.length-1];
+        let d=Math.hypot(q.x-last.x,q.z-last.z);
+        if (d<TUNING.terrain.pathStep) {
+            return;
+        }
+        if (path.len+d>max) {
+            const f=(max-path.len)/d;
+            if (f<=0.05) {
+                return;
+            }
+            q.x=last.x+(q.x-last.x)*f;
+            q.z=last.z+(q.z-last.z)*f;
+            d=max-path.len;
+        }
+        path.len+=d;
+        pts.push(q);
+    }
+
     cancelTargeting() {
+        this.path=null;
         if (this.targetView) {
             this.targetView=null;
         }
@@ -383,8 +433,12 @@ export class Hand {
             return;
         }
         const m=this.api.mouseScreen();
-        const target=m?this.resolveTarget(v.card,m.x,m.y):this.resolveTarget(v.card);
         this.cancelTargeting();
+        if (v.card.def.targeting==='drawPath'&&m) {
+            this.enterTargeting(v);
+            return;
+        }
+        const target=m?this.resolveTarget(v.card,m.x,m.y):this.resolveTarget(v.card);
         this.tryPlay(v,target);
     }
 
@@ -404,6 +458,12 @@ export class Hand {
                 else {
                     this.enterTargeting(hit);
                 }
+                return true;
+            }
+            if (y<this.fieldBottom()&&this.targetView.card.def.targeting==='drawPath') {
+                this.path={card:this.targetView.card,pts:[],len:0};
+                this.addPathPoint(x,y);
+                this.press={id,v:this.targetView,x0:x,y0:y,type,moved:true,pathOnly:true};
                 return true;
             }
             if (y<this.fieldBottom()) {
@@ -442,6 +502,12 @@ export class Hand {
             p.v.state='drag';
             this.hover=null;
         }
+        if (p.moved&&p.v.card.def.targeting==='drawPath'&&y<this.fieldBottom()) {
+            if (!this.path) {
+                this.path={card:p.v.card,pts:[],len:0};
+            }
+            this.addPathPoint(x,y);
+        }
     }
 
     hoverAt(x,y) {
@@ -469,6 +535,26 @@ export class Hand {
         }
         this.press=null;
         const v=p.v;
+        if (v.card.def.targeting==='drawPath'&&p.moved) {
+            this.api.preview.hide();
+            const path=this.path;
+            this.path=null;
+            if (p.pathOnly) {
+                this.targetView=null;
+            }
+            if (this.inRect(this.discardRect,x,y,20)&&!p.pathOnly) {
+                this.discardView(v);
+                return;
+            }
+            v.state='idle';
+            if (path&&path.len>=TUNING.terrain.minPath) {
+                this.path=path;
+                const target=this.resolveTarget(v.card);
+                this.path=null;
+                this.tryPlay(v,target);
+            }
+            return;
+        }
         if (p.moved) {
             this.api.preview.hide();
             if (this.inRect(this.discardRect,x,y,20)) {
@@ -492,6 +578,10 @@ export class Hand {
 
     updatePreview() {
         const api=this.api;
+        if (this.path) {
+            api.preview.showPath(this.path.pts,this.path.card);
+            return;
+        }
         let v=null;
         let sx=0;
         let sy=0;
@@ -553,7 +643,9 @@ export class Hand {
                 v.rot+=(Math.max(-0.35,Math.min(0.35,(nx-v.x)*0.02))-v.rot)*kk;
                 v.x=nx;
                 v.y+=(this.pointer.y-v.y)*kk;
-                v.scale+=(0.9-v.scale)*kk;
+                const over=this.pointer.y<this.fieldBottom();
+                const ts=over?(v.card.def.targeting==='drawPath'?0.35:0.55):0.9;
+                v.scale+=(ts-v.scale)*kk;
             }
             else {
                 v.x+=(v.tx-v.x)*k;

@@ -48,7 +48,70 @@ export class Preview {
         this.ring.material.uniforms.uDash.value=18;
         this.ring.material.uniforms.uWidth.value=0.08;
         parent.add(this.ring);
+        const pg=new THREE.BufferGeometry();
+        this.pathCap=64;
+        this.pathPos=new THREE.BufferAttribute(new Float32Array(this.pathCap*2*3),3);
+        this.pathPos.setUsage(THREE.DynamicDrawUsage);
+        this.pathUv=new THREE.BufferAttribute(new Float32Array(this.pathCap*2*2),2);
+        this.pathUv.setUsage(THREE.DynamicDrawUsage);
+        const pidx=[];
+        for (let i=0;i<this.pathCap-1;i++) {
+            const v=i*2;
+            pidx.push(v,v+1,v+2,v+1,v+3,v+2);
+        }
+        pg.setAttribute('position',this.pathPos);
+        pg.setAttribute('uv',this.pathUv);
+        pg.setIndex(pidx);
+        pg.setDrawRange(0,0);
+        this.path=new THREE.Mesh(pg,dashMaterial('ink'));
+        this.path.visible=false;
+        this.path.frustumCulled=false;
+        this.path.material.uniforms.uDash.value=0.35;
+        parent.add(this.path);
         this.time=0;
+    }
+
+    showPath(pts,card) {
+        this.hide();
+        const n=Math.min(pts.length,this.pathCap);
+        if (n<2) {
+            return;
+        }
+        const a=this.pathPos.array;
+        const u=this.pathUv.array;
+        const w=TUNING.terrain.wallThickness*0.5;
+        let L=0;
+        const lens=[0];
+        for (let i=1;i<n;i++) {
+            L+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].z-pts[i-1].z);
+            lens.push(L);
+        }
+        for (let i=0;i<n;i++) {
+            const p=pts[i];
+            const q=pts[Math.min(n-1,i+1)];
+            const o=pts[Math.max(0,i-1)];
+            let tx=q.x-o.x;
+            let tz=q.z-o.z;
+            const tl=Math.hypot(tx,tz)||1;
+            tx/=tl;
+            tz/=tl;
+            a[i*6]=p.x-tz*w;
+            a[i*6+1]=0.06;
+            a[i*6+2]=p.z+tx*w;
+            a[i*6+3]=p.x+tz*w;
+            a[i*6+4]=0.06;
+            a[i*6+5]=p.z-tx*w;
+            const f=L>0?lens[i]/L:0;
+            u[i*4]=f;
+            u[i*4+1]=0;
+            u[i*4+2]=f;
+            u[i*4+3]=1;
+        }
+        this.pathPos.needsUpdate=true;
+        this.pathUv.needsUpdate=true;
+        this.path.geometry.setDrawRange(0,(n-1)*6);
+        this.path.material.uniforms.uLength.value=L;
+        this.path.visible=true;
     }
 
     hide() {
@@ -57,6 +120,9 @@ export class Preview {
         }
         this.arc.visible=false;
         this.ring.visible=false;
+        if (this.path) {
+            this.path.visible=false;
+        }
     }
 
     setLine(m,x,z,dx,dz,len,color) {
@@ -75,8 +141,16 @@ export class Preview {
         const color=card.def.rarity==='rare'?'red':'ink';
         const params=cardParams(card);
         if (tg==='direction') {
-            const count=card.id==='scatter'?params.count:1;
-            const spread=card.id==='scatter'?params.spread:0;
+            let count=1;
+            let spread=0;
+            if (card.id==='scatter') {
+                count=params.count;
+                spread=params.spread;
+            }
+            else if (card.id==='eraser') {
+                count=3;
+                spread=params.angle;
+            }
             const base=Math.atan2(target.dz,target.dx);
             const len=cardRange(card);
             for (let i=0;i<count&&i<this.lines.length;i++) {
@@ -135,6 +209,7 @@ export class Preview {
             l.material.uniforms.uTime.value=k;
         }
         this.arc.material.uniforms.uTime.value=k;
+        this.path.material.uniforms.uTime.value=k;
         this.ring.material.uniforms.uTime.value=this.time*0.3;
     }
 }

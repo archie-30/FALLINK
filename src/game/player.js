@@ -1,7 +1,7 @@
 import*as THREE from 'three';
 import {TUNING} from '../data/tuning.js';
 import {toonMaterial,unlitMaterial,registerShadow} from '../render/materials.js';
-import {addHull} from '../render/outline.js';
+import {addHull as addHullBase} from '../render/outline.js';
 import {resolveCircle,clampToBounds} from '../core/collision.js';
 import {time} from '../core/loop.js';
 
@@ -26,7 +26,8 @@ function capsule(r,len) {
 }
 
 export class Player {
-    constructor(parent) {
+    constructor(parent,opts={}) {
+        this.ghost=!!opts.ghost;
         this.pos=new THREE.Vector3();
         this.prev=new THREE.Vector3();
         this.vel=new THREE.Vector3();
@@ -52,24 +53,32 @@ export class Player {
         this.rapidMult=1;
         this.hp=TUNING.player.maxHp;
         this.invuln=0;
-        this.events={onDash:null,onFire:null,onHurt:null,onDown:null};
+        this.shield=0;
+        this.events={onDash:null,onFire:null,onHurt:null,onDown:null,onShield:null};
         this.build(parent);
     }
 
     build(parent) {
         const J=TUNING.boil.vertexJitter;
-        const dark=toonMaterial({light:'midGray',mid:'nearGray',dark:'ink',jitter:J});
-        const coat=toonMaterial({light:'farGray',mid:'midGray',dark:'ink',jitter:J});
-        const face=toonMaterial({light:'paper',mid:'farGray',dark:'midGray',jitter:J});
-        const ink=unlitMaterial({color:'ink',jitter:J});
+        const g=this.ghost;
+        const tm=o=>toonMaterial(g?{...o,ghost:true,unique:true,alpha:0.75}:o);
+        const dark=tm({light:'midGray',mid:'nearGray',dark:'ink',jitter:J});
+        const coat=tm({light:'farGray',mid:'midGray',dark:'ink',jitter:J});
+        const face=tm({light:'paper',mid:'farGray',dark:'midGray',jitter:J});
+        const ink=g?dark:unlitMaterial({color:'ink',jitter:J});
+        this.ghostMats=g?[dark,coat,face]:[];
         const hull={jitter:J};
+        const addHull=g?()=>null:addHullBase;
         this.root=new THREE.Group();
-        this.root.name='player';
-        this.shadow=new THREE.Mesh(new THREE.PlaneGeometry(1.9,1.9),null);
-        this.shadow.rotation.x=-Math.PI/2;
-        this.shadow.position.y=0.03;
-        registerShadow(this.shadow);
-        this.root.add(this.shadow);
+        this.root.name=g?'clone':'player';
+        if (!g) {
+            this.shadow=new THREE.Mesh(new THREE.PlaneGeometry(1.9,1.9),null);
+            this.shadow.rotation.x=-Math.PI/2;
+            this.shadow.position.y=0.03;
+            registerShadow(this.shadow);
+            this.root.add(this.shadow);
+            this.buildShield();
+        }
         this.moveFrame=new THREE.Group();
         this.leanGroup=new THREE.Group();
         this.stretch=new THREE.Group();
@@ -146,6 +155,54 @@ export class Player {
         parent.add(this.root);
     }
 
+    buildShield() {
+        const R=TUNING.effects.shieldRadius;
+        const geo=new THREE.PlaneGeometry(0.95,1.25,6,1);
+        const pa=geo.attributes.position;
+        for (let i=0;i<pa.count;i++) {
+            const x=pa.getX(i);
+            const y=pa.getY(i);
+            const a=x/R;
+            pa.setXYZ(i,Math.sin(a)*R,y+0.95+Math.sin(x*3)*0.05,Math.cos(a)*R);
+        }
+        geo.computeVertexNormals();
+        const m=toonMaterial({light:'paper',mid:'farGray',dark:'midGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide});
+        this.shieldGroup=new THREE.Group();
+        this.panels=[];
+        for (let i=0;i<3;i++) {
+            const holder=new THREE.Group();
+            holder.rotation.y=i*Math.PI*2/3;
+            const mesh=new THREE.Mesh(geo,m);
+            mesh.rotation.z=(i-1)*0.12;
+            holder.add(mesh);
+            holder.visible=false;
+            this.shieldGroup.add(holder);
+            this.panels.push(holder);
+        }
+        this.root.add(this.shieldGroup);
+    }
+
+    setShield(n) {
+        this.shield=n;
+        if (!this.panels) {
+            return;
+        }
+        for (let i=0;i<this.panels.length;i++) {
+            this.panels[i].visible=i<n;
+        }
+    }
+
+    forceDash(dx,dz,speed,dur) {
+        this.vel.set(dx*speed,0,dz*speed);
+        this.dashT=dur;
+        this.dashCd=Math.max(this.dashCd,0.2);
+        this.moveYaw=Math.atan2(dx,dz);
+        this.stv+=TUNING.player.dashStretch;
+        if (this.events.onDash) {
+            this.events.onDash(this);
+        }
+    }
+
     spawn(p) {
         this.pos.copy(p);
         this.prev.copy(p);
@@ -154,6 +211,7 @@ export class Player {
         this.root.position.copy(p);
         this.hp=TUNING.player.maxHp;
         this.invuln=0;
+        this.setShield(0);
     }
 
     recoil() {
@@ -167,6 +225,16 @@ export class Player {
     hurt(dmg,dx,dz) {
         const P=TUNING.player;
         if (this.isInvulnerable()||this.hp<=0) {
+            return false;
+        }
+        if (this.shield>0) {
+            const idx=this.shield-1;
+            this.setShield(this.shield-1);
+            this.invuln=0.35;
+            this.sqv+=1.5;
+            if (this.events.onShield) {
+                this.events.onShield(this,idx,dx,dz);
+            }
             return false;
         }
         this.hp=Math.max(0,this.hp-dmg);
@@ -381,11 +449,98 @@ export class Player {
             this.applyPose();
         }
         this.aimFrame.rotation.y=this.aimYaw-this.poseMoveYaw;
-        if (this.invuln>0) {
+        if (this.invuln>0&&this.shield===0) {
             this.moveFrame.visible=Math.floor(time.real*TUNING.player.flickerFps)%2===0;
         }
         else {
             this.moveFrame.visible=true;
+        }
+        if (this.shieldGroup) {
+            this.shieldGroup.rotation.y=time.game*TUNING.effects.shieldSpin;
+        }
+    }
+}
+
+export class Clone {
+    constructor(fxScene) {
+        this.fig=new Player(fxScene,{ghost:true});
+        this.active=false;
+        this.t=0;
+        this.fireCd=0;
+        this.fig.root.visible=false;
+        this.mp={x:0,z:0};
+    }
+
+    start(x,z,duration,damage) {
+        const f=this.fig;
+        f.pos.set(x,0,z);
+        f.prev.copy(f.pos);
+        f.vel.set(0,0,0);
+        f.sq=0.4;
+        f.sqv=-3;
+        f.st=0;
+        f.stv=0;
+        this.active=true;
+        this.t=0;
+        this.life=duration;
+        this.damage=damage;
+        f.root.visible=true;
+        for (const m of f.ghostMats) {
+            m.uniforms.uAlpha.value=0.75;
+        }
+    }
+
+    update(dt,ctx) {
+        if (!this.active) {
+            return;
+        }
+        const f=this.fig;
+        const E=TUNING.effects;
+        this.t+=dt;
+        f.prev.copy(f.pos);
+        const e=ctx.enemyMgr.nearest(f.pos.x,f.pos.z,E.cloneRange);
+        if (e) {
+            const dx=e.pos.x-f.pos.x;
+            const dz=e.pos.z-f.pos.z;
+            const l=Math.hypot(dx,dz)||1;
+            f.aimDirX=dx/l;
+            f.aimDirZ=dz/l;
+            let d=Math.atan2(f.aimDirX,f.aimDirZ)-f.aimYaw;
+            while (d>Math.PI) {
+                d-=Math.PI*2;
+            }
+            while (d<-Math.PI) {
+                d+=Math.PI*2;
+            }
+            f.aimYaw+=d*Math.min(1,20*dt);
+            this.fireCd-=dt;
+            if (this.fireCd<=0&&this.t>0.3) {
+                this.fireCd=E.cloneFire;
+                const m=f.muzzlePoint(this.mp);
+                ctx.playerBullets.spawn(m.x,m.z,f.aimDirX,f.aimDirZ,TUNING.weapon.bulletSpeed,this.damage,TUNING.weapon.bulletLife);
+                ctx.muzzle.show(m.x,TUNING.weapon.height,m.z,'nearGray',0.7);
+                f.kick=1;
+            }
+        }
+        f.kick*=Math.exp(-18*dt);
+        const k=TUNING.player.squashStiffness;
+        const c=TUNING.player.squashDamping;
+        f.sqv+=(-k*f.sq-c*f.sqv)*dt;
+        f.sq+=f.sqv*dt;
+        f.sq=Math.max(-0.45,Math.min(0.45,f.sq));
+        const fade=Math.min(1,(this.life-this.t)/0.4);
+        for (const m of f.ghostMats) {
+            m.uniforms.uAlpha.value=0.75*Math.max(0,fade);
+        }
+        if (this.t>=this.life) {
+            this.active=false;
+            f.root.visible=false;
+        }
+    }
+
+    sync(alpha) {
+        if (this.active) {
+            this.fig.sync(alpha);
         }
     }
 }

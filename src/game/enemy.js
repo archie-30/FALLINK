@@ -236,8 +236,9 @@ export class Enemy {
             wz/=wl;
         }
         const k=Math.min(1,d.accel*dt);
-        this.vel.x+=(wx*d.speed-this.vel.x)*k;
-        this.vel.z+=(wz*d.speed-this.vel.z)*k;
+        const sp0=d.speed*ctx.room.zones.slowAt(this.pos.x,this.pos.z);
+        this.vel.x+=(wx*sp0-this.vel.x)*k;
+        this.vel.z+=(wz*sp0-this.vel.z)*k;
         this.pos.x+=this.vel.x*dt;
         this.pos.z+=this.vel.z*dt;
         resolveCircle(this.pos,d.radius,ctx.room.colliders,2);
@@ -395,13 +396,13 @@ export class EnemyManager {
         return best;
     }
 
-    damage(e,dmg,dx,dz) {
+    damage(e,dmg,dx,dz,quiet=false) {
         if (!e.alive) {
             return false;
         }
         const dead=e.hurt(dmg,dx,dz);
         if (this.onHit) {
-            this.onHit(e,e.pos.x,e.pos.z,dx,dz,dead);
+            this.onHit(e,e.pos.x,e.pos.z,dx,dz,dead,quiet);
         }
         if (dead) {
             this.kill(e,dx,dz);

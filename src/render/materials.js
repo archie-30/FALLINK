@@ -2,7 +2,7 @@ import*as THREE from 'three';
 import {PALETTE} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {TOON_VERT,TOON_FRAG,HULL_VERT,HULL_FRAG,UNLIT_VERT,UNLIT_FRAG,SHADOW_VERT,SHADOW_FRAG} from './shaders/toon.js';
-import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,DASH_FRAG,RING_FRAG} from './shaders/fx.js';
+import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG} from './shaders/fx.js';
 
 const colorCache={};
 
@@ -71,7 +71,8 @@ export function toonMaterial(opts={}) {
     const jitter=opts.jitter??0;
     const shift=opts.shift??0;
     const grid=opts.grid||null;
-    const key='toon|'+light+'|'+mid+'|'+dark+'|'+jitter+'|'+shift+'|'+(grid?grid.join(','):'');
+    const fxKey=(opts.reveal?'r':'')+(opts.dissolve?'d':'')+(opts.ghost?'g':'');
+    const key='toon|'+light+'|'+mid+'|'+dark+'|'+jitter+'|'+shift+'|'+(grid?grid.join(','):'')+'|'+fxKey+'|'+(opts.side??0);
     if (!opts.unique&&cache.has(key)) {
         return cache.get(key);
     }
@@ -94,8 +95,27 @@ export function toonMaterial(opts={}) {
         uShift:{value:shift},
         uJitter:{value:0},
         uFlash:{value:0},
-        uFlashColor:{value:pal('ink').clone()}
+        uFlashColor:{value:pal('ink').clone()},
+        uAlpha:{value:opts.alpha??1},
+        uInk:{value:pal('ink').clone()}
     };
+    if (opts.reveal) {
+        defines.USE_REVEAL='';
+        uniforms.uReveal={value:1};
+        uniforms.uLen={value:1};
+        uniforms.uCrack={value:0};
+    }
+    if (opts.dissolve) {
+        defines.USE_DISSOLVE='';
+        uniforms.uDissolve={value:0};
+        uniforms.uSwipe={value:new THREE.Vector4(1,0,-1,1)};
+        uniforms.uEdgeColor={value:pal('paper').clone()};
+    }
+    if (opts.ghost) {
+        defines.USE_GHOST='';
+        uniforms.tGBuf=shared.tGBuf;
+        uniforms.uScreen=shared.uScreen;
+    }
     if (grid) {
         defines.USE_GRID='';
         uniforms.uGridColor={value:pal('farGray').clone()};
@@ -107,8 +127,12 @@ export function toonMaterial(opts={}) {
         fragmentShader:TOON_FRAG,
         uniforms,
         defines,
-        side:opts.side??THREE.FrontSide
+        side:opts.side??THREE.FrontSide,
+        transparent:!!opts.ghost,
+        depthTest:!opts.ghost,
+        depthWrite:!opts.ghost
     });
+    mat.userData.opts={light,mid,dark,jitter,shift,side:opts.side};
     track(mat,jitter);
     if (!opts.unique) {
         cache.set(key,mat);
@@ -323,6 +347,47 @@ export function ringMaterial(color) {
     return new THREE.ShaderMaterial({
         vertexShader:LINE_VERT,
         fragmentShader:RING_FRAG,
+        uniforms:fxUniforms(extra),
+        transparent:true,
+        depthTest:false,
+        depthWrite:false,
+        side:THREE.DoubleSide
+    });
+}
+
+export function dissolveVariant(mat) {
+    const o=mat.userData.opts;
+    if (!o) {
+        return null;
+    }
+    return toonMaterial({...o,dissolve:true,unique:true});
+}
+
+export function trapMaterial(color) {
+    const extra={
+        uColor:{value:pal(color).clone()},
+        uProgress:{value:0},
+        uAlpha:{value:1}
+    };
+    return new THREE.ShaderMaterial({
+        vertexShader:LINE_VERT,
+        fragmentShader:TRAP_FRAG,
+        uniforms:fxUniforms(extra),
+        transparent:true,
+        depthTest:false,
+        depthWrite:false
+    });
+}
+
+export function inkMaterial(color) {
+    const extra={
+        uColor:{value:pal(color).clone()},
+        uAlpha:{value:1},
+        uLength:{value:1}
+    };
+    return new THREE.ShaderMaterial({
+        vertexShader:LINE_VERT,
+        fragmentShader:INK_FRAG,
         uniforms:fxUniforms(extra),
         transparent:true,
         depthTest:false,

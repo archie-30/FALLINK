@@ -21,12 +21,12 @@ import {createPaperTexture,createNoiseTexture} from './render/paperTexture.js';
 import {createHatchTexture} from './render/hatching.js';
 import {Overlay} from './ui2d/overlay.js';
 import {buildRoom} from './game/terrain.js';
-import {Player} from './game/player.js';
+import {Player,Clone} from './game/player.js';
 import {BulletSystem,Lobs} from './game/bullet.js';
 import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects} from './game/card.js';
-import {STARTING_DECK} from './data/cards.js';
+import {STARTING_DECK,ALL_CARDS} from './data/cards.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -75,7 +75,7 @@ function boot() {
     };
     initMaterials(textures);
     const {scene,world,actors,fxScene}=createScene();
-    const room=buildRoom(LEVELS.test,world);
+    const room=buildRoom(LEVELS.test,world,fxScene);
     const player=new Player(actors);
     player.spawn(room.spawn);
     const rig=new CameraRig(1);
@@ -92,8 +92,12 @@ function boot() {
     const muzzle=new MuzzleFlashes(fxScene);
     const shards=new Shards(world,toonMaterial({...ENEMIES.doodle.tones.body,jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}));
     const decals=new Decals(world);
+    const terrainShards=new Shards(world,toonMaterial({light:'farGray',mid:'midGray',dark:'nearGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),48);
+    const paperShards=new Shards(world,toonMaterial({light:'paper',mid:'farGray',dark:'midGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),24);
+    room.shards=terrainShards;
+    const clones=[new Clone(fxScene),new Clone(fxScene)];
     const playerBullets=new BulletSystem(actors,fxScene,{color:'ink',...TUNING.bullet.player});
-    const enemyBullets=new BulletSystem(actors,fxScene,{color:'red',...TUNING.bullet.enemy});
+    const enemyBullets=new BulletSystem(actors,fxScene,{color:'red',owner:'enemy',...TUNING.bullet.enemy});
     const E=TUNING.effects;
     const pierceBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:16,radius:E.pierceRadius,size:E.pierceSize,trailWidth:E.pierceTrail,pierce:true});
     const homingBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:48,radius:0.22,size:E.homingSize,trailWidth:0.2,homing:E.homingTurn});
@@ -105,10 +109,12 @@ function boot() {
     const ctx={room,player,playerBullets,enemyBullets,muzzle,particles,enemies:[]};
     const ink=new Ink();
     const seedParam=Number(new URLSearchParams(location.search).get('seed'));
-    const deck=new Deck(STARTING_DECK,seedParam||(Date.now()&0xffff));
+    const deckParam=new URLSearchParams(location.search).get('deck');
+    const deck=new Deck(deckParam==='all'?ALL_CARDS:STARTING_DECK,seedParam||(Date.now()&0xffff));
     const art=new CardArt();
     const deckView=new DeckView();
-    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,lobs,enemies,particles,decals,rings,muzzle,fx},TUNING);
+    ctx.enemyMgr=enemies;
+    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room,clones,ink,scene:actors,fxScene},TUNING);
     const tmpV=new THREE.Vector3();
     const tmpG=new THREE.Vector3();
     function openDeck() {
@@ -160,14 +166,21 @@ function boot() {
     playerBullets.onWall=(x,z,vx,vz)=>{
         particles.burst(x,H,z,PT.wallPuff,{color:'nearGray',speed:[1,3.5],up:[1,3],size:[0.06,0.12],life:[0.2,0.4],dirX:-vx,dirZ:-vz,cone:1.3});
     };
-    enemyBullets.onWall=(x,z,vx,vz)=>{
+    enemyBullets.onWall=(x,z,vx,vz,col)=>{
+        if (col&&col.piece) {
+            room.damagePiece(col.piece,1);
+        }
         particles.burst(x,H,z,PT.wallPuff,{color:'darkRed',speed:[1,3],up:[1,3],size:[0.07,0.13],life:[0.2,0.4],dirX:-vx,dirZ:-vz,cone:1.3});
     };
-    enemies.onHit=(e,x,z,dx,dz,dead)=>{
+    enemies.onHit=(e,x,z,dx,dz,dead,quiet)=>{
         if (dead) {
             return;
         }
         ink.add(TUNING.ink.perHit);
+        if (quiet) {
+            particles.burst(x,0.8,z,2,{color:'ink',speed:[1,3],up:[1,3]});
+            return;
+        }
         fx.hitStop(F.hitStopHit);
         fx.cameraShake(F.shakeHit);
         fx.fovPunch(F.fovHit);
@@ -202,6 +215,16 @@ function boot() {
         fx.fovPunch(F.fovHurt);
         bleed=Math.min(1,bleed+DF.bleed);
         particles.burst(p.pos.x,1.0,p.pos.z,PT.redHurt,{color:'red',speed:[2,6],up:[2,6],size:[0.08,0.16]});
+    };
+    player.events.onShield=(p,idx,dx,dz)=>{
+        fx.hitStop(60,true);
+        fx.cameraShake(0.25);
+        paperShards.burst(p.pos.x-dx*0.8,1.0,p.pos.z-dz*0.8,4,-dx,-dz,0.8);
+        particles.burst(p.pos.x,1.0,p.pos.z,6,{color:'farGray',speed:[2,5],up:[2,4]});
+    };
+    room.onBreak=piece=>{
+        fx.cameraShake(0.2);
+        particles.burst(piece.x,0.8,piece.z,10,{color:'midGray',speed:[2,5],up:[2,5]});
     };
     player.events.onDown=p=>{
         fx.invertFrame(8);
@@ -314,6 +337,13 @@ function boot() {
         homingBullets.update(dt,room);
         lobs.update(dt);
         deck.update(dt);
+        room.update(dt,enemies);
+        effects.update(dt);
+        for (const c of clones) {
+            c.update(dt,ctx);
+        }
+        terrainShards.update(dt);
+        paperShards.update(dt);
         particles.update(dt);
         shards.update(dt);
         decals.update(dt);
@@ -353,6 +383,14 @@ function boot() {
         hand.update(dt);
         deckView.update(dt);
         shards.render();
+        terrainShards.render();
+        paperShards.render();
+        for (const c of clones) {
+            c.sync(alpha);
+        }
+        const inv=renderer.post.invertHold;
+        const invTarget=enemyBullets.frozen>0?1:0;
+        inv.value+=(invTarget-inv.value)*(1-Math.exp(-dt/TUNING.effects.timeStopFade*3));
         muzzle.update(dt);
         overlay.hud.update(dt,player,ink);
         updateDamageFx(dt);
