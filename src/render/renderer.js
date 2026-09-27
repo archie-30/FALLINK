@@ -36,9 +36,9 @@ export class Renderer {
         this.post.setSize(w,h,this.pixelRatio);
     }
 
-    render(scene,camera) {
+    render(scene,fxScene,camera) {
         this.gl.info.reset();
-        this.post.render(scene,camera);
+        this.post.render(scene,fxScene,camera);
     }
 
     stats() {

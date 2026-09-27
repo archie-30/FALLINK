@@ -2,6 +2,10 @@ export const LEVELS={
     test:{
         size:[30,20],
         spawn:[0,3],
+        enemyCount:4,
+        enemyTypes:['doodle'],
+        respawnDelay:1.2,
+        spawnPoints:[[-12,-7],[13,-2],[-13,8],[12,8],[0,-8.5],[-6,8.5],[8,-1],[-12,1]],
         wallHeight:0.7,
         wallThickness:0.6,
         props:[

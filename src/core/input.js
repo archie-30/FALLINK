@@ -21,6 +21,8 @@ export class Input {
         this.onToggleDebug=null;
         this.onCycleQuality=null;
         this.onFirstTouch=null;
+        this.onToggleLegend=null;
+        this.uiTap=null;
         this.bind();
     }
 
@@ -76,6 +78,11 @@ export class Input {
             }
             return;
         }
+        if (e.code==='KeyH'&&!e.repeat) {
+            if (this.onToggleLegend) {
+                this.onToggleLegend();
+            }
+        }
         if (e.code==='Space') {
             e.preventDefault();
             if (!e.repeat) {
@@ -121,6 +128,9 @@ export class Input {
             if (this.onToggleDebug) {
                 this.onToggleDebug();
             }
+        }
+        if (this.uiTap&&this.uiTap(x,y)) {
+            return;
         }
         const d=this.dash;
         if (d.id<0&&Math.hypot(x-d.x,y-d.y)<=d.r*1.25) {

@@ -81,7 +81,7 @@ export const TUNING={
         dashFovPunch:2.2,
         dashTrauma:0.12,
         turnSpeed:24,
-        aimHeight:0.95,
+        aimHeight:1.1,
         poseFps:12,
         lean:0.2,
         bobAmp:0.07,
@@ -94,13 +94,95 @@ export const TUNING={
         startStretch:1.4,
         stopSquash:2.2,
         dashStretch:5.5,
-        recoilDistance:0.18
+        recoilDistance:0.18,
+        maxHp:10,
+        invulnTime:1.0,
+        dashInvuln:true,
+        flickerFps:15,
+        hurtKnockback:6,
+        respawnInvuln:2.0
+    },
+    weapon:{
+        fireInterval:0.11,
+        bulletSpeed:28,
+        bulletLife:0.8,
+        damage:10,
+        spread:0.035,
+        height:1.1,
+        muzzleForward:1.2,
+        muzzleSide:0.46,
+        recoilTrauma:0.035,
+        recoilFov:0.22,
+        flashScale:0.9
+    },
+    bullet:{
+        capacity:600,
+        trailPoints:7,
+        player:{radius:0.14,size:0.17,trailWidth:0.13},
+        enemy:{radius:0.2,size:0.26,trailWidth:0.2}
+    },
+    feel:{
+        hitStopHit:50,
+        hitStopKill:90,
+        hitStopHurt:80,
+        hitStopCooldown:0.14,
+        shakeHit:0.1,
+        shakeKill:0.38,
+        shakeHurt:0.5,
+        fovHit:0.3,
+        fovKill:1.6,
+        fovHurt:1.2,
+        flashTime:0.05,
+        knockback:5,
+        hurtSquash:2.8,
+        killFlash:0.06,
+        hurtFlash:0.08
+    },
+    particles:{
+        gravity:24,
+        inkHit:7,
+        inkKill:16,
+        redKill:12,
+        redHurt:10,
+        wallPuff:4,
+        spawnPuff:10
+    },
+    shards:{
+        capacity:64,
+        speed:[4,9],
+        up:[4,8],
+        spin:14,
+        gravity:26,
+        bounce:0.35,
+        life:1.6,
+        size:[0.45,0.8]
+    },
+    decals:{
+        capacity:24,
+        life:10,
+        size:[1.3,2.0],
+        grow:0.14
+    },
+    damageFx:{
+        bleed:0.75,
+        bleedDecay:0.7,
+        lowHp:0.3,
+        lowBase:0.3,
+        lowPulse:0.22,
+        heartRate:1.25,
+        heartFov:0.5
     },
     input:{
         stickRadius:70,
         deadZone:0.14,
         dashButtonRadius:46,
         dashButtonOffset:[96,104]
+    },
+    hud:{
+        hpPos:[24,22],
+        hpLength:220,
+        hpHeight:22,
+        legendPad:14
     },
     quality:{
         low:{pixelRatio:1.0,grain:false,rules:true,hatchedShadow:false,anisotropy:1,particles:120},
