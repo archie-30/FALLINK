@@ -61,6 +61,9 @@ uniform vec3 uEdgeColor;
 uniform sampler2D tGBuf;
 uniform vec2 uScreen;
 #endif
+#ifdef USE_YREVEAL
+uniform float uRevealY;
+#endif
 #ifdef USE_GRID
 uniform vec3 uGridColor;
 uniform vec3 uGrid;
@@ -93,6 +96,11 @@ void main() {
     #endif
     #ifdef USE_REVEAL
     if (vReveal>uReveal) {
+        discard;
+    }
+    #endif
+    #ifdef USE_YREVEAL
+    if (vWorldPos.y>uRevealY) {
         discard;
     }
     #endif
@@ -154,6 +162,11 @@ void main() {
     }
     else if (dv<cut+0.06) {
         col=uColDark;
+    }
+    #endif
+    #ifdef USE_YREVEAL
+    if (vWorldPos.y>uRevealY-0.07) {
+        col=uInk;
     }
     #endif
     #ifdef USE_GHOST

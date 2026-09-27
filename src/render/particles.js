@@ -37,6 +37,11 @@ export class Particles {
         this.n=0;
     }
 
+    clear() {
+        this.n=0;
+        this.mesh.count=0;
+    }
+
     setLimit(n) {
         this.limit=Math.min(this.capacity,n);
     }

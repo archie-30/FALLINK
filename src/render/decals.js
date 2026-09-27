@@ -80,6 +80,13 @@ export class Decals {
         this.next=0;
     }
 
+    clear() {
+        for (const it of this.items) {
+            it.active=false;
+            it.mesh.visible=false;
+        }
+    }
+
     spawn(x,z,size,color='red',old='darkRed') {
         const it=this.items[this.next];
         this.next=(this.next+1)%this.items.length;

@@ -352,6 +352,37 @@ class Zones {
         z.mesh.material.uniforms.uLength.value=L;
     }
 
+    addPuddle(x,z,r,duration,slow) {
+        this.list.push({type:'puddle',x,z,r,slow,t:0,life:duration,mesh:null});
+    }
+
+    playerSlowAt(x,z) {
+        let m=1;
+        for (const zn of this.list) {
+            if (zn.type==='puddle'&&zn.t<zn.life) {
+                const dx=x-zn.x;
+                const dz=z-zn.z;
+                if (dx*dx+dz*dz<zn.r*zn.r) {
+                    m=Math.min(m,zn.slow);
+                }
+            }
+        }
+        return m;
+    }
+
+    clear() {
+        for (const zn of this.list) {
+            if (zn.mesh) {
+                this.fxScene.remove(zn.mesh);
+                if (zn.type==='trail') {
+                    zn.mesh.geometry.dispose();
+                }
+                zn.mesh.material.dispose();
+            }
+        }
+        this.list.length=0;
+    }
+
     slowAt(x,z) {
         let m=1;
         for (const zn of this.list) {
@@ -419,11 +450,13 @@ class Zones {
                 }
             }
             if (zn.t>=zn.life) {
-                this.fxScene.remove(zn.mesh);
-                if (zn.type==='trail') {
-                    zn.mesh.geometry.dispose();
+                if (zn.mesh) {
+                    this.fxScene.remove(zn.mesh);
+                    if (zn.type==='trail') {
+                        zn.mesh.geometry.dispose();
+                    }
+                    zn.mesh.material.dispose();
                 }
-                zn.mesh.material.dispose();
                 this.list.splice(i,1);
             }
         }
@@ -471,6 +504,20 @@ export class Room {
             }
         }
         parent.add(this.group);
+    }
+
+    destroy() {
+        for (const p of this.pieces.slice()) {
+            if (p.kind==='pencilWall') {
+                this.removePiece(p);
+            }
+        }
+        this.zones.clear();
+        if (this.group.parent) {
+            this.group.parent.remove(this.group);
+        }
+        this.pieces.length=0;
+        this.colliders.length=0;
     }
 
     addPiece(kind,object,colliders,o) {

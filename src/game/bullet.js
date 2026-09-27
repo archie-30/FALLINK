@@ -127,6 +127,7 @@ export class BulletSystem {
 
     clear() {
         this.n=0;
+        this.frozen=0;
     }
 
     hasHit(i,uid) {
@@ -320,6 +321,14 @@ export class Lobs {
             registerShadow(sh);
             scene.add(sh);
             this.items.push({mesh:m,shadow:sh,active:false,t:0,pt:0,dur:1,x0:0,z0:0,x1:0,z1:0,y0:1,arc:3,onLand:null});
+        }
+    }
+
+    clear() {
+        for (const it of this.items) {
+            it.active=false;
+            it.mesh.visible=false;
+            it.shadow.visible=false;
         }
     }
 
