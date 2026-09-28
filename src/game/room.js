@@ -65,7 +65,7 @@ export class RoomDirector {
             }
             return;
         }
-        if (alive<=1||this.wave<0) {
+        if (alive<=2||this.wave<0) {
             this.nextT-=dt;
             if (this.nextT<=0) {
                 this.wave++;

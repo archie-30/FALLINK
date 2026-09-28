@@ -53,6 +53,8 @@ export class Player {
         this.rapidMult=1;
         this.dualT=0;
         this.reflectT=0;
+        this.ammo=TUNING.weapon.magazine;
+        this.reloadT=0;
         this.hp=TUNING.player.maxHp;
         this.invuln=0;
         this.shield=0;
@@ -215,6 +217,8 @@ export class Player {
         this.rapidT=0;
         this.dualT=0;
         this.reflectT=0;
+        this.ammo=TUNING.weapon.magazine;
+        this.reloadT=0;
         this.invuln=1.0;
         this.setShield(0);
     }
@@ -232,6 +236,13 @@ export class Player {
 
     recoil() {
         this.kick=1;
+    }
+
+    startReload() {
+        this.reloadT=TUNING.weapon.reloadTime;
+        if (this.events.onReload) {
+            this.events.onReload(this);
+        }
     }
 
     isInvulnerable() {
@@ -422,10 +433,24 @@ export class Player {
         this.st=Math.max(-0.45,Math.min(0.8,this.st));
         this.kick*=Math.exp(-18*dt);
         this.fireCd-=dt;
+        const W=TUNING.weapon;
+        if (this.reloadT>0) {
+            this.reloadT-=dt;
+            if (this.reloadT<=0) {
+                this.reloadT=0;
+                this.ammo=W.magazine;
+                if (this.events.onReloaded) {
+                    this.events.onReloaded(this);
+                }
+            }
+        }
+        else if (input.consumeReload&&input.consumeReload()&&this.ammo<W.magazine) {
+            this.startReload();
+        }
         this.rapidT=Math.max(0,this.rapidT-dt);
         this.dualT=Math.max(0,this.dualT-dt);
         this.reflectT=Math.max(0,this.reflectT-dt);
-        if (input.isFiring()&&this.fireCd<=0&&this.hp>0) {
+        if (input.isFiring()&&this.fireCd<=0&&this.hp>0&&this.reloadT<=0&&this.ammo>0) {
             this.fireCd+=TUNING.weapon.fireInterval/(this.rapidT>0?this.rapidMult:1);
             if (this.fireCd<0) {
                 this.fireCd=0;
@@ -433,6 +458,12 @@ export class Player {
         this.rapidMult=1;
             }
             this.fire(ctx,aim);
+            if (this.rapidT<=0) {
+                this.ammo--;
+                if (this.ammo<=0) {
+                    this.startReload();
+                }
+            }
         }
         else if (this.fireCd<0) {
             this.fireCd=0;

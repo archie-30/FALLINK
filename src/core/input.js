@@ -16,6 +16,7 @@ export class Input {
         this.aim=makeStick();
         this.dash={x:0,y:0,r:TUNING.input.dashButtonRadius,id:-1,flash:0};
         this.dashQueued=false;
+        this.reloadQueued=false;
         this.touches=new Map();
         this.multiTapArmed=true;
         this.onToggleDebug=null;
@@ -112,6 +113,9 @@ export class Input {
                 this.onPauseKey();
             }
             return;
+        }
+        if (e.code==='KeyR'&&!e.repeat) {
+            this.reloadQueued=true;
         }
         if (e.code==='KeyH'&&!e.repeat) {
             if (this.onToggleLegend) {
@@ -355,6 +359,12 @@ export class Input {
             return true;
         }
         return this.lastDevice==='mouse'&&this.mouse.down;
+    }
+
+    consumeReload() {
+        const q=this.reloadQueued;
+        this.reloadQueued=false;
+        return q;
     }
 
     consumeDash() {

@@ -238,14 +238,14 @@ export class SettingsMenu extends Panel {
         const pw=Math.min(560,w-40);
         const px=w/2-pw/2;
         const top=Math.max(110,h*0.24);
-        this.panel={x:px,y:top-90,w:pw,h:5*62+190};
+        this.panel={x:px,y:top-90,w:pw,h:6*62+190};
         this.rows=[];
-        const keys=['volume','quality','shake','reduced','fps'];
+        const keys=['volume','quality','shake','assist','reduced','fps'];
         for (let i=0;i<keys.length;i++) {
             const y=top+i*62;
             this.rows.push({key:keys[i],y,cx:px+pw*0.4,cw:pw*0.42});
         }
-        this.back={x:w/2-90,y:top+5*62+14,w:180,h:48};
+        this.back={x:w/2-90,y:top+6*62+14,w:180,h:48};
         this.buttons=[this.back];
     }
 
@@ -290,6 +290,9 @@ export class SettingsMenu extends Panel {
             else if (x>=r.cx&&x<=r.cx+70) {
                 if (r.key==='reduced') {
                     settings.reducedMotion=!settings.reducedMotion;
+                }
+                else if (r.key==='assist') {
+                    settings.aimAssist=!settings.aimAssist;
                 }
                 else {
                     settings.showFps=!settings.showFps;
@@ -375,7 +378,7 @@ export class SettingsMenu extends Panel {
                 }
             }
             else {
-                const on=r.key==='reduced'?settings.reducedMotion:settings.showFps;
+                const on=r.key==='reduced'?settings.reducedMotion:(r.key==='assist'?settings.aimAssist:settings.showFps);
                 ctx.fillStyle=on?PALETTE.ink:PALETTE.paper;
                 ctx.fillRect(r.cx,r.y-15,64,30);
                 drawShape(ctx,sketchRect(r.cx,r.y-15,64,30,{width:1.8,seed:1450+i}),PALETTE.ink,v);

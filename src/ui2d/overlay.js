@@ -56,6 +56,8 @@ export class Overlay {
         }
         if (game.mode==='play'&&!dying) {
             game.dmgNums.draw(ctx,game.project);
+            this.hud.drawAmmo(ctx,player,game.project,this.tmp||(this.tmp={x:0,y:0}));
+            this.drawLock(ctx,game);
             this.hud.drawHp(ctx,player);
             this.hud.drawInk(ctx,game.ink);
             this.hud.drawBuffs(ctx,player);
@@ -101,6 +103,36 @@ export class Overlay {
         if (this.showDebug&&debug) {
             this.drawDebug(debug);
         }
+    }
+
+    drawLock(ctx,game) {
+        const e=game.aimTarget;
+        const tmp=this.tmp2||(this.tmp2={x:0,y:0});
+        for (const q of game.enemies.list) {
+            if (q.vulnT>0||q.stunT>0) {
+                game.project(q.renderPos.x,q.def.height*1.15,q.renderPos.z,tmp);
+                ctx.fillStyle=PALETTE.ink;
+                ctx.font='bold 14px '+'"Noto Sans TC",sans-serif';
+                ctx.textAlign='center';
+                ctx.textBaseline='bottom';
+                ctx.fillText(q.vulnT>0?'×'+q.vulnMult:'✱',tmp.x,tmp.y);
+            }
+        }
+        if (!e||!e.alive) {
+            return;
+        }
+        game.project(e.renderPos.x,e.def.height*0.5,e.renderPos.z,tmp);
+        const r=18+e.def.radius*16;
+        const k=6;
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=2.4;
+        ctx.beginPath();
+        for (const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]) {
+            ctx.moveTo(tmp.x+sx*r,tmp.y+sy*(r-k));
+            ctx.lineTo(tmp.x+sx*r,tmp.y+sy*r);
+            ctx.lineTo(tmp.x+sx*(r-k),tmp.y+sy*r);
+        }
+        ctx.stroke();
     }
 
     drawSticks(input) {

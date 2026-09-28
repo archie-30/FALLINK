@@ -11,6 +11,7 @@ const DESKTOP_KEYS=[
     ['legend.move.key','legend.move'],
     ['legend.aim.key','legend.aim'],
     ['legend.fire.key','legend.fire'],
+    ['legend.reload.key','legend.reload'],
     ['legend.dash.key','legend.dash'],
     ['legend.card.key','legend.card'],
     ['legend.drag.key','legend.drag'],
@@ -73,6 +74,51 @@ export class Hud {
         this.bannerT=0;
         this.bannerDur=0;
         this.bossShown=1;
+    }
+
+    drawAmmo(ctx,player,project,tmp) {
+        const W=TUNING.weapon;
+        project(player.renderPos.x,0,player.renderPos.z,tmp);
+        const cx=tmp.x;
+        const cy=tmp.y+30;
+        const n=W.magazine;
+        const span=Math.PI*0.55;
+        const r=46;
+        if (player.reloadT>0) {
+            const k=1-player.reloadT/W.reloadTime;
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=3;
+            ctx.beginPath();
+            ctx.arc(cx,cy-r,r,Math.PI/2+span/2,Math.PI/2+span/2-span*k,true);
+            ctx.stroke();
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold 12px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='top';
+            ctx.fillText(t('hud.reload'),cx,cy+6);
+            return;
+        }
+        if (player.rapidT>0) {
+            return;
+        }
+        for (let i=0;i<n;i++) {
+            const a=Math.PI/2+span/2-span*(i+0.5)/n;
+            const x=cx+Math.cos(a)*r;
+            const y=cy-r+Math.sin(a)*r;
+            ctx.fillStyle=i<player.ammo?PALETTE.ink:rgba('midGray',0.5);
+            ctx.save();
+            ctx.translate(x,y);
+            ctx.rotate(a-Math.PI/2);
+            ctx.fillRect(-1.5,-4,3,8);
+            ctx.restore();
+        }
+        if (player.ammo<=3) {
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font='11px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='top';
+            ctx.fillText(t('hud.reloadHint'),cx,cy+6);
+        }
     }
 
     pauseRect(w) {

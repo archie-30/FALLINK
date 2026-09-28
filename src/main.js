@@ -700,6 +700,79 @@ function boot() {
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out);
     const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex};
+    let aimTarget=null;
+    function applyAimAssist() {
+        const A=TUNING.aimAssist;
+        if (!settings.aimAssist||game.mode!=='play'||hand.targetView||hand.press) {
+            aimTarget=null;
+            gameUi.aimTarget=null;
+            return;
+        }
+        if (aim.mode==='point') {
+            const px=aim.point.x;
+            const pz=aim.point.z;
+            if (aimTarget&&(!aimTarget.alive||Math.hypot(aimTarget.renderPos.x-px,aimTarget.renderPos.z-pz)>A.release+aimTarget.def.radius)) {
+                aimTarget=null;
+            }
+            if (!aimTarget) {
+                let bd=Infinity;
+                for (const e of enemies.list) {
+                    if (e.state==='spawn') {
+                        continue;
+                    }
+                    const d=Math.hypot(e.renderPos.x-px,e.renderPos.z-pz)-e.def.radius;
+                    if (d<A.acquire&&d<bd) {
+                        bd=d;
+                        aimTarget=e;
+                    }
+                }
+            }
+            if (aimTarget) {
+                aim.point.x+=(aimTarget.renderPos.x-aim.point.x)*A.strength;
+                aim.point.z+=(aimTarget.renderPos.z-aim.point.z)*A.strength;
+            }
+        }
+        else if (aim.mode==='dir') {
+            aimTarget=null;
+            let best=A.stickCone;
+            const a0=Math.atan2(aim.dz,aim.dx);
+            for (const e of enemies.list) {
+                if (e.state==='spawn') {
+                    continue;
+                }
+                const dx=e.renderPos.x-player.renderPos.x;
+                const dz=e.renderPos.z-player.renderPos.z;
+                if (Math.hypot(dx,dz)>A.stickRange) {
+                    continue;
+                }
+                let da=Math.atan2(dz,dx)-a0;
+                while (da>Math.PI) {
+                    da-=Math.PI*2;
+                }
+                while (da<-Math.PI) {
+                    da+=Math.PI*2;
+                }
+                if (Math.abs(da)<best) {
+                    best=Math.abs(da);
+                    aimTarget=e;
+                }
+            }
+            if (aimTarget) {
+                const dx=aimTarget.renderPos.x-player.renderPos.x;
+                const dz=aimTarget.renderPos.z-player.renderPos.z;
+                const l=Math.hypot(dx,dz)||1;
+                const nx=aim.dx+(dx/l-aim.dx)*A.stickStrength;
+                const nz=aim.dz+(dz/l-aim.dz)*A.stickStrength;
+                const nl=Math.hypot(nx,nz)||1;
+                aim.dx=nx/nl;
+                aim.dz=nz/nl;
+            }
+        }
+        else {
+            aimTarget=null;
+        }
+        gameUi.aimTarget=aimTarget;
+    }
     function update(dt) {
         if (run.state!=='dead') {
             player.update(dt,input,ctx,aim);
@@ -830,6 +903,7 @@ function boot() {
                 aim.mode='none';
             }
         }
+        applyAimAssist();
         renderer.render(scene,fxScene,rig.camera);
         if (transition.state==='capture') {
             transition.capture(renderer.gl.domElement,renderer.width,renderer.height);

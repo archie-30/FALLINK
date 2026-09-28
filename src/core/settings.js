@@ -12,6 +12,7 @@ export const settings={
     reducedMotion:false,
     showFps:false,
     shake:1,
+    aimAssist:true,
     volume:0.8
 };
 

@@ -97,7 +97,7 @@ export const TUNING={
         dashStretch:5.5,
         recoilDistance:0.18,
         maxHp:10,
-        invulnTime:1.0,
+        invulnTime:0.8,
         dashInvuln:true,
         flickerFps:15,
         hurtKnockback:6,
@@ -115,7 +115,17 @@ export const TUNING={
         recoilTrauma:0.035,
         recoilFov:0.22,
         flashScale:0.9,
-        dualOffset:0.22
+        dualOffset:0.22,
+        magazine:12,
+        reloadTime:1.1
+    },
+    aimAssist:{
+        acquire:1.1,
+        release:2.3,
+        strength:0.85,
+        stickCone:0.26,
+        stickRange:16,
+        stickStrength:0.7
     },
     bullet:{
         capacity:600,
@@ -183,7 +193,7 @@ export const TUNING={
     ink:{
         max:10,
         start:3,
-        perHit:0.2,
+        perHit:0.15,
         perKill:1.0
     },
     deck:{

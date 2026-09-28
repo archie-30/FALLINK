@@ -150,6 +150,7 @@ export class Enemy {
         this.renderPos.copy(this.pos);
         this.vel.set(0,0,0);
         this.hp=d.hp*(o.hpMult||1);
+        this.act=o.act||0;
         this.maxHp=this.hp;
         this.uid=++uidCounter;
         this.alive=true;
@@ -474,10 +475,19 @@ class Doodle extends Enemy {
             this.fireT-=dt;
             if (this.fireT<=0) {
                 this.setState('telegraph');
-                this.teleLine(this.nx,this.nz,d.telegraphLength,d.telegraph);
+                this.teleLine(this.nx,this.nz,d.telegraphLength,d.telegraph,this.act>=1?3:1,this.act>=1?0.32:0);
             }
         }
         else if (this.state==='telegraph') {
+            const p=ctx.player;
+            const tt=this.dist/d.bulletSpeed*d.lead;
+            const lx=p.pos.x+p.vel.x*tt-this.pos.x;
+            const lz=p.pos.z+p.vel.z*tt-this.pos.z;
+            const ll=Math.hypot(lx,lz)||1;
+            if (this.stateT<d.telegraph*0.6) {
+                this.tele.dx=lx/ll;
+                this.tele.dz=lz/ll;
+            }
             this.aimX=this.tele.dx;
             this.aimZ=this.tele.dz;
             if (this.stateT>=d.telegraph) {
@@ -496,7 +506,13 @@ class Doodle extends Enemy {
         const sn=Math.sin(this.yaw);
         const mx=this.pos.x+0.38*s*c+0.55*s*sn;
         const mz=this.pos.z-0.38*s*sn+0.55*s*c;
-        ctx.enemyBullets.spawn(mx,mz,this.aimX,this.aimZ,d.bulletSpeed,d.bulletDamage,d.bulletLife);
+        const n=this.act>=1?3:1;
+        const base=Math.atan2(this.aimZ,this.aimX);
+        const sp=d.bulletSpeed*(1+this.act*0.1);
+        for (let i=0;i<n;i++) {
+            const a=n>1?base+(i/(n-1)-0.5)*0.32:base;
+            ctx.enemyBullets.spawn(mx,mz,Math.cos(a),Math.sin(a),sp,d.bulletDamage,d.bulletLife);
+        }
         ctx.muzzle.show(mx,TUNING.weapon.height,mz,'red',0.8);
         this.kick=1;
         this.sqv-=1.5;
