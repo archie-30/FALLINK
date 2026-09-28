@@ -6,8 +6,12 @@ import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
 import {settings} from '../core/settings.js';
 import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel} from '../data/cards.js';
-import {progress,xpToNext} from '../core/progress.js';
-import {createCard} from '../game/card.js';
+import {progress,xpToNext,hasSeen} from '../core/progress.js';
+import {createCard,cardDesc} from '../game/card.js';
+import {ENEMIES} from '../data/enemies.js';
+import {ENDLESS} from '../data/levels.js';
+import {fmtInk} from './hud.js';
+import {CARD_ANIMS,ENEMY_ATTACKS,drawStage} from './codexAnim.js';
 import {CARD_W,CARD_H,drawCost,wrapText} from './cardView.js';
 import {ENEMY_ICONS} from './enemyIcons.js';
 
@@ -221,8 +225,8 @@ export class PauseMenu extends Panel {
         const bw=240;
         const bh=52;
         this.buttons=[];
-        for (let i=0;i<3;i++) {
-            this.buttons.push({x:w/2-bw/2,y:h*0.4+i*(bh+14),w:bw,h:bh});
+        for (let i=0;i<5;i++) {
+            this.buttons.push({x:w/2-bw/2,y:h*0.34+i*(bh+12),w:bw,h:bh});
         }
     }
 
@@ -232,14 +236,9 @@ export class PauseMenu extends Panel {
         }
         this.layout();
         const i=this.hitButton(x,y);
-        if (i===0) {
-            this.actions.resume();
-        }
-        else if (i===1) {
-            this.actions.settings();
-        }
-        else if (i===2) {
-            this.actions.quit();
+        const acts=['resume','deck','codex','settings','quit'];
+        if (i>=0&&this.actions[acts[i]]) {
+            this.actions[acts[i]]();
         }
         return true;
     }
@@ -256,7 +255,7 @@ export class PauseMenu extends Panel {
         ctx.fillRect(0,0,w,h);
         const a=EASE.easeOutBack(Math.min(1,this.t/0.35));
         ctx.save();
-        ctx.translate(w/2,h*0.28);
+        ctx.translate(w/2,h*0.24);
         ctx.scale(a,a);
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 44px '+FONT;
@@ -264,8 +263,8 @@ export class PauseMenu extends Panel {
         ctx.textBaseline='middle';
         ctx.fillText(t('pause.title'),0,0);
         ctx.restore();
-        const labels=[t('pause.resume'),t('menu.settings'),t('pause.quit')];
-        for (let i=0;i<3;i++) {
+        const labels=[t('pause.resume'),t('pause.deck'),t('menu.codex'),t('menu.settings'),t('pause.quit')];
+        for (let i=0;i<5;i++) {
             drawButton(ctx,this.buttons[i],labels[i],v,(this.t-0.08-i*0.07)/0.35,this.hoverIdx===i);
         }
     }
@@ -277,6 +276,50 @@ export class SettingsMenu extends Panel {
         this.actions=actions;
         this.drag=null;
         this.rows=[];
+        this.anim={};
+        this.pulse={};
+        this.info=null;
+    }
+
+    target(key) {
+        if (key==='volume') {
+            return settings.volume;
+        }
+        if (key==='shake') {
+            return settings.shake;
+        }
+        if (key==='quality') {
+            return ['low','mid','high'].indexOf(settings.quality);
+        }
+        if (key==='reduced') {
+            return settings.reducedMotion?1:0;
+        }
+        if (key==='assist') {
+            return settings.aimAssist?1:0;
+        }
+        return settings.showFps?1:0;
+    }
+
+    show() {
+        super.show();
+        for (const k of ['volume','quality','shake','assist','reduced','fps']) {
+            this.anim[k]=this.target(k);
+            this.pulse[k]=0;
+        }
+    }
+
+    update(dt) {
+        super.update(dt);
+        const k=1-Math.exp(-TUNING.settingsUi.follow*dt);
+        for (const key in this.anim) {
+            this.anim[key]+=(this.target(key)-this.anim[key])*k;
+            this.pulse[key]=Math.max(0,this.pulse[key]-dt*TUNING.settingsUi.pulseDecay);
+        }
+    }
+
+    bump(key) {
+        this.pulse[key]=1;
+        this.actions.changed();
     }
 
     layout() {
@@ -304,7 +347,7 @@ export class SettingsMenu extends Panel {
         else {
             settings.shake=Math.round(v*20)/20;
         }
-        this.actions.changed();
+        this.bump(row.key);
     }
 
     down(x,y) {
@@ -312,6 +355,8 @@ export class SettingsMenu extends Panel {
             return false;
         }
         this.layout();
+        this.hx=x;
+        this.hy=y;
         if (inRect(this.back,x,y)) {
             this.actions.back();
             return true;
@@ -331,7 +376,7 @@ export class SettingsMenu extends Panel {
                 const i=Math.floor((x-r.cx)/seg);
                 if (i>=0&&i<3) {
                     settings.quality=['low','mid','high'][i];
-                    this.actions.changed();
+                    this.bump(r.key);
                 }
             }
             else if (x>=r.cx&&x<=r.cx+70) {
@@ -344,7 +389,7 @@ export class SettingsMenu extends Panel {
                 else {
                     settings.showFps=!settings.showFps;
                 }
-                this.actions.changed();
+                this.bump(r.key);
             }
         }
         return true;
@@ -384,63 +429,127 @@ export class SettingsMenu extends Panel {
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('menu.settings'),w/2,P.y+42);
+        this.info=null;
         for (let i=0;i<this.rows.length;i++) {
             const r=this.rows[i];
+            const an=this.anim[r.key]??this.target(r.key);
+            const pu=this.pulse[r.key]||0;
             ctx.font='18px '+FONT;
             ctx.textAlign='left';
             ctx.fillStyle=PALETTE.ink;
-            ctx.fillText(t('settings.'+r.key),P.x+28,r.y);
+            const label=t('settings.'+r.key);
+            ctx.fillText(label,P.x+28,r.y);
+            const ix=P.x+28+ctx.measureText(label).width+16;
+            const over=Math.hypot((this.hx??-99)-ix,(this.hy??-99)-r.y)<13;
+            this.drawInfoIcon(ctx,ix,r.y,over,v);
+            if (over) {
+                this.info={key:r.key,x:ix,y:r.y};
+            }
             if (r.key==='volume'||r.key==='shake') {
-                const val=r.key==='volume'?settings.volume:settings.shake;
+                const val=Math.max(0,Math.min(1,an));
+                const kr=10+pu*4;
                 drawShape(ctx,sketchLine(r.cx,r.y,r.cx+r.cw,r.y,{width:2,seed:1410+i,overshoot:1}),PALETTE.midGray,v);
-                drawShape(ctx,sketchLine(r.cx,r.y,r.cx+r.cw*val,r.y,{width:4,seed:1420+i,overshoot:0}),PALETTE.ink,v);
+                if (val>0.005) {
+                    ctx.fillStyle=PALETTE.ink;
+                    ctx.fillRect(r.cx,r.y-2,r.cw*val,4);
+                }
                 ctx.fillStyle=PALETTE.paper;
                 ctx.beginPath();
-                ctx.arc(r.cx+r.cw*val,r.y,10,0,Math.PI*2);
+                ctx.arc(r.cx+r.cw*val,r.y,kr,0,Math.PI*2);
                 ctx.fill();
                 ctx.save();
                 ctx.translate(r.cx+r.cw*val,r.y);
+                ctx.scale(kr/10,kr/10);
                 drawShape(ctx,sketchCircle(0,0,10,{width:2,seed:1430+i}),PALETTE.ink,v);
                 ctx.restore();
                 ctx.fillStyle=PALETTE.nearGray;
-                ctx.font='14px '+FONT;
+                ctx.font=(pu>0.3?'bold ':'')+'14px '+FONT;
                 ctx.textAlign='left';
-                ctx.fillText(Math.round(val*100)+'%',r.cx+r.cw+16,r.y);
+                ctx.fillText(Math.round(this.target(r.key)*100)+'%',r.cx+r.cw+16,r.y);
             }
             else if (r.key==='quality') {
                 const seg=r.cw/3;
                 const qs=['low','mid','high'];
+                const cur=this.target(r.key);
+                const sq=1+pu*0.08;
+                ctx.save();
+                ctx.translate(r.cx+an*seg+seg/2,r.y);
+                ctx.scale(sq,sq);
+                ctx.fillStyle=PALETTE.ink;
+                ctx.fillRect(-seg/2+4,-16,seg-8,32);
+                ctx.restore();
                 for (let k=0;k<3;k++) {
                     const bx=r.cx+k*seg;
-                    const on=settings.quality===qs[k];
-                    if (on) {
-                        ctx.fillStyle=PALETTE.ink;
-                        ctx.fillRect(bx+4,r.y-16,seg-8,32);
-                    }
                     drawShape(ctx,sketchRect(bx+4,r.y-16,seg-8,32,{width:1.6,seed:1440+k}),PALETTE.ink,v);
-                    ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
-                    ctx.font='bold 16px '+FONT;
+                    const cover=Math.max(0,1-Math.abs(an-k));
+                    ctx.fillStyle=cover>0.5?PALETTE.paper:PALETTE.ink;
+                    ctx.font=(k===cur?'bold ':'')+'16px '+FONT;
                     ctx.textAlign='center';
                     ctx.fillText(t('quality.'+qs[k]),bx+seg/2,r.y+1);
                 }
             }
             else {
-                const on=r.key==='reduced'?settings.reducedMotion:(r.key==='assist'?settings.aimAssist:settings.showFps);
-                ctx.fillStyle=on?PALETTE.ink:PALETTE.paper;
+                const on=this.target(r.key)>0.5;
+                const f=Math.max(0,Math.min(1,an));
+                ctx.fillStyle=PALETTE.paper;
+                ctx.fillRect(r.cx,r.y-15,64,30);
+                ctx.fillStyle=rgba('ink',f);
                 ctx.fillRect(r.cx,r.y-15,64,30);
                 drawShape(ctx,sketchRect(r.cx,r.y-15,64,30,{width:1.8,seed:1450+i}),PALETTE.ink,v);
-                ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
+                const kx=r.cx+16+32*f;
+                const squash=1+Math.sin(f*Math.PI)*0.35;
+                ctx.fillStyle=f>0.5?PALETTE.paper:PALETTE.ink;
                 ctx.beginPath();
-                ctx.arc(on?r.cx+48:r.cx+16,r.y,9,0,Math.PI*2);
+                ctx.ellipse(kx,r.y,9*squash,9/squash,0,0,Math.PI*2);
                 ctx.fill();
                 ctx.fillStyle=PALETTE.nearGray;
-                ctx.font='14px '+FONT;
+                ctx.font=(pu>0.3?'bold ':'')+'14px '+FONT;
                 ctx.textAlign='left';
                 ctx.fillText(on?t('settings.on'):t('settings.off'),r.cx+80,r.y);
             }
         }
         ctx.restore();
         drawButton(ctx,this.back,t('menu.back'),v,(this.t-0.1)/0.3,inRect(this.back,this.hx??-1,this.hy??-1));
+        if (this.info&&this.t>0.35) {
+            this.drawInfo(ctx,this.info,v);
+        }
+    }
+
+    drawInfoIcon(ctx,x,y,over,v) {
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.fillStyle=over?PALETTE.ink:PALETTE.paper;
+        ctx.beginPath();
+        ctx.arc(0,0,10,0,Math.PI*2);
+        ctx.fill();
+        drawShape(ctx,sketchCircle(0,0,10,{width:1.6,seed:1470}),PALETTE.ink,v);
+        ctx.fillStyle=over?PALETTE.paper:PALETTE.ink;
+        ctx.font='bold italic 14px Georgia,serif';
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText('i',0,1);
+        ctx.restore();
+    }
+
+    drawInfo(ctx,info,v) {
+        const maxW=300;
+        const pad=14;
+        ctx.save();
+        ctx.font='14px '+FONT;
+        const lines=wrapText(ctx,t('settingsInfo.'+info.key),maxW-pad*2);
+        const h=pad*2+lines.length*20;
+        const bx=Math.max(8,Math.min(this.width-maxW-8,info.x+18));
+        const by=Math.max(8,Math.min(this.height-h-8,info.y-h/2));
+        ctx.fillStyle=rgba('paper',0.98);
+        ctx.fillRect(bx,by,maxW,h);
+        drawShape(ctx,sketchRect(bx,by,maxW,h,{width:1.8,seed:1471}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        for (let i=0;i<lines.length;i++) {
+            ctx.fillText(lines[i],bx+pad,by+pad+i*20);
+        }
+        ctx.restore();
     }
 
     hover(x,y) {
@@ -449,18 +558,25 @@ export class SettingsMenu extends Panel {
     }
 }
 
-const ENEMY_LIST=['doodle','blob','compass','eraserMonster','bird','inkBottle','scissors','book'];
+const ENEMY_LIST=['doodle','blob','bird','compass','eraserMonster','inkBottle','scissors','book'];
 
 export class Codex extends Panel {
     constructor(actions) {
         super();
         this.actions=actions;
         this.tab=0;
-        this.cards=ALL_CARDS.map(id=>createCard(id));
+        const all=ALL_CARDS.map(id=>createCard(id));
+        this.lists=[all.filter(c=>c.def.rarity!=='rare'),all.filter(c=>c.def.rarity==='rare')];
         this.scroll=0;
         this.scrollTo=0;
         this.contentH=0;
         this.drag=null;
+        this.hits=[];
+        this.detail=null;
+        this.animT=0;
+        this.dScroll=0;
+        this.dScrollTo=0;
+        this.dContentH=0;
     }
 
     show() {
@@ -468,14 +584,22 @@ export class Codex extends Panel {
         this.scroll=0;
         this.scrollTo=0;
         this.drag=null;
+        this.detail=null;
     }
 
     layout() {
         const w=this.width;
         const h=this.height;
-        this.tabs=[{x:w/2-170,y:70,w:160,h:40},{x:w/2+10,y:70,w:160,h:40}];
+        const tw=150;
+        this.tabs=[0,1,2].map(i=>({x:w/2-tw*1.5-12+i*(tw+12),y:70,w:tw,h:40}));
         this.back={x:w/2-90,y:h-66,w:180,h:48};
         this.view={x:0,y:126,w:w,h:Math.max(80,h-126-84)};
+        const pw=Math.min(1040,w-32);
+        const ph=this.detail&&this.detail.kind==='card'?Math.min(h-40,TUNING.codex.cardPanelH):h-40;
+        const py=(h-ph)/2;
+        this.dPanel={x:(w-pw)/2,y:py,w:pw,h:ph};
+        this.dClose={x:w/2-80,y:py+ph-60,w:160,h:44};
+        this.dView={x:this.dPanel.x+10,y:py+10,w:pw-20,h:ph-84};
     }
 
     maxScroll() {
@@ -484,13 +608,19 @@ export class Codex extends Panel {
 
     clampScroll() {
         this.scrollTo=Math.max(0,Math.min(this.maxScroll(),this.scrollTo));
+        this.dScrollTo=Math.max(0,Math.min(Math.max(0,this.dContentH-this.dView.h),this.dScrollTo));
     }
 
     wheel(dy) {
         if (!this.open) {
             return;
         }
-        this.scrollTo+=dy;
+        if (this.detail) {
+            this.dScrollTo+=dy;
+        }
+        else {
+            this.scrollTo+=dy;
+        }
         this.clampScroll();
     }
 
@@ -501,41 +631,92 @@ export class Codex extends Panel {
         this.scrollTo=0;
     }
 
+    openDetail(kind,id) {
+        this.detail={kind,id,t:0};
+        this.animT=0;
+        this.dScroll=0;
+        this.dScrollTo=0;
+        if (this.actions.select) {
+            this.actions.select();
+        }
+    }
+
+    closeDetail() {
+        if (!this.detail) {
+            return false;
+        }
+        this.detail=null;
+        return true;
+    }
+
     down(x,y) {
         if (!this.open) {
             return false;
         }
         this.layout();
+        if (this.detail) {
+            if (inRect(this.dClose,x,y)||!inRect(this.dPanel,x,y)) {
+                this.closeDetail();
+                return true;
+            }
+            this.drag={y0:y,s0:this.dScrollTo,x0:x,moved:false,detail:true};
+            return true;
+        }
         if (inRect(this.back,x,y)) {
             this.actions.back();
         }
-        else if (inRect(this.tabs[0],x,y)) {
-            this.setTab(0);
-        }
-        else if (inRect(this.tabs[1],x,y)) {
-            this.setTab(1);
+        else if (this.tabs.some(b=>inRect(b,x,y))) {
+            this.setTab(this.tabs.findIndex(b=>inRect(b,x,y)));
         }
         else if (inRect(this.view,x,y)) {
-            this.drag={y0:y,s0:this.scrollTo};
+            this.drag={y0:y,s0:this.scrollTo,x0:x,moved:false,detail:false};
         }
         return true;
     }
 
     move(x,y) {
-        if (this.drag) {
-            this.scrollTo=this.drag.s0-(y-this.drag.y0);
+        const d=this.drag;
+        if (!d) {
+            return;
+        }
+        if (Math.hypot(x-d.x0,y-d.y0)>6) {
+            d.moved=true;
+        }
+        if (d.detail) {
+            this.dScrollTo=d.s0-(y-d.y0);
+            this.clampScroll();
+            this.dScroll=this.dScrollTo;
+        }
+        else {
+            this.scrollTo=d.s0-(y-d.y0);
             this.clampScroll();
             this.scroll=this.scrollTo;
         }
     }
 
-    up() {
+    up(x,y) {
+        const d=this.drag;
         this.drag=null;
+        if (!d||d.moved||d.detail||x===undefined) {
+            return;
+        }
+        for (const hit of this.hits) {
+            if (inRect(hit,x,y)) {
+                this.openDetail(hit.kind,hit.id);
+                return;
+            }
+        }
     }
 
     update(dt) {
         super.update(dt);
-        this.scroll+=(this.scrollTo-this.scroll)*(1-Math.exp(-TUNING.codex.follow*dt));
+        const k=1-Math.exp(-TUNING.codex.follow*dt);
+        this.scroll+=(this.scrollTo-this.scroll)*k;
+        this.dScroll+=(this.dScrollTo-this.dScroll)*k;
+        this.animT+=dt;
+        if (this.detail) {
+            this.detail.t+=dt;
+        }
     }
 
     hover(x,y) {
@@ -547,7 +728,11 @@ export class Codex extends Panel {
         return Math.max(0,Math.min(1,(this.t-0.1-Math.min(i,6)*0.05)/0.35));
     }
 
-    drawCards(ctx,art,v) {
+    hovering(r) {
+        return !this.detail&&inRect(r,this.hx??-1,this.hy??-1)&&inRect(this.view,this.hx??-1,this.hy??-1);
+    }
+
+    drawCards(ctx,art,v,list) {
         const w=this.width;
         const V=this.view;
         const cols=w>=900?2:1;
@@ -555,9 +740,9 @@ export class Codex extends Panel {
         const sc=TUNING.codex.cardScale;
         const rowH=CARD_H*sc+TUNING.codex.rowGap;
         const x0=w/2-colW*cols/2;
-        this.contentH=Math.ceil(this.cards.length/cols)*rowH+10;
-        for (let i=0;i<this.cards.length;i++) {
-            const c=this.cards[i];
+        this.contentH=Math.ceil(list.length/cols)*rowH+10;
+        for (let i=0;i<list.length;i++) {
+            const c=list[i];
             const cx=x0+(i%cols)*colW;
             const cy=V.y+10+Math.floor(i/cols)*rowH-this.scroll;
             if (cy>V.y+V.h||cy+rowH<V.y) {
@@ -569,8 +754,17 @@ export class Codex extends Panel {
             }
             const need=unlockLevel(c.id);
             const locked=need>progress.level;
+            const r={x:cx+4,y:cy,w:colW-8,h:rowH-12,kind:'card',id:c.id};
+            if (!locked) {
+                this.hits.push(r);
+            }
+            const hv=!locked&&this.hovering(r);
             ctx.save();
             ctx.globalAlpha=p;
+            if (hv) {
+                ctx.fillStyle=rgba('farGray',0.35);
+                ctx.fillRect(r.x,r.y-4,r.w,r.h);
+            }
             ctx.translate(cx+8,cy+(1-p)*16);
             ctx.save();
             ctx.scale(sc,sc);
@@ -594,9 +788,12 @@ export class Codex extends Panel {
                 ctx.fillStyle=PALETTE.ink;
                 ctx.font='14px '+FONT;
                 const lines=wrapText(ctx,t(c.def.descKey,c.def.params),tw);
-                for (let k=0;k<lines.length&&k<5;k++) {
+                for (let k=0;k<lines.length&&k<4;k++) {
                     ctx.fillText(lines[k],tx,50+k*19);
                 }
+                ctx.fillStyle=hv?PALETTE.red:PALETTE.midGray;
+                ctx.font='12px '+FONT;
+                ctx.fillText(t('codex.clickCard'),tx,CARD_H*sc-16);
             }
             ctx.restore();
         }
@@ -621,15 +818,37 @@ export class Codex extends Panel {
             if (p<=0) {
                 continue;
             }
-            const boss=id==='inkBottle'||id==='scissors'||id==='book';
+            const seen=hasSeen(id);
+            const boss=ENEMIES[id].boss;
+            const r={x:x+4,y:y,w:colW-8,h:rowH-12,kind:'enemy',id};
+            if (seen) {
+                this.hits.push(r);
+            }
+            const hv=seen&&this.hovering(r);
             ctx.save();
             ctx.globalAlpha=p;
-            ctx.fillStyle=rgba('paper',0.9);
+            if (hv) {
+                ctx.fillStyle=rgba('farGray',0.35);
+                ctx.fillRect(r.x,r.y,r.w,r.h);
+            }
+            ctx.fillStyle=seen?rgba('paper',0.9):PALETTE.nearGray;
             ctx.fillRect(x+8,y+4,86,86);
-            drawShape(ctx,sketchRect(x+8,y+4,86,86,{width:1.6,seed:1800+i}),boss?PALETTE.red:PALETTE.ink,v);
+            ctx.save();
+            ctx.translate(x+8,y+4);
+            drawShape(ctx,sketchRect(0,0,86,86,{width:1.6,seed:1800+i}),boss?PALETTE.red:PALETTE.ink,v);
+            ctx.restore();
             ctx.save();
             ctx.translate(x+51,y+47);
-            ENEMY_ICONS[id](ctx,v);
+            if (seen) {
+                ENEMY_ICONS[id](ctx,v);
+            }
+            else {
+                ctx.fillStyle=PALETTE.paper;
+                ctx.font='bold 44px '+FONT;
+                ctx.textAlign='center';
+                ctx.textBaseline='middle';
+                ctx.fillText('?',0,2);
+            }
             ctx.restore();
             const tx=x+108;
             const tw=colW-120;
@@ -637,50 +856,243 @@ export class Codex extends Panel {
             ctx.textBaseline='top';
             ctx.fillStyle=boss?PALETTE.red:PALETTE.ink;
             ctx.font='bold 18px '+FONT;
-            ctx.fillText(t('enemy.'+id)+(boss?'　'+t('codex.boss'):''),tx,y+6);
+            ctx.fillText(seen?t('enemy.'+id)+(boss?'　'+t('codex.boss'):''):'？？？',tx,y+6);
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='13px '+FONT;
-            const lines=wrapText(ctx,t('codex.'+id),tw);
-            for (let k=0;k<lines.length&&k<4;k++) {
+            const lines=wrapText(ctx,seen?t('codex.'+id):t('codex.unseen'),tw);
+            for (let k=0;k<lines.length&&k<3;k++) {
                 ctx.fillText(lines[k],tx,y+32+k*18);
+            }
+            if (seen) {
+                ctx.fillStyle=hv?PALETTE.red:PALETTE.midGray;
+                ctx.font='12px '+FONT;
+                ctx.fillText(t('codex.clickEnemy'),tx,y+86);
             }
             ctx.restore();
         }
     }
 
-    drawScrollbar(ctx,v) {
-        const V=this.view;
-        const max=this.maxScroll();
+    drawScrollbar(ctx,V,scroll,contentH,x) {
+        const max=Math.max(0,contentH-V.h);
         if (max<=0) {
             return;
         }
-        const x=this.width-18;
-        const th=Math.max(40,V.h*V.h/this.contentH);
-        const ty=V.y+(V.h-th)*(this.scroll/max);
+        const th=Math.max(40,V.h*V.h/contentH);
+        const ty=V.y+(V.h-th)*(scroll/max);
         ctx.fillStyle=rgba('farGray',0.6);
         ctx.fillRect(x,V.y,6,V.h);
         ctx.fillStyle=PALETTE.ink;
         ctx.fillRect(x-1,ty,8,th);
-        ctx.fillStyle=PALETTE.nearGray;
-        ctx.font='13px '+FONT;
-        ctx.textAlign='right';
-        ctx.textBaseline='middle';
-        ctx.fillText(t('codex.scrollHint'),this.width-30,this.back.y+this.back.h/2);
+    }
+
+    drawFades(ctx,V,scroll,contentH) {
+        const max=Math.max(0,contentH-V.h);
         const fade=24;
-        if (this.scroll>2) {
+        if (scroll>2) {
             const g=ctx.createLinearGradient(0,V.y,0,V.y+fade);
             g.addColorStop(0,rgba('paper',0.97));
             g.addColorStop(1,rgba('paper',0));
             ctx.fillStyle=g;
-            ctx.fillRect(0,V.y,this.width-24,fade);
+            ctx.fillRect(V.x,V.y,V.w-24,fade);
         }
-        if (this.scroll<max-2) {
+        if (scroll<max-2) {
             const g=ctx.createLinearGradient(0,V.y+V.h-fade,0,V.y+V.h);
             g.addColorStop(0,rgba('paper',0));
             g.addColorStop(1,rgba('paper',0.97));
             ctx.fillStyle=g;
-            ctx.fillRect(0,V.y+V.h-fade,this.width-24,fade);
+            ctx.fillRect(V.x,V.y+V.h-fade,V.w-24,fade);
         }
+    }
+
+    drawCardDetail(ctx,art,v) {
+        const P=this.dPanel;
+        const card=createCard(this.detail.id);
+        const up=createCard(this.detail.id,true);
+        const sc=Math.min(1.7,(P.h-300)/CARD_H);
+        const lw=Math.max(240,CARD_W*sc+40);
+        const lx=P.x+28;
+        let y=P.y+28;
+        ctx.save();
+        ctx.translate(lx,y);
+        ctx.scale(sc,sc);
+        ctx.drawImage(art.face(card,v),0,0,CARD_W,CARD_H);
+        drawCost(ctx,card,false,v);
+        ctx.restore();
+        y+=CARD_H*sc+18;
+        const rare=card.def.rarity==='rare';
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillStyle=rare?PALETTE.red:PALETTE.ink;
+        ctx.font='bold 26px '+FONT;
+        ctx.fillText(t(card.def.nameKey),lx,y);
+        y+=36;
+        ctx.font='14px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillText((rare?t('type.ult'):t('type.'+card.def.type))+' · '+t('tooltip.cost',{cost:card.def.cost})+' · '+t('codex.unlockAt',{level:unlockLevel(card.id)}),lx,y);
+        y+=26;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='15px '+FONT;
+        for (const line of wrapText(ctx,cardDesc(card),lw-10)) {
+            ctx.fillText(line,lx,y);
+            y+=21;
+        }
+        y+=8;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font='bold 13px '+FONT;
+        ctx.fillText(t('codex.upgraded',{cost:up.def.upgraded?up.def.upgraded.cost:card.def.cost}),lx,y);
+        y+=20;
+        ctx.font='13px '+FONT;
+        for (const line of wrapText(ctx,cardDesc(up),lw-10)) {
+            ctx.fillText(line,lx,y);
+            y+=18;
+        }
+        const sx=lx+lw+20;
+        const sw=P.x+P.w-28-sx;
+        const sh=Math.min(sw*9/16,P.h-150);
+        const sww=sh*16/9;
+        const stx=sx+(sw-sww)/2;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 18px '+FONT;
+        ctx.textAlign='left';
+        ctx.fillText(t('codex.demo'),stx,P.y+28);
+        drawStage(ctx,stx,P.y+58,sww,sh,CARD_ANIMS[card.id],this.animT,v);
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font='13px '+FONT;
+        ctx.fillText(t('codex.demoHint'),stx,P.y+66+sh);
+    }
+
+    enemyStats(id) {
+        const d=ENEMIES[id];
+        const rows=[
+            [t('codex.stat.hp'),String(d.hp)],
+            [t('codex.stat.speed'),d.speed>0?String(d.speed):t('codex.stat.still')],
+            [t('codex.stat.attack'),String(d.chargeDamage||d.bulletDamage||d.contactDamage)],
+            [t('codex.stat.contact'),String(d.contactDamage)],
+            [t('codex.stat.ink'),'+'+fmtInk(d.ink||1)],
+            [t('codex.stat.type'),d.boss?t('codex.type.boss'):(d.flying?t('codex.type.fly'):t('codex.type.ground'))],
+            [t('codex.stat.score'),String(d.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(d.cost||1))],
+            [t('codex.stat.first'),t('codex.first.'+id)]
+        ];
+        if (d.weakMult) {
+            rows.push([t('codex.stat.weak'),t('codex.weak.'+id)]);
+        }
+        return rows;
+    }
+
+    drawEnemyDetail(ctx,v) {
+        const P=this.dPanel;
+        const V=this.dView;
+        const id=this.detail.id;
+        const boss=ENEMIES[id].boss;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(V.x,V.y,V.w,V.h);
+        ctx.clip();
+        ctx.translate(0,-this.dScroll);
+        const lx=P.x+28;
+        let y=P.y+28;
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(lx,y,150,150);
+        ctx.save();
+        ctx.translate(lx,y);
+        drawShape(ctx,sketchRect(0,0,150,150,{width:2,seed:2201}),boss?PALETTE.red:PALETTE.ink,v);
+        ctx.translate(75,80);
+        ctx.scale(1.8,1.8);
+        ENEMY_ICONS[id](ctx,v);
+        ctx.restore();
+        const tx=lx+176;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillStyle=boss?PALETTE.red:PALETTE.ink;
+        ctx.font='bold 28px '+FONT;
+        ctx.fillText(t('enemy.'+id)+(boss?'　'+t('codex.boss'):''),tx,y);
+        ctx.font='14px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        const dl=wrapText(ctx,t('codex.'+id),P.x+P.w-40-tx);
+        for (let i=0;i<dl.length;i++) {
+            ctx.fillText(dl[i],tx,y+40+i*19);
+        }
+        const rows=this.enemyStats(id);
+        const sy=y+44+dl.length*19+6;
+        const colW=Math.min(260,(P.x+P.w-40-tx)/2);
+        for (let i=0;i<rows.length;i++) {
+            const cx=tx+(i%2)*colW;
+            const cy=sy+Math.floor(i/2)*26;
+            ctx.font='14px '+FONT;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.fillText(rows[i][0],cx,cy);
+            ctx.font='bold 15px '+FONT;
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillText(rows[i][1],cx+92,cy);
+        }
+        y=Math.max(y+170,sy+Math.ceil(rows.length/2)*26+8);
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.font='12px '+FONT;
+        ctx.fillText(t('codex.statNote'),tx,y-8);
+        y+=16;
+        drawShape(ctx,sketchLine(lx,y,P.x+P.w-28,y,{width:1.4,seed:2202}),PALETTE.ink,v);
+        y+=14;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 20px '+FONT;
+        ctx.fillText(t('codex.attacks'),lx,y);
+        y+=36;
+        const atks=ENEMY_ATTACKS[id];
+        const cols=P.w>=860?2:1;
+        const cw=(P.w-56)/cols;
+        const stw=Math.min(300,cw*0.56);
+        const sth=stw*9/16;
+        const ch=Math.max(sth,120)+24;
+        for (let i=0;i<atks.length;i++) {
+            const a=atks[i];
+            const cx=lx+(i%cols)*cw;
+            const cy=y+Math.floor(i/cols)*ch;
+            if (cy-this.dScroll<V.y+V.h&&cy+ch-this.dScroll>V.y) {
+                drawStage(ctx,cx,cy,stw,sth,a,this.animT+i*0.37,v);
+                const ax=cx+stw+14;
+                const aw=cw-stw-28;
+                ctx.textAlign='left';
+                ctx.textBaseline='top';
+                ctx.fillStyle=PALETTE.ink;
+                ctx.font='bold 17px '+FONT;
+                ctx.fillText(t('atk.'+id+'.'+a.key),ax,cy+2);
+                ctx.fillStyle=PALETTE.nearGray;
+                ctx.font='13px '+FONT;
+                const ls=wrapText(ctx,t('atk.'+id+'.'+a.key+'.desc'),aw);
+                for (let k=0;k<ls.length&&k<7;k++) {
+                    ctx.fillText(ls[k],ax,cy+28+k*18);
+                }
+            }
+        }
+        this.dContentH=y+Math.ceil(atks.length/cols)*ch-P.y;
+        ctx.restore();
+        this.drawFades(ctx,V,this.dScroll,this.dContentH);
+        this.drawScrollbar(ctx,V,this.dScroll,this.dContentH,P.x+P.w-16);
+    }
+
+    drawDetail(ctx,art,v) {
+        const P=this.dPanel;
+        const a=EASE.easeOutBack(Math.min(1,this.detail.t/0.3));
+        ctx.fillStyle=rgba('ink',0.25*Math.min(1,this.detail.t*5));
+        ctx.fillRect(0,0,this.width,this.height);
+        ctx.save();
+        ctx.translate(P.x+P.w/2,P.y+P.h/2);
+        ctx.scale(0.9+0.1*a,0.9+0.1*a);
+        ctx.globalAlpha=Math.min(1,this.detail.t*6);
+        ctx.translate(-(P.x+P.w/2),-(P.y+P.h/2));
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(P.x,P.y,P.w,P.h);
+        ctx.save();
+        ctx.translate(P.x,P.y);
+        drawShape(ctx,sketchRect(0,0,Math.round(P.w),Math.round(P.h),{width:2.4,seed:2203}),PALETTE.ink,v);
+        ctx.restore();
+        if (this.detail.kind==='card') {
+            this.drawCardDetail(ctx,art,v);
+        }
+        else {
+            this.drawEnemyDetail(ctx,v);
+        }
+        drawButton(ctx,this.dClose,t('menu.back'),v,1,inRect(this.dClose,this.hx??-1,this.hy??-1));
+        ctx.restore();
     }
 
     draw(ctx,art) {
@@ -699,34 +1111,49 @@ export class Codex extends Panel {
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('menu.codex'),w/2,36);
-        const tl=[t('codex.cards'),t('codex.enemies')];
-        for (let i=0;i<2;i++) {
+        const tl=[t('codex.normal'),t('codex.ult'),t('codex.enemies')];
+        for (let i=0;i<3;i++) {
             const b=this.tabs[i];
             if (this.tab===i) {
-                ctx.fillStyle=PALETTE.ink;
+                ctx.fillStyle=i===1?PALETTE.red:PALETTE.ink;
                 ctx.fillRect(b.x,b.y,b.w,b.h);
             }
-            drawShape(ctx,sketchRect(b.x,b.y,b.w,b.h,{width:1.8,seed:1500+i}),PALETTE.ink,v);
-            ctx.fillStyle=this.tab===i?PALETTE.paper:PALETTE.ink;
+            ctx.save();
+            ctx.translate(b.x,b.y);
+            drawShape(ctx,sketchRect(0,0,b.w,b.h,{width:1.8,seed:1500+i}),i===1?PALETTE.red:PALETTE.ink,v);
+            ctx.restore();
+            ctx.fillStyle=this.tab===i?PALETTE.paper:(i===1?PALETTE.red:PALETTE.ink);
             ctx.font='bold 17px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
             ctx.fillText(tl[i],b.x+b.w/2,b.y+b.h/2+1);
         }
         const V=this.view;
+        this.hits=[];
         ctx.save();
         ctx.beginPath();
         ctx.rect(V.x,V.y,V.w,V.h);
         ctx.clip();
-        if (this.tab===0) {
-            this.drawCards(ctx,art,v);
+        if (this.tab<2) {
+            this.drawCards(ctx,art,v,this.lists[this.tab]);
         }
         else {
             this.drawEnemies(ctx,v);
         }
         ctx.restore();
-        this.drawScrollbar(ctx,v);
-        drawButton(ctx,this.back,t('menu.back'),v,(this.t-0.1)/0.3,inRect(this.back,this.hx??-1,this.hy??-1));
+        this.drawFades(ctx,V,this.scroll,this.contentH);
+        this.drawScrollbar(ctx,V,this.scroll,this.contentH,w-18);
+        if (this.maxScroll()>0) {
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font='13px '+FONT;
+            ctx.textAlign='right';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('codex.scrollHint'),w-30,this.back.y+this.back.h/2);
+        }
+        drawButton(ctx,this.back,t('menu.back'),v,(this.t-0.1)/0.3,!this.detail&&inRect(this.back,this.hx??-1,this.hy??-1));
+        if (this.detail) {
+            this.drawDetail(ctx,art,v);
+        }
     }
 }
 

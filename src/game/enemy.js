@@ -1670,6 +1670,9 @@ export class EnemyManager {
         }
         e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite});
         this.list.push(e);
+        if (this.onSpawned) {
+            this.onSpawned(e);
+        }
         return e;
     }
 

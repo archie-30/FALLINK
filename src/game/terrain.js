@@ -128,8 +128,161 @@ function buildProp(p,group,colliders) {
         m.position.set(p.x,p.r*0.7,p.z);
         m.rotation.set(0.4,p.x,0.2);
         group.add(m);
+        return;
+    }
+    const deco=DECOR_BUILDERS[p.type];
+    if (deco) {
+        const g=deco(p);
+        g.position.set(p.x,p.y||0,p.z);
+        g.rotation.y=rot;
+        group.add(g);
     }
 }
+
+function mesh(geo,tone) {
+    return new THREE.Mesh(geo,mat(tone));
+}
+
+const DECOR_BUILDERS={
+    mug(p) {
+        const g=new THREE.Group();
+        const r=p.r;
+        const h=p.h;
+        const cup=mesh(cachedGeo('mug|'+r+'|'+h,()=>new THREE.CylinderGeometry(r,r*0.88,h,12,1,true)),'light');
+        cup.material=toonMaterial({...TONES.light,side:THREE.DoubleSide});
+        cup.position.y=h/2;
+        const base=mesh(cachedGeo('mugb|'+r,()=>new THREE.CylinderGeometry(r*0.88,r*0.88,0.2,12)),'light');
+        base.position.y=0.1;
+        const coffee=mesh(cachedGeo('mugc|'+r,()=>new THREE.CircleGeometry(r*0.94,12)),'dark');
+        coffee.rotation.x=-Math.PI/2;
+        coffee.position.y=h*0.82;
+        const handle=mesh(cachedGeo('mugh|'+r+'|'+h,()=>new THREE.TorusGeometry(h*0.26,r*0.11,6,10,Math.PI*1.2)),'light');
+        handle.position.set(r*1.02,h*0.52,0);
+        handle.rotation.z=-Math.PI*0.6;
+        const band=mesh(cachedGeo('mugr|'+r+'|'+h,()=>new THREE.CylinderGeometry(r*1.01,r*0.97,h*0.16,12,1,true)),'dark');
+        band.position.y=h*0.6;
+        g.add(cup,base,coffee,handle,band);
+        return g;
+    },
+    ruler(p) {
+        const g=new THREE.Group();
+        const body=mesh(box(p.len,0.36,p.w),'cover');
+        body.position.y=0.18;
+        g.add(body);
+        const n=Math.floor(p.len/0.5);
+        const tick=box(0.06,0.04,1);
+        for (let i=1;i<n;i++) {
+            const m=mesh(tick,'dark');
+            const long=i%2===0;
+            m.scale.z=p.w*(long?0.42:0.24);
+            m.position.set(-p.len/2+i*0.5,0.37,-p.w/2+m.scale.z/2);
+            g.add(m);
+        }
+        return g;
+    },
+    pin(p) {
+        const g=new THREE.Group();
+        const head=mesh(cachedGeo('pinh|'+p.r,()=>new THREE.CylinderGeometry(p.r,p.r*1.1,p.r*0.9,10)),'dark');
+        head.position.y=p.r*2.1;
+        const neck=mesh(cachedGeo('pinn|'+p.r,()=>new THREE.CylinderGeometry(p.r*0.45,p.r*0.7,p.r*1.2,8)),'cover');
+        neck.position.y=p.r*1.2;
+        const needle=mesh(cachedGeo('pinp|'+p.r,()=>new THREE.CylinderGeometry(p.r*0.08,p.r*0.08,p.r*0.8,5)),'dark');
+        needle.position.y=p.r*0.4;
+        g.add(head,neck,needle);
+        g.rotation.z=p.tilt||0;
+        return g;
+    },
+    notes(p) {
+        const g=new THREE.Group();
+        const rng=new RNG(Math.round(p.x*11+p.z*5));
+        for (let i=0;i<p.count;i++) {
+            const m=mesh(box(p.s,0.06,p.s),i%2?'light':'cover');
+            m.position.set(rng.range(-0.15,0.15),0.03+i*0.06,rng.range(-0.15,0.15));
+            m.rotation.y=rng.range(-0.3,0.3);
+            g.add(m);
+        }
+        const curl=mesh(box(p.s,0.05,p.s*0.35),'light');
+        curl.position.set(0,p.count*0.06+0.12,-p.s*0.36);
+        curl.rotation.x=0.5;
+        g.add(curl);
+        return g;
+    },
+    sheet(p) {
+        const g=new THREE.Group();
+        const paper=mesh(box(p.w,0.12,p.d),'cover');
+        paper.position.y=0.06;
+        g.add(paper);
+        const line=box(1,0.02,0.05);
+        for (let z=-p.d/2+0.6;z<p.d/2-0.2;z+=0.55) {
+            const m=mesh(line,'dark');
+            m.scale.x=p.w*0.86;
+            m.position.set(0.05,0.13,z);
+            g.add(m);
+        }
+        return g;
+    },
+    clip(p) {
+        const g=new THREE.Group();
+        const r=p.r;
+        const L=p.len;
+        const pts=[[0,0],[L,0],[L,r*2],[-r*0.6,r*2],[-r*0.6,r*0.4],[L*0.8,r*0.4],[L*0.8,r*1.6],[r*0.3,r*1.6]];
+        const curve=new THREE.CurvePath();
+        for (let i=0;i<pts.length-1;i++) {
+            curve.add(new THREE.LineCurve3(new THREE.Vector3(pts[i][0],0,pts[i][1]),new THREE.Vector3(pts[i+1][0],0,pts[i+1][1])));
+        }
+        const tube=mesh(cachedGeo('clip|'+r+'|'+L,()=>new THREE.TubeGeometry(curve,48,r*0.16,5,false)),'cover');
+        tube.position.set(-L/2,r*0.16,-r);
+        g.add(tube);
+        return g;
+    },
+    lamp(p) {
+        const g=new THREE.Group();
+        const s=p.s;
+        const base=mesh(cachedGeo('lampb|'+s,()=>new THREE.CylinderGeometry(s*0.9,s,s*0.3,12)),'dark');
+        base.position.y=s*0.15;
+        const arm1=mesh(box(s*0.22,s*2.6,s*0.22),'cover');
+        arm1.position.set(0,s*1.5,0);
+        arm1.rotation.z=-0.35;
+        const joint=mesh(cachedGeo('lampj|'+s,()=>new THREE.SphereGeometry(s*0.22,8,6)),'dark');
+        joint.position.set(s*0.43,s*2.72,0);
+        const arm2=mesh(box(s*2.2,s*0.2,s*0.2),'cover');
+        arm2.position.set(s*1.4,s*3.0,0);
+        arm2.rotation.z=0.3;
+        const shade=mesh(cachedGeo('lamps|'+s,()=>new THREE.ConeGeometry(s*0.8,s*1.1,12,1,true)),'dark');
+        shade.material=toonMaterial({...TONES.dark,side:THREE.DoubleSide});
+        shade.position.set(s*2.5,s*2.85,0);
+        shade.rotation.z=0.35;
+        g.add(base,arm1,joint,arm2,shade);
+        return g;
+    },
+    sharpener(p) {
+        const g=new THREE.Group();
+        const s=p.s;
+        const body=mesh(box(s*1.6,s,s),'cover');
+        body.position.y=s/2;
+        const hole=mesh(cachedGeo('sharph|'+s,()=>new THREE.CylinderGeometry(s*0.28,s*0.28,0.1,10)),'dark');
+        hole.rotation.z=Math.PI/2;
+        hole.position.set(s*0.81,s*0.55,0);
+        const blade=mesh(box(s*1.2,0.06,s*0.5),'dark');
+        blade.position.set(0,s+0.03,-s*0.1);
+        g.add(body,hole,blade);
+        return g;
+    },
+    shavings(p) {
+        const g=new THREE.Group();
+        const rng=new RNG(Math.round(p.x*7+p.z*3));
+        const geo=cachedGeo('shave',()=>new THREE.CylinderGeometry(0.02,0.5,0.1,10,1,true));
+        for (let i=0;i<p.count;i++) {
+            const m=mesh(geo,i%2?'light':'cover');
+            m.material=toonMaterial({...(i%2?TONES.light:TONES.cover),side:THREE.DoubleSide});
+            m.position.set(rng.range(-1,1),0.06,rng.range(-0.8,0.8));
+            m.rotation.set(rng.range(-0.3,0.3),rng.range(0,6),rng.range(-0.3,0.3));
+            m.scale.setScalar(rng.range(0.7,1.2));
+            g.add(m);
+        }
+        return g;
+    }
+};
 
 let pieceId=0;
 

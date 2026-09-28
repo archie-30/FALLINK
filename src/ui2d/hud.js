@@ -60,6 +60,11 @@ const BOTTLE_PATH=(()=>{
     return p;
 })();
 
+export function fmtInk(v) {
+    const r=Math.round(v*10)/10;
+    return Number.isInteger(r)?String(r):r.toFixed(1);
+}
+
 export class Hud {
     constructor() {
         this.hpShown=TUNING.player.maxHp;
@@ -69,6 +74,8 @@ export class Hud {
         this.inkShown=0;
         this.slosh=0;
         this.inkShakeT=0;
+        this.inkPop=0;
+        this.inkPopups=[];
         this.bannerText='';
         this.bannerSub='';
         this.bannerT=0;
@@ -222,6 +229,16 @@ export class Hud {
 
     inkChanged(delta) {
         this.slosh=Math.min(1.5,this.slosh+Math.abs(delta)*0.35+0.15);
+        if (delta>0) {
+            this.inkPop=1;
+        }
+        const last=this.inkPopups[this.inkPopups.length-1];
+        if (last&&last.t<0.25&&Math.sign(last.v)===Math.sign(delta)) {
+            last.v+=delta;
+            last.t=0;
+            return;
+        }
+        this.inkPopups.push({v:delta,t:0});
     }
 
     inkFail() {
@@ -245,6 +262,13 @@ export class Hud {
             this.inkShown+=(ink.value-this.inkShown)*(1-Math.exp(-6*dt));
         }
         this.slosh*=Math.exp(-1.6*dt);
+        this.inkPop=Math.max(0,this.inkPop-dt*2.5);
+        for (let i=this.inkPopups.length-1;i>=0;i--) {
+            this.inkPopups[i].t+=dt;
+            if (this.inkPopups[i].t>=TUNING.ink.popupTime) {
+                this.inkPopups.splice(i,1);
+            }
+        }
         this.inkShakeT=Math.max(0,this.inkShakeT-dt);
     }
 
@@ -254,6 +278,16 @@ export class Hud {
         const shake=this.inkShakeT>0?Math.sin(this.inkShakeT*60)*5*(this.inkShakeT/0.4):0;
         ctx.save();
         ctx.translate(x0+shake,y0);
+        if (this.inkPop>0) {
+            const pp=EASE.easeOutQuad(this.inkPop);
+            ctx.translate(BOTTLE_W/2,BOTTLE_H/2);
+            ctx.scale(1+pp*0.14,1+pp*0.14);
+            ctx.translate(-BOTTLE_W/2,-BOTTLE_H/2);
+            ctx.fillStyle=rgba('ink',0.12*pp);
+            ctx.beginPath();
+            ctx.arc(BOTTLE_W/2,BOTTLE_H/2,BOTTLE_H*0.7+(1-pp)*14,0,Math.PI*2);
+            ctx.fill();
+        }
         ctx.fillStyle=PALETTE.paper;
         ctx.fill(BOTTLE_PATH);
         const frac=Math.max(0,Math.min(1,this.inkShown/ink.max));
@@ -288,14 +322,28 @@ export class Hud {
         ctx.font='bold 26px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='alphabetic';
-        ctx.fillText(String(Math.floor(ink.value)),BOTTLE_W+12,BOTTLE_H-14);
-        const nw=ctx.measureText(String(Math.floor(ink.value))).width;
+        const iv=fmtInk(ink.value);
+        ctx.fillText(iv,BOTTLE_W+12,BOTTLE_H-14);
+        const nw=ctx.measureText(iv).width;
         ctx.font='14px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         ctx.fillText('/ '+ink.max,BOTTLE_W+16+nw,BOTTLE_H-14);
         ctx.font='bold 12px '+FONT;
         ctx.fillStyle=this.inkShakeT>0?PALETTE.red:PALETTE.ink;
         ctx.fillText(this.inkShakeT>0?t('deck.noInk'):t('hud.ink'),BOTTLE_W+12,BOTTLE_H+4);
+        for (const q of this.inkPopups) {
+            const f=q.t/TUNING.ink.popupTime;
+            const pop=q.t<0.12?1+(0.12-q.t)*4:1;
+            ctx.save();
+            ctx.globalAlpha=Math.max(0,1-f*f);
+            ctx.translate(BOTTLE_W+24+nw+56,BOTTLE_H-24-EASE.easeOutQuad(Math.min(1,f*1.4))*TUNING.ink.popupRise);
+            ctx.scale(pop,pop);
+            ctx.font='bold 22px '+FONT;
+            ctx.textAlign='left';
+            ctx.fillStyle=q.v>0?PALETTE.ink:PALETTE.red;
+            ctx.fillText((q.v>0?'+':'−')+fmtInk(Math.abs(q.v)),0,0);
+            ctx.restore();
+        }
         ctx.restore();
     }
 

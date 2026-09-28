@@ -117,12 +117,32 @@ export const ENDLESS={
     pagesPerType:2
 };
 
+const MENU_DECOR=[
+    {type:'sheet',x:-6,z:-1,w:4,d:5,rot:0.3},
+    {type:'sheet',x:8.5,z:1,w:3.5,d:4.5,rot:-0.5},
+    {type:'notes',x:9.5,z:-5,s:1.6,count:4,rot:0.3},
+    {type:'pin',x:-9,z:-6.5,r:0.35},
+    {type:'pin',x:12,z:7,r:0.3,tilt:0.3},
+    {type:'shavings',x:-3,z:7,count:9},
+    {type:'clip',x:4,z:7.5,r:0.5,len:2.4,rot:0.4},
+    {type:'crumple',x:-12.5,z:-8,r:0.7},
+    {type:'crumple',x:13,z:-8.5,r:0.55},
+    {type:'mug',x:-23,z:12,r:2.6,h:4.2},
+    {type:'lamp',x:23,z:-15,s:2.0,rot:2.6},
+    {type:'ruler',x:-7,z:15.5,len:14,w:2.2,rot:0.05},
+    {type:'sharpener',x:24,z:11,s:2.2,rot:-0.5},
+    {type:'notes',x:-19,z:15,s:3,count:5,rot:-0.2},
+    {type:'pin',x:18,z:16,r:0.9},
+    {type:'clip',x:-14,z:-20,r:1.4,len:6,rot:-0.3},
+    {type:'shavings',x:10,z:-24,count:12}
+];
+
 export const MENU_SCENE={
+    layout:{...LAYOUTS.crossroads,props:LAYOUTS.crossroads.props.concat(MENU_DECOR)},
     seed:77,
-    barrels:2,
-    crates:3,
-    enemies:[['doodle',-4,-3,2.4],['blob',5,-2,0],['compass',-7,4,0.8],['eraserMonster',7.5,5,-2.2],['doodle',2.5,-6.5,1.6],['doodle',-9,-1,3.4],['inkBottle',0,-9.5,0]],
-    birds:[{r:7,speed:0.55,phase:0},{r:10,speed:-0.4,phase:2.1},{r:5.5,speed:0.7,phase:4.2}],
+    barrels:1,
+    crates:2,
+    enemies:[['doodle',-4,-3,2.4],['blob',5,-2,0],['compass',-7,4,0.8]],
     decals:[[-3,2,2.6],[6,-5,3.2],[-8,-6,2.2],[9,3,1.8],[1,6.5,2.4],[-6,7,1.6]]
 };
 

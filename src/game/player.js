@@ -140,6 +140,17 @@ export class Player {
             this.body.add(pivot);
             this.arms.push(pivot);
         }
+        this.bottle=new THREE.Group();
+        const jar=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.12,0.2,7),face);
+        addHull(jar,hull);
+        const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.06,0.08,6),ink);
+        neck.position.y=0.14;
+        const fill=new THREE.Mesh(new THREE.CylinderGeometry(0.115,0.125,0.1,7),ink);
+        fill.position.y=-0.05;
+        this.bottle.add(jar,neck,fill);
+        this.bottle.position.set(0,-0.46,0.06);
+        this.bottle.visible=false;
+        this.arms[0].add(this.bottle);
         this.gun=new THREE.Group();
         this.gun.position.set(0.34,1.0,0.42);
         const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,0.5,6),dark);
@@ -495,6 +506,29 @@ export class Player {
         this.head.position.y=1.46+breath*0.6;
         this.head.rotation.z=Math.sin(ph*0.5)*0.06*s;
         this.gun.position.z=0.42-this.kick*P.recoilDistance;
+        this.gun.position.y=1.0;
+        this.gun.rotation.set(0,0,0);
+        this.head.rotation.x=0;
+        this.bottle.visible=false;
+        if (this.reloadT>0) {
+            this.poseReload(1-this.reloadT/TUNING.weapon.reloadTime);
+        }
+    }
+
+    poseReload(r) {
+        const R=TUNING.player.reloadPose;
+        const up=Math.min(1,r/R.raise)*(r<R.snap?1:Math.max(0,1-(r-R.snap)/(1-R.snap)));
+        const pour=r>R.raise&&r<R.snap?Math.sin((r-R.raise)/(R.snap-R.raise)*Math.PI):0;
+        this.gun.rotation.x=-R.gunTilt*up;
+        this.gun.rotation.z=r>=R.snap?(r-R.snap)/(1-R.snap)*Math.PI*2:Math.sin(r*R.shakeFreq)*R.shake*pour;
+        this.gun.position.y=1.0+R.gunLift*up;
+        this.gun.position.z=0.42-R.gunBack*up;
+        this.arms[1].rotation.x=-1.35-R.armRaise*up;
+        this.arms[0].rotation.x=this.arms[0].rotation.x*(1-up)-R.offArm*up;
+        this.arms[0].rotation.z=-0.15+R.offArmIn*up;
+        this.head.rotation.x=R.headTilt*up;
+        this.bottle.visible=up>0.35;
+        this.bottle.rotation.x=-R.pourTilt*pour;
     }
 
     sync(alpha) {

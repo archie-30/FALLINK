@@ -2,7 +2,7 @@ import {PALETTE,rgba} from '../data/palette.js';
 import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
 import {EASE} from '../core/easing.js';
-import {CARD_W,CARD_H,drawCost} from './cardView.js';
+import {CARD_W,CARD_H,drawCost,drawCardTooltip} from './cardView.js';
 import {sketchRect,sketchLine,drawShape} from './sketch.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
@@ -14,6 +14,25 @@ export class DeckView {
         this.width=1;
         this.height=1;
         this.closeRect={x:0,y:0,w:0,h:0};
+        this.rects=[];
+        this.hx=-1;
+        this.hy=-1;
+        this.returnPause=false;
+    }
+
+    hover(x,y) {
+        this.hx=x;
+        this.hy=y;
+    }
+
+    hovered() {
+        for (let i=this.rects.length-1;i>=0;i--) {
+            const r=this.rects[i];
+            if (this.hx>=r.x&&this.hx<=r.x+r.w&&this.hy>=r.y&&this.hy<=r.y+r.h) {
+                return r;
+            }
+        }
+        return null;
     }
 
     resize(w,h) {
@@ -70,6 +89,7 @@ export class DeckView {
             const e=EASE.easeOutBack(p);
             const cx=x+col*(cw+gap)+cw/2;
             const cy=y+40+row*(ch+gap)+ch/2;
+            this.rects.push({x:cx-cw/2,y:cy-ch/2,w:cw,h:ch,card:c});
             ctx.save();
             ctx.translate(cx,cy+(1-e)*30);
             ctx.globalAlpha=Math.min(1,p*2);
@@ -89,6 +109,7 @@ export class DeckView {
         const w=this.width;
         const h=this.height;
         const a=Math.min(1,this.t/0.2);
+        this.rects.length=0;
         ctx.fillStyle=rgba('paper',0.92*a);
         ctx.fillRect(0,0,w,h);
         const pw=Math.min(w-40,1100);
@@ -103,7 +124,7 @@ export class DeckView {
         const draw=deck.drawPile.slice().sort((p,q)=>p.id<q.id?-1:1);
         this.section(ctx,art,draw,t('deck.draw'),px,py+30,colW,variant,0);
         this.section(ctx,art,deck.discardPile,t('deck.discard'),px+colW+40,py+30,colW,variant,draw.length);
-        const bw=160;
+        const bw=210;
         const bh=40;
         const bx=w/2-bw/2;
         const by=h-bh-30;
@@ -113,5 +134,18 @@ export class DeckView {
         ctx.font='bold 16px '+FONT;
         ctx.textBaseline='middle';
         ctx.fillText(t('deck.close'),w/2,by+bh/2+1);
+        ctx.font='13px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillText(t('deck.hoverHint'),w/2,by-16);
+        const hv=this.hovered();
+        if (hv) {
+            ctx.save();
+            ctx.strokeStyle=PALETTE.red;
+            ctx.lineWidth=2.5;
+            ctx.strokeRect(hv.x-3,hv.y-3,hv.w+6,hv.h+6);
+            ctx.restore();
+            const right=hv.x+hv.w+290<w;
+            drawCardTooltip(ctx,hv.card,right?hv.x+hv.w+147:hv.x-147,hv.y+hv.h);
+        }
     }
 }
