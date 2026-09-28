@@ -651,3 +651,36 @@ export function rareBorderPath() {
     p.closePath();
     return {path:p,length:(W-12+H-12)*2};
 }
+
+export function drawCardTooltip(ctx,card,x,y,maxW=270) {
+    const pad=14;
+    ctx.save();
+    ctx.font='13px '+FONT;
+    const lines=wrapText(ctx,cardDesc(card),maxW-pad*2);
+    const h=pad*2+26+18+lines.length*19;
+    let bx=x-maxW/2;
+    let by=y-h;
+    bx=Math.max(8,Math.min(ctx.canvas.width/(ctx.getTransform().a||1)-maxW-8,bx));
+    by=Math.max(8,by);
+    ctx.fillStyle=rgba('paper',0.97);
+    ctx.fillRect(bx,by,maxW,h);
+    drawShape(ctx,sketchRect(bx,by,maxW,h,{width:1.8,seed:1601}),card.def.rarity==='rare'?PALETTE.red:PALETTE.ink);
+    ctx.fillStyle=PALETTE.ink;
+    ctx.font='bold 17px '+FONT;
+    ctx.textAlign='left';
+    ctx.textBaseline='top';
+    ctx.fillText(cardName(card),bx+pad,by+pad);
+    ctx.font='bold 13px '+FONT;
+    ctx.textAlign='right';
+    ctx.fillText(t('tooltip.cost',{cost:cardCost(card)}),bx+maxW-pad,by+pad+3);
+    ctx.textAlign='left';
+    ctx.font='12px '+FONT;
+    ctx.fillStyle=card.def.rarity==='rare'?PALETTE.red:PALETTE.nearGray;
+    ctx.fillText(card.def.rarity==='rare'?t('type.ult'):t('type.'+card.def.type),bx+pad,by+pad+24);
+    ctx.fillStyle=PALETTE.ink;
+    ctx.font='13px '+FONT;
+    for (let i=0;i<lines.length;i++) {
+        ctx.fillText(lines[i],bx+pad,by+pad+44+i*19);
+    }
+    ctx.restore();
+}

@@ -187,7 +187,8 @@ export const TUNING={
         perKill:1.0
     },
     deck:{
-        handSize:4,
+        handSize:2,
+        burnDelay:0.45,
         replaceDelay:1.0,
         reshuffleTime:2.0,
         startStagger:0.14
@@ -196,6 +197,7 @@ export const TUNING={
         width:118,
         height:164,
         spacing:0.9,
+        ultGap:1.3,
         fanRot:0.07,
         fanDrop:7,
         restShow:0.8,

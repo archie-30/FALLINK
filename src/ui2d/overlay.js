@@ -6,6 +6,7 @@ import {time} from '../core/loop.js';
 import {hash1} from '../core/rng.js';
 import {Hud} from './hud.js';
 import {sketchCircle,drawShape} from './sketch.js';
+import {drawCardTooltip} from './cardView.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -76,6 +77,20 @@ export class Overlay {
             game.reward.draw(ctx,game.art);
             game.summary.draw(ctx);
             game.pause.draw(ctx);
+            if (game.pause.open) {
+                game.hand.draw(ctx,game.art);
+                const hv=game.hand.hover;
+                if (hv) {
+                    drawCardTooltip(ctx,hv.card,hv.x,hv.y-120*game.hand.s);
+                }
+                else {
+                    ctx.font='14px "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+                    ctx.fillStyle=PALETTE.nearGray;
+                    ctx.textAlign='center';
+                    ctx.textBaseline='middle';
+                    ctx.fillText(t('pause.hint'),this.width/2,this.height-game.hand.s*164*0.8-40);
+                }
+            }
         }
         game.mainMenu.draw(ctx);
         game.settingsMenu.draw(ctx);

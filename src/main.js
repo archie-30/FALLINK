@@ -174,6 +174,7 @@ function boot() {
             audio.play(card.def.id==='pencilWall'?'wall':(card.def.type==='terrain'?'erase':'card'));
         },
         openDeck,
+        showKeys:()=>input.lastDevice==='mouse'&&!device.mobile,
         onPlayStart:()=>{
             audio.play('card');
             if (run.stats) {
@@ -186,6 +187,7 @@ function boot() {
         audio.play('draw',0.9+Math.random()*0.3);
     };
     deck.events.onReshuffleStart=n=>hand.onReshuffleStart(n);
+    deck.events.onBurn=c=>hand.onBurn(c);
     deck.events.onReshuffleEnd=()=>hand.onReshuffleEnd();
     homingBullets.onSeek=(x,z)=>{
         const e=enemies.nearest(x,z,40);

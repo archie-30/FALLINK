@@ -1,5 +1,6 @@
 import {TUNING} from '../data/tuning.js';
 import {createCard} from './card.js';
+import {isUlt} from '../data/cards.js';
 import {RNG} from '../core/rng.js';
 
 export class Deck {
@@ -12,7 +13,7 @@ export class Deck {
         this.timers=[];
         this.locked=false;
         this.reshuffleT=0;
-        this.events={onDraw:null,onReshuffleStart:null,onReshuffleEnd:null};
+        this.events={onDraw:null,onBurn:null,onReshuffleStart:null,onReshuffleEnd:null};
     }
 
     reset(list) {
@@ -41,6 +42,24 @@ export class Deck {
         }
     }
 
+    normalCount() {
+        let n=0;
+        for (const c of this.hand) {
+            if (!isUlt(c.id)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    ultCard() {
+        return this.hand.find(c=>isUlt(c.id))||null;
+    }
+
+    hasNormalLeft() {
+        return this.drawPile.some(c=>!isUlt(c.id))||this.discardPile.some(c=>!isUlt(c.id));
+    }
+
     requestDraw(delay) {
         this.timers.push(delay);
         this.timers.sort((a,b)=>a-b);
@@ -61,7 +80,9 @@ export class Deck {
         }
         this.hand.splice(i,1);
         this.discardPile.push(card);
-        this.requestDraw(TUNING.deck.replaceDelay);
+        if (!isUlt(card.id)) {
+            this.requestDraw(TUNING.deck.replaceDelay);
+        }
         return true;
     }
 
@@ -91,10 +112,26 @@ export class Deck {
 
     drawOne() {
         const card=this.drawPile.pop();
+        if (isUlt(card.id)) {
+            if (!this.ultCard()) {
+                this.hand.push(card);
+                if (this.events.onDraw) {
+                    this.events.onDraw(card);
+                }
+            }
+            else {
+                this.discardPile.push(card);
+                if (this.events.onBurn) {
+                    this.events.onBurn(card);
+                }
+            }
+            return false;
+        }
         this.hand.push(card);
         if (this.events.onDraw) {
             this.events.onDraw(card);
         }
+        return true;
     }
 
     update(dt) {
@@ -108,21 +145,24 @@ export class Deck {
         for (let i=0;i<this.timers.length;i++) {
             this.timers[i]-=dt;
         }
-        while (this.timers.length>0&&this.timers[0]<=0) {
-            if (this.hand.length>=TUNING.deck.handSize) {
+        let guard=0;
+        while (this.timers.length>0&&this.timers[0]<=0&&guard<40) {
+            guard++;
+            if (this.normalCount()>=TUNING.deck.handSize||!this.hasNormalLeft()) {
                 this.timers.shift();
                 continue;
             }
             if (this.drawPile.length===0) {
-                if (this.discardPile.length>0) {
-                    this.startReshuffle();
-                    return;
-                }
-                this.timers.shift();
-                continue;
+                this.startReshuffle();
+                return;
             }
-            this.timers.shift();
-            this.drawOne();
+            if (this.drawOne()) {
+                this.timers.shift();
+            }
+            else {
+                this.timers[0]=Math.max(this.timers[0],-0.001)+TUNING.deck.burnDelay;
+                return;
+            }
         }
     }
 }
