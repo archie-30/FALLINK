@@ -7,6 +7,7 @@ export const progress={
     xp:0,
     level:1,
     bestScore:0,
+    bestStory:0,
     bestAct:0
 };
 

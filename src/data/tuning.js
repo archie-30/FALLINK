@@ -44,11 +44,7 @@ export const TUNING={
     },
     paper:{
         grain:0.2,
-        texSize:512,
-        ruleSpacing:36,
-        ruleAlpha:0.35,
-        marginX:72,
-        marginAlpha:0.45
+        texSize:512
     },
     shadow:{
         hatchScale:1.1
@@ -224,8 +220,15 @@ export const TUNING={
         shakeTime:0.35,
         dragThreshold:10,
         targetLift:70,
+        keycap:{size:34,font:19,pad:9,gap:10,dimAlpha:0.45},
         fieldMargin:0.95,
         inkStrokes:18
+    },
+    codex:{
+        cardScale:0.95,
+        rowGap:26,
+        follow:18,
+        wheelLine:40
     },
     effects:{
         spreadShake:0.22,
@@ -312,9 +315,9 @@ export const TUNING={
         legendPad:14
     },
     quality:{
-        low:{pixelRatio:1.0,grain:false,rules:true,hatchedShadow:false,anisotropy:1,particles:120,hulls:false},
-        mid:{pixelRatio:1.25,grain:true,rules:true,hatchedShadow:true,anisotropy:2,particles:250},
-        high:{pixelRatio:2.0,grain:true,rules:true,hatchedShadow:true,anisotropy:4,particles:500}
+        low:{pixelRatio:1.0,grain:false,hatchedShadow:false,anisotropy:1,particles:120,hulls:false},
+        mid:{pixelRatio:1.25,grain:true,hatchedShadow:true,anisotropy:2,particles:250},
+        high:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:4,particles:500}
     },
     pixelRatioCap:{
         mobile:1.5,

@@ -38,7 +38,7 @@ import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex} from './ui2d/menu.js';
 import {audio} from './core/audio.js';
-import {LAYOUTS,ENDLESS} from './data/levels.js';
+import {LAYOUTS,ENDLESS,MENU_SCENE} from './data/levels.js';
 import {renderFlags} from './render/materials.js';
 import {Transition} from './ui2d/transition.js';
 import {DamageNumbers} from './ui2d/damageNumbers.js';
@@ -88,6 +88,7 @@ function boot() {
     const {scene,world,actors,fxScene}=createScene();
     const game={room:null,mode:'menu'};
     let menuAngle=0;
+    const menuBirds=[];
     const player=new Player(actors);
     player.spawn(new THREE.Vector3(0,0,4));
     const rig=new CameraRig(1);
@@ -204,12 +205,15 @@ function boot() {
     let heart=0;
     playerBullets.onHit=hitEnemies;
     enemyBullets.onHit=(x,z,r,dmg,vx,vz)=>player.hitBullet(x,z,r,dmg,vx,vz);
-    playerBullets.onWall=(x,z,vx,vz,col)=>{
+    const playerWall=(x,z,vx,vz,col)=>{
         if (col&&col.piece&&(col.piece.kind==='barrel'||col.piece.kind==='crate')) {
             game.room.damagePiece(col.piece,W.damage);
         }
         particles.burst(x,H,z,PT.wallPuff,{color:'nearGray',speed:[1,3.5],up:[1,3],size:[0.06,0.12],life:[0.2,0.4],dirX:-vx,dirZ:-vz,cone:1.3});
     };
+    playerBullets.onWall=playerWall;
+    pierceBullets.onWall=playerWall;
+    homingBullets.onWall=playerWall;
     enemyBullets.onWall=(x,z,vx,vz,col)=>{
         if (col&&col.piece) {
             game.room.damagePiece(col.piece,1);
@@ -250,9 +254,7 @@ function boot() {
         fx.fovPunch(F.fovKill);
         fx.flash('paper',F.killFlash*3,0.35);
         if (run.stats) {
-            if (run.mode==='endless') {
-                run.addScore(e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?3:1));
-            }
+            run.addScore(e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?3:1));
             run.stats.kills++;
             run.stats.xp+=e.def.boss?TUNING.levels.xpBoss:TUNING.levels.xpKill*(e.def.cost||1);
         }
@@ -423,11 +425,16 @@ function boot() {
             if (kind==='boss') {
                 overlay.hud.banner(t('run.bossTitle',{name:t('enemy.'+p.bossType)}),p.endless?t('run.endlessBossSub'):t('run.bossSub',{act:p.act+1}),2.6);
             }
-            else if (p.endless) {
-                overlay.hud.banner(t('run.endlessTitle',{page:p.index+1}),p.mod?t('mod.'+p.mod):t('run.roomSub'),p.mod?2.8:2.0);
-            }
             else {
-                overlay.hud.banner(t('run.roomTitle',{act:p.act+1,page:p.index+1}),p.mod?t('mod.'+p.mod):t('run.roomSub'),p.mod?2.8:2.0);
+                const title=p.endless?t('run.endlessTitle',{page:p.index+1}):t('run.roomTitle',{act:p.act+1,page:p.index+1});
+                const parts=[];
+                if (p.fresh) {
+                    parts.push(t('run.newEnemy',{name:t('enemy.'+p.fresh)}));
+                }
+                if (p.mod) {
+                    parts.push(t('mod.'+p.mod));
+                }
+                overlay.hud.banner(title,parts.length>0?parts.join('　｜　'):t('run.roomSub'),parts.length>0?2.2+parts.length*0.6:2.0);
             }
         },
         onSpawn:e=>{
@@ -465,24 +472,21 @@ function boot() {
             fx.flash('paper',0.5,0.5);
             fx.cameraShake(0.8);
         },
-        showSummary:(victory,stats)=>{
+        showSummary:(victory,stats,quit=false)=>{
             fx.paused=true;
             hand.cancelTargeting();
             const lvBefore=progress.level;
-            let best=false;
+            const bestKey=run.mode==='endless'?'bestScore':'bestStory';
             if (run.mode==='endless') {
                 stats.xp+=stats.score*TUNING.levels.xpScore;
-                if (stats.score>progress.bestScore) {
-                    progress.bestScore=stats.score;
-                    best=true;
-                }
-                stats.best=progress.bestScore;
-                stats.newBest=best;
             }
+            stats.newBest=stats.score>progress[bestKey];
+            progress[bestKey]=Math.max(progress[bestKey],stats.score);
+            stats.best=progress[bestKey];
             stats.mode=run.mode;
             const res=addXp(stats.xp);
             summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey))};
-            summary.show(victory,stats,toMenu=>{
+            summary.show(victory,stats,quit,toMenu=>{
                 audio.play('ui');
                 player.hp=TUNING.player.maxHp;
                 ink.value=TUNING.ink.start;
@@ -502,7 +506,8 @@ function boot() {
         if (game.room) {
             game.room.destroy();
         }
-        const r=buildRoom(LAYOUTS.crossroads,world,fxScene);
+        const M=MENU_SCENE;
+        const r=buildRoom(LAYOUTS.crossroads,world,fxScene,{rng:new RNG(M.seed),barrels:M.barrels,crates:M.crates});
         r.shards=terrainShards;
         r.onBreak=onBreak;
         game.mod=null;
@@ -514,9 +519,16 @@ function boot() {
         player.invuln=0;
         player.aimYaw=0.6;
         enemies.hpMult=1;
-        enemies.spawn('doodle',-4,-3,{quick:true}).yaw=2.4;
-        enemies.spawn('blob',5,-2,{quick:true});
-        enemies.spawn('compass',-7,4,{quick:true});
+        for (const [type,x,z,yaw] of M.enemies) {
+            enemies.spawn(type,x,z,{quick:true}).yaw=yaw;
+        }
+        menuBirds.length=0;
+        for (const b of M.birds) {
+            menuBirds.push({e:enemies.spawn('bird',b.r,0,{quick:true}),...b});
+        }
+        for (const [x,z,size] of M.decals) {
+            decals.spawn(x,z,size,'ink','midGray');
+        }
         hand.reset();
         deck.reset([]);
         run.state='idle';
@@ -580,7 +592,10 @@ function boot() {
         settings:()=>openSettings('pause'),
         quit:()=>{
             audio.play('ui');
-            enterMenu();
+            pauseMenu.hide();
+            if (transition.active||!run.quit()) {
+                enterMenu();
+            }
         }
     });
     const settingsMenu=new SettingsMenu({
@@ -695,10 +710,15 @@ function boot() {
                 settingsMenu.move(x,y);
                 return;
             }
+            if (codex.open) {
+                codex.move(x,y);
+                return;
+            }
             hand.move(x,y,id,type);
         },
         up:(x,y,id,type,button)=>{
             settingsMenu.up();
+            codex.up();
             hand.up(x,y,id,type,button);
         },
         hover:(x,y)=>{
@@ -708,13 +728,18 @@ function boot() {
                 }
             }
             reward.hoverAt(x,y);
-            hand.hoverAt(x,y);
+            hand.hoverAt(x,y,pauseMenu.open);
         },
         leave:()=>hand.leave()
     };
     input.onCardKey=i=>{
         if (!deckView.open&&!reward.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
             hand.keyPlay(i);
+        }
+    };
+    input.onDiscardKey=()=>{
+        if (!deckView.open&&!reward.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
+            hand.keyDiscard();
         }
     };
     input.onDeckKey=()=>{
@@ -752,6 +777,7 @@ function boot() {
         }
         openPause();
     };
+    input.onWheel=dy=>codex.wheel(dy);
     input.onPauseKey=()=>{
         if (pauseMenu.open) {
             closePause();
@@ -1004,6 +1030,20 @@ function boot() {
         bias.x+=(bx-bias.x)*(1-Math.exp(-3*dt));
         bias.z+=(bz-bias.z)*(1-Math.exp(-3*dt));
         if (game.mode==='menu') {
+            for (const b of menuBirds) {
+                const a=time.real*b.speed+b.phase;
+                const e=b.e;
+                e.pos.set(Math.cos(a)*b.r,0,Math.sin(a)*b.r);
+                e.prev.copy(e.pos);
+                e.renderPos.copy(e.pos);
+                e.root.position.copy(e.pos);
+                const sg=Math.sign(b.speed);
+                e.yaw=Math.atan2(-Math.sin(a)*sg,Math.cos(a)*sg);
+                e.yawGroup.rotation.y=e.yaw;
+                if (e.fly) {
+                    e.fly.position.y=e.def.flyHeight+Math.sin(time.real*3+b.phase)*0.25;
+                }
+            }
             menuAngle+=dt*0.12;
             const cam=rig.camera;
             cam.position.set(Math.sin(menuAngle)*24,15,Math.cos(menuAngle)*24);
@@ -1042,7 +1082,7 @@ function boot() {
     loop.start();
     art.warm(deck.drawPile);
     enterMenu();
-    window.INKFALL={transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,summary,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKFALL={transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,summary,codex,pauseMenu,mainMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

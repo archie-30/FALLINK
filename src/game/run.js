@@ -27,7 +27,7 @@ export class Run {
     }
 
     scoreMult() {
-        return 1+(this.mode==='endless'?this.index*ENDLESS.scorePerPage:0);
+        return 1+(this.mode==='endless'?this.index*ENDLESS.scorePerPage:this.act*ENDLESS.scorePerAct);
     }
 
     addScore(n) {
@@ -59,6 +59,15 @@ export class Run {
         this.state='dead';
         this.timer=1.6;
         this.hooks.onDeath();
+    }
+
+    quit() {
+        if (!this.stats||this.state==='summary'||this.state==='idle') {
+            return false;
+        }
+        this.state='summary';
+        this.hooks.showSummary(false,this.stats,true);
+        return true;
     }
 
     rewardChoices() {
@@ -109,6 +118,7 @@ export class Run {
             if (this.act>=ACTS.length) {
                 this.state='summary';
                 this.stats.xp+=TUNING.levels.xpVictory;
+                this.stats.score+=ENDLESS.scoreVictory;
                 this.hooks.showSummary(true,this.stats);
                 return;
             }
@@ -131,7 +141,7 @@ export class Run {
                 this.timer=1.4;
                 this.stats.rooms++;
                 this.stats.xp+=TUNING.levels.xpRoom;
-                this.addScore(ENDLESS.scoreRoom*(this.mode==='endless'?1:0));
+                this.addScore(ENDLESS.scoreRoom);
                 if (this.plan.boss) {
                     this.stats.bosses++;
                 }

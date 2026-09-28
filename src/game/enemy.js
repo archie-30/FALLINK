@@ -1727,11 +1727,11 @@ export class EnemyManager {
         }
     }
 
-    nearest(x,z,range) {
+    nearest(x,z,range,ground=false) {
         let best=null;
         let bd=range*range;
         for (const e of this.list) {
-            if (e.state==='spawn') {
+            if (e.state==='spawn'||(ground&&e.def.flying)) {
                 continue;
             }
             const dx=e.pos.x-x;

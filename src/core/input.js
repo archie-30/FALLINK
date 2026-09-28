@@ -25,8 +25,10 @@ export class Input {
         this.onToggleLegend=null;
         this.onCardKey=null;
         this.onDeckKey=null;
+        this.onDiscardKey=null;
         this.onEscape=null;
         this.onPauseKey=null;
+        this.onWheel=null;
         this.ui=null;
         this.uiPointers=new Set();
         this.bind();
@@ -47,6 +49,12 @@ export class Input {
             }
         });
         el.addEventListener('contextmenu',e=>e.preventDefault());
+        el.addEventListener('wheel',e=>{
+            e.preventDefault();
+            if (this.onWheel) {
+                this.onWheel(e.deltaMode===1?e.deltaY*TUNING.codex.wheelLine:e.deltaY);
+            }
+        },{passive:false});
         window.addEventListener('keydown',e=>this.keyDown(e));
         window.addEventListener('keyup',e=>this.keys.delete(e.code));
         window.addEventListener('blur',()=>this.clear());
@@ -113,6 +121,11 @@ export class Input {
                 this.onPauseKey();
             }
             return;
+        }
+        if (e.code==='KeyQ'&&!e.repeat) {
+            if (this.onDiscardKey) {
+                this.onDiscardKey();
+            }
         }
         if (e.code==='KeyR'&&!e.repeat) {
             this.reloadQueued=true;

@@ -20,8 +20,7 @@ uniform vec3 uLine;
 uniform vec2 uLineFade;
 uniform vec4 uEdge;
 uniform vec3 uInk;
-uniform vec3 uRuleColor;
-uniform vec4 uRule;
+uniform vec2 uPaperOff;
 uniform vec2 uGrain;
 uniform float uInvert;
 uniform sampler2D tFx;
@@ -59,7 +58,7 @@ void main() {
     vec2 off=n*2.0*mix(uBoil.x,uBoil.y,fade)*uPx/uRes;
     vec2 px=mix(uLine.x,uLine.y,fade)*uPx/uRes;
     float edge=edgeAt(uv+off,px);
-    float grain=texture2D(tPaper,gl_FragCoord.xy/(uGrain.y*uPx)).r;
+    float grain=texture2D(tPaper,(gl_FragCoord.xy-uPaperOff)/(uGrain.y*uPx)).r;
     edge*=mix(1.0,uLine.z,fade)*(0.55+0.45*grain);
     vec3 col=texture2D(tColor,uv).rgb;
     float fillMask=1.0;
@@ -78,15 +77,6 @@ void main() {
     col=mix(col,uInk,clamp(edge,0.0,1.0));
     vec4 fxc=texture2D(tFx,uv)*fillMask;
     col=col*(1.0-fxc.a)+fxc.rgb;
-    #ifdef USE_RULES
-    float sp=uRule.x*uPx;
-    float ry=abs(mod(gl_FragCoord.y,sp)-sp*0.5);
-    float rl=1.0-smoothstep(0.35*uPx,1.1*uPx,ry);
-    float mx=abs(gl_FragCoord.x-uRule.z*uPx);
-    float ml=1.0-smoothstep(0.5*uPx,1.4*uPx,mx);
-    col*=mix(vec3(1.0),uRuleColor,rl*uRule.y);
-    col*=mix(vec3(1.0),uRuleColor,ml*uRule.w);
-    #endif
     if (uBleed>0.001) {
         vec2 q=uv-0.5;
         q.x*=uRes.x/uRes.y;

@@ -93,6 +93,8 @@ export const LAYOUTS={
 
 export const NORMAL_LAYOUTS=['crossroads','colonnade','trenches','crates','circle','lanes'];
 
+export const ENEMY_ORDER=['doodle','blob','bird','compass','eraserMonster'];
+
 export const ENEMY_COST={doodle:1,blob:2,compass:2,bird:1,eraserMonster:2};
 
 export const ACTS=[
@@ -109,7 +111,19 @@ export const ENDLESS={
     scoreKill:100,
     scoreBoss:3000,
     scoreRoom:500,
-    scorePerPage:0.1
+    scorePerPage:0.1,
+    scorePerAct:0.5,
+    scoreVictory:5000,
+    pagesPerType:2
+};
+
+export const MENU_SCENE={
+    seed:77,
+    barrels:2,
+    crates:3,
+    enemies:[['doodle',-4,-3,2.4],['blob',5,-2,0],['compass',-7,4,0.8],['eraserMonster',7.5,5,-2.2],['doodle',2.5,-6.5,1.6],['doodle',-9,-1,3.4],['inkBottle',0,-9.5,0]],
+    birds:[{r:7,speed:0.55,phase:0},{r:10,speed:-0.4,phase:2.1},{r:5.5,speed:0.7,phase:4.2}],
+    decals:[[-3,2,2.6],[6,-5,3.2],[-8,-6,2.2],[9,3,1.8],[1,6.5,2.4],[-6,7,1.6]]
 };
 
 export const LEVELS={test:LAYOUTS.crossroads};
