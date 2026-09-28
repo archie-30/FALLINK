@@ -194,5 +194,57 @@ export const ENEMIES={
             head:{light:'paper',mid:'farGray',dark:'midGray'},
             limb:{light:'midGray',mid:'nearGray',dark:'ink'}
         }
+    },
+    scissors:{
+        nameKey:'enemy.scissors',
+        hp:1000,
+        radius:1.4,
+        scale:1.0,
+        height:3.2,
+        speed:2.2,
+        accel:4,
+        boss:true,
+        knockMult:0,
+        weakMult:3,
+        contactDamage:1,
+        spawnTime:1.6,
+        shards:[14,20],
+        dashSpeed:22,
+        dashTime:1.1,
+        stuckTime:1.5,
+        bulletSpeed:8,
+        bulletDamage:1,
+        bulletLife:4,
+        shardTone:'body',
+        tones:{
+            body:{light:'farGray',mid:'midGray',dark:'nearGray'},
+            head:{light:'paper',mid:'farGray',dark:'midGray'},
+            limb:{light:'midGray',mid:'nearGray',dark:'ink'}
+        }
+    },
+    book:{
+        nameKey:'enemy.book',
+        hp:1300,
+        radius:2.0,
+        scale:1.0,
+        height:3.6,
+        speed:0,
+        accel:1,
+        boss:true,
+        knockMult:0,
+        weakMult:3,
+        contactDamage:1,
+        spawnTime:1.8,
+        shards:[16,22],
+        restTime:1.8,
+        bulletSpeed:6.5,
+        bulletDamage:1,
+        bulletLife:6,
+        shardTone:'head',
+        tones:{
+            body:{light:'midGray',mid:'nearGray',dark:'ink'},
+            head:{light:'paper',mid:'farGray',dark:'midGray'},
+            limb:{light:'farGray',mid:'midGray',dark:'nearGray'}
+        }
     }
 };

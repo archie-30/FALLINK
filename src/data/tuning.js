@@ -281,6 +281,14 @@ export const TUNING={
         critSize:26,
         mergeTime:0.12
     },
+    props:{
+        barrelHp:25,
+        crateHp:18,
+        barrelRadius:3.2,
+        barrelDamage:45,
+        pickupInk:2,
+        pickupHeal:1
+    },
     run:{
         bossHeal:4
     },

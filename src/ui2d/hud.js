@@ -216,7 +216,7 @@ export class Hud {
             }
             ctx.font='12px '+FONT;
             ctx.fillStyle=PALETTE.red;
-            ctx.fillText(t('boss.hint'),w/2,y+40);
+            ctx.fillText(t('boss.hint.'+boss.type),w/2,y+40);
         }
     }
 

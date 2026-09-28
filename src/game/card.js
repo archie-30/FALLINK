@@ -297,6 +297,9 @@ export class CardEffects {
     explode(x,z,radius,damage) {
         const g=this.g;
         g.enemies.damageRadius(x,z,radius,damage);
+        if (g.room) {
+            g.room.damageProps(x,z,radius,damage);
+        }
         g.fx.hitStop(90,true);
         g.fx.cameraShake(this.E.bombShake);
         g.fx.fovPunch(this.E.bombFov);

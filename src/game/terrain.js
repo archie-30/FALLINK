@@ -1,6 +1,6 @@
 import*as THREE from 'three';
 import {toonMaterial,dissolveVariant,trapMaterial,inkMaterial,pal} from '../render/materials.js';
-import {makeBox,makeCircle} from '../core/collision.js';
+import {makeBox,makeCircle,circleVs} from '../core/collision.js';
 import {RNG,hash1} from '../core/rng.js';
 import {EASE} from '../core/easing.js';
 import {TUNING} from '../data/tuning.js';
@@ -463,8 +463,35 @@ class Zones {
     }
 }
 
+function buildInteractive(type,x,z,group) {
+    if (type==='barrel') {
+        const g=new THREE.Group();
+        const body=new THREE.Mesh(cachedGeo('barrel',()=>new THREE.CylinderGeometry(0.55,0.6,1.3,10)),mat('dark'));
+        body.position.y=0.65;
+        const band=new THREE.Mesh(cachedGeo('barrelBand',()=>new THREE.CylinderGeometry(0.62,0.62,0.4,10)),mat('light'));
+        band.position.y=0.7;
+        const cap=new THREE.Mesh(cachedGeo('barrelCap',()=>new THREE.CylinderGeometry(0.3,0.3,0.2,8)),mat('dark'));
+        cap.position.y=1.38;
+        g.add(body,band,cap);
+        g.position.set(x,0,z);
+        group.add(g);
+        return {object:g,cols:[makeCircle(x,z,0.62)],radius:0.62,hp:TUNING.props.barrelHp};
+    }
+    const g=new THREE.Group();
+    const rot=hash1(Math.round(x*13+z*7))*1.5;
+    const box1=new THREE.Mesh(box(1.2,1.0,1.2),mat('light'));
+    box1.position.y=0.5;
+    const strap=new THREE.Mesh(box(1.24,1.04,0.22),mat('cover'));
+    strap.position.y=0.5;
+    g.add(box1,strap);
+    g.position.set(x,0,z);
+    g.rotation.y=rot;
+    group.add(g);
+    return {object:g,cols:[makeBox(x,z,0.6,0.6,rot)],radius:0.85,hp:TUNING.props.crateHp};
+}
+
 export class Room {
-    constructor(def,parent,fxScene) {
+    constructor(def,parent,fxScene,opts={}) {
         this.def=def;
         this.parent=parent;
         this.group=new THREE.Group();
@@ -503,7 +530,65 @@ export class Room {
                 this.addPiece('prop',res.object,cols,{x:p.x,z:p.z,radius:res.radius,erasable:p.erasable!==false});
             }
         }
+        if (opts.rng) {
+            this.placeInteractive(opts.rng,opts.barrels||0,opts.crates||0);
+        }
         parent.add(this.group);
+    }
+
+    freeSpot(rng) {
+        const b=this.bounds;
+        const tmp={x:0,z:0,depth:0};
+        for (let tries=0;tries<40;tries++) {
+            const x=rng.range(b.minX+2,b.maxX-2);
+            const z=rng.range(b.minZ+2,b.maxZ-2);
+            if (Math.hypot(x-this.spawn.x,z-this.spawn.z)<3.5) {
+                continue;
+            }
+            let ok=true;
+            for (const c of this.colliders) {
+                if (circleVs(x,z,1.6,c,tmp)) {
+                    ok=false;
+                    break;
+                }
+            }
+            for (const sp of this.def.spawnPoints||[]) {
+                if (Math.hypot(sp[0]-x,sp[1]-z)<2.2) {
+                    ok=false;
+                }
+            }
+            if (ok) {
+                return {x,z};
+            }
+        }
+        return null;
+    }
+
+    placeInteractive(rng,barrels,crates) {
+        const list=[];
+        for (let i=0;i<barrels;i++) {
+            list.push('barrel');
+        }
+        for (let i=0;i<crates;i++) {
+            list.push('crate');
+        }
+        for (const type of list) {
+            const p=this.freeSpot(rng);
+            if (!p) {
+                continue;
+            }
+            const res=buildInteractive(type,p.x,p.z,this.group);
+            const piece=this.addPiece(type,res.object,res.cols,{x:p.x,z:p.z,radius:res.radius,erasable:true,hp:res.hp});
+            piece.flash=0;
+        }
+    }
+
+    damageProps(x,z,r,dmg) {
+        for (const p of this.pieces.slice()) {
+            if ((p.kind==='barrel'||p.kind==='crate')&&p.state==='alive'&&Math.hypot(p.x-x,p.z-z)<r+p.radius) {
+                this.damagePiece(p,dmg);
+            }
+        }
     }
 
     destroy() {
@@ -655,6 +740,22 @@ export class Room {
     }
 
     damagePiece(piece,dmg) {
+        if ((piece.kind==='barrel'||piece.kind==='crate')&&piece.state==='alive') {
+            piece.hp-=dmg;
+            piece.object.scale.set(1.12,0.9,1.12);
+            piece.flash=0.12;
+            if (piece.hp<=0) {
+                piece.state='broken';
+                if (this.shards) {
+                    this.shards.burst(piece.x,0.7,piece.z,piece.kind==='crate'?6:4,0,0,0.9);
+                }
+                if (this.onPropBreak) {
+                    this.onPropBreak(piece);
+                }
+                this.removePiece(piece);
+            }
+            return;
+        }
         if (piece.kind!=='pencilWall'||piece.state==='erasing') {
             return;
         }
@@ -683,6 +784,11 @@ export class Room {
         let dirty=false;
         for (let i=this.pieces.length-1;i>=0;i--) {
             const p=this.pieces[i];
+            if (p.flash!==undefined&&p.flash>0) {
+                p.flash-=dt;
+                const k=Math.max(0,p.flash/0.12);
+                p.object.scale.set(1+0.12*k,1-0.1*k,1+0.12*k);
+            }
             if (p.state==='growing') {
                 p.t+=dt;
                 const k=Math.min(1,p.t/TUNING.terrain.growTime);
@@ -731,6 +837,6 @@ export class Room {
     }
 }
 
-export function buildRoom(def,parent,fxScene) {
-    return new Room(def,parent,fxScene);
+export function buildRoom(def,parent,fxScene,opts) {
+    return new Room(def,parent,fxScene,opts);
 }

@@ -1,5 +1,9 @@
 import {LAYOUTS,NORMAL_LAYOUTS,ACTS,ENEMY_COST} from '../data/levels.js';
 
+export const BOSSES=['inkBottle','scissors','book'];
+
+export const MODS=['inkRain','dark','elite','hurry'];
+
 function weightedPick(pool,rng,maxCost) {
     let total=0;
     for (const k in pool) {
@@ -26,7 +30,8 @@ function weightedPick(pool,rng,maxCost) {
 export function planRoom(act,index,rng,lastLayout) {
     const A=ACTS[act];
     if (index>=A.rooms) {
-        return {act,index,boss:true,layoutKey:'bossArena',layout:LAYOUTS.bossArena,hpMult:A.hpMult,bossHp:A.bossHp,waves:[[{type:'inkBottle',boss:true}]]};
+        const type=BOSSES[act%BOSSES.length];
+        return {act,index,boss:true,bossType:type,layoutKey:'bossArena',layout:LAYOUTS.bossArena,hpMult:A.hpMult,bossHp:A.bossHp,waves:[[{type,boss:true}]]};
     }
     let key=NORMAL_LAYOUTS[Math.floor(rng.next()*NORMAL_LAYOUTS.length)];
     if (key===lastLayout) {
@@ -53,5 +58,10 @@ export function planRoom(act,index,rng,lastLayout) {
         }
         waves.push(wave);
     }
-    return {act,index,boss:false,layoutKey:key,layout:LAYOUTS[key],hpMult:A.hpMult,waves};
+    let mod=null;
+    const chance=act===0?(index===0?0:0.4):0.6;
+    if (rng.next()<chance) {
+        mod=MODS[Math.floor(rng.next()*MODS.length)];
+    }
+    return {act,index,boss:false,layoutKey:key,layout:LAYOUTS[key],hpMult:A.hpMult,waves,mod,barrels:1+Math.floor(rng.next()*2),crates:1+Math.floor(rng.next()*2)};
 }

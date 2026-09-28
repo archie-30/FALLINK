@@ -109,6 +109,14 @@ export class Overlay {
         const e=game.aimTarget;
         const tmp=this.tmp2||(this.tmp2={x:0,y:0});
         for (const q of game.enemies.list) {
+            if (q.elite&&q.state!=='spawn') {
+                game.project(q.renderPos.x,q.def.height*1.45,q.renderPos.z,tmp);
+                ctx.fillStyle=PALETTE.ink;
+                ctx.font='bold 12px "Noto Sans TC",sans-serif';
+                ctx.textAlign='center';
+                ctx.textBaseline='bottom';
+                ctx.fillText(t('hud.elite'),tmp.x,tmp.y-14);
+            }
             if (q.vulnT>0||q.stunT>0) {
                 game.project(q.renderPos.x,q.def.height*1.15,q.renderPos.z,tmp);
                 ctx.fillStyle=PALETTE.ink;

@@ -31,6 +31,10 @@ export class Run {
 
     enter() {
         this.plan=planRoom(this.act,this.index,this.rng,this.lastLayout);
+        const forced=new URLSearchParams(location.search).get('mod');
+        if (forced&&!this.plan.boss) {
+            this.plan.mod=forced;
+        }
         this.lastLayout=this.plan.layoutKey;
         const room=this.hooks.enterRoom(this.plan,this.deckList);
         this.director=new RoomDirector(this.plan,this.hooks.enemies,room,this.rng);
