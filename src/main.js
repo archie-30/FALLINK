@@ -38,6 +38,7 @@ import {audio} from './core/audio.js';
 import {LAYOUTS} from './data/levels.js';
 import {renderFlags} from './render/materials.js';
 import {Transition} from './ui2d/transition.js';
+import {DamageNumbers} from './ui2d/damageNumbers.js';
 
 const QUALITY_ORDER=['low','mid','high'];
 
@@ -204,6 +205,10 @@ function boot() {
         }
         particles.burst(x,H,z,PT.wallPuff,{color:'darkRed',speed:[1,3],up:[1,3],size:[0.07,0.13],life:[0.2,0.4],dirX:-vx,dirZ:-vz,cone:1.3});
     };
+    const dmgNums=new DamageNumbers();
+    enemies.onDamage=(e,dmg,crit)=>{
+        dmgNums.spawn(e.pos.x,e.def.height*0.9,e.pos.z,dmg,crit);
+    };
     enemies.onHit=(e,x,z,dx,dz,dead,quiet,crit)=>{
         if (dead) {
             return;
@@ -310,6 +315,7 @@ function boot() {
             sh.clear();
         }
         decals.clear();
+        dmgNums.clear();
         for (const c of clones) {
             c.stop();
         }
@@ -423,6 +429,7 @@ function boot() {
         ctx.room=r;
         effects.g.room=r;
         player.enterRoom(new THREE.Vector3(0,0,1.5));
+        player.invuln=0;
         player.aimYaw=0.6;
         enemies.hpMult=1;
         enemies.spawn('doodle',-4,-3,{quick:true}).yaw=2.4;
@@ -462,6 +469,8 @@ function boot() {
         audio.play('ui');
         pauseMenu.hide();
         fx.paused=false;
+        input.mouse.down=false;
+        input.dashQueued=false;
     }
     let settingsReturn=null;
     function openSettings(from) {
@@ -621,7 +630,7 @@ function boot() {
         leave:()=>hand.leave()
     };
     input.onCardKey=i=>{
-        if (!deckView.open&&!reward.open&&!summary.open&&run.state==='combat') {
+        if (!deckView.open&&!reward.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
             hand.keyPlay(i);
         }
     };
@@ -683,7 +692,8 @@ function boot() {
     resize();
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
-    const gameUi={ink,hand,art,deckView,deck,run,enemies,reward,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex};
+    const projectFn=(x,y,z,out)=>rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out);
+    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex};
     function update(dt) {
         if (run.state!=='dead') {
             player.update(dt,input,ctx,aim);
@@ -738,11 +748,12 @@ function boot() {
         particles.render();
         rings.update(dt*time.timeScale);
         preview.update(dt);
-        hand.update(dt);
+        hand.update(dt,pauseMenu.open||deckView.open);
         deckView.update(dt);
         for (const sh of allShards()) {
             sh.render();
         }
+        dmgNums.update(dt*Math.max(time.timeScale,fx.paused?0:0.25));
         reward.update(dt);
         summary.update(dt);
         transition.update(dt);
@@ -803,7 +814,7 @@ function boot() {
             }
             cam.updateMatrixWorld();
         }
-        else {
+        else if (!pauseMenu.open) {
             rig.follow(player.renderPos,look.x+bias.x,look.z+bias.z);
             rig.update(dt);
         }

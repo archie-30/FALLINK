@@ -448,13 +448,19 @@ export class Hand {
             return;
         }
         const m=this.api.mouseScreen();
+        if (this.targetView===v&&v.card.def.targeting!=='drawPath') {
+            const target=m?this.resolveTarget(v.card,m.x,m.y):this.resolveTarget(v.card);
+            this.targetView=null;
+            this.api.preview.hide();
+            this.tryPlay(v,target);
+            return;
+        }
         this.cancelTargeting();
-        if (v.card.def.targeting==='drawPath'&&m) {
+        if (v.card.def.targeting!=='none') {
             this.enterTargeting(v);
             return;
         }
-        const target=m?this.resolveTarget(v.card,m.x,m.y):this.resolveTarget(v.card);
-        this.tryPlay(v,target);
+        this.tryPlay(v,this.resolveTarget(v.card));
     }
 
     down(x,y,id,type,button) {
@@ -584,7 +590,7 @@ export class Hand {
             v.state='idle';
             return;
         }
-        if (type==='mouse'&&v.card.def.targeting!=='none') {
+        if (v.card.def.targeting!=='none') {
             this.enterTargeting(v);
             return;
         }
@@ -622,7 +628,7 @@ export class Hand {
         api.preview.show(v.card,this.resolveTarget(v.card,sx,sy),api.playerPos());
     }
 
-    update(dt) {
+    update(dt,frozen=false) {
         const k=1-Math.exp(-C.follow*dt);
         this.slotTargets();
         this.lockMsgT=Math.max(0,this.lockMsgT-dt);
@@ -671,6 +677,9 @@ export class Hand {
         }
         for (let i=this.flying.length-1;i>=0;i--) {
             const v=this.flying[i];
+            if (frozen&&v.state!=='ball'&&v.state!=='crumple') {
+                continue;
+            }
             v.t+=dt;
             v.flashT=Math.max(0,v.flashT-dt);
             if (v.state==='tear') {

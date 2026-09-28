@@ -1273,6 +1273,9 @@ export class EnemyManager {
             return false;
         }
         const dead=e.hurt(dmg,dx,dz);
+        if (this.onDamage) {
+            this.onDamage(e,dmg,crit);
+        }
         if (this.onHit) {
             this.onHit(e,e.pos.x,e.pos.z,dx,dz,dead,quiet,crit);
         }

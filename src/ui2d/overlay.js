@@ -54,10 +54,16 @@ export class Overlay {
             game.summary.draw(ctx);
         }
         if (game.mode==='play'&&!dying) {
+            game.dmgNums.draw(ctx,game.project);
             this.hud.drawHp(ctx,player);
             this.hud.drawInk(ctx,game.ink);
             this.hud.drawBuffs(ctx,player);
-            this.hud.drawLegend(ctx,this.width,this.height,touchUi);
+            if (!touchUi) {
+                this.hud.drawLegend(ctx,this.width,this.height,false);
+            }
+            else {
+                this.hud.legendBox={x:0,y:0,w:0,h:0,titleH:0};
+            }
             game.hand.draw(ctx,game.art);
             if (touchUi) {
                 this.drawSticks(input);

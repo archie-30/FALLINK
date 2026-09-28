@@ -245,6 +245,13 @@ export const TUNING={
         cloneRange:14,
         redrawTime:0.7
     },
+    damageNumbers:{
+        life:0.75,
+        rise:40,
+        size:18,
+        critSize:26,
+        mergeTime:0.12
+    },
     run:{
         bossHeal:4
     },
