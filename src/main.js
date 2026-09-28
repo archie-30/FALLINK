@@ -12,7 +12,7 @@ import {tweens} from './core/tween.js';
 import {fx} from './core/fx.js';
 import {detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device} from './core/settings.js';
 import {Renderer} from './render/renderer.js';
-import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial} from './render/materials.js';
+import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial,shared} from './render/materials.js';
 import {Particles,MuzzleFlashes,Rings} from './render/particles.js';
 import {Preview} from './render/preview.js';
 import {Shards} from './render/shards.js';
@@ -26,18 +26,22 @@ import {BulletSystem,Lobs} from './game/bullet.js';
 import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects} from './game/card.js';
-import {STARTING_DECK,ALL_CARDS} from './data/cards.js';
+import {STARTING_DECK,ALL_CARDS,CARDS} from './data/cards.js';
+import {progress,loadProgress,addXp} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
 import {EnemyManager} from './game/enemy.js';
 import {Run} from './game/run.js';
+import {Pickups} from './game/pickup.js';
+import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex} from './ui2d/menu.js';
 import {audio} from './core/audio.js';
-import {LAYOUTS} from './data/levels.js';
+import {LAYOUTS,ENDLESS} from './data/levels.js';
 import {renderFlags} from './render/materials.js';
 import {Transition} from './ui2d/transition.js';
+import {DamageNumbers} from './ui2d/damageNumbers.js';
 
 const QUALITY_ORDER=['low','mid','high'];
 
@@ -71,6 +75,7 @@ async function requestFullscreen() {
 function boot() {
     detectDevice();
     loadSettings();
+    loadProgress();
     applyTheme();
     const container=document.getElementById('game');
     const renderer=new Renderer(document.getElementById('gl'));
@@ -117,9 +122,10 @@ function boot() {
     const homingBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:48,radius:0.22,size:E.homingSize,trailWidth:0.2,homing:E.homingTurn});
     const lobs=new Lobs(actors);
     const rings=new Rings(fxScene);
+    const dangerRings=new Rings(fxScene,12);
     const preview=new Preview(fxScene);
     const enemies=new EnemyManager(actors,fxScene);
-    const ctx={room:null,player,playerBullets,enemyBullets,muzzle,particles,fx,lobs,enemies:[]};
+    const ctx={dangerRings:null,room:null,player,playerBullets,enemyBullets,muzzle,particles,fx,lobs,enemies:[]};
     const ink=new Ink();
     const seedParam=Number(new URLSearchParams(location.search).get('seed'));
     const deckParam=new URLSearchParams(location.search).get('deck');
@@ -129,6 +135,7 @@ function boot() {
     const deckView=new DeckView();
     ctx.enemyMgr=enemies;
     const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene},TUNING);
+    ctx.dangerRings=dangerRings;
     ctx.onPuddle=(x,z,r,dur,slow)=>{
         game.room.zones.addPuddle(x,z,r,dur,slow);
         decals.spawn(x,z,r*3.2,'ink','nearGray');
@@ -171,6 +178,7 @@ function boot() {
             audio.play(card.def.id==='pencilWall'?'wall':(card.def.type==='terrain'?'erase':'card'));
         },
         openDeck,
+        showKeys:()=>input.lastDevice==='mouse'&&!device.mobile,
         onPlayStart:()=>{
             audio.play('card');
             if (run.stats) {
@@ -183,6 +191,7 @@ function boot() {
         audio.play('draw',0.9+Math.random()*0.3);
     };
     deck.events.onReshuffleStart=n=>hand.onReshuffleStart(n);
+    deck.events.onBurn=c=>hand.onBurn(c);
     deck.events.onReshuffleEnd=()=>hand.onReshuffleEnd();
     homingBullets.onSeek=(x,z)=>{
         const e=enemies.nearest(x,z,40);
@@ -195,7 +204,10 @@ function boot() {
     let heart=0;
     playerBullets.onHit=hitEnemies;
     enemyBullets.onHit=(x,z,r,dmg,vx,vz)=>player.hitBullet(x,z,r,dmg,vx,vz);
-    playerBullets.onWall=(x,z,vx,vz)=>{
+    playerBullets.onWall=(x,z,vx,vz,col)=>{
+        if (col&&col.piece&&(col.piece.kind==='barrel'||col.piece.kind==='crate')) {
+            game.room.damagePiece(col.piece,W.damage);
+        }
         particles.burst(x,H,z,PT.wallPuff,{color:'nearGray',speed:[1,3.5],up:[1,3],size:[0.06,0.12],life:[0.2,0.4],dirX:-vx,dirZ:-vz,cone:1.3});
     };
     enemyBullets.onWall=(x,z,vx,vz,col)=>{
@@ -203,6 +215,10 @@ function boot() {
             game.room.damagePiece(col.piece,1);
         }
         particles.burst(x,H,z,PT.wallPuff,{color:'darkRed',speed:[1,3],up:[1,3],size:[0.07,0.13],life:[0.2,0.4],dirX:-vx,dirZ:-vz,cone:1.3});
+    };
+    const dmgNums=new DamageNumbers();
+    enemies.onDamage=(e,dmg,crit)=>{
+        dmgNums.spawn(e.pos.x,e.def.height*0.9,e.pos.z,dmg,crit);
     };
     enemies.onHit=(e,x,z,dx,dz,dead,quiet,crit)=>{
         if (dead) {
@@ -234,7 +250,11 @@ function boot() {
         fx.fovPunch(F.fovKill);
         fx.flash('paper',F.killFlash*3,0.35);
         if (run.stats) {
+            if (run.mode==='endless') {
+                run.addScore(e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?3:1));
+            }
             run.stats.kills++;
+            run.stats.xp+=e.def.boss?TUNING.levels.xpBoss:TUNING.levels.xpKill*(e.def.cost||1);
         }
         const sh=shardsFor(e);
         const n=Math.round(e.def.shards[0]+Math.random()*(e.def.shards[1]-e.def.shards[0]));
@@ -287,6 +307,45 @@ function boot() {
         paperShards.burst(p.pos.x-dx*0.8,1.0,p.pos.z-dz*0.8,4,-dx,-dz,0.8);
         particles.burst(p.pos.x,1.0,p.pos.z,6,{color:'farGray',speed:[2,5],up:[2,4]});
     };
+    const pickups=new Pickups(actors);
+    const floatText=(x,z,text)=>{
+        dmgNums.spawnText(x,1.6,z,text);
+    };
+    const onPropBreak=piece=>{
+        const P=TUNING.props;
+        if (piece.kind==='barrel') {
+            audio.play('kill',0.6);
+            enemies.damageRadius(piece.x,piece.z,P.barrelRadius,P.barrelDamage);
+            if (Math.hypot(player.pos.x-piece.x,player.pos.z-piece.z)<P.barrelRadius*0.7) {
+                player.hurt(1,player.pos.x-piece.x,player.pos.z-piece.z);
+            }
+            rings.spawn(piece.x,piece.z,P.barrelRadius,'ink',0.35);
+            decals.spawn(piece.x,piece.z,P.barrelRadius*1.4,'ink','midGray');
+            particles.burst(piece.x,0.6,piece.z,30,{speed:[3,10],up:[3,9],size:[0.12,0.28],life:[0.4,0.9]});
+            fx.hitStop(70,true);
+            fx.cameraShake(0.5);
+            fx.fovPunch(1.6);
+            const px=piece.x;
+            const pz=piece.z;
+            tweens.delay(0.12,()=>{
+                if (game.room) {
+                    game.room.damageProps(px,pz,P.barrelRadius,P.barrelDamage);
+                }
+            });
+        }
+        else {
+            audio.play('wall',1.4);
+            const r=Math.random();
+            if (r<0.5) {
+                pickups.spawn('ink',piece.x,piece.z);
+            }
+            else if (r<0.8) {
+                pickups.spawn('heal',piece.x,piece.z);
+            }
+            particles.burst(piece.x,0.6,piece.z,10,{color:'farGray',speed:[2,5],up:[2,5]});
+        }
+    };
+    const rain={t:0,drops:[]};
     const onBreak=piece=>{
         fx.cameraShake(0.2);
         particles.burst(piece.x,0.8,piece.z,10,{color:'midGray',speed:[2,5],up:[2,5]});
@@ -310,12 +369,12 @@ function boot() {
             sh.clear();
         }
         decals.clear();
+        dmgNums.clear();
+        pickups.clear();
         for (const c of clones) {
             c.stop();
         }
-        effects.sweeps.length=0;
-        effects.eraserMesh.visible=false;
-        effects.redrawLine.visible=false;
+        effects.clear();
         preview.hide();
         renderer.post.invertHold.value=0;
     }
@@ -326,9 +385,19 @@ function boot() {
         if (game.room) {
             game.room.destroy();
         }
-        const r=buildRoom(plan.layout,world,fxScene);
+        const r=buildRoom(plan.layout,world,fxScene,{rng:new RNG(plan.act*100+plan.index*7+Math.floor(Math.random()*1000)),barrels:plan.barrels||0,crates:plan.crates||0});
         r.shards=terrainShards;
         r.onBreak=onBreak;
+        r.onPropBreak=onPropBreak;
+        game.mod=plan.mod||null;
+        rain.t=2.5;
+        rain.drops.length=0;
+        if (game.mod==='dark') {
+            shared.uFog.value.set(6,17,1);
+        }
+        else {
+            shared.uFog.value.set(TUNING.fog.near,TUNING.fog.far,TUNING.fog.max);
+        }
         game.room=r;
         ctx.room=r;
         effects.g.room=r;
@@ -352,10 +421,13 @@ function boot() {
         banner:(kind,rn)=>{
             const p=rn.plan;
             if (kind==='boss') {
-                overlay.hud.banner(t('run.bossTitle',{name:t('enemy.inkBottle')}),t('run.bossSub',{act:p.act+1}),2.6);
+                overlay.hud.banner(t('run.bossTitle',{name:t('enemy.'+p.bossType)}),p.endless?t('run.endlessBossSub'):t('run.bossSub',{act:p.act+1}),2.6);
+            }
+            else if (p.endless) {
+                overlay.hud.banner(t('run.endlessTitle',{page:p.index+1}),p.mod?t('mod.'+p.mod):t('run.roomSub'),p.mod?2.8:2.0);
             }
             else {
-                overlay.hud.banner(t('run.roomTitle',{act:p.act+1,page:p.index+1}),t('run.roomSub'),2.0);
+                overlay.hud.banner(t('run.roomTitle',{act:p.act+1,page:p.index+1}),p.mod?t('mod.'+p.mod):t('run.roomSub'),p.mod?2.8:2.0);
             }
         },
         onSpawn:e=>{
@@ -396,6 +468,20 @@ function boot() {
         showSummary:(victory,stats)=>{
             fx.paused=true;
             hand.cancelTargeting();
+            const lvBefore=progress.level;
+            let best=false;
+            if (run.mode==='endless') {
+                stats.xp+=stats.score*TUNING.levels.xpScore;
+                if (stats.score>progress.bestScore) {
+                    progress.bestScore=stats.score;
+                    best=true;
+                }
+                stats.best=progress.bestScore;
+                stats.newBest=best;
+            }
+            stats.mode=run.mode;
+            const res=addXp(stats.xp);
+            summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey))};
             summary.show(victory,stats,toMenu=>{
                 audio.play('ui');
                 player.hp=TUNING.player.maxHp;
@@ -405,7 +491,7 @@ function boot() {
                     enterMenu();
                 }
                 else {
-                    run.start(startIds());
+                    run.start(startIds(),run.mode);
                 }
             });
         }
@@ -419,10 +505,13 @@ function boot() {
         const r=buildRoom(LAYOUTS.crossroads,world,fxScene);
         r.shards=terrainShards;
         r.onBreak=onBreak;
+        game.mod=null;
+        shared.uFog.value.set(TUNING.fog.near,TUNING.fog.far,TUNING.fog.max);
         game.room=r;
         ctx.room=r;
         effects.g.room=r;
         player.enterRoom(new THREE.Vector3(0,0,1.5));
+        player.invuln=0;
         player.aimYaw=0.6;
         enemies.hpMult=1;
         enemies.spawn('doodle',-4,-3,{quick:true}).yaw=2.4;
@@ -440,13 +529,13 @@ function boot() {
         mainMenu.show();
         renderer.post.drawIn(1.6,0.2);
     }
-    function startGame() {
+    function startGame(mode='story') {
         audio.play('ui');
         mainMenu.hide();
         game.mode='play';
         player.hp=TUNING.player.maxHp;
         ink.value=TUNING.ink.start;
-        run.start(startIds());
+        run.start(startIds(),mode);
     }
     function openPause() {
         if (game.mode!=='play'||pauseMenu.open||summary.open||reward.open||transition.active) {
@@ -462,6 +551,8 @@ function boot() {
         audio.play('ui');
         pauseMenu.hide();
         fx.paused=false;
+        input.mouse.down=false;
+        input.dashQueued=false;
     }
     let settingsReturn=null;
     function openSettings(from) {
@@ -476,7 +567,8 @@ function boot() {
         overlay.showDebug=settings.showFps;
     }
     const mainMenu=new MainMenu({
-        start:startGame,
+        start:()=>startGame('story'),
+        endless:()=>startGame('endless'),
         settings:()=>openSettings('menu'),
         codex:()=>{
             audio.play('ui');
@@ -621,7 +713,7 @@ function boot() {
         leave:()=>hand.leave()
     };
     input.onCardKey=i=>{
-        if (!deckView.open&&!reward.open&&!summary.open&&run.state==='combat') {
+        if (!deckView.open&&!reward.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
             hand.keyPlay(i);
         }
     };
@@ -683,15 +775,132 @@ function boot() {
     resize();
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
-    const gameUi={ink,hand,art,deckView,deck,run,enemies,reward,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex};
+    const projectFn=(x,y,z,out)=>rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out);
+    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex};
+    let aimTarget=null;
+    function applyAimAssist() {
+        const A=TUNING.aimAssist;
+        if (!settings.aimAssist||game.mode!=='play'||hand.targetView||hand.press) {
+            aimTarget=null;
+            gameUi.aimTarget=null;
+            return;
+        }
+        if (aim.mode==='point') {
+            const px=aim.point.x;
+            const pz=aim.point.z;
+            if (aimTarget&&(!aimTarget.alive||Math.hypot(aimTarget.renderPos.x-px,aimTarget.renderPos.z-pz)>A.release+aimTarget.def.radius)) {
+                aimTarget=null;
+            }
+            if (!aimTarget) {
+                let bd=Infinity;
+                for (const e of enemies.list) {
+                    if (e.state==='spawn') {
+                        continue;
+                    }
+                    const d=Math.hypot(e.renderPos.x-px,e.renderPos.z-pz)-e.def.radius;
+                    if (d<A.acquire&&d<bd) {
+                        bd=d;
+                        aimTarget=e;
+                    }
+                }
+            }
+            if (aimTarget) {
+                aim.point.x+=(aimTarget.renderPos.x-aim.point.x)*A.strength;
+                aim.point.z+=(aimTarget.renderPos.z-aim.point.z)*A.strength;
+            }
+        }
+        else if (aim.mode==='dir') {
+            aimTarget=null;
+            let best=A.stickCone;
+            const a0=Math.atan2(aim.dz,aim.dx);
+            for (const e of enemies.list) {
+                if (e.state==='spawn') {
+                    continue;
+                }
+                const dx=e.renderPos.x-player.renderPos.x;
+                const dz=e.renderPos.z-player.renderPos.z;
+                if (Math.hypot(dx,dz)>A.stickRange) {
+                    continue;
+                }
+                let da=Math.atan2(dz,dx)-a0;
+                while (da>Math.PI) {
+                    da-=Math.PI*2;
+                }
+                while (da<-Math.PI) {
+                    da+=Math.PI*2;
+                }
+                if (Math.abs(da)<best) {
+                    best=Math.abs(da);
+                    aimTarget=e;
+                }
+            }
+            if (aimTarget) {
+                const dx=aimTarget.renderPos.x-player.renderPos.x;
+                const dz=aimTarget.renderPos.z-player.renderPos.z;
+                const l=Math.hypot(dx,dz)||1;
+                const nx=aim.dx+(dx/l-aim.dx)*A.stickStrength;
+                const nz=aim.dz+(dz/l-aim.dz)*A.stickStrength;
+                const nl=Math.hypot(nx,nz)||1;
+                aim.dx=nx/nl;
+                aim.dz=nz/nl;
+            }
+        }
+        else {
+            aimTarget=null;
+        }
+        gameUi.aimTarget=aimTarget;
+    }
+    function updateRain(dt) {
+        rain.t-=dt;
+        if (rain.t<=0) {
+            rain.t=2.4+Math.random()*1.2;
+            const n=2+Math.floor(Math.random()*2);
+            for (let i=0;i<n;i++) {
+                const x=player.pos.x+(i===0?player.vel.x*0.4:(Math.random()-0.5)*9);
+                const z=player.pos.z+(i===0?player.vel.z*0.4:(Math.random()-0.5)*7);
+                rain.drops.push({x,z,t:0.9});
+                dangerRings.spawn(x,z,1.5,'red',0.9);
+            }
+        }
+        for (let i=rain.drops.length-1;i>=0;i--) {
+            const d=rain.drops[i];
+            d.t-=dt;
+            if (d.t<=0) {
+                rain.drops.splice(i,1);
+                if (Math.hypot(player.pos.x-d.x,player.pos.z-d.z)<1.4) {
+                    player.hurt(1,0,1);
+                }
+                game.room.zones.addPuddle(d.x,d.z,1.3,5,0.55);
+                decals.spawn(d.x,d.z,2.2,'ink','nearGray');
+                particles.burst(d.x,0.3,d.z,10,{speed:[2,5],up:[3,6],size:[0.1,0.2]});
+            }
+        }
+    }
     function update(dt) {
         if (run.state!=='dead') {
             player.update(dt,input,ctx,aim);
         }
-        enemies.update(dt,ctx);
+        const hurry=game.mod==='hurry'&&game.mode==='play'?1.25:1;
+        enemies.update(dt*hurry,ctx);
+        pickups.update(dt,player,(type,x,z)=>{
+            const P=TUNING.props;
+            audio.play('clear',1.5);
+            if (type==='ink') {
+                ink.add(P.pickupInk);
+                floatText(x,z,t('pickup.ink',{n:P.pickupInk}));
+            }
+            else {
+                player.hp=Math.min(TUNING.player.maxHp,player.hp+P.pickupHeal);
+                floatText(x,z,t('pickup.heal',{n:P.pickupHeal}));
+            }
+            particles.burst(x,1,z,10,{color:type==='ink'?'ink':'farGray',speed:[1,3],up:[2,5]});
+        });
+        if (game.mod==='inkRain'&&game.mode==='play'&&run.state==='combat') {
+            updateRain(dt);
+        }
         const room=game.room;
         playerBullets.update(dt,room);
-        enemyBullets.update(dt,room);
+        enemyBullets.update(dt*hurry,room);
         pierceBullets.update(dt,room);
         homingBullets.update(dt,room);
         lobs.update(dt);
@@ -737,12 +946,14 @@ function boot() {
         lobs.render(alpha);
         particles.render();
         rings.update(dt*time.timeScale);
+        dangerRings.update(dt*time.timeScale);
         preview.update(dt);
-        hand.update(dt);
+        hand.update(dt,pauseMenu.open||deckView.open);
         deckView.update(dt);
         for (const sh of allShards()) {
             sh.render();
         }
+        dmgNums.update(dt*Math.max(time.timeScale,fx.paused?0:0.25));
         reward.update(dt);
         summary.update(dt);
         transition.update(dt);
@@ -803,7 +1014,7 @@ function boot() {
             }
             cam.updateMatrixWorld();
         }
-        else {
+        else if (!pauseMenu.open) {
             rig.follow(player.renderPos,look.x+bias.x,look.z+bias.z);
             rig.update(dt);
         }
@@ -813,6 +1024,7 @@ function boot() {
                 aim.mode='none';
             }
         }
+        applyAimAssist();
         renderer.render(scene,fxScene,rig.camera);
         if (transition.state==='capture') {
             transition.capture(renderer.gl.domElement,renderer.width,renderer.height);

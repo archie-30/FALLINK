@@ -6,6 +6,7 @@ import {time} from '../core/loop.js';
 import {hash1} from '../core/rng.js';
 import {Hud} from './hud.js';
 import {sketchCircle,drawShape} from './sketch.js';
+import {drawCardTooltip} from './cardView.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -54,10 +55,18 @@ export class Overlay {
             game.summary.draw(ctx);
         }
         if (game.mode==='play'&&!dying) {
+            game.dmgNums.draw(ctx,game.project);
+            this.hud.drawAmmo(ctx,player,game.project,this.tmp||(this.tmp={x:0,y:0}));
+            this.drawLock(ctx,game);
             this.hud.drawHp(ctx,player);
             this.hud.drawInk(ctx,game.ink);
             this.hud.drawBuffs(ctx,player);
-            this.hud.drawLegend(ctx,this.width,this.height,touchUi);
+            if (!touchUi) {
+                this.hud.drawLegend(ctx,this.width,this.height,false);
+            }
+            else {
+                this.hud.legendBox={x:0,y:0,w:0,h:0,titleH:0};
+            }
             game.hand.draw(ctx,game.art);
             if (touchUi) {
                 this.drawSticks(input);
@@ -70,8 +79,24 @@ export class Overlay {
             game.reward.draw(ctx,game.art);
             game.summary.draw(ctx);
             game.pause.draw(ctx);
+            if (game.pause.open) {
+                game.hand.draw(ctx,game.art);
+                const hv=game.hand.hover;
+                if (hv) {
+                    drawCardTooltip(ctx,hv.card,hv.x,hv.y-120*game.hand.s);
+                }
+                else {
+                    ctx.font='14px "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+                    ctx.fillStyle=PALETTE.nearGray;
+                    ctx.textAlign='center';
+                    ctx.textBaseline='middle';
+                    ctx.fillText(t('pause.hint'),this.width/2,this.height-game.hand.s*164*0.8-40);
+                }
+            }
         }
-        game.mainMenu.draw(ctx);
+        if (!game.codex.open&&!game.settingsMenu.open) {
+            game.mainMenu.draw(ctx);
+        }
         game.settingsMenu.draw(ctx);
         game.codex.draw(ctx,game.art);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
@@ -80,6 +105,44 @@ export class Overlay {
         if (this.showDebug&&debug) {
             this.drawDebug(debug);
         }
+    }
+
+    drawLock(ctx,game) {
+        const e=game.aimTarget;
+        const tmp=this.tmp2||(this.tmp2={x:0,y:0});
+        for (const q of game.enemies.list) {
+            if (q.elite&&q.state!=='spawn') {
+                game.project(q.renderPos.x,q.def.height*1.45,q.renderPos.z,tmp);
+                ctx.fillStyle=PALETTE.ink;
+                ctx.font='bold 12px "Noto Sans TC",sans-serif';
+                ctx.textAlign='center';
+                ctx.textBaseline='bottom';
+                ctx.fillText(t('hud.elite'),tmp.x,tmp.y-14);
+            }
+            if (q.vulnT>0||q.stunT>0) {
+                game.project(q.renderPos.x,q.def.height*1.15,q.renderPos.z,tmp);
+                ctx.fillStyle=PALETTE.ink;
+                ctx.font='bold 14px '+'"Noto Sans TC",sans-serif';
+                ctx.textAlign='center';
+                ctx.textBaseline='bottom';
+                ctx.fillText(q.vulnT>0?'×'+q.vulnMult:'✱',tmp.x,tmp.y);
+            }
+        }
+        if (!e||!e.alive) {
+            return;
+        }
+        game.project(e.renderPos.x,e.def.height*0.5,e.renderPos.z,tmp);
+        const r=18+e.def.radius*16;
+        const k=6;
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=2.4;
+        ctx.beginPath();
+        for (const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]) {
+            ctx.moveTo(tmp.x+sx*r,tmp.y+sy*(r-k));
+            ctx.lineTo(tmp.x+sx*r,tmp.y+sy*r);
+            ctx.lineTo(tmp.x+sx*(r-k),tmp.y+sy*r);
+        }
+        ctx.stroke();
     }
 
     drawSticks(input) {

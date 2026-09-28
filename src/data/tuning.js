@@ -97,7 +97,7 @@ export const TUNING={
         dashStretch:5.5,
         recoilDistance:0.18,
         maxHp:10,
-        invulnTime:1.0,
+        invulnTime:0.8,
         dashInvuln:true,
         flickerFps:15,
         hurtKnockback:6,
@@ -114,7 +114,18 @@ export const TUNING={
         muzzleSide:0.46,
         recoilTrauma:0.035,
         recoilFov:0.22,
-        flashScale:0.9
+        flashScale:0.9,
+        dualOffset:0.22,
+        magazine:12,
+        reloadTime:1.1
+    },
+    aimAssist:{
+        acquire:1.1,
+        release:2.3,
+        strength:0.85,
+        stickCone:0.26,
+        stickRange:16,
+        stickStrength:0.7
     },
     bullet:{
         capacity:600,
@@ -182,11 +193,12 @@ export const TUNING={
     ink:{
         max:10,
         start:3,
-        perHit:0.2,
+        perHit:0.15,
         perKill:1.0
     },
     deck:{
-        handSize:4,
+        handSize:2,
+        burnDelay:0.45,
         replaceDelay:1.0,
         reshuffleTime:2.0,
         startStagger:0.14
@@ -195,6 +207,7 @@ export const TUNING={
         width:118,
         height:164,
         spacing:0.9,
+        ultGap:1.3,
         fanRot:0.07,
         fanDrop:7,
         restShow:0.8,
@@ -244,6 +257,37 @@ export const TUNING={
         cloneFire:0.22,
         cloneRange:14,
         redrawTime:0.7
+    },
+    levels:{
+        base:120,
+        step:70,
+        xpKill:3,
+        xpBoss:80,
+        xpRoom:15,
+        xpAct:60,
+        xpVictory:200,
+        xpScore:0.02
+    },
+    reward:{
+        choices:2,
+        rareChance:0.15,
+        bossRareChance:0.5,
+        newChance:0.6
+    },
+    damageNumbers:{
+        life:0.75,
+        rise:40,
+        size:18,
+        critSize:26,
+        mergeTime:0.12
+    },
+    props:{
+        barrelHp:25,
+        crateHp:18,
+        barrelRadius:3.2,
+        barrelDamage:45,
+        pickupInk:2,
+        pickupHeal:1
     },
     run:{
         bossHeal:4

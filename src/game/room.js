@@ -11,6 +11,7 @@ export class RoomDirector {
         this.cleared=false;
         this.boss=null;
         this.events=[];
+        this.eliteWave=-1;
     }
 
     pickPoint(player) {
@@ -45,7 +46,12 @@ export class RoomDirector {
                     x=p[0]+this.rng.range(-0.8,0.8);
                     z=p[1]+this.rng.range(-0.8,0.8);
                 }
-                const e=this.enemies.spawn(s.type,x,z,{hpMult:this.plan.hpMult*(s.boss?this.plan.bossHp:1)});
+                let elite=false;
+                if (this.plan.mod==='elite'&&!s.boss&&this.eliteWave!==this.wave) {
+                    this.eliteWave=this.wave;
+                    elite=true;
+                }
+                const e=this.enemies.spawn(s.type,x,z,{hpMult:this.plan.hpMult*(s.boss?this.plan.bossHp:1)*(elite?2.5:1),elite});
                 if (s.boss) {
                     this.boss=e;
                 }
@@ -65,7 +71,7 @@ export class RoomDirector {
             }
             return;
         }
-        if (alive<=1||this.wave<0) {
+        if (alive<=2||this.wave<0) {
             this.nextT-=dt;
             if (this.nextT<=0) {
                 this.wave++;

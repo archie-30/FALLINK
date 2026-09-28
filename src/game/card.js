@@ -1,7 +1,7 @@
 import*as THREE from 'three';
 import {CARDS} from '../data/cards.js';
 import {t} from '../data/strings.js';
-import {toonMaterial,lineMaterial} from '../render/materials.js';
+import {toonMaterial,lineMaterial,unlitMaterial} from '../render/materials.js';
 
 let nextUid=1;
 
@@ -66,14 +66,115 @@ export class CardEffects {
         this.redrawLine.visible=false;
         this.redrawLine.frustumCulled=false;
         this.g.fxScene.add(this.redrawLine);
+        const mk=()=>{
+            const m=new THREE.Mesh(lg,lineMaterial('ink'));
+            m.visible=false;
+            m.frustumCulled=false;
+            this.g.fxScene.add(m);
+            return m;
+        };
+        this.links=[];
+        for (let i=0;i<10;i++) {
+            this.links.push({mesh:mk(),t:0,life:0});
+        }
+        this.waveLine=mk();
+        this.beamLine=mk();
+        this.mines=[];
+        const mg=new THREE.SphereGeometry(0.42,10,6,0,Math.PI*2,0,Math.PI/2);
+        const mm=unlitMaterial({color:'ink',jitter:0.02});
+        const cg=new THREE.CylinderGeometry(0.12,0.12,0.3,6);
+        for (let i=0;i<4;i++) {
+            const m=new THREE.Mesh(mg,mm);
+            const cap=new THREE.Mesh(cg,unlitMaterial({color:'nearGray'}));
+            cap.position.y=0.45;
+            m.add(cap);
+            m.visible=false;
+            this.g.scene.add(m);
+            this.mines.push({mesh:m,active:false,x:0,z:0,r:3,dmg:50,t:0});
+        }
+    }
+
+    clear() {
+        this.sweeps.length=0;
+        this.eraserMesh.visible=false;
+        this.redrawLine.visible=false;
+        this.waveLine.visible=false;
+        this.beamLine.visible=false;
+        for (const l of this.links) {
+            l.mesh.visible=false;
+            l.life=0;
+        }
+        for (const m of this.mines) {
+            m.active=false;
+            m.mesh.visible=false;
+        }
+    }
+
+    setLine(mesh,x0,z0,x1,z1,width,y=0.08) {
+        const dx=x1-x0;
+        const dz=z1-z0;
+        const L=Math.hypot(dx,dz)||0.01;
+        mesh.visible=true;
+        mesh.position.set(x0,y,z0);
+        mesh.rotation.y=Math.atan2(-dz,dx);
+        mesh.scale.set(L,1,width);
+        mesh.material.uniforms.uLength.value=L;
+    }
+
+    link(x0,z0,x1,z1) {
+        const l=this.links.find(q=>q.life<=0)||this.links[0];
+        l.t=0;
+        l.life=0.35;
+        this.setLine(l.mesh,x0,z0,x1,z1,0.3,1.0);
+    }
+
+    updateExtras(dt) {
+        const g=this.g;
+        for (const l of this.links) {
+            if (l.life>0) {
+                l.t+=dt;
+                if (l.t>=l.life) {
+                    l.life=0;
+                    l.mesh.visible=false;
+                }
+                else {
+                    l.mesh.scale.z=0.3*(1-l.t/l.life)+0.02;
+                }
+            }
+        }
+        for (const m of this.mines) {
+            if (!m.active) {
+                continue;
+            }
+            m.t+=dt;
+            const pulse=1+Math.sin(m.t*6)*0.08;
+            m.mesh.scale.set(pulse,pulse,pulse);
+            let trig=m.t>25;
+            if (m.t>0.4) {
+                const e=g.enemies.nearest(m.x,m.z,1.6);
+                if (e&&!e.def.flying) {
+                    trig=true;
+                }
+            }
+            if (trig) {
+                m.active=false;
+                m.mesh.visible=false;
+                this.explode(m.x,m.z,m.r,m.dmg);
+            }
+        }
     }
 
     update(dt) {
         const g=this.g;
+        this.updateExtras(dt);
         for (let i=this.sweeps.length-1;i>=0;i--) {
             const s=this.sweeps[i];
             s.t+=dt;
             const k=Math.min(1,s.t/s.dur);
+            if (this.updateSweep(s,k,dt)) {
+                this.sweeps.splice(i,1);
+                continue;
+            }
             if (s.type==='eraser') {
                 const e=1-Math.pow(1-k,2);
                 const a=s.a0+(s.a1-s.a0)*e;
@@ -196,6 +297,9 @@ export class CardEffects {
     explode(x,z,radius,damage) {
         const g=this.g;
         g.enemies.damageRadius(x,z,radius,damage);
+        if (g.room) {
+            g.room.damageProps(x,z,radius,damage);
+        }
         g.fx.hitStop(90,true);
         g.fx.cameraShake(this.E.bombShake);
         g.fx.fovPunch(this.E.bombFov);
@@ -327,6 +431,361 @@ export class CardEffects {
         }
         c.start(x,z,duration,damage);
         g.particles.burst(x,0.6,z,14,{color:'nearGray',speed:[1,4],up:[2,5],size:[0.08,0.16]});
+    }
+
+    updateSweep(s,k,dt) {
+        const g=this.g;
+        const p=g.player;
+        if (s.type==='rain') {
+            while (s.drops.length>0&&s.drops[0].t<=s.t) {
+                const d=s.drops.shift();
+                g.enemies.damageRadius(d.x,d.z,1.4,s.dmg);
+                g.rings.spawn(d.x,d.z,1.5,'ink',0.25);
+                g.decals.spawn(d.x,d.z,1.2,'ink','midGray');
+                g.particles.burst(d.x,0.3,d.z,8,{speed:[2,5],up:[3,6],size:[0.08,0.16]});
+                g.fx.cameraShake(0.08);
+            }
+            return s.drops.length===0;
+        }
+        if (s.type==='reflect') {
+            if (p.reflectT<=0) {
+                return true;
+            }
+            s.ring-=dt;
+            if (s.ring<=0) {
+                s.ring=0.35;
+                g.rings.spawn(p.pos.x,p.pos.z,1.9,'farGray',0.35);
+            }
+            const px=p.pos.x;
+            const pz=p.pos.z;
+            g.enemyBullets.killWhere((x,z)=>(x-px)*(x-px)+(z-pz)*(z-pz)<3.6,(x,z)=>{
+                const e=g.enemies.nearest(x,z,20);
+                let dx=x-px;
+                let dz=z-pz;
+                if (e) {
+                    dx=e.pos.x-x;
+                    dz=e.pos.z-z;
+                }
+                const l=Math.hypot(dx,dz)||1;
+                g.playerBullets.spawn(x,z,dx/l,dz/l,this.T.weapon.bulletSpeed,this.T.weapon.damage*1.5,1.2);
+                g.particles.burst(x,1.0,z,2,{color:'farGray',speed:[1,3],up:[1,2]});
+            });
+            return false;
+        }
+        if (s.type==='barrage') {
+            s.acc+=dt;
+            while (s.acc>=s.every&&s.left>0) {
+                s.acc-=s.every;
+                s.left--;
+                const a=Math.random()*Math.PI*2;
+                g.homingBullets.spawn(p.pos.x+Math.cos(a)*0.7,p.pos.z+Math.sin(a)*0.7,Math.cos(a),Math.sin(a),this.E.homingSpeed,s.dmg,this.E.homingLife);
+                g.muzzle.show(p.pos.x+Math.cos(a)*0.7,this.T.weapon.height,p.pos.z+Math.sin(a)*0.7,'ink',0.6);
+            }
+            return s.left<=0;
+        }
+        if (s.type==='wave') {
+            const front=s.len*Math.min(1,s.t/s.dur);
+            const cx=s.x+s.dx*front;
+            const cz=s.z+s.dz*front;
+            const px=-s.dz;
+            const pz=s.dx;
+            this.setLine(this.waveLine,cx-px*s.w/2,cz-pz*s.w/2,cx+px*s.w/2,cz+pz*s.w/2,1.2,0.1);
+            for (const e of g.enemies.list.slice()) {
+                if (s.hit.has(e.uid)||e.state==='spawn') {
+                    continue;
+                }
+                const rx=e.pos.x-s.x;
+                const rz=e.pos.z-s.z;
+                const along=rx*s.dx+rz*s.dz;
+                const lat=Math.abs(rx*px+rz*pz);
+                if (along<=front&&along>=-1&&lat<=s.w/2+e.def.radius) {
+                    s.hit.add(e.uid);
+                    g.enemies.damage(e,s.dmg,s.dx,s.dz);
+                    if (e.alive&&!e.def.boss) {
+                        e.vel.x+=s.dx*10;
+                        e.vel.z+=s.dz*10;
+                    }
+                }
+            }
+            g.enemyBullets.killWhere((x,z)=>{
+                const rx=x-s.x;
+                const rz=z-s.z;
+                const along=rx*s.dx+rz*s.dz;
+                return along<=front&&along>=-1&&Math.abs(rx*px+rz*pz)<=s.w/2;
+            },null);
+            if (Math.random()<0.9) {
+                const o=(Math.random()-0.5)*s.w;
+                g.particles.burst(cx+px*o,0.4,cz+pz*o,2,{dirX:s.dx,dirZ:s.dz,cone:0.5,speed:[4,8],up:[3,6],size:[0.1,0.2]});
+            }
+            if (s.t>=s.dur) {
+                this.waveLine.visible=false;
+                return true;
+            }
+            return false;
+        }
+        if (s.type==='beam') {
+            const f=1-k;
+            this.beamLine.scale.z=s.w*(0.3+0.7*f)*1.3;
+            if (k>=1) {
+                this.beamLine.visible=false;
+                return true;
+            }
+            return false;
+        }
+        if (s.type==='hole') {
+            for (const e of g.enemies.list) {
+                if (e.def.boss||e.state==='spawn') {
+                    continue;
+                }
+                const dx=s.x-e.pos.x;
+                const dz=s.z-e.pos.z;
+                const d=Math.hypot(dx,dz);
+                if (d<s.r&&d>0.3) {
+                    const pull=Math.min(d,(6+(s.r-d))*dt);
+                    e.pos.x+=dx/d*pull;
+                    e.pos.z+=dz/d*pull;
+                    e.vel.multiplyScalar(0.8);
+                }
+            }
+            g.enemyBullets.killWhere((x,z)=>(x-s.x)*(x-s.x)+(z-s.z)*(z-s.z)<4,null);
+            s.ring-=dt;
+            if (s.ring<=0) {
+                s.ring=0.2;
+                g.rings.spawn(s.x,s.z,1.5+Math.random()*0.8,'ink',0.3);
+            }
+            for (let q=0;q<2;q++) {
+                const a=Math.random()*Math.PI*2;
+                const rr=s.r*(0.5+Math.random()*0.5);
+                g.particles.burst(s.x+Math.cos(a)*rr,0.3,s.z+Math.sin(a)*rr,1,{dirX:-Math.cos(a),dirZ:-Math.sin(a),cone:0.3,speed:[rr*1.5,rr*2],up:[0.5,1.5],size:[0.08,0.14],life:[0.4,0.5]});
+            }
+            if (s.t>=s.dur) {
+                g.enemies.damageRadius(s.x,s.z,3.5,s.dmg);
+                g.fx.hitStop(120,true);
+                g.fx.cameraShake(0.8);
+                g.fx.fovPunch(2.5);
+                g.fx.invertFrame(2);
+                g.rings.spawn(s.x,s.z,4.5,'ink',0.45);
+                g.decals.spawn(s.x,s.z,5,'ink','midGray');
+                g.particles.burst(s.x,0.5,s.z,40,{speed:[4,12],up:[3,10],size:[0.12,0.3],life:[0.5,1]});
+                return true;
+            }
+            return false;
+        }
+        return null;
+    }
+
+    heal(n) {
+        const g=this.g;
+        const p=g.player;
+        p.hp=Math.min(this.T.player.maxHp,p.hp+n);
+        p.sqv+=2;
+        g.fx.flash('paper',0.2,0.3);
+        g.particles.burst(p.pos.x,1.2,p.pos.z,14,{color:'paper',speed:[1,3],up:[3,6],size:[0.1,0.18]});
+        g.rings.spawn(p.pos.x,p.pos.z,1.6,'farGray',0.4);
+    }
+
+    gainInk(n) {
+        const g=this.g;
+        g.ink.add(n);
+        g.particles.burst(g.player.pos.x,1.2,g.player.pos.z,12,{speed:[1,3],up:[3,6],size:[0.1,0.18]});
+    }
+
+    shockwave(radius,damage,push) {
+        const g=this.g;
+        const p=g.player;
+        for (const e of g.enemies.list.slice()) {
+            if (e.state==='spawn') {
+                continue;
+            }
+            const dx=e.pos.x-p.pos.x;
+            const dz=e.pos.z-p.pos.z;
+            const d=Math.hypot(dx,dz)||1;
+            if (d<=radius+e.def.radius) {
+                g.enemies.damage(e,damage,dx/d,dz/d);
+                if (e.alive&&!e.def.boss) {
+                    e.vel.x+=dx/d*push;
+                    e.vel.z+=dz/d*push;
+                }
+            }
+        }
+        g.enemyBullets.killWhere((x,z)=>Math.hypot(x-p.pos.x,z-p.pos.z)<radius*0.9,(x,z)=>g.particles.burst(x,1,z,1,{color:'farGray',speed:[1,2],up:[1,2]}));
+        g.rings.spawn(p.pos.x,p.pos.z,radius,'ink',0.3);
+        g.fx.cameraShake(0.35);
+        g.fx.fovPunch(1.5);
+        p.sqv+=3;
+    }
+
+    mark(x,z,radius,duration,mult) {
+        const g=this.g;
+        const e=g.enemies.nearest(x,z,radius);
+        if (!e) {
+            g.particles.burst(x,0.5,z,6,{speed:[1,3],up:[1,3]});
+            return;
+        }
+        e.vulnT=duration;
+        e.vulnMult=mult;
+        g.rings.spawn(e.pos.x,e.pos.z,e.def.radius+0.8,'ink',0.3);
+        g.particles.burst(e.pos.x,e.def.height,e.pos.z,8,{speed:[1,3],up:[2,4]});
+    }
+
+    placeMine(x,z,radius,damage) {
+        const g=this.g;
+        let m=this.mines.find(q=>!q.active);
+        if (!m) {
+            m=this.mines[0];
+            for (const q of this.mines) {
+                if (q.t>m.t) {
+                    m=q;
+                }
+            }
+        }
+        m.active=true;
+        m.x=x;
+        m.z=z;
+        m.r=radius;
+        m.dmg=damage;
+        m.t=0;
+        m.mesh.visible=true;
+        m.mesh.position.set(x,0,z);
+        g.particles.burst(x,0.3,z,6,{speed:[1,3],up:[1,3]});
+    }
+
+    dualWield(duration) {
+        const g=this.g;
+        g.player.dualT=duration;
+        g.player.sqv+=2;
+        g.fx.fovPunch(1.0);
+        g.rings.spawn(g.player.pos.x,g.player.pos.z,1.6,'ink',0.3);
+    }
+
+    pin(x,z,radius,duration) {
+        const g=this.g;
+        for (const e of g.enemies.list) {
+            if (e.state!=='spawn'&&Math.hypot(e.pos.x-x,e.pos.z-z)<=radius+e.def.radius) {
+                e.stun(duration);
+                g.particles.burst(e.pos.x,0.2,e.pos.z,6,{color:'nearGray',speed:[1,3],up:[1,3]});
+            }
+        }
+        g.rings.spawn(x,z,radius,'ink',0.3);
+        g.fx.cameraShake(0.15);
+    }
+
+    chain(jumps,damage,range) {
+        const g=this.g;
+        const p=g.player;
+        let fx=p.pos.x;
+        let fz=p.pos.z;
+        let e=g.enemies.nearest(fx,fz,range*1.6);
+        const hit=new Set();
+        for (let i=0;i<jumps&&e;i++) {
+            hit.add(e.uid);
+            this.link(fx,fz,e.pos.x,e.pos.z);
+            const ex=e.pos.x;
+            const ez=e.pos.z;
+            g.enemies.damage(e,damage,ex-fx,ez-fz);
+            g.particles.burst(ex,1,ez,5,{speed:[2,4],up:[1,3]});
+            fx=ex;
+            fz=ez;
+            let best=null;
+            let bd=range;
+            for (const o of g.enemies.list) {
+                if (hit.has(o.uid)||o.state==='spawn') {
+                    continue;
+                }
+                const d=Math.hypot(o.pos.x-fx,o.pos.z-fz);
+                if (d<bd) {
+                    bd=d;
+                    best=o;
+                }
+            }
+            e=best;
+        }
+        g.fx.cameraShake(0.2);
+    }
+
+    inkRain(x,z,radius,count,damage) {
+        const drops=[];
+        for (let i=0;i<count;i++) {
+            const a=Math.random()*Math.PI*2;
+            const r=Math.sqrt(Math.random())*radius;
+            drops.push({t:0.15+i*0.12,x:x+Math.cos(a)*r,z:z+Math.sin(a)*r});
+        }
+        this.sweeps.push({type:'rain',t:0,dur:10,drops,dmg:damage});
+        this.g.rings.spawn(x,z,radius,'ink',0.4);
+    }
+
+    reflect(duration) {
+        const g=this.g;
+        g.player.reflectT=duration;
+        this.sweeps.push({type:'reflect',t:0,dur:99,ring:0});
+    }
+
+    tsunami(dx,dz,damage,width,length) {
+        const g=this.g;
+        const p=g.player;
+        p.faceDir(dx,dz);
+        this.sweeps.push({type:'wave',t:0,dur:0.7,x:p.pos.x-dx,z:p.pos.z-dz,dx,dz,w:width,len:length,dmg:damage,hit:new Set()});
+        g.fx.cameraShake(0.5);
+        g.fx.fovPunch(2.0);
+    }
+
+    blackHole(x,z,radius,duration,damage) {
+        this.sweeps.push({type:'hole',t:0,dur:duration,x,z,r:radius,dmg:damage,ring:0});
+        this.g.fx.cameraShake(0.2);
+    }
+
+    barrage(duration,damage,count) {
+        this.sweeps.push({type:'barrage',t:0,dur:duration,acc:0,every:duration/count,left:count,dmg:damage});
+        this.g.fx.fovPunch(1.5);
+    }
+
+    giantPen(dx,dz,damage,width) {
+        const g=this.g;
+        const p=g.player;
+        p.faceDir(dx,dz);
+        p.recoil();
+        const L=30;
+        const x0=p.pos.x+dx*0.8;
+        const z0=p.pos.z+dz*0.8;
+        this.setLine(this.beamLine,x0,z0,x0+dx*L,z0+dz*L,width*1.3,0.09);
+        this.sweeps.push({type:'beam',t:0,dur:0.6,w:width});
+        const px=-dz;
+        const pz=dx;
+        for (const e of g.enemies.list.slice()) {
+            if (e.state==='spawn') {
+                continue;
+            }
+            const rx=e.pos.x-x0;
+            const rz=e.pos.z-z0;
+            const along=rx*dx+rz*dz;
+            if (along>=-0.5&&along<=L&&Math.abs(rx*px+rz*pz)<=width/2+e.def.radius) {
+                g.enemies.damage(e,damage,dx,dz);
+            }
+        }
+        g.enemyBullets.killWhere((x,z)=>{
+            const rx=x-x0;
+            const rz=z-z0;
+            const along=rx*dx+rz*dz;
+            return along>=0&&along<=L&&Math.abs(rx*px+rz*pz)<=width;
+        },null);
+        g.fx.hitStop(110,true);
+        g.fx.cameraShake(0.7);
+        g.fx.fovPunch(2.4);
+        g.muzzle.show(x0,this.T.weapon.height,z0,'ink',2.4);
+        for (let i=0;i<10;i++) {
+            g.particles.burst(x0+dx*i*2.5,0.4,z0+dz*i*2.5,3,{speed:[2,5],up:[2,5],size:[0.1,0.2]});
+        }
+    }
+
+    freezeAll(duration) {
+        const g=this.g;
+        for (const e of g.enemies.list) {
+            e.stun(duration);
+        }
+        g.enemyBullets.frozen=Math.max(g.enemyBullets.frozen,duration);
+        g.fx.hitStop(80,true);
+        g.fx.fovPunch(2.2);
+        g.fx.cameraShake(0.3);
     }
 
     redraw(inkGain) {

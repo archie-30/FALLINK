@@ -1,7 +1,7 @@
 export const ENEMIES={
     doodle:{
         nameKey:'enemy.doodle',
-        hp:30,
+        hp:38,
         radius:0.55,
         scale:1.25,
         height:2.2,
@@ -9,13 +9,14 @@ export const ENEMIES={
         accel:14,
         range:[5,9],
         strafe:0.6,
-        fireInterval:[1.4,2.6],
-        firstShot:[1.2,2.0],
+        fireInterval:[1.1,2.0],
+        firstShot:[1.0,1.8],
         telegraph:0.5,
         telegraphLength:7,
-        bulletSpeed:9,
+        bulletSpeed:10,
         bulletDamage:1,
         bulletLife:3.2,
+        lead:0.6,
         contactDamage:1,
         spawnTime:0.7,
         shards:[5,8],
@@ -29,7 +30,7 @@ export const ENEMIES={
     },
     blob:{
         nameKey:'enemy.blob',
-        hp:40,
+        hp:52,
         radius:0.75,
         scale:1.0,
         height:1.5,
@@ -82,7 +83,7 @@ export const ENEMIES={
     },
     compass:{
         nameKey:'enemy.compass',
-        hp:45,
+        hp:58,
         radius:0.6,
         scale:1.1,
         height:2.6,
@@ -90,8 +91,8 @@ export const ENEMIES={
         accel:10,
         range:[9,13],
         strafe:0.8,
-        fireInterval:[2.6,3.6],
-        firstShot:[1.6,2.4],
+        fireInterval:[2.2,3.0],
+        firstShot:[1.4,2.2],
         telegraph:0.65,
         ringRadius:2.2,
         ringCount:12,
@@ -111,7 +112,7 @@ export const ENEMIES={
     },
     eraserMonster:{
         nameKey:'enemy.eraserMonster',
-        hp:70,
+        hp:90,
         radius:0.8,
         scale:1.2,
         height:1.8,
@@ -139,7 +140,7 @@ export const ENEMIES={
     },
     bird:{
         nameKey:'enemy.bird',
-        hp:18,
+        hp:26,
         radius:0.6,
         scale:1.1,
         height:3.0,
@@ -192,6 +193,58 @@ export const ENEMIES={
             body:{light:'farGray',mid:'midGray',dark:'nearGray'},
             head:{light:'paper',mid:'farGray',dark:'midGray'},
             limb:{light:'midGray',mid:'nearGray',dark:'ink'}
+        }
+    },
+    scissors:{
+        nameKey:'enemy.scissors',
+        hp:1000,
+        radius:1.4,
+        scale:1.0,
+        height:3.2,
+        speed:2.2,
+        accel:4,
+        boss:true,
+        knockMult:0,
+        weakMult:3,
+        contactDamage:1,
+        spawnTime:1.6,
+        shards:[14,20],
+        dashSpeed:22,
+        dashTime:1.1,
+        stuckTime:1.5,
+        bulletSpeed:8,
+        bulletDamage:1,
+        bulletLife:4,
+        shardTone:'body',
+        tones:{
+            body:{light:'farGray',mid:'midGray',dark:'nearGray'},
+            head:{light:'paper',mid:'farGray',dark:'midGray'},
+            limb:{light:'midGray',mid:'nearGray',dark:'ink'}
+        }
+    },
+    book:{
+        nameKey:'enemy.book',
+        hp:1300,
+        radius:2.0,
+        scale:1.0,
+        height:3.6,
+        speed:0,
+        accel:1,
+        boss:true,
+        knockMult:0,
+        weakMult:3,
+        contactDamage:1,
+        spawnTime:1.8,
+        shards:[16,22],
+        restTime:1.8,
+        bulletSpeed:6.5,
+        bulletDamage:1,
+        bulletLife:6,
+        shardTone:'head',
+        tones:{
+            body:{light:'midGray',mid:'nearGray',dark:'ink'},
+            head:{light:'paper',mid:'farGray',dark:'midGray'},
+            limb:{light:'farGray',mid:'midGray',dark:'nearGray'}
         }
     }
 };

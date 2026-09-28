@@ -150,6 +150,9 @@ export class Enemy {
         this.renderPos.copy(this.pos);
         this.vel.set(0,0,0);
         this.hp=d.hp*(o.hpMult||1);
+        this.act=o.act||0;
+        this.elite=!!o.elite;
+        this.yawGroup.scale.setScalar(d.scale*(this.elite?1.3:1));
         this.maxHp=this.hp;
         this.uid=++uidCounter;
         this.alive=true;
@@ -170,6 +173,9 @@ export class Enemy {
         this.poseStep=-1;
         this.speedFrac=0;
         this.tele=null;
+        this.stunT=0;
+        this.vulnT=0;
+        this.vulnMult=1;
         this.root.visible=true;
         this.root.position.copy(this.pos);
         for (const l of this.lines) {
@@ -193,6 +199,12 @@ export class Enemy {
         }
     }
 
+    stun(t) {
+        this.stunT=Math.max(this.stunT,this.def.boss?t*0.3:t);
+        this.tele=null;
+        this.sqv+=2;
+    }
+
     setState(s) {
         this.state=s;
         this.stateT=0;
@@ -208,7 +220,7 @@ export class Enemy {
 
     hurt(dmg,dx,dz) {
         const F=TUNING.feel;
-        const km=this.def.knockMult??1;
+        const km=(this.def.knockMult??1)*(this.elite?0.3:1);
         this.hp-=dmg;
         this.flashT=F.flashTime;
         this.vel.x+=dx*F.knockback*km;
@@ -247,12 +259,22 @@ export class Enemy {
         this.wz=0;
         this.manual=false;
         this.spinning=false;
+        this.vulnT=Math.max(0,this.vulnT-dt);
         if (this.state==='spawn') {
             if (this.t>=this.spawnTime) {
                 this.setState('move');
                 this.sqv+=2;
             }
             this.vel.multiplyScalar(Math.exp(-8*dt));
+        }
+        else if (this.stunT>0) {
+            this.stunT-=dt;
+            this.manual=true;
+            this.tele=null;
+            this.vel.multiplyScalar(Math.exp(-10*dt));
+            if (this.stunT<=0&&this.state!=='move') {
+                this.setState('move');
+            }
         }
         else {
             this.think(dt,ctx);
@@ -307,7 +329,7 @@ export class Enemy {
         this.sq+=this.sqv*dt;
         this.sq=Math.max(-0.45,Math.min(0.45,this.sq));
         this.kick*=Math.exp(-14*dt);
-        if (this.state!=='spawn'&&this.canContact()&&this.dist<d.radius+TUNING.player.radius) {
+        if (this.state!=='spawn'&&this.stunT<=0&&this.canContact()&&this.dist<d.radius+TUNING.player.radius) {
             p.hurt(d.contactDamage,this.nx,this.nz);
         }
     }
@@ -455,10 +477,19 @@ class Doodle extends Enemy {
             this.fireT-=dt;
             if (this.fireT<=0) {
                 this.setState('telegraph');
-                this.teleLine(this.nx,this.nz,d.telegraphLength,d.telegraph);
+                this.teleLine(this.nx,this.nz,d.telegraphLength,d.telegraph,this.act>=1?3:1,this.act>=1?0.32:0);
             }
         }
         else if (this.state==='telegraph') {
+            const p=ctx.player;
+            const tt=this.dist/d.bulletSpeed*d.lead;
+            const lx=p.pos.x+p.vel.x*tt-this.pos.x;
+            const lz=p.pos.z+p.vel.z*tt-this.pos.z;
+            const ll=Math.hypot(lx,lz)||1;
+            if (this.stateT<d.telegraph*0.6) {
+                this.tele.dx=lx/ll;
+                this.tele.dz=lz/ll;
+            }
             this.aimX=this.tele.dx;
             this.aimZ=this.tele.dz;
             if (this.stateT>=d.telegraph) {
@@ -477,7 +508,13 @@ class Doodle extends Enemy {
         const sn=Math.sin(this.yaw);
         const mx=this.pos.x+0.38*s*c+0.55*s*sn;
         const mz=this.pos.z-0.38*s*sn+0.55*s*c;
-        ctx.enemyBullets.spawn(mx,mz,this.aimX,this.aimZ,d.bulletSpeed,d.bulletDamage,d.bulletLife);
+        const n=this.act>=1?3:1;
+        const base=Math.atan2(this.aimZ,this.aimX);
+        const sp=d.bulletSpeed*(1+this.act*0.1);
+        for (let i=0;i<n;i++) {
+            const a=n>1?base+(i/(n-1)-0.5)*0.32:base;
+            ctx.enemyBullets.spawn(mx,mz,Math.cos(a),Math.sin(a),sp,d.bulletDamage,d.bulletLife);
+        }
         ctx.muzzle.show(mx,TUNING.weapon.height,mz,'red',0.8);
         this.kick=1;
         this.sqv-=1.5;
@@ -1169,7 +1206,447 @@ class InkBottle extends Enemy {
     }
 }
 
-const CLASSES={doodle:Doodle,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkBottle:InkBottle};
+function bladeGeo() {
+    const q=new THREE.CylinderGeometry(0.02,0.42,3.4,4);
+    q.rotateX(Math.PI/2);
+    q.scale(1,0.28,1);
+    return q;
+}
+
+class Scissors extends Enemy {
+    buildBody() {
+        const body=this.mat('body');
+        const head=this.mat('head');
+        const limb=this.mat('limb');
+        const ink=this.inkMat();
+        this.hover=new THREE.Group();
+        this.hover.position.y=1.5;
+        this.blades=[];
+        for (const side of [-1,1]) {
+            const g=new THREE.Group();
+            const blade=this.hullify(new THREE.Mesh(geo('scBlade',bladeGeo),side<0?head:body));
+            blade.position.z=1.55;
+            g.add(blade);
+            const handle=this.hullify(new THREE.Mesh(geo('scHandle',()=>new THREE.TorusGeometry(0.55,0.15,6,12)),limb));
+            handle.rotation.x=Math.PI/2;
+            handle.position.set(side*0.25,0,-1.05);
+            g.add(handle);
+            this.hover.add(g);
+            this.blades.push(g);
+        }
+        for (const sx of [-1,1]) {
+            const e=new THREE.Mesh(geo('scEye',()=>new THREE.BoxGeometry(0.3,0.06,0.05)),ink);
+            e.position.set(sx*0.28,0.28,0.35);
+            e.rotation.z=-sx*0.4;
+            this.hover.add(e);
+        }
+        this.screw=new THREE.Mesh(geo('scScrew',()=>new THREE.CylinderGeometry(0.3,0.3,0.36,10)),unlitMaterial({color:'red'}));
+        this.screw.position.y=0.2;
+        this.hover.add(this.screw);
+        this.body.add(this.hover);
+    }
+
+    onReset() {
+        this.patternT=1.8;
+        this.pattern=null;
+        this.dashes=0;
+        this.dx=0;
+        this.dz=1;
+        this.trailT=0;
+        this.volley=0;
+        this.fireAcc=0;
+        this.spiralA=0;
+    }
+
+    damageMult() {
+        return this.state==='stuck'?this.def.weakMult:1;
+    }
+
+    phase2() {
+        return this.hp<this.maxHp*0.5;
+    }
+
+    choose() {
+        const list=this.phase2()?['dash','snip','spin','dash']:['dash','snip','spin'];
+        let p=list[Math.floor(rng.next()*list.length)];
+        if (p===this.last) {
+            p=list[(list.indexOf(p)+1)%list.length];
+        }
+        this.last=p;
+        return p;
+    }
+
+    teleDash() {
+        this.dx=this.nx;
+        this.dz=this.nz;
+        this.setState('telegraph');
+        this.teleLine(this.dx,this.dz,16,this.dashes>0?0.45:0.75);
+    }
+
+    think(dt,ctx) {
+        const d=this.def;
+        const p=ctx.player;
+        if (this.state==='move') {
+            this.aimX=this.nx;
+            this.aimZ=this.nz;
+            const want=this.dist>7?1:(this.dist<4?-1:0);
+            this.wx=this.nx*want-this.nz*0.5;
+            this.wz=this.nz*want+this.nx*0.5;
+            this.patternT-=dt*(this.phase2()?1.35:1);
+            if (this.patternT<=0) {
+                this.pattern=this.choose();
+                this.dashes=0;
+                if (this.pattern==='dash') {
+                    this.teleDash();
+                }
+                else {
+                    this.setState('telegraph');
+                    this.teleRing(this.pattern==='spin'?3.4:2.6,0.6);
+                }
+            }
+            return;
+        }
+        if (this.state==='telegraph') {
+            this.manual=true;
+            this.vel.multiplyScalar(Math.exp(-6*dt));
+            if (this.pattern==='dash') {
+                if (this.stateT<this.tele.dur*0.55) {
+                    const tt=this.dist/d.dashSpeed*0.5;
+                    const lx=p.pos.x+p.vel.x*tt-this.pos.x;
+                    const lz=p.pos.z+p.vel.z*tt-this.pos.z;
+                    const ll=Math.hypot(lx,lz)||1;
+                    this.dx=lx/ll;
+                    this.dz=lz/ll;
+                    this.tele.dx=this.dx;
+                    this.tele.dz=this.dz;
+                }
+                this.aimX=this.dx;
+                this.aimZ=this.dz;
+            }
+            if (this.stateT>=this.tele.dur) {
+                this.tele=null;
+                this.setState('attack');
+                this.volley=0;
+                this.fireAcc=0;
+                this.trailT=0;
+            }
+            return;
+        }
+        if (this.state==='attack') {
+            const sp=d.bulletSpeed*(this.phase2()?1.15:1);
+            if (this.pattern==='dash') {
+                this.manual=true;
+                this.vel.set(this.dx*d.dashSpeed,0,this.dz*d.dashSpeed);
+                this.trailT-=dt;
+                if (this.trailT<=0) {
+                    this.trailT=0.07;
+                    ctx.enemyBullets.spawn(this.pos.x,this.pos.z,-this.dz,this.dx,0.01,d.bulletDamage,2.4);
+                }
+                if (this.dist<d.radius+TUNING.player.radius+0.2) {
+                    p.hurt(2,this.dx,this.dz);
+                }
+                const blocked=this.stateT>0.18&&this.speedFrac<0.35;
+                if (blocked||this.stateT>=d.dashTime) {
+                    if (blocked) {
+                        ctx.fx.cameraShake(0.4);
+                        ctx.particles.burst(this.pos.x+this.dx,1,this.pos.z+this.dz,12,{color:'midGray',speed:[2,6],up:[2,5]});
+                    }
+                    if (this.phase2()&&this.dashes<1) {
+                        this.dashes++;
+                        this.teleDash();
+                    }
+                    else {
+                        this.vel.set(0,0,0);
+                        this.setState('stuck');
+                        this.sqv+=4;
+                    }
+                }
+            }
+            else if (this.pattern==='snip') {
+                this.aimX=this.nx;
+                this.aimZ=this.nz;
+                this.fireAcc+=dt;
+                if (this.fireAcc>=0.38||this.volley===0) {
+                    this.fireAcc=0;
+                    const base=Math.atan2(this.nz,this.nx)+Math.PI/4+this.volley*0.22;
+                    for (let q=0;q<4;q++) {
+                        for (let k=-1;k<=1;k++) {
+                            const a=base+q*Math.PI/2+k*0.12;
+                            ctx.enemyBullets.spawn(this.pos.x,this.pos.z,Math.cos(a),Math.sin(a),sp,d.bulletDamage,d.bulletLife);
+                        }
+                    }
+                    this.kick=1;
+                    this.volley++;
+                    if (this.volley>=(this.phase2()?5:4)) {
+                        this.finish();
+                    }
+                }
+            }
+            else if (this.pattern==='spin') {
+                this.spinning=true;
+                this.manual=true;
+                this.vel.set(this.nx*2.5,0,this.nz*2.5);
+                this.fireAcc+=dt;
+                while (this.fireAcc>=0.09) {
+                    this.fireAcc-=0.09;
+                    for (let k=0;k<2;k++) {
+                        const a=this.spiralA+k*Math.PI;
+                        ctx.enemyBullets.spawn(this.pos.x,this.pos.z,Math.cos(a),Math.sin(a),sp*0.9,d.bulletDamage,d.bulletLife);
+                    }
+                    this.spiralA+=0.31;
+                }
+                if (this.stateT>=2.4) {
+                    this.finish();
+                }
+            }
+            return;
+        }
+        if (this.state==='stuck') {
+            this.manual=true;
+            this.vel.multiplyScalar(Math.exp(-10*dt));
+            if (this.stateT>=d.stuckTime) {
+                this.finish();
+            }
+        }
+    }
+
+    finish() {
+        this.setState('move');
+        this.patternT=rng.range(0.6,1.1);
+    }
+
+    pose() {
+        let open=0.3;
+        if (this.state==='telegraph') {
+            open=this.pattern==='dash'?0.08:0.6;
+        }
+        else if (this.state==='attack') {
+            open=this.pattern==='dash'?0.02:(this.pattern==='snip'?0.35+Math.sin(time.real*25)*0.3:0.5);
+        }
+        else if (this.state==='stuck') {
+            open=0.7;
+        }
+        this.blades[0].rotation.y=open;
+        this.blades[1].rotation.y=-open;
+        this.hover.position.y=1.5+Math.sin(time.real*2.5)*0.12;
+        this.hover.rotation.z=this.state==='stuck'?Math.sin(time.real*18)*0.25:0;
+        this.hover.rotation.x=this.state==='stuck'?0.35:0;
+        const pulse=this.state==='stuck'?1.3+Math.sin(time.real*16)*0.25:1;
+        this.screw.scale.set(pulse,1,pulse);
+    }
+}
+
+class Book extends Enemy {
+    buildBody() {
+        const body=this.mat('body');
+        const head=this.mat('head');
+        const limb=this.mat('limb');
+        const ink=this.inkMat();
+        this.stand=new THREE.Group();
+        this.stand.position.y=0.6;
+        this.covers=[];
+        for (const side of [-1,1]) {
+            const pv=new THREE.Group();
+            const cover=this.hullify(new THREE.Mesh(geo('bkCover',()=>new THREE.BoxGeometry(2.3,0.16,3.1)),body));
+            cover.position.x=side*1.15;
+            pv.add(cover);
+            const pages=this.hullify(new THREE.Mesh(geo('bkPages',()=>new THREE.BoxGeometry(2.1,0.34,2.9)),head));
+            pages.position.set(side*1.1,0.24,0);
+            pv.add(pages);
+            for (let k=0;k<3;k++) {
+                const line=new THREE.Mesh(geo('bkLine',()=>new THREE.BoxGeometry(1.4,0.02,0.06)),limb);
+                line.position.set(side*1.1,0.42,-0.8+k*0.5);
+                pv.add(line);
+            }
+            this.stand.add(pv);
+            this.covers.push(pv);
+        }
+        const spine=this.hullify(new THREE.Mesh(geo('bkSpine',()=>new THREE.CylinderGeometry(0.22,0.22,3.1,8)),body));
+        spine.rotation.x=Math.PI/2;
+        this.stand.add(spine);
+        for (const sx of [-1,1]) {
+            const e=new THREE.Mesh(geo('bkEye',()=>new THREE.BoxGeometry(0.55,0.05,0.12)),ink);
+            e.position.set(sx*1.0,0.45,0.9);
+            e.rotation.y=sx*0.3;
+            this.covers[sx<0?0:1].add(e);
+        }
+        this.mark=new THREE.Mesh(geo('bkMark',()=>new THREE.BoxGeometry(0.28,0.04,1.6)),unlitMaterial({color:'red'}));
+        this.mark.position.set(0.2,0.5,1.9);
+        this.stand.add(this.mark);
+        this.body.add(this.stand);
+    }
+
+    onReset() {
+        this.patternT=2.0;
+        this.pattern=null;
+        this.volley=0;
+        this.fireAcc=0;
+        this.drops=[];
+        this.yaw=0;
+    }
+
+    damageMult() {
+        return this.state==='rest'?this.def.weakMult:1;
+    }
+
+    phase2() {
+        return this.hp<this.maxHp*0.5;
+    }
+
+    choose(ctx) {
+        const list=['wall','rain','slam','wall'];
+        if (ctx.enemyMgr.list.length<5) {
+            list.push('summon');
+        }
+        if (this.phase2()) {
+            list.push('rain','wall');
+        }
+        let p=list[Math.floor(rng.next()*list.length)];
+        if (p===this.last) {
+            p=list[(list.indexOf(p)+1)%list.length];
+        }
+        this.last=p;
+        return p;
+    }
+
+    think(dt,ctx) {
+        const d=this.def;
+        const p=ctx.player;
+        this.manual=true;
+        this.vel.set(0,0,0);
+        this.aimX=this.nx;
+        this.aimZ=this.nz;
+        if (this.state==='move') {
+            this.patternT-=dt*(this.phase2()?1.3:1);
+            if (this.patternT<=0) {
+                this.pattern=this.choose(ctx);
+                this.setState('telegraph');
+                if (this.pattern==='wall') {
+                    this.teleLine(this.nx,this.nz,14,0.7,3,0.9);
+                }
+                else if (this.pattern==='slam') {
+                    this.teleRing(4,0.7);
+                }
+                else {
+                    this.teleRing(2.6,0.5);
+                }
+            }
+            return;
+        }
+        if (this.state==='telegraph') {
+            if (this.stateT>=this.tele.dur) {
+                this.tele=null;
+                this.setState('attack');
+                this.volley=0;
+                this.fireAcc=0;
+                if (this.pattern==='rain') {
+                    const n=this.phase2()?9:6;
+                    this.drops=[];
+                    for (let i=0;i<n;i++) {
+                        const x=p.pos.x+(i===0?0:rng.range(-6,6));
+                        const z=p.pos.z+(i===0?0:rng.range(-5,5));
+                        this.drops.push({x,z,t:0.75+i*0.18});
+                        ctx.dangerRings.spawn(x,z,1.6,'red',0.75+i*0.18);
+                    }
+                }
+            }
+            return;
+        }
+        if (this.state==='attack') {
+            const sp=d.bulletSpeed*(this.phase2()?1.12:1);
+            if (this.pattern==='wall') {
+                this.fireAcc+=dt;
+                if (this.fireAcc>=0.95||this.volley===0) {
+                    this.fireAcc=0;
+                    const fx=this.nx;
+                    const fz=this.nz;
+                    const px=-fz;
+                    const pz=fx;
+                    const lat=(p.pos.x-this.pos.x)*px+(p.pos.z-this.pos.z)*pz;
+                    const gap=lat+rng.range(-3.5,3.5);
+                    for (let o=-15;o<=15;o+=0.85) {
+                        if (Math.abs(o-gap)<1.7) {
+                            continue;
+                        }
+                        ctx.enemyBullets.spawn(this.pos.x+fx*2.2+px*o,this.pos.z+fz*2.2+pz*o,fx,fz,sp,d.bulletDamage,d.bulletLife);
+                    }
+                    this.volley++;
+                    this.sqv+=1.5;
+                    if (this.volley>=(this.phase2()?4:3)) {
+                        this.rest();
+                    }
+                }
+            }
+            else if (this.pattern==='rain') {
+                for (let i=this.drops.length-1;i>=0;i--) {
+                    const q=this.drops[i];
+                    if (this.stateT>=q.t) {
+                        fireRing(ctx,q.x,q.z,8,rng.range(0,1),4.5,d.bulletDamage,2.5);
+                        ctx.particles.burst(q.x,0.3,q.z,6,{color:'ink',speed:[2,4],up:[2,4]});
+                        if (Math.hypot(p.pos.x-q.x,p.pos.z-q.z)<1.4) {
+                            p.hurt(1,0,1);
+                        }
+                        this.drops.splice(i,1);
+                    }
+                }
+                if (this.drops.length===0) {
+                    this.rest();
+                }
+            }
+            else if (this.pattern==='slam') {
+                this.fireAcc+=dt;
+                if (this.fireAcc>=0.45||this.volley===0) {
+                    this.fireAcc=0;
+                    fireRing(ctx,this.pos.x,this.pos.z,30,this.volley*0.1,sp*0.85,d.bulletDamage,d.bulletLife);
+                    ctx.fx.cameraShake(0.35);
+                    this.volley++;
+                    if (this.volley>=(this.phase2()?3:2)) {
+                        this.rest();
+                    }
+                }
+            }
+            else if (this.pattern==='summon') {
+                const types=['doodle','doodle','bird'];
+                for (let i=0;i<types.length;i++) {
+                    const a=Math.atan2(this.nz,this.nx)+(i-1)*0.9;
+                    ctx.enemyMgr.spawn(types[i],this.pos.x+Math.cos(a)*3.2,this.pos.z+Math.sin(a)*3.2,{});
+                }
+                this.rest();
+            }
+            return;
+        }
+        if (this.state==='rest') {
+            if (this.stateT>=d.restTime) {
+                this.setState('move');
+                this.patternT=rng.range(0.4,0.8);
+            }
+        }
+    }
+
+    rest() {
+        this.setState('rest');
+    }
+
+    pose() {
+        let ang=0.35;
+        if (this.state==='attack'&&this.pattern==='slam') {
+            ang=1.35;
+        }
+        else if (this.state==='telegraph'&&this.pattern==='slam') {
+            ang=0.9;
+        }
+        else if (this.state==='rest') {
+            ang=0.05;
+        }
+        this.covers[0].rotation.z=ang;
+        this.covers[1].rotation.z=-ang;
+        this.stand.position.y=0.6+Math.sin(time.real*1.8)*0.08;
+        const pulse=this.state==='rest'?1.25+Math.sin(time.real*14)*0.2:1;
+        this.mark.scale.set(pulse,1,1);
+    }
+}
+
+const CLASSES={doodle:Doodle,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkBottle:InkBottle,scissors:Scissors,book:Book};
 
 export class EnemyManager {
     constructor(parent,fxScene) {
@@ -1191,7 +1668,7 @@ export class EnemyManager {
             e=new C(type,ENEMIES[type],this.parent,this.fxScene);
             pool.push(e);
         }
-        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act});
+        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite});
         this.list.push(e);
         return e;
     }
@@ -1272,7 +1749,13 @@ export class EnemyManager {
         if (!e.alive) {
             return false;
         }
+        if (e.vulnT>0) {
+            dmg*=e.vulnMult;
+        }
         const dead=e.hurt(dmg,dx,dz);
+        if (this.onDamage) {
+            this.onDamage(e,dmg,crit);
+        }
         if (this.onHit) {
             this.onHit(e,e.pos.x,e.pos.z,dx,dz,dead,quiet,crit);
         }

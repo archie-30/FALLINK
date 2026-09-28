@@ -96,9 +96,20 @@ export const NORMAL_LAYOUTS=['crossroads','colonnade','trenches','crates','circl
 export const ENEMY_COST={doodle:1,blob:2,compass:2,bird:1,eraserMonster:2};
 
 export const ACTS=[
-    {rooms:4,budget:[4,6,7,9],waves:[2,2,3,3],pool:{doodle:4,blob:2,bird:1},hpMult:1,bossHp:1},
-    {rooms:4,budget:[7,9,10,12],waves:[2,3,3,3],pool:{doodle:2,blob:2,compass:2,bird:2,eraserMonster:1},hpMult:1.2,bossHp:1.35},
-    {rooms:4,budget:[9,11,13,15],waves:[3,3,3,4],pool:{doodle:2,blob:2,compass:2,bird:2,eraserMonster:2},hpMult:1.45,bossHp:1.7}
+    {rooms:4,budget:[6,8,9,11],waves:[2,2,3,3],pool:{doodle:4,blob:2,bird:1,compass:1},hpMult:1,bossHp:1},
+    {rooms:4,budget:[10,12,13,15],waves:[2,3,3,3],pool:{doodle:2,blob:2,compass:2,bird:2,eraserMonster:1},hpMult:1.3,bossHp:1},
+    {rooms:4,budget:[13,15,17,20],waves:[3,3,3,4],pool:{doodle:2,blob:2,compass:2,bird:2,eraserMonster:2},hpMult:1.65,bossHp:1}
 ];
+
+export const ENDLESS={
+    bossEvery:5,
+    hpPerPage:0.09,
+    budgetBase:6,
+    budgetPerPage:1.3,
+    scoreKill:100,
+    scoreBoss:3000,
+    scoreRoom:500,
+    scorePerPage:0.1
+};
 
 export const LEVELS={test:LAYOUTS.crossroads};

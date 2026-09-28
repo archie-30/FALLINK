@@ -4,9 +4,11 @@ import {time} from '../core/loop.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
 import {settings} from '../core/settings.js';
-import {CARDS,ALL_CARDS} from '../data/cards.js';
+import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel} from '../data/cards.js';
+import {progress,xpToNext} from '../core/progress.js';
 import {createCard} from '../game/card.js';
-import {CARD_W,CARD_H,drawCost} from './cardView.js';
+import {CARD_W,CARD_H,drawCost,wrapText} from './cardView.js';
+import {ENEMY_ICONS} from './enemyIcons.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -100,10 +102,10 @@ export class MainMenu extends Panel {
         const w=this.width;
         const h=this.height;
         const bw=240;
-        const bh=54;
+        const bh=50;
         this.buttons=[];
-        for (let i=0;i<3;i++) {
-            this.buttons.push({x:w/2-bw/2,y:h*0.5+i*(bh+16),w:bw,h:bh});
+        for (let i=0;i<4;i++) {
+            this.buttons.push({x:w/2-bw/2,y:h*0.46+i*(bh+12),w:bw,h:bh});
         }
     }
 
@@ -117,12 +119,56 @@ export class MainMenu extends Panel {
             this.actions.start();
         }
         else if (i===1) {
-            this.actions.settings();
+            this.actions.endless();
         }
         else if (i===2) {
+            this.actions.settings();
+        }
+        else if (i===3) {
             this.actions.codex();
         }
         return true;
+    }
+
+    drawLevel(ctx,v) {
+        const w=this.width;
+        const pw=260;
+        const ph=112;
+        const x=w-pw-24;
+        const y=24;
+        const a=Math.max(0,Math.min(1,(this.t-0.6)/0.4));
+        ctx.save();
+        ctx.globalAlpha=a;
+        ctx.fillStyle=rgba('paper',0.9);
+        ctx.fillRect(x,y,pw,ph);
+        drawShape(ctx,sketchRect(x,y,pw,ph,{width:1.8,seed:1360}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 20px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillText(t('menu.level',{level:progress.level}),x+14,y+12);
+        const need=xpToNext(progress.level);
+        const f=Math.min(1,progress.xp/need);
+        ctx.fillStyle=rgba('farGray',0.8);
+        ctx.fillRect(x+14,y+42,pw-28,10);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(x+14,y+42,(pw-28)*f,10);
+        drawShape(ctx,sketchRect(x+14,y+42,pw-28,10,{width:1.2,seed:1361}),PALETTE.ink,v);
+        ctx.font='12px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='right';
+        ctx.fillText(t('menu.xp',{xp:progress.xp,next:need}),x+pw-14,y+14);
+        ctx.textAlign='left';
+        const nextCards=UNLOCKS[progress.level+1];
+        const lines=wrapText(ctx,nextCards?t('menu.nextUnlock',{cards:nextCards.map(id=>t(CARDS[id].nameKey)).join('、')}):t('menu.allUnlocked'),pw-28);
+        for (let i=0;i<lines.length&&i<2;i++) {
+            ctx.fillText(lines[i],x+14,y+60+i*16);
+        }
+        if (progress.bestScore>0) {
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillText(t('menu.best',{score:progress.bestScore}),x+14,y+ph-18);
+        }
+        ctx.restore();
     }
 
     draw(ctx) {
@@ -151,10 +197,11 @@ export class MainMenu extends Panel {
         ctx.fillStyle=PALETTE.nearGray;
         ctx.fillText(t('menu.subtitle'),0,64);
         ctx.restore();
-        const labels=[t('menu.start'),t('menu.settings'),t('menu.codex')];
-        for (let i=0;i<3;i++) {
+        const labels=[t('menu.start'),t('menu.endless'),t('menu.settings'),t('menu.codex')];
+        for (let i=0;i<4;i++) {
             drawButton(ctx,this.buttons[i],labels[i],v,(this.t-0.35-i*0.1)/0.45,this.hoverIdx===i,22);
         }
+        this.drawLevel(ctx,v);
         ctx.font='13px '+FONT;
         ctx.fillStyle=rgba('ink',Math.min(1,Math.max(0,this.t-1)));
         ctx.textAlign='center';
@@ -238,14 +285,14 @@ export class SettingsMenu extends Panel {
         const pw=Math.min(560,w-40);
         const px=w/2-pw/2;
         const top=Math.max(110,h*0.24);
-        this.panel={x:px,y:top-90,w:pw,h:5*62+190};
+        this.panel={x:px,y:top-90,w:pw,h:6*62+190};
         this.rows=[];
-        const keys=['volume','quality','shake','reduced','fps'];
+        const keys=['volume','quality','shake','assist','reduced','fps'];
         for (let i=0;i<keys.length;i++) {
             const y=top+i*62;
             this.rows.push({key:keys[i],y,cx:px+pw*0.4,cw:pw*0.42});
         }
-        this.back={x:w/2-90,y:top+5*62+14,w:180,h:48};
+        this.back={x:w/2-90,y:top+6*62+14,w:180,h:48};
         this.buttons=[this.back];
     }
 
@@ -290,6 +337,9 @@ export class SettingsMenu extends Panel {
             else if (x>=r.cx&&x<=r.cx+70) {
                 if (r.key==='reduced') {
                     settings.reducedMotion=!settings.reducedMotion;
+                }
+                else if (r.key==='assist') {
+                    settings.aimAssist=!settings.aimAssist;
                 }
                 else {
                     settings.showFps=!settings.showFps;
@@ -375,7 +425,7 @@ export class SettingsMenu extends Panel {
                 }
             }
             else {
-                const on=r.key==='reduced'?settings.reducedMotion:settings.showFps;
+                const on=r.key==='reduced'?settings.reducedMotion:(r.key==='assist'?settings.aimAssist:settings.showFps);
                 ctx.fillStyle=on?PALETTE.ink:PALETTE.paper;
                 ctx.fillRect(r.cx,r.y-15,64,30);
                 drawShape(ctx,sketchRect(r.cx,r.y-15,64,30,{width:1.8,seed:1450+i}),PALETTE.ink,v);
@@ -399,20 +449,29 @@ export class SettingsMenu extends Panel {
     }
 }
 
-const ENEMY_LIST=['doodle','blob','compass','eraserMonster','bird','inkBottle'];
+const ENEMY_LIST=['doodle','blob','compass','eraserMonster','bird','inkBottle','scissors','book'];
 
 export class Codex extends Panel {
     constructor(actions) {
         super();
         this.actions=actions;
         this.tab=0;
+        this.page=0;
         this.cards=ALL_CARDS.map(id=>createCard(id));
+        this.perPage=6;
+    }
+
+    pages() {
+        return Math.ceil(this.cards.length/this.perPage);
     }
 
     layout() {
         const w=this.width;
-        this.tabs=[{x:w/2-170,y:78,w:160,h:40},{x:w/2+10,y:78,w:160,h:40}];
-        this.back={x:w/2-90,y:this.height-70,w:180,h:48};
+        const h=this.height;
+        this.tabs=[{x:w/2-170,y:70,w:160,h:40},{x:w/2+10,y:70,w:160,h:40}];
+        this.back={x:w/2-90,y:h-66,w:180,h:48};
+        this.prev={x:w/2-300,y:h-66,w:110,h:48};
+        this.next={x:w/2+190,y:h-66,w:110,h:48};
     }
 
     down(x,y) {
@@ -431,12 +490,121 @@ export class Codex extends Panel {
             this.tab=1;
             this.t=0.3;
         }
+        else if (this.tab===0&&inRect(this.prev,x,y)) {
+            this.page=(this.page+this.pages()-1)%this.pages();
+            this.t=0.3;
+        }
+        else if (this.tab===0&&inRect(this.next,x,y)) {
+            this.page=(this.page+1)%this.pages();
+            this.t=0.3;
+        }
         return true;
     }
 
     hover(x,y) {
         this.hx=x;
         this.hy=y;
+    }
+
+    drawCards(ctx,art,v,top,avail) {
+        const w=this.width;
+        const cols=2;
+        const rows=3;
+        const colW=Math.min(520,(w-60)/cols);
+        const rowH=avail/rows;
+        const sc=Math.min(1.2,(rowH-20)/CARD_H);
+        const x0=w/2-colW*cols/2;
+        const list=this.cards.slice(this.page*this.perPage,this.page*this.perPage+this.perPage);
+        for (let i=0;i<list.length;i++) {
+            const c=list[i];
+            const p=Math.max(0,Math.min(1,(this.t-0.1-i*0.05)/0.35));
+            if (p<=0) {
+                continue;
+            }
+            const cx=x0+(i%cols)*colW;
+            const cy=top+Math.floor(i/cols)*rowH;
+            const need=unlockLevel(c.id);
+            const locked=need>progress.level;
+            ctx.save();
+            ctx.globalAlpha=p;
+            ctx.translate(cx+8,cy+(1-p)*16);
+            ctx.save();
+            ctx.scale(sc,sc);
+            ctx.drawImage(locked?art.back(v):art.face(c,v),0,0,CARD_W,CARD_H);
+            if (!locked) {
+                drawCost(ctx,c,false,v);
+            }
+            ctx.restore();
+            const tx=CARD_W*sc+16;
+            const tw=colW-tx-16;
+            ctx.textAlign='left';
+            ctx.textBaseline='top';
+            ctx.fillStyle=c.def.rarity==='rare'?PALETTE.red:PALETTE.ink;
+            ctx.font='bold 18px '+FONT;
+            ctx.fillText(locked?'？？？':t(c.def.nameKey),tx,4);
+            ctx.font='13px '+FONT;
+            ctx.fillStyle=PALETTE.nearGray;
+            const meta=locked?t('codex.locked',{level:need}):(c.def.rarity==='rare'?t('type.ult'):t('type.'+c.def.type))+' · '+t('tooltip.cost',{cost:c.def.cost})+' · '+t('codex.unlockAt',{level:need});
+            ctx.fillText(meta,tx,28);
+            if (!locked) {
+                ctx.fillStyle=PALETTE.ink;
+                ctx.font='14px '+FONT;
+                const lines=wrapText(ctx,t(c.def.descKey,c.def.params),tw);
+                for (let k=0;k<lines.length&&k<4;k++) {
+                    ctx.fillText(lines[k],tx,50+k*19);
+                }
+            }
+            ctx.restore();
+        }
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 16px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText((this.page+1)+' / '+this.pages(),w/2,this.back.y-18);
+        drawButton(ctx,this.prev,t('codex.prev'),v,1,inRect(this.prev,this.hx??-1,this.hy??-1),17);
+        drawButton(ctx,this.next,t('codex.next'),v,1,inRect(this.next,this.hx??-1,this.hy??-1),17);
+    }
+
+    drawEnemies(ctx,v,top,avail) {
+        const w=this.width;
+        const cols=2;
+        const rows=Math.ceil(ENEMY_LIST.length/cols);
+        const colW=Math.min(540,(w-60)/cols);
+        const rowH=Math.min(110,avail/rows);
+        const x0=w/2-colW*cols/2;
+        for (let i=0;i<ENEMY_LIST.length;i++) {
+            const id=ENEMY_LIST[i];
+            const p=Math.max(0,Math.min(1,(this.t-0.1-i*0.05)/0.35));
+            if (p<=0) {
+                continue;
+            }
+            const x=x0+(i%cols)*colW;
+            const y=top+Math.floor(i/cols)*rowH;
+            const boss=id==='inkBottle'||id==='scissors'||id==='book';
+            ctx.save();
+            ctx.globalAlpha=p;
+            ctx.fillStyle=rgba('paper',0.9);
+            ctx.fillRect(x+8,y+4,86,86);
+            drawShape(ctx,sketchRect(x+8,y+4,86,86,{width:1.6,seed:1800+i}),boss?PALETTE.red:PALETTE.ink,v);
+            ctx.save();
+            ctx.translate(x+51,y+47);
+            ENEMY_ICONS[id](ctx,v);
+            ctx.restore();
+            const tx=x+108;
+            const tw=colW-120;
+            ctx.textAlign='left';
+            ctx.textBaseline='top';
+            ctx.fillStyle=boss?PALETTE.red:PALETTE.ink;
+            ctx.font='bold 18px '+FONT;
+            ctx.fillText(t('enemy.'+id)+(boss?'　'+t('codex.boss'):''),tx,y+6);
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font='13px '+FONT;
+            const lines=wrapText(ctx,t('codex.'+id),tw);
+            for (let k=0;k<lines.length&&k<4;k++) {
+                ctx.fillText(lines[k],tx,y+32+k*18);
+            }
+            ctx.restore();
+        }
     }
 
     draw(ctx,art) {
@@ -447,13 +615,13 @@ export class Codex extends Panel {
         const w=this.width;
         const h=this.height;
         const v=time.boilIndex;
-        ctx.fillStyle=rgba('paper',Math.min(0.95,this.t*4));
+        ctx.fillStyle=rgba('paper',Math.min(0.97,this.t*4));
         ctx.fillRect(0,0,w,h);
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 32px '+FONT;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        ctx.fillText(t('menu.codex'),w/2,40);
+        ctx.fillText(t('menu.codex'),w/2,36);
         const tl=[t('codex.cards'),t('codex.enemies')];
         for (let i=0;i<2;i++) {
             const b=this.tabs[i];
@@ -464,55 +632,17 @@ export class Codex extends Panel {
             drawShape(ctx,sketchRect(b.x,b.y,b.w,b.h,{width:1.8,seed:1500+i}),PALETTE.ink,v);
             ctx.fillStyle=this.tab===i?PALETTE.paper:PALETTE.ink;
             ctx.font='bold 17px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
             ctx.fillText(tl[i],b.x+b.w/2,b.y+b.h/2+1);
         }
-        const top=138;
-        const avail=h-top-90;
+        const top=126;
+        const avail=h-top-110;
         if (this.tab===0) {
-            const cols=5;
-            const rows=Math.ceil(this.cards.length/cols);
-            const sc=Math.min((w-60)/(cols*CARD_W*1.08),avail/(rows*CARD_H*1.08));
-            const cw=CARD_W*sc*1.08;
-            const ch=CARD_H*sc*1.08;
-            const x0=w/2-cols*cw/2;
-            for (let i=0;i<this.cards.length;i++) {
-                const p=Math.max(0,Math.min(1,(this.t-0.1-i*0.03)/0.35));
-                if (p<=0) {
-                    continue;
-                }
-                const e=EASE.easeOutBack(p);
-                const cx=x0+(i%cols)*cw+cw/2;
-                const cy=top+Math.floor(i/cols)*ch+ch/2;
-                ctx.save();
-                ctx.translate(cx,cy+(1-e)*20);
-                ctx.scale(sc*e,sc*e);
-                ctx.translate(-CARD_W/2,-CARD_H/2);
-                ctx.drawImage(art.face(this.cards[i],v),0,0,CARD_W,CARD_H);
-                drawCost(ctx,this.cards[i],false,v);
-                ctx.restore();
-            }
+            this.drawCards(ctx,art,v,top,avail);
         }
         else {
-            const rowH=Math.min(84,avail/ENEMY_LIST.length);
-            const x=Math.max(30,w/2-340);
-            for (let i=0;i<ENEMY_LIST.length;i++) {
-                const p=Math.max(0,Math.min(1,(this.t-0.1-i*0.06)/0.35));
-                if (p<=0) {
-                    continue;
-                }
-                const y=top+i*rowH;
-                ctx.globalAlpha=p;
-                ctx.fillStyle=ENEMY_LIST[i]==='inkBottle'?PALETTE.red:PALETTE.ink;
-                ctx.font='bold 20px '+FONT;
-                ctx.textAlign='left';
-                ctx.textBaseline='top';
-                ctx.fillText(t('enemy.'+ENEMY_LIST[i]),x+(1-p)*20,y);
-                ctx.fillStyle=PALETTE.nearGray;
-                ctx.font='15px '+FONT;
-                ctx.fillText(t('codex.'+ENEMY_LIST[i]),x+(1-p)*20,y+28);
-                drawShape(ctx,sketchLine(x,y+rowH-12,x+680,y+rowH-12,{width:0.9,seed:1520+i,overshoot:0}),PALETTE.farGray,v);
-                ctx.globalAlpha=1;
-            }
+            this.drawEnemies(ctx,v,top,avail);
         }
         drawButton(ctx,this.back,t('menu.back'),v,(this.t-0.1)/0.3,inRect(this.back,this.hx??-1,this.hy??-1));
     }
@@ -610,7 +740,15 @@ export class RunSummary {
         const s=this.stats;
         const mm=Math.floor(s.time/60);
         const ss=Math.floor(s.time%60);
-        const rows=[
+        const rows=s.mode==='endless'?[
+            [t('summary.score'),String(s.score)],
+            [t('summary.best'),String(s.best)+(s.newBest?'  '+t('summary.newBest'):'')],
+            [t('summary.rooms'),String(s.rooms)],
+            [t('summary.kills'),String(s.kills)],
+            [t('summary.cards'),String(s.cards)],
+            [t('summary.bosses'),String(s.bosses)],
+            [t('summary.time'),mm+':'+(ss<10?'0':'')+ss]
+        ]:[
             [t('summary.act'),String(s.act+(this.victory?0:1))],
             [t('summary.rooms'),String(s.rooms)],
             [t('summary.kills'),String(s.kills)],
@@ -641,10 +779,32 @@ export class RunSummary {
             drawShape(ctx,sketchLine(w/2-160,y+16,w/2+160,y+16,{width:0.8,seed:910+i,overshoot:0}),PALETTE.farGray,v);
         }
         ctx.globalAlpha=1;
+        const pr=this.progress;
+        let extra=0;
+        if (pr) {
+            const p2=Math.max(0,Math.min(1,(this.t-d0-0.65)/0.35));
+            ctx.globalAlpha=p2;
+            ctx.textAlign='center';
+            ctx.font='bold 18px '+FONT;
+            ctx.fillStyle=PALETTE.ink;
+            let line=t('summary.xp',{xp:pr.xp});
+            if (pr.after>pr.before) {
+                line+='　'+t('summary.levelUp',{level:pr.after});
+            }
+            ctx.fillText(line,w/2,top+rows.length*34+8);
+            extra=26;
+            if (pr.unlocked.length>0) {
+                ctx.font='15px '+FONT;
+                ctx.fillStyle=PALETTE.nearGray;
+                ctx.fillText(t('summary.unlocked',{cards:pr.unlocked.join('、')}),w/2,top+rows.length*34+34);
+                extra=52;
+            }
+            ctx.globalAlpha=1;
+        }
         const bw=190;
         const bh=48;
         const bx=w/2-bw-10;
-        const by=top+rows.length*34+30;
+        const by=top+rows.length*34+30+extra;
         this.button={x:bx,y:by,w:bw,h:bh};
         this.menuButton={x:w/2+10,y:by,w:bw,h:bh};
         const ba=Math.max(0,Math.min(1,(this.t-d0-0.7)/0.3));
