@@ -170,6 +170,9 @@ export class Enemy {
         this.poseStep=-1;
         this.speedFrac=0;
         this.tele=null;
+        this.stunT=0;
+        this.vulnT=0;
+        this.vulnMult=1;
         this.root.visible=true;
         this.root.position.copy(this.pos);
         for (const l of this.lines) {
@@ -191,6 +194,12 @@ export class Enemy {
         if (this.ring) {
             this.ring.visible=false;
         }
+    }
+
+    stun(t) {
+        this.stunT=Math.max(this.stunT,this.def.boss?t*0.3:t);
+        this.tele=null;
+        this.sqv+=2;
     }
 
     setState(s) {
@@ -247,12 +256,22 @@ export class Enemy {
         this.wz=0;
         this.manual=false;
         this.spinning=false;
+        this.vulnT=Math.max(0,this.vulnT-dt);
         if (this.state==='spawn') {
             if (this.t>=this.spawnTime) {
                 this.setState('move');
                 this.sqv+=2;
             }
             this.vel.multiplyScalar(Math.exp(-8*dt));
+        }
+        else if (this.stunT>0) {
+            this.stunT-=dt;
+            this.manual=true;
+            this.tele=null;
+            this.vel.multiplyScalar(Math.exp(-10*dt));
+            if (this.stunT<=0&&this.state!=='move') {
+                this.setState('move');
+            }
         }
         else {
             this.think(dt,ctx);
@@ -307,7 +326,7 @@ export class Enemy {
         this.sq+=this.sqv*dt;
         this.sq=Math.max(-0.45,Math.min(0.45,this.sq));
         this.kick*=Math.exp(-14*dt);
-        if (this.state!=='spawn'&&this.canContact()&&this.dist<d.radius+TUNING.player.radius) {
+        if (this.state!=='spawn'&&this.stunT<=0&&this.canContact()&&this.dist<d.radius+TUNING.player.radius) {
             p.hurt(d.contactDamage,this.nx,this.nz);
         }
     }
@@ -1271,6 +1290,9 @@ export class EnemyManager {
     damage(e,dmg,dx,dz,quiet=false,crit=false) {
         if (!e.alive) {
             return false;
+        }
+        if (e.vulnT>0) {
+            dmg*=e.vulnMult;
         }
         const dead=e.hurt(dmg,dx,dz);
         if (this.onDamage) {

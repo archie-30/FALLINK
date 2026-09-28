@@ -189,9 +189,230 @@ export const CARDS={
         params:{ink:5},
         upgraded:{cost:1,params:{ink:6}},
         effect:(g,t,p)=>g.redraw(p.ink)
+    },
+    whiteout:{
+        id:'whiteout',
+        nameKey:'card.whiteout.name',
+        descKey:'card.whiteout.desc',
+        cost:2,
+        rarity:'common',
+        type:'defense',
+        targeting:'none',
+        params:{heal:2},
+        upgraded:{cost:2,params:{heal:3}},
+        effect:(g,t,p)=>g.heal(p.heal)
+    },
+    shockwave:{
+        id:'shockwave',
+        nameKey:'card.shockwave.name',
+        descKey:'card.shockwave.desc',
+        cost:1,
+        rarity:'common',
+        type:'defense',
+        targeting:'none',
+        params:{radius:4,damage:15,push:14},
+        upgraded:{cost:1,params:{radius:5,damage:22,push:16}},
+        effect:(g,t,p)=>g.shockwave(p.radius,p.damage,p.push)
+    },
+    mark:{
+        id:'mark',
+        nameKey:'card.mark.name',
+        descKey:'card.mark.desc',
+        cost:1,
+        rarity:'common',
+        type:'utility',
+        targeting:'point',
+        range:14,
+        params:{radius:3,duration:6,mult:2},
+        upgraded:{cost:0,params:{radius:3.5,duration:8,mult:2}},
+        effect:(g,t,p)=>g.mark(t.x,t.z,p.radius,p.duration,p.mult)
+    },
+    inkMine:{
+        id:'inkMine',
+        nameKey:'card.inkMine.name',
+        descKey:'card.inkMine.desc',
+        cost:2,
+        rarity:'common',
+        type:'terrain',
+        targeting:'point',
+        range:10,
+        params:{radius:3,damage:50},
+        upgraded:{cost:2,params:{radius:3.6,damage:70}},
+        effect:(g,t,p)=>g.placeMine(t.x,t.z,p.radius,p.damage)
+    },
+    dualWield:{
+        id:'dualWield',
+        nameKey:'card.dualWield.name',
+        descKey:'card.dualWield.desc',
+        cost:2,
+        rarity:'common',
+        type:'attack',
+        targeting:'none',
+        params:{duration:6},
+        upgraded:{cost:1,params:{duration:8}},
+        effect:(g,t,p)=>g.dualWield(p.duration)
+    },
+    pin:{
+        id:'pin',
+        nameKey:'card.pin.name',
+        descKey:'card.pin.desc',
+        cost:2,
+        rarity:'common',
+        type:'utility',
+        targeting:'point',
+        range:12,
+        params:{radius:3.2,duration:2.5},
+        upgraded:{cost:2,params:{radius:4,duration:3.5}},
+        effect:(g,t,p)=>g.pin(t.x,t.z,p.radius,p.duration)
+    },
+    chain:{
+        id:'chain',
+        nameKey:'card.chain.name',
+        descKey:'card.chain.desc',
+        cost:2,
+        rarity:'common',
+        type:'attack',
+        targeting:'none',
+        params:{jumps:5,damage:25,range:6},
+        upgraded:{cost:2,params:{jumps:7,damage:30,range:7}},
+        effect:(g,t,p)=>g.chain(p.jumps,p.damage,p.range)
+    },
+    inkRain:{
+        id:'inkRain',
+        nameKey:'card.inkRain.name',
+        descKey:'card.inkRain.desc',
+        cost:3,
+        rarity:'common',
+        type:'attack',
+        targeting:'point',
+        range:12,
+        radius:3.5,
+        params:{radius:3.5,count:8,damage:18},
+        upgraded:{cost:3,params:{radius:4,count:11,damage:20}},
+        effect:(g,t,p)=>g.inkRain(t.x,t.z,p.radius,p.count,p.damage)
+    },
+    reflect:{
+        id:'reflect',
+        nameKey:'card.reflect.name',
+        descKey:'card.reflect.desc',
+        cost:1,
+        rarity:'common',
+        type:'defense',
+        targeting:'none',
+        params:{duration:3},
+        upgraded:{cost:1,params:{duration:4.5}},
+        effect:(g,t,p)=>g.reflect(p.duration)
+    },
+    inkWell:{
+        id:'inkWell',
+        nameKey:'card.inkWell.name',
+        descKey:'card.inkWell.desc',
+        cost:1,
+        rarity:'common',
+        type:'utility',
+        targeting:'none',
+        params:{ink:3},
+        upgraded:{cost:0,params:{ink:3}},
+        effect:(g,t,p)=>g.gainInk(p.ink)
+    },
+    tsunami:{
+        id:'tsunami',
+        nameKey:'card.tsunami.name',
+        descKey:'card.tsunami.desc',
+        cost:4,
+        rarity:'rare',
+        type:'attack',
+        targeting:'direction',
+        range:16,
+        params:{damage:60,width:8,length:18},
+        upgraded:{cost:3,params:{damage:80,width:9,length:20}},
+        effect:(g,t,p)=>g.tsunami(t.dx,t.dz,p.damage,p.width,p.length)
+    },
+    blackHole:{
+        id:'blackHole',
+        nameKey:'card.blackHole.name',
+        descKey:'card.blackHole.desc',
+        cost:4,
+        rarity:'rare',
+        type:'attack',
+        targeting:'point',
+        range:12,
+        params:{radius:7,duration:2.5,damage:90},
+        upgraded:{cost:3,params:{radius:8,duration:2.5,damage:120}},
+        effect:(g,t,p)=>g.blackHole(t.x,t.z,p.radius,p.duration,p.damage)
+    },
+    barrage:{
+        id:'barrage',
+        nameKey:'card.barrage.name',
+        descKey:'card.barrage.desc',
+        cost:4,
+        rarity:'rare',
+        type:'attack',
+        targeting:'none',
+        params:{duration:3,damage:12,count:36},
+        upgraded:{cost:3,params:{duration:3.5,damage:14,count:44}},
+        effect:(g,t,p)=>g.barrage(p.duration,p.damage,p.count)
+    },
+    giantPen:{
+        id:'giantPen',
+        nameKey:'card.giantPen.name',
+        descKey:'card.giantPen.desc',
+        cost:4,
+        rarity:'rare',
+        type:'attack',
+        targeting:'direction',
+        range:22,
+        params:{damage:150,width:1.6},
+        upgraded:{cost:3,params:{damage:200,width:1.9}},
+        effect:(g,t,p)=>g.giantPen(t.dx,t.dz,p.damage,p.width)
+    },
+    freezeAll:{
+        id:'freezeAll',
+        nameKey:'card.freezeAll.name',
+        descKey:'card.freezeAll.desc',
+        cost:3,
+        rarity:'rare',
+        type:'utility',
+        targeting:'none',
+        params:{duration:3},
+        upgraded:{cost:2,params:{duration:4}},
+        effect:(g,t,p)=>g.freezeAll(p.duration)
     }
 };
 
-export const STARTING_DECK=['scatter','pierce','bomb','pencilWall','pencilWall','eraser','paperShield','trap'];
+export const UNLOCKS={
+    1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','eraseCover','trap','paperShield','inkDash','timeStop','clone','execute','redraw'],
+    2:['whiteout','shockwave'],
+    3:['mark','inkMine','tsunami'],
+    4:['dualWield','pin'],
+    5:['chain','inkRain','blackHole'],
+    6:['reflect','inkWell','barrage'],
+    7:['giantPen','freezeAll']
+};
+
+export function unlockLevel(id) {
+    for (const lv in UNLOCKS) {
+        if (UNLOCKS[lv].includes(id)) {
+            return Number(lv);
+        }
+    }
+    return 1;
+}
+
+export function unlockedCards(level) {
+    const out=[];
+    for (const lv in UNLOCKS) {
+        if (Number(lv)<=level) {
+            out.push(...UNLOCKS[lv]);
+        }
+    }
+    return out;
+}
+
+export function isUlt(id) {
+    return CARDS[id].rarity==='rare';
+}
+
+export const STARTING_DECK=['scatter','scatter','pierce','bomb','pencilWall','eraser','paperShield','trap','execute'];
 
 export const ALL_CARDS=Object.keys(CARDS);

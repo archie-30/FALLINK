@@ -26,7 +26,8 @@ import {BulletSystem,Lobs} from './game/bullet.js';
 import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects} from './game/card.js';
-import {STARTING_DECK,ALL_CARDS} from './data/cards.js';
+import {STARTING_DECK,ALL_CARDS,CARDS} from './data/cards.js';
+import {progress,loadProgress,addXp} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -72,6 +73,7 @@ async function requestFullscreen() {
 function boot() {
     detectDevice();
     loadSettings();
+    loadProgress();
     applyTheme();
     const container=document.getElementById('game');
     const renderer=new Renderer(document.getElementById('gl'));
@@ -240,6 +242,7 @@ function boot() {
         fx.flash('paper',F.killFlash*3,0.35);
         if (run.stats) {
             run.stats.kills++;
+            run.stats.xp+=e.def.boss?TUNING.levels.xpBoss:TUNING.levels.xpKill*(e.def.cost||1);
         }
         const sh=shardsFor(e);
         const n=Math.round(e.def.shards[0]+Math.random()*(e.def.shards[1]-e.def.shards[0]));
@@ -319,9 +322,7 @@ function boot() {
         for (const c of clones) {
             c.stop();
         }
-        effects.sweeps.length=0;
-        effects.eraserMesh.visible=false;
-        effects.redrawLine.visible=false;
+        effects.clear();
         preview.hide();
         renderer.post.invertHold.value=0;
     }
@@ -402,6 +403,9 @@ function boot() {
         showSummary:(victory,stats)=>{
             fx.paused=true;
             hand.cancelTargeting();
+            const lvBefore=progress.level;
+            const res=addXp(stats.xp);
+            summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey))};
             summary.show(victory,stats,toMenu=>{
                 audio.play('ui');
                 player.hp=TUNING.player.maxHp;

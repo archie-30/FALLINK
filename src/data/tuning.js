@@ -114,7 +114,8 @@ export const TUNING={
         muzzleSide:0.46,
         recoilTrauma:0.035,
         recoilFov:0.22,
-        flashScale:0.9
+        flashScale:0.9,
+        dualOffset:0.22
     },
     bullet:{
         capacity:600,
@@ -244,6 +245,22 @@ export const TUNING={
         cloneFire:0.22,
         cloneRange:14,
         redrawTime:0.7
+    },
+    levels:{
+        base:120,
+        step:70,
+        xpKill:3,
+        xpBoss:80,
+        xpRoom:15,
+        xpAct:60,
+        xpVictory:200,
+        xpScore:0.02
+    },
+    reward:{
+        choices:2,
+        rareChance:0.15,
+        bossRareChance:0.5,
+        newChance:0.6
     },
     damageNumbers:{
         life:0.75,

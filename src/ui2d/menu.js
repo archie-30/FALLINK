@@ -641,10 +641,32 @@ export class RunSummary {
             drawShape(ctx,sketchLine(w/2-160,y+16,w/2+160,y+16,{width:0.8,seed:910+i,overshoot:0}),PALETTE.farGray,v);
         }
         ctx.globalAlpha=1;
+        const pr=this.progress;
+        let extra=0;
+        if (pr) {
+            const p2=Math.max(0,Math.min(1,(this.t-d0-0.65)/0.35));
+            ctx.globalAlpha=p2;
+            ctx.textAlign='center';
+            ctx.font='bold 18px '+FONT;
+            ctx.fillStyle=PALETTE.ink;
+            let line=t('summary.xp',{xp:pr.xp});
+            if (pr.after>pr.before) {
+                line+='　'+t('summary.levelUp',{level:pr.after});
+            }
+            ctx.fillText(line,w/2,top+rows.length*34+8);
+            extra=26;
+            if (pr.unlocked.length>0) {
+                ctx.font='15px '+FONT;
+                ctx.fillStyle=PALETTE.nearGray;
+                ctx.fillText(t('summary.unlocked',{cards:pr.unlocked.join('、')}),w/2,top+rows.length*34+34);
+                extra=52;
+            }
+            ctx.globalAlpha=1;
+        }
         const bw=190;
         const bh=48;
         const bx=w/2-bw-10;
-        const by=top+rows.length*34+30;
+        const by=top+rows.length*34+30+extra;
         this.button={x:bx,y:by,w:bw,h:bh};
         this.menuButton={x:w/2+10,y:by,w:bw,h:bh};
         const ba=Math.max(0,Math.min(1,(this.t-d0-0.7)/0.3));
