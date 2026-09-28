@@ -1,6 +1,7 @@
 import {PALETTE,rgba} from '../data/palette.js';
 import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
+import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
 import {settings} from '../core/settings.js';
@@ -133,7 +134,7 @@ export class MainMenu extends Panel {
     drawLevel(ctx,v) {
         const w=this.width;
         const pw=260;
-        const ph=112;
+        const ph=140;
         const x=w-pw-24;
         const y=24;
         const a=Math.max(0,Math.min(1,(this.t-0.6)/0.4));
@@ -164,10 +165,9 @@ export class MainMenu extends Panel {
         for (let i=0;i<lines.length&&i<2;i++) {
             ctx.fillText(lines[i],x+14,y+60+i*16);
         }
-        if (progress.bestScore>0) {
-            ctx.fillStyle=PALETTE.ink;
-            ctx.fillText(t('menu.best',{score:progress.bestScore}),x+14,y+ph-18);
-        }
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillText(t('menu.bestStory',{score:progress.bestStory||0}),x+14,y+ph-38);
+        ctx.fillText(t('menu.best',{score:progress.bestScore||0}),x+14,y+ph-20);
         ctx.restore();
     }
 
@@ -456,13 +456,18 @@ export class Codex extends Panel {
         super();
         this.actions=actions;
         this.tab=0;
-        this.page=0;
         this.cards=ALL_CARDS.map(id=>createCard(id));
-        this.perPage=6;
+        this.scroll=0;
+        this.scrollTo=0;
+        this.contentH=0;
+        this.drag=null;
     }
 
-    pages() {
-        return Math.ceil(this.cards.length/this.perPage);
+    show() {
+        super.show();
+        this.scroll=0;
+        this.scrollTo=0;
+        this.drag=null;
     }
 
     layout() {
@@ -470,8 +475,30 @@ export class Codex extends Panel {
         const h=this.height;
         this.tabs=[{x:w/2-170,y:70,w:160,h:40},{x:w/2+10,y:70,w:160,h:40}];
         this.back={x:w/2-90,y:h-66,w:180,h:48};
-        this.prev={x:w/2-300,y:h-66,w:110,h:48};
-        this.next={x:w/2+190,y:h-66,w:110,h:48};
+        this.view={x:0,y:126,w:w,h:Math.max(80,h-126-84)};
+    }
+
+    maxScroll() {
+        return Math.max(0,this.contentH-this.view.h);
+    }
+
+    clampScroll() {
+        this.scrollTo=Math.max(0,Math.min(this.maxScroll(),this.scrollTo));
+    }
+
+    wheel(dy) {
+        if (!this.open) {
+            return;
+        }
+        this.scrollTo+=dy;
+        this.clampScroll();
+    }
+
+    setTab(i) {
+        this.tab=i;
+        this.t=0.3;
+        this.scroll=0;
+        this.scrollTo=0;
     }
 
     down(x,y) {
@@ -483,22 +510,32 @@ export class Codex extends Panel {
             this.actions.back();
         }
         else if (inRect(this.tabs[0],x,y)) {
-            this.tab=0;
-            this.t=0.3;
+            this.setTab(0);
         }
         else if (inRect(this.tabs[1],x,y)) {
-            this.tab=1;
-            this.t=0.3;
+            this.setTab(1);
         }
-        else if (this.tab===0&&inRect(this.prev,x,y)) {
-            this.page=(this.page+this.pages()-1)%this.pages();
-            this.t=0.3;
-        }
-        else if (this.tab===0&&inRect(this.next,x,y)) {
-            this.page=(this.page+1)%this.pages();
-            this.t=0.3;
+        else if (inRect(this.view,x,y)) {
+            this.drag={y0:y,s0:this.scrollTo};
         }
         return true;
+    }
+
+    move(x,y) {
+        if (this.drag) {
+            this.scrollTo=this.drag.s0-(y-this.drag.y0);
+            this.clampScroll();
+            this.scroll=this.scrollTo;
+        }
+    }
+
+    up() {
+        this.drag=null;
+    }
+
+    update(dt) {
+        super.update(dt);
+        this.scroll+=(this.scrollTo-this.scroll)*(1-Math.exp(-TUNING.codex.follow*dt));
     }
 
     hover(x,y) {
@@ -506,23 +543,30 @@ export class Codex extends Panel {
         this.hy=y;
     }
 
-    drawCards(ctx,art,v,top,avail) {
+    appear(i) {
+        return Math.max(0,Math.min(1,(this.t-0.1-Math.min(i,6)*0.05)/0.35));
+    }
+
+    drawCards(ctx,art,v) {
         const w=this.width;
-        const cols=2;
-        const rows=3;
-        const colW=Math.min(520,(w-60)/cols);
-        const rowH=avail/rows;
-        const sc=Math.min(1.2,(rowH-20)/CARD_H);
+        const V=this.view;
+        const cols=w>=900?2:1;
+        const colW=Math.min(520,(w-40)/cols);
+        const sc=TUNING.codex.cardScale;
+        const rowH=CARD_H*sc+TUNING.codex.rowGap;
         const x0=w/2-colW*cols/2;
-        const list=this.cards.slice(this.page*this.perPage,this.page*this.perPage+this.perPage);
-        for (let i=0;i<list.length;i++) {
-            const c=list[i];
-            const p=Math.max(0,Math.min(1,(this.t-0.1-i*0.05)/0.35));
+        this.contentH=Math.ceil(this.cards.length/cols)*rowH+10;
+        for (let i=0;i<this.cards.length;i++) {
+            const c=this.cards[i];
+            const cx=x0+(i%cols)*colW;
+            const cy=V.y+10+Math.floor(i/cols)*rowH-this.scroll;
+            if (cy>V.y+V.h||cy+rowH<V.y) {
+                continue;
+            }
+            const p=this.appear(Math.floor(i/cols));
             if (p<=0) {
                 continue;
             }
-            const cx=x0+(i%cols)*colW;
-            const cy=top+Math.floor(i/cols)*rowH;
             const need=unlockLevel(c.id);
             const locked=need>progress.level;
             ctx.save();
@@ -550,36 +594,33 @@ export class Codex extends Panel {
                 ctx.fillStyle=PALETTE.ink;
                 ctx.font='14px '+FONT;
                 const lines=wrapText(ctx,t(c.def.descKey,c.def.params),tw);
-                for (let k=0;k<lines.length&&k<4;k++) {
+                for (let k=0;k<lines.length&&k<5;k++) {
                     ctx.fillText(lines[k],tx,50+k*19);
                 }
             }
             ctx.restore();
         }
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold 16px '+FONT;
-        ctx.textAlign='center';
-        ctx.textBaseline='middle';
-        ctx.fillText((this.page+1)+' / '+this.pages(),w/2,this.back.y-18);
-        drawButton(ctx,this.prev,t('codex.prev'),v,1,inRect(this.prev,this.hx??-1,this.hy??-1),17);
-        drawButton(ctx,this.next,t('codex.next'),v,1,inRect(this.next,this.hx??-1,this.hy??-1),17);
     }
 
-    drawEnemies(ctx,v,top,avail) {
+    drawEnemies(ctx,v) {
         const w=this.width;
-        const cols=2;
-        const rows=Math.ceil(ENEMY_LIST.length/cols);
-        const colW=Math.min(540,(w-60)/cols);
-        const rowH=Math.min(110,avail/rows);
+        const V=this.view;
+        const cols=w>=900?2:1;
+        const colW=Math.min(540,(w-40)/cols);
+        const rowH=110;
         const x0=w/2-colW*cols/2;
+        this.contentH=Math.ceil(ENEMY_LIST.length/cols)*rowH+10;
         for (let i=0;i<ENEMY_LIST.length;i++) {
             const id=ENEMY_LIST[i];
-            const p=Math.max(0,Math.min(1,(this.t-0.1-i*0.05)/0.35));
+            const x=x0+(i%cols)*colW;
+            const y=V.y+6+Math.floor(i/cols)*rowH-this.scroll;
+            if (y>V.y+V.h||y+rowH<V.y) {
+                continue;
+            }
+            const p=this.appear(Math.floor(i/cols));
             if (p<=0) {
                 continue;
             }
-            const x=x0+(i%cols)*colW;
-            const y=top+Math.floor(i/cols)*rowH;
             const boss=id==='inkBottle'||id==='scissors'||id==='book';
             ctx.save();
             ctx.globalAlpha=p;
@@ -607,11 +648,47 @@ export class Codex extends Panel {
         }
     }
 
+    drawScrollbar(ctx,v) {
+        const V=this.view;
+        const max=this.maxScroll();
+        if (max<=0) {
+            return;
+        }
+        const x=this.width-18;
+        const th=Math.max(40,V.h*V.h/this.contentH);
+        const ty=V.y+(V.h-th)*(this.scroll/max);
+        ctx.fillStyle=rgba('farGray',0.6);
+        ctx.fillRect(x,V.y,6,V.h);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(x-1,ty,8,th);
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font='13px '+FONT;
+        ctx.textAlign='right';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('codex.scrollHint'),this.width-30,this.back.y+this.back.h/2);
+        const fade=24;
+        if (this.scroll>2) {
+            const g=ctx.createLinearGradient(0,V.y,0,V.y+fade);
+            g.addColorStop(0,rgba('paper',0.97));
+            g.addColorStop(1,rgba('paper',0));
+            ctx.fillStyle=g;
+            ctx.fillRect(0,V.y,this.width-24,fade);
+        }
+        if (this.scroll<max-2) {
+            const g=ctx.createLinearGradient(0,V.y+V.h-fade,0,V.y+V.h);
+            g.addColorStop(0,rgba('paper',0));
+            g.addColorStop(1,rgba('paper',0.97));
+            ctx.fillStyle=g;
+            ctx.fillRect(0,V.y+V.h-fade,this.width-24,fade);
+        }
+    }
+
     draw(ctx,art) {
         if (!this.open) {
             return;
         }
         this.layout();
+        this.clampScroll();
         const w=this.width;
         const h=this.height;
         const v=time.boilIndex;
@@ -636,14 +713,19 @@ export class Codex extends Panel {
             ctx.textBaseline='middle';
             ctx.fillText(tl[i],b.x+b.w/2,b.y+b.h/2+1);
         }
-        const top=126;
-        const avail=h-top-110;
+        const V=this.view;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(V.x,V.y,V.w,V.h);
+        ctx.clip();
         if (this.tab===0) {
-            this.drawCards(ctx,art,v,top,avail);
+            this.drawCards(ctx,art,v);
         }
         else {
-            this.drawEnemies(ctx,v,top,avail);
+            this.drawEnemies(ctx,v);
         }
+        ctx.restore();
+        this.drawScrollbar(ctx,v);
         drawButton(ctx,this.back,t('menu.back'),v,(this.t-0.1)/0.3,inRect(this.back,this.hx??-1,this.hy??-1));
     }
 }
@@ -662,10 +744,11 @@ export class RunSummary {
         this.height=h;
     }
 
-    show(victory,stats,onRestart) {
+    show(victory,stats,quit,onRestart) {
         this.open=true;
         this.t=0;
         this.victory=victory;
+        this.quit=quit;
         this.stats=stats;
         this.onRestart=onRestart;
     }
@@ -675,7 +758,7 @@ export class RunSummary {
             return false;
         }
         const b=this.button;
-        if (this.t>(this.victory?1.0:2.0)) {
+        if (this.t>(this.victory||this.quit?1.0:2.0)) {
             if (x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h) {
                 this.open=false;
                 if (this.onRestart) {
@@ -708,7 +791,7 @@ export class RunSummary {
         const v=time.boilIndex;
         ctx.fillStyle=this.victory?rgba('paper',Math.min(0.94,this.t*2)):rgba('paper',Math.min(0.75,this.t*0.8));
         ctx.fillRect(0,0,w,h);
-        const title=this.victory?t('summary.victory'):t('summary.dead');
+        const title=this.victory?t('summary.victory'):(this.quit?t('summary.quit'):t('summary.dead'));
         ctx.save();
         ctx.translate(w/2,h*0.24);
         ctx.font='bold 56px '+FONT;
@@ -735,7 +818,7 @@ export class RunSummary {
             ctx.closePath();
             ctx.fill();
         }
-        drawShape(ctx,sketchLine(-tw/2,40,-tw/2+tw*Math.max(0,Math.min(1,(this.t-0.9)/0.5)),40,{width:3.4,seed:901}),this.victory?PALETTE.ink:PALETTE.red,v);
+        drawShape(ctx,sketchLine(-tw/2,40,-tw/2+tw*Math.max(0,Math.min(1,(this.t-0.9)/0.5)),40,{width:3.4,seed:901}),this.victory||this.quit?PALETTE.ink:PALETTE.red,v);
         ctx.restore();
         const s=this.stats;
         const mm=Math.floor(s.time/60);
@@ -749,6 +832,8 @@ export class RunSummary {
             [t('summary.bosses'),String(s.bosses)],
             [t('summary.time'),mm+':'+(ss<10?'0':'')+ss]
         ]:[
+            [t('summary.score'),String(s.score)],
+            [t('summary.best'),String(s.best)+(s.newBest?'  '+t('summary.newBest'):'')],
             [t('summary.act'),String(s.act+(this.victory?0:1))],
             [t('summary.rooms'),String(s.rooms)],
             [t('summary.kills'),String(s.kills)],
@@ -760,7 +845,7 @@ export class RunSummary {
         ctx.font='20px '+FONT;
         ctx.textBaseline='middle';
         const top=h*0.36;
-        const d0=this.victory?0.3:1.3;
+        const d0=this.victory||this.quit?0.3:1.3;
         for (let i=0;i<rows.length;i++) {
             const p=Math.max(0,Math.min(1,(this.t-d0-i*0.08)/0.35));
             if (p<=0) {
@@ -816,7 +901,7 @@ export class RunSummary {
         ctx.fillText(t('summary.restart'),bx+bw/2,by+bh/2+1);
         const m=this.menuButton;
         drawShape(ctx,sketchRect(m.x,m.y,m.w,m.h,{width:2.2,seed:921}),PALETTE.ink,v);
-        ctx.fillText(t('pause.quit'),m.x+m.w/2,m.y+bh/2+1);
+        ctx.fillText(t('summary.menu'),m.x+m.w/2,m.y+bh/2+1);
         ctx.globalAlpha=1;
     }
 }

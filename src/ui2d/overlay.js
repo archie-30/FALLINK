@@ -90,7 +90,7 @@ export class Overlay {
                     ctx.fillStyle=PALETTE.nearGray;
                     ctx.textAlign='center';
                     ctx.textBaseline='middle';
-                    ctx.fillText(t('pause.hint'),this.width/2,this.height-game.hand.s*164*0.8-40);
+                    ctx.fillText(t('pause.hint'),this.width/2,this.height-game.hand.s*164*0.8-100*game.hand.s);
                 }
             }
         }

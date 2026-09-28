@@ -151,8 +151,7 @@ export class CardEffects {
             m.mesh.scale.set(pulse,pulse,pulse);
             let trig=m.t>25;
             if (m.t>0.4) {
-                const e=g.enemies.nearest(m.x,m.z,1.6);
-                if (e&&!e.def.flying) {
+                if (g.enemies.nearest(m.x,m.z,1.6,true)) {
                     trig=true;
                 }
             }
@@ -412,7 +411,7 @@ export class CardEffects {
 
     timeStop(duration) {
         const g=this.g;
-        g.enemyBullets.frozen=duration;
+        g.enemyBullets.frozen=Math.max(g.enemyBullets.frozen,duration);
         g.fx.hitStop(80,true);
         g.fx.fovPunch(2.0);
         g.fx.cameraShake(0.25);
@@ -682,7 +681,8 @@ export class CardEffects {
             this.link(fx,fz,e.pos.x,e.pos.z);
             const ex=e.pos.x;
             const ez=e.pos.z;
-            g.enemies.damage(e,damage,ex-fx,ez-fz);
+            const dl=Math.hypot(ex-fx,ez-fz)||1;
+            g.enemies.damage(e,damage,(ex-fx)/dl,(ez-fz)/dl);
             g.particles.burst(ex,1,ez,5,{speed:[2,4],up:[1,3]});
             fx=ex;
             fz=ez;

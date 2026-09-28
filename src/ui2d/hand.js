@@ -82,6 +82,7 @@ class CardView {
         this.target=null;
         this.clip=null;
         this.ball=0;
+        this.slot=0;
     }
 }
 
@@ -160,6 +161,12 @@ export class Hand {
         v.rot=-0.1;
         v.state='draw';
         v.t=0;
+        if (isUlt(card.id)) {
+            v.slot=2;
+        }
+        else {
+            v.slot=this.views.some(o=>o.slot===0)?1:0;
+        }
         this.views.push(v);
     }
 
@@ -204,14 +211,8 @@ export class Hand {
         const W=CARD_W*this.s;
         const H=CARD_H*this.s;
         const restY=this.height-H*C.restShow+H/2;
-        const list=this.normals();
-        const u=this.ultView();
-        if (u) {
-            list.push(u);
-        }
-        for (let i=0;i<list.length;i++) {
-            const v=list[i];
-            const slot=v===u?2:i;
+        for (const v of this.views) {
+            const slot=v.slot;
             const k=slot===2?0.6:(slot-0.5);
             v.tx=this.slotX(slot);
             v.ty=restY+(slot===2?0:Math.abs(k)*C.fanDrop*this.s);
@@ -412,6 +413,16 @@ export class Hand {
         this.lastDiscard=v.card;
     }
 
+    keyDiscard() {
+        const v=this.targetView;
+        if (!v||v.state!=='idle') {
+            return false;
+        }
+        this.cancelTargeting();
+        this.discardView(v);
+        return true;
+    }
+
     removeView(v) {
         const i=this.views.indexOf(v);
         if (i>=0) {
@@ -477,7 +488,7 @@ export class Hand {
     }
 
     keyPlay(i) {
-        const v=i===2?this.ultView():this.normals()[i];
+        const v=this.views.find(o=>o.slot===i);
         if (!v||v.state!=='idle') {
             return;
         }
@@ -505,7 +516,7 @@ export class Hand {
                 this.cancelTargeting();
                 return true;
             }
-            const hit=this.hitCard(x,y);
+            const hit=type==='mouse'?null:this.hitCard(x,y);
             if (hit) {
                 if (hit===this.targetView) {
                     this.cancelTargeting();
@@ -529,8 +540,14 @@ export class Hand {
                 this.tryPlay(v,target);
                 return true;
             }
+            if (type==='mouse') {
+                return true;
+            }
             this.cancelTargeting();
             return true;
+        }
+        if (type==='mouse') {
+            return false;
         }
         if (this.inRect(this.drawRect,x,y)) {
             this.api.openDeck();
@@ -565,10 +582,14 @@ export class Hand {
         }
     }
 
-    hoverAt(x,y) {
+    hoverAt(x,y,allow=true) {
         this.pointer.x=x;
         this.pointer.y=y;
         this.pointer.active=true;
+        if (!allow) {
+            this.hover=null;
+            return;
+        }
         if (this.press||this.targetView) {
             return;
         }
@@ -998,6 +1019,18 @@ export class Hand {
             ctx.fillStyle=rgba('ink',Math.min(1,this.burnMsgT));
             ctx.fillText(t('deck.burn'),this.width/2,y);
         }
+        else if (this.targetView&&this.api.showKeys&&this.api.showKeys()) {
+            const v=this.targetView;
+            const hy=y-C.targetLift*s-(C.keycap.size+C.keycap.gap)*s-8*s;
+            const key=v.card.def.targeting==='drawPath'?'hand.hintPath':'hand.hint';
+            ctx.font='bold '+Math.round(15*s)+'px '+FONT;
+            const txt=t(key,{key:v.slot+1});
+            const w=ctx.measureText(txt).width+24*s;
+            ctx.fillStyle=rgba('paper',0.85);
+            ctx.fillRect(this.width/2-w/2,hy-24*s,w,28*s);
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillText(txt,this.width/2,hy);
+        }
     }
 
     drawSlots(ctx,variant) {
@@ -1016,19 +1049,45 @@ export class Hand {
             ctx.textBaseline='middle';
             ctx.fillText(t('type.ult'),ux,restY-H*0.18);
         }
-        if (this.api.showKeys&&this.api.showKeys()) {
-            ctx.font='bold '+Math.round(12*s)+'px '+FONT;
-            ctx.textAlign='center';
-            ctx.textBaseline='bottom';
-            for (let i=0;i<3;i++) {
-                const x=this.slotX(i);
-                const y=restY-H/2-6*s;
-                ctx.fillStyle=rgba('paper',0.8);
-                ctx.fillRect(x-10,y-18,20,18);
-                ctx.fillStyle=i===2?PALETTE.red:PALETTE.ink;
-                ctx.fillText(String(i+1),x,y-2);
-            }
+        if (!this.api.showKeys||!this.api.showKeys()) {
+            return;
         }
+        const K=C.keycap;
+        for (let i=0;i<3;i++) {
+            const v=this.views.find(o=>o.slot===i);
+            const lift=v&&v===this.targetView?C.targetLift*s:0;
+            const x=this.slotX(i);
+            const y=restY-H/2-(K.gap+K.size/2)*s-lift;
+            this.drawKeycap(ctx,x,y,String(i+1),v===this.targetView&&!!v,i===2,!v,variant);
+        }
+        const [dx]=this.pileCenter(this.drawRect);
+        const [ex]=this.pileCenter(this.discardRect);
+        const py=this.drawRect.y-(K.gap+K.size/2)*s;
+        this.drawKeycap(ctx,dx,py,t('key.tab'),false,false,false,variant);
+        this.drawKeycap(ctx,ex,py,t('key.q'),!!this.targetView,false,!this.targetView,variant);
+    }
+
+    drawKeycap(ctx,x,y,label,active,red,dim,variant) {
+        const s=this.s;
+        const K=C.keycap;
+        ctx.font='bold '+Math.round(K.font*s)+'px '+FONT;
+        const w=Math.max(K.size*s,ctx.measureText(label).width+K.pad*2*s);
+        const h=K.size*s;
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.globalAlpha=dim?K.dimAlpha:1;
+        ctx.fillStyle=rgba('ink',0.25);
+        ctx.fillRect(-w/2+3*s,-h/2+4*s,w,h);
+        ctx.fillStyle=active?(red?PALETTE.red:PALETTE.ink):PALETTE.paper;
+        ctx.fillRect(-w/2,-h/2,w,h);
+        ctx.translate(-w/2,-h/2);
+        drawShape(ctx,sketchRect(0,0,Math.round(w),Math.round(h),{width:2.2,seed:960}),red?PALETTE.red:PALETTE.ink,variant);
+        ctx.translate(w/2,h/2);
+        ctx.fillStyle=active?PALETTE.paper:(red?PALETTE.red:PALETTE.ink);
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(label,0,1*s);
+        ctx.restore();
     }
 
     draw(ctx,art) {

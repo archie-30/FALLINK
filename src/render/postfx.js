@@ -45,8 +45,7 @@ export class PostFX {
             uLineFade:{value:new THREE.Vector2(O.fadeNear,O.fadeFar)},
             uEdge:{value:new THREE.Vector4(O.depthLo,O.depthHi,O.normalLo,O.normalHi)},
             uInk:{value:pal('ink').clone()},
-            uRuleColor:{value:pal('farGray').clone()},
-            uRule:{value:new THREE.Vector4(P.ruleSpacing,P.ruleAlpha,P.marginX,P.marginAlpha)},
+            uPaperOff:{value:new THREE.Vector2(0,0)},
             uGrain:{value:new THREE.Vector2(P.grain,1)},
             uInvert:{value:0},
             tFx:{value:this.fxTarget.texture},
@@ -74,15 +73,35 @@ export class PostFX {
         this.quad=new FullScreenQuad(this.material);
         this.clearColor=pal('paper').clone();
         this.boilScale=1;
+        this.anchor=new THREE.Vector3();
+        this.anchorSet=false;
+        this.camDir=new THREE.Vector3();
+    }
+
+    trackPaper(camera) {
+        const res=this.uniforms.uRes.value;
+        const off=this.uniforms.uPaperOff.value;
+        if (this.anchorSet) {
+            this.anchor.project(camera);
+            off.x+=this.anchor.x*0.5*res.x;
+            off.y+=this.anchor.y*0.5*res.y;
+            const img=this.uniforms.tPaper.value.image;
+            const tile=(img&&img.width?img.width:256)*this.uniforms.uGrain.value.y*this.uniforms.uPx.value;
+            off.x=((off.x%tile)+tile)%tile;
+            off.y=((off.y%tile)+tile)%tile;
+        }
+        camera.getWorldDirection(this.camDir);
+        this.anchorSet=this.camDir.y<-0.01;
+        if (this.anchorSet) {
+            const k=-camera.position.y/this.camDir.y;
+            this.anchor.copy(camera.position).addScaledVector(this.camDir,k);
+        }
     }
 
     setQuality(q) {
         const d={};
         if (q.grain) {
             d.USE_GRAIN='';
-        }
-        if (q.rules) {
-            d.USE_RULES='';
         }
         this.material.defines=d;
         this.material.needsUpdate=true;
@@ -145,6 +164,7 @@ export class PostFX {
         r.clear(true,false,false);
         r.render(fxScene,camera);
         r.setRenderTarget(null);
+        this.trackPaper(camera);
         this.uniforms.uInvert.value=Math.max(this.invertFrames>0?1:0,this.invertHold.value);
         if (this.invertFrames>0) {
             this.invertFrames--;
