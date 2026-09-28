@@ -181,7 +181,7 @@ export class Hud {
             return;
         }
         const p=run.plan;
-        const title=t('run.info',{act:p.act+1,page:p.index+1,pages:run.totalRooms()});
+        const title=run.mode==='endless'?t('run.endlessInfo',{page:p.index+1,score:run.stats.score}):t('run.info',{act:p.act+1,page:p.index+1,pages:run.totalRooms()});
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 15px '+FONT;
         ctx.textAlign='center';

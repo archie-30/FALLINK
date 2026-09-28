@@ -1,9 +1,9 @@
-import {ACTS} from '../data/levels.js';
+import {ACTS,ENDLESS} from '../data/levels.js';
 import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
 import {progress} from '../core/progress.js';
 import {RNG} from '../core/rng.js';
-import {planRoom} from './level.js';
+import {planRoom,planEndless} from './level.js';
 import {RoomDirector} from './room.js';
 import {createCard} from './card.js';
 
@@ -15,7 +15,8 @@ export class Run {
         this.stats=null;
     }
 
-    start(startDeck) {
+    start(startDeck,mode='story') {
+        this.mode=mode;
         this.rng=new RNG(this.seed++);
         this.act=0;
         this.index=0;
@@ -25,12 +26,20 @@ export class Run {
         this.enter();
     }
 
+    scoreMult() {
+        return 1+(this.mode==='endless'?this.index*ENDLESS.scorePerPage:0);
+    }
+
+    addScore(n) {
+        this.stats.score+=Math.round(n*this.scoreMult());
+    }
+
     totalRooms() {
         return ACTS[this.act].rooms+1;
     }
 
     enter() {
-        this.plan=planRoom(this.act,this.index,this.rng,this.lastLayout);
+        this.plan=this.mode==='endless'?planEndless(this.index,this.rng,this.lastLayout):planRoom(this.act,this.index,this.rng,this.lastLayout);
         const forced=new URLSearchParams(location.search).get('mod');
         if (forced&&!this.plan.boss) {
             this.plan.mod=forced;
@@ -85,6 +94,13 @@ export class Run {
 
     next() {
         this.index++;
+        if (this.mode==='endless') {
+            this.act=this.plan.act;
+            this.stats.act=this.act;
+            this.state='transition';
+            this.hooks.transition(()=>this.enter());
+            return;
+        }
         if (this.index>ACTS[this.act].rooms) {
             this.act++;
             this.index=0;
@@ -115,6 +131,7 @@ export class Run {
                 this.timer=1.4;
                 this.stats.rooms++;
                 this.stats.xp+=TUNING.levels.xpRoom;
+                this.addScore(ENDLESS.scoreRoom*(this.mode==='endless'?1:0));
                 if (this.plan.boss) {
                     this.stats.bosses++;
                 }

@@ -38,7 +38,7 @@ import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex} from './ui2d/menu.js';
 import {audio} from './core/audio.js';
-import {LAYOUTS} from './data/levels.js';
+import {LAYOUTS,ENDLESS} from './data/levels.js';
 import {renderFlags} from './render/materials.js';
 import {Transition} from './ui2d/transition.js';
 import {DamageNumbers} from './ui2d/damageNumbers.js';
@@ -250,6 +250,9 @@ function boot() {
         fx.fovPunch(F.fovKill);
         fx.flash('paper',F.killFlash*3,0.35);
         if (run.stats) {
+            if (run.mode==='endless') {
+                run.addScore(e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?3:1));
+            }
             run.stats.kills++;
             run.stats.xp+=e.def.boss?TUNING.levels.xpBoss:TUNING.levels.xpKill*(e.def.cost||1);
         }
@@ -418,7 +421,10 @@ function boot() {
         banner:(kind,rn)=>{
             const p=rn.plan;
             if (kind==='boss') {
-                overlay.hud.banner(t('run.bossTitle',{name:t('enemy.'+p.bossType)}),t('run.bossSub',{act:p.act+1}),2.6);
+                overlay.hud.banner(t('run.bossTitle',{name:t('enemy.'+p.bossType)}),p.endless?t('run.endlessBossSub'):t('run.bossSub',{act:p.act+1}),2.6);
+            }
+            else if (p.endless) {
+                overlay.hud.banner(t('run.endlessTitle',{page:p.index+1}),p.mod?t('mod.'+p.mod):t('run.roomSub'),p.mod?2.8:2.0);
             }
             else {
                 overlay.hud.banner(t('run.roomTitle',{act:p.act+1,page:p.index+1}),p.mod?t('mod.'+p.mod):t('run.roomSub'),p.mod?2.8:2.0);
@@ -463,6 +469,17 @@ function boot() {
             fx.paused=true;
             hand.cancelTargeting();
             const lvBefore=progress.level;
+            let best=false;
+            if (run.mode==='endless') {
+                stats.xp+=stats.score*TUNING.levels.xpScore;
+                if (stats.score>progress.bestScore) {
+                    progress.bestScore=stats.score;
+                    best=true;
+                }
+                stats.best=progress.bestScore;
+                stats.newBest=best;
+            }
+            stats.mode=run.mode;
             const res=addXp(stats.xp);
             summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey))};
             summary.show(victory,stats,toMenu=>{
@@ -474,7 +491,7 @@ function boot() {
                     enterMenu();
                 }
                 else {
-                    run.start(startIds());
+                    run.start(startIds(),run.mode);
                 }
             });
         }
@@ -512,13 +529,13 @@ function boot() {
         mainMenu.show();
         renderer.post.drawIn(1.6,0.2);
     }
-    function startGame() {
+    function startGame(mode='story') {
         audio.play('ui');
         mainMenu.hide();
         game.mode='play';
         player.hp=TUNING.player.maxHp;
         ink.value=TUNING.ink.start;
-        run.start(startIds());
+        run.start(startIds(),mode);
     }
     function openPause() {
         if (game.mode!=='play'||pauseMenu.open||summary.open||reward.open||transition.active) {
@@ -550,7 +567,8 @@ function boot() {
         overlay.showDebug=settings.showFps;
     }
     const mainMenu=new MainMenu({
-        start:startGame,
+        start:()=>startGame('story'),
+        endless:()=>startGame('endless'),
         settings:()=>openSettings('menu'),
         codex:()=>{
             audio.play('ui');

@@ -101,4 +101,15 @@ export const ACTS=[
     {rooms:4,budget:[13,15,17,20],waves:[3,3,3,4],pool:{doodle:2,blob:2,compass:2,bird:2,eraserMonster:2},hpMult:1.65,bossHp:1}
 ];
 
+export const ENDLESS={
+    bossEvery:5,
+    hpPerPage:0.09,
+    budgetBase:6,
+    budgetPerPage:1.3,
+    scoreKill:100,
+    scoreBoss:3000,
+    scoreRoom:500,
+    scorePerPage:0.1
+};
+
 export const LEVELS={test:LAYOUTS.crossroads};

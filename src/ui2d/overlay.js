@@ -94,7 +94,9 @@ export class Overlay {
                 }
             }
         }
-        game.mainMenu.draw(ctx);
+        if (!game.codex.open&&!game.settingsMenu.open) {
+            game.mainMenu.draw(ctx);
+        }
         game.settingsMenu.draw(ctx);
         game.codex.draw(ctx,game.art);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
