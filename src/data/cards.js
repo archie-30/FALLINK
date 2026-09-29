@@ -377,17 +377,104 @@ export const CARDS={
         params:{duration:3},
         upgraded:{cost:3,params:{duration:4}},
         effect:(g,t,p)=>g.freezeAll(p.duration)
+    },
+    paperBlade:{
+        id:'paperBlade',
+        nameKey:'card.paperBlade.name',
+        descKey:'card.paperBlade.desc',
+        cost:2,
+        rarity:'common',
+        type:'attack',
+        targeting:'direction',
+        range:9,
+        params:{damage:22,range:8},
+        upgraded:{cost:2,params:{damage:30,range:10}},
+        effect:(g,t,p)=>g.paperBlade(t.dx,t.dz,p.damage,p.range)
+    },
+    blot:{
+        id:'blot',
+        nameKey:'card.blot.name',
+        descKey:'card.blot.desc',
+        cost:1,
+        rarity:'common',
+        type:'defense',
+        targeting:'none',
+        params:{radius:4,per:4,max:3},
+        upgraded:{cost:1,params:{radius:5.5,per:3,max:4}},
+        effect:(g,t,p)=>g.blot(p.radius,p.per,p.max)
+    },
+    inkField:{
+        id:'inkField',
+        nameKey:'card.inkField.name',
+        descKey:'card.inkField.desc',
+        cost:2,
+        rarity:'common',
+        type:'terrain',
+        targeting:'point',
+        range:9,
+        params:{radius:2.5,duration:5,dps:24},
+        upgraded:{cost:2,params:{radius:3,duration:6,dps:32}},
+        effect:(g,t,p)=>g.inkField(t.x,t.z,p.radius,p.duration,p.dps)
+    },
+    clusterBomb:{
+        id:'clusterBomb',
+        nameKey:'card.clusterBomb.name',
+        descKey:'card.clusterBomb.desc',
+        cost:3,
+        rarity:'common',
+        type:'attack',
+        targeting:'point',
+        range:10,
+        params:{radius:2.2,damage:30,count:4},
+        upgraded:{cost:3,params:{radius:2.5,damage:36,count:6}},
+        effect:(g,t,p)=>g.clusterBomb(t.x,t.z,p.radius,p.damage,p.count)
+    },
+    haste:{
+        id:'haste',
+        nameKey:'card.haste.name',
+        descKey:'card.haste.desc',
+        cost:1,
+        rarity:'common',
+        type:'utility',
+        targeting:'none',
+        params:{duration:5,mult:1.4},
+        upgraded:{cost:1,params:{duration:7,mult:1.5}},
+        effect:(g,t,p)=>g.haste(p.duration,p.mult)
+    },
+    echo:{
+        id:'echo',
+        nameKey:'card.echo.name',
+        descKey:'card.echo.desc',
+        cost:3,
+        rarity:'rare',
+        type:'utility',
+        targeting:'none',
+        params:{ink:2},
+        upgraded:{cost:2,params:{ink:2}},
+        effect:(g)=>g.echo()
+    },
+    inkStorm:{
+        id:'inkStorm',
+        nameKey:'card.inkStorm.name',
+        descKey:'card.inkStorm.desc',
+        cost:4,
+        rarity:'rare',
+        type:'attack',
+        targeting:'none',
+        params:{duration:5,damage:40,every:0.45},
+        upgraded:{cost:3,params:{duration:5,damage:40,every:0.45}},
+        effect:(g,t,p)=>g.inkStorm(p.duration,p.damage,p.every)
     }
 };
 
 export const UNLOCKS={
     1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','eraseCover','trap','paperShield','inkDash','timeStop','clone','execute','redraw'],
-    2:['whiteout','shockwave'],
-    3:['mark','inkMine','tsunami'],
-    4:['dualWield','pin'],
-    5:['chain','inkRain','blackHole'],
-    6:['reflect','inkWell','barrage'],
-    7:['giantPen','freezeAll']
+    2:['whiteout','shockwave','haste'],
+    3:['mark','inkMine','tsunami','blot'],
+    4:['dualWield','pin','paperBlade','echo'],
+    5:['chain','inkRain','blackHole','inkField'],
+    6:['reflect','inkWell','barrage','clusterBomb'],
+    7:['giantPen','freezeAll','inkStorm']
 };
 
 export function unlockLevel(id) {

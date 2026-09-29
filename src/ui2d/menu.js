@@ -4,7 +4,7 @@ import {time} from '../core/loop.js';
 import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
-import {settings} from '../core/settings.js';
+import {settings,STICK_DEFAULTS} from '../core/settings.js';
 import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel} from '../data/cards.js';
 import {progress,xpToNext,hasSeen} from '../core/progress.js';
 import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
@@ -360,6 +360,7 @@ export class SettingsMenu extends Panel {
     update(dt) {
         super.update(dt);
         const k=1-Math.exp(-TUNING.settingsUi.follow*dt);
+        this.resetFlash=Math.max(0,(this.resetFlash||0)-dt*2);
         for (const key in this.anim) {
             this.anim[key]+=(this.target(key)-this.anim[key])*k;
             this.pulse[key]=Math.max(0,this.pulse[key]-dt*TUNING.settingsUi.pulseDecay);
@@ -391,8 +392,9 @@ export class SettingsMenu extends Panel {
             const x0=px+c*colW;
             this.rows.push({key:keys[i],y:top+(i%per)*rh,lx:x0+28,cx:x0+colW*0.44,cw:colW*0.38});
         }
-        this.back={x:w/2-90,y:top+per*rh+4,w:180,h:48};
-        this.buttons=[this.back];
+        this.back={x:w/2+10,y:top+per*rh+4,w:180,h:48};
+        this.resetBtn={x:w/2-200,y:top+per*rh+4,w:190,h:48};
+        this.buttons=[this.back,this.resetBtn];
     }
 
     sliderSet(row,x) {
@@ -410,6 +412,14 @@ export class SettingsMenu extends Panel {
         this.hy=y;
         if (inRect(this.back,x,y)) {
             this.actions.back();
+            return true;
+        }
+        if (inRect(this.resetBtn,x,y)) {
+            for (const k in STICK_DEFAULTS) {
+                settings[k]=STICK_DEFAULTS[k];
+                this.bump(k);
+            }
+            this.resetFlash=1;
             return true;
         }
         for (const r of this.rows) {
@@ -561,6 +571,7 @@ export class SettingsMenu extends Panel {
         }
         ctx.restore();
         drawButton(ctx,this.back,t('menu.back'),v,(this.t-0.1)/0.3,inRect(this.back,this.hx??-1,this.hy??-1));
+        drawButton(ctx,this.resetBtn,t('settings.resetSticks'),v,(this.t-0.15)/0.3,inRect(this.resetBtn,this.hx??-1,this.hy??-1)||this.resetFlash>0,16);
         if (this.info&&this.t>0.35) {
             this.drawInfo(ctx,this.info,v);
         }
@@ -609,7 +620,9 @@ export class SettingsMenu extends Panel {
     }
 }
 
-const ENEMY_LIST=['doodle','blob','bird','compass','eraserMonster','inkBottle','scissors','book'];
+const FOE_LIST=['doodle','blob','sprayer','bird','compass','eraserMonster'];
+
+const BOSS_LIST=['inkBottle','scissors','book'];
 
 export class Codex extends Panel {
     constructor(actions) {
@@ -650,8 +663,8 @@ export class Codex extends Panel {
     layout() {
         const w=this.width;
         const h=this.height;
-        const tw=150;
-        this.tabs=[0,1,2].map(i=>({x:w/2-tw*1.5-12+i*(tw+12),y:70,w:tw,h:40}));
+        const tw=Math.min(130,(w-240)/4);
+        this.tabs=[0,1,2,3].map(i=>({x:w/2-(tw*4+36)/2+i*(tw+12),y:70,w:tw,h:40}));
         this.back={x:w/2-90,y:h-66,w:180,h:48};
         this.view={x:0,y:126,w:w,h:Math.max(80,h-126-84)};
         const pw=Math.min(1040,w-32);
@@ -908,16 +921,16 @@ export class Codex extends Panel {
         }
     }
 
-    drawEnemies(ctx,v) {
+    drawEnemies(ctx,v,list) {
         const w=this.width;
         const V=this.view;
         const cols=w>=900?2:1;
         const colW=Math.min(540,(w-40)/cols);
         const rowH=110;
         const x0=w/2-colW*cols/2;
-        this.contentH=Math.ceil(ENEMY_LIST.length/cols)*rowH+10;
-        for (let i=0;i<ENEMY_LIST.length;i++) {
-            const id=ENEMY_LIST[i];
+        this.contentH=Math.ceil(list.length/cols)*rowH+10;
+        for (let i=0;i<list.length;i++) {
+            const id=list[i];
             const x=x0+(i%cols)*colW;
             const y=V.y+6+Math.floor(i/cols)*rowH-this.scroll;
             if (y>V.y+V.h||y+rowH<V.y) {
@@ -1271,16 +1284,16 @@ export class Codex extends Panel {
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('menu.codex'),w/2,36);
-        const tl=[t('codex.normal'),t('codex.ult'),t('codex.enemies')];
+        const tl=[t('codex.normal'),t('codex.ult'),t('codex.enemies'),t('codex.bosses')];
         const ta=this.tabAnim;
-        const t0=this.tabs[Math.floor(Math.min(1.999,ta))];
-        const t1=this.tabs[Math.min(2,Math.floor(Math.min(1.999,ta))+1)];
-        const tf=ta-Math.floor(Math.min(1.999,ta));
+        const t0=this.tabs[Math.floor(Math.min(2.999,ta))];
+        const t1=this.tabs[Math.min(3,Math.floor(Math.min(2.999,ta))+1)];
+        const tf=ta-Math.floor(Math.min(2.999,ta));
         const hxp=t0.x+(t1.x-t0.x)*tf;
         const stretch=1+Math.sin(tf*Math.PI)*0.25;
         ctx.fillStyle=Math.abs(ta-1)<0.5?PALETTE.red:PALETTE.ink;
         ctx.fillRect(hxp+t0.w*(1-stretch)/2,t0.y,t0.w*stretch,t0.h);
-        for (let i=0;i<3;i++) {
+        for (let i=0;i<4;i++) {
             const b=this.tabs[i];
             ctx.save();
             ctx.translate(b.x,b.y);
@@ -1294,8 +1307,8 @@ export class Codex extends Panel {
         }
         this.upToggle=null;
         this.eliteToggle=null;
-        const tb=this.tabs[2];
-        const tr={x:Math.min(w-190,tb.x+tb.w+24),y:tb.y+5,w:150,h:30};
+        const tb=this.tabs[3];
+        const tr={x:Math.min(w-170,tb.x+tb.w+18),y:tb.y+5,w:150,h:30};
         const a0=Math.max(0,1-Math.abs(this.tabAnim)*1.5);
         const a2=Math.max(0,1-Math.abs(this.tabAnim-2)*1.5);
         if (a0>0) {
@@ -1326,7 +1339,7 @@ export class Codex extends Panel {
             this.drawCards(ctx,art,v,this.lists[this.tab]);
         }
         else {
-            this.drawEnemies(ctx,v);
+            this.drawEnemies(ctx,v,this.tab===2?FOE_LIST:BOSS_LIST);
         }
         ctx.restore();
         this.drawFades(ctx,V,this.scroll,this.contentH);

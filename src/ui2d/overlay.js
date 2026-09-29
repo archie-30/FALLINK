@@ -108,7 +108,7 @@ export class Overlay {
             game.mainMenu.draw(ctx);
         }
         game.settingsMenu.draw(ctx);
-        if (game.settingsMenu.open&&game.settingsMenu.drag&&/^stick/.test(game.settingsMenu.drag.key)) {
+        if (game.settingsMenu.open&&((game.settingsMenu.drag&&/^stick/.test(game.settingsMenu.drag.key))||game.settingsMenu.resetFlash>0)) {
             this.drawSticks(input,false);
         }
         game.codex.draw(ctx,game.art);

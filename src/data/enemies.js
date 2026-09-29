@@ -29,6 +29,38 @@ export const ENEMIES={
             limb:{light:'midGray',mid:'nearGray',dark:'ink'}
         }
     },
+    sprayer:{
+        ink:1.5,
+        nameKey:'enemy.sprayer',
+        hp:46,
+        radius:0.58,
+        scale:1.25,
+        height:2.3,
+        speed:2.2,
+        accel:12,
+        range:[4,7],
+        strafe:0.45,
+        fireInterval:[2.0,2.8],
+        firstShot:[1.3,2.1],
+        telegraph:0.65,
+        telegraphLength:6,
+        pellets:5,
+        spread:0.8,
+        bulletSpeed:8.5,
+        bulletDamage:1,
+        bulletLife:1.5,
+        lead:0.3,
+        contactDamage:1,
+        spawnTime:0.7,
+        shards:[5,8],
+        cost:2,
+        shardTone:'body',
+        tones:{
+            body:{light:'midGray',mid:'nearGray',dark:'ink'},
+            head:{light:'paper',mid:'farGray',dark:'midGray'},
+            limb:{light:'midGray',mid:'nearGray',dark:'ink'}
+        }
+    },
     blob:{
         ink:1.5,
         nameKey:'enemy.blob',

@@ -25,6 +25,22 @@ function xEye(ctx,x,y,v,seed) {
 }
 
 export const ENEMY_ICONS={
+    sprayer(ctx,v) {
+        fillPoly(ctx,rectPoly(-14,-4,28,24),PALETTE.midGray);
+        drawShape(ctx,hatchFill(rectPoly(-14,-4,28,24),{spacing:4,seed:1741,width:0.9}),PALETTE.nearGray,v);
+        drawShape(ctx,sketchRect(-14,-4,28,24,{width:1.8,seed:1742}),PALETTE.ink,v);
+        dot(ctx,0,-16,12,PALETTE.paper);
+        drawShape(ctx,sketchCircle(0,-16,12,{width:1.8,seed:1743}),PALETTE.ink,v);
+        fillPoly(ctx,[[-17,-22],[17,-22],[17,-19],[-17,-19]],PALETTE.nearGray);
+        fillPoly(ctx,[[-9,-22],[-8,-32],[8,-32],[9,-22]],PALETTE.nearGray);
+        drawShape(ctx,sketchRect(-17,-23,34,4,{width:1.4,seed:1744}),PALETTE.ink,v);
+        xEye(ctx,-5,-13,v,1745);
+        xEye(ctx,5,-13,v,1747);
+        drawShape(ctx,sketchLine(14,4,26,4,{width:3,seed:1749,overshoot:0}),PALETTE.ink,v);
+        fillPoly(ctx,[[25,1],[34,-5],[34,13],[25,7]],PALETTE.ink);
+        drawShape(ctx,sketchLine(-8,20,-8,30,{width:3,seed:1750,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(8,20,8,30,{width:3,seed:1751,overshoot:0}),PALETTE.ink,v);
+    },
     doodle(ctx,v) {
         fillPoly(ctx,rectPoly(-14,-4,28,24),PALETTE.farGray);
         drawShape(ctx,hatchFill(rectPoly(-14,-4,28,24),{spacing:5,seed:1701,width:0.9}),PALETTE.midGray,v);

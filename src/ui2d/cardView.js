@@ -36,6 +36,17 @@ function dot(ctx,x,y,r,color) {
     ctx.fill();
 }
 
+function fillTri(ctx,pts,color) {
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    for (const p of pts) {
+        ctx.lineTo(p[0],p[1]);
+    }
+    ctx.closePath();
+    ctx.fill();
+}
+
 const ICONS={
     scatter(ctx,v,cx,cy) {
         const ox=cx-24;
@@ -453,6 +464,92 @@ const ICONS={
         ctx.fill();
         drawShape(ctx,sketchLine(cx-34,cy+28,cx+34,cy+28,{width:2.6,seed:191}),PALETTE.red,v);
         dot(ctx,cx,cy,5,PALETTE.red);
+    },
+    paperBlade(ctx,v,cx,cy) {
+        const tri=[[cx-6,cy-16],[cx+14,cy+8],[cx-14,cy+10]];
+        fillTri(ctx,tri,PALETTE.farGray);
+        drawShape(ctx,sketchPolygon(tri,{width:1.8,seed:2001,overshoot:1}),PALETTE.ink,v);
+        const arc=[];
+        for (let i=0;i<=12;i++) {
+            const a=-2.6+i/12*2.2;
+            arc.push([cx+Math.cos(a)*32,cy+6+Math.sin(a)*22]);
+        }
+        drawShape(ctx,sketchPath(arc,{width:1.6,seed:2002,overshoot:0}),PALETTE.midGray,v);
+        const e=arc[arc.length-1];
+        fillTri(ctx,[[e[0]+6,e[1]-2],[e[0]-3,e[1]-8],[e[0]-1,e[1]+5]],PALETTE.midGray);
+        for (let i=0;i<3;i++) {
+            drawShape(ctx,sketchLine(cx-34+i*4,cy+22+i*3,cx-22+i*4,cy+16+i*3,{width:1.2,seed:2003+i}),PALETTE.midGray,v);
+        }
+    },
+    blot(ctx,v,cx,cy) {
+        drawShape(ctx,sketchCircle(cx,cy,26,{width:1.4,seed:2011}),PALETTE.midGray,v);
+        dot(ctx,cx,cy,9,PALETTE.ink);
+        for (let i=0;i<6;i++) {
+            const a=i/6*Math.PI*2+0.3;
+            const x0=cx+Math.cos(a)*30;
+            const y0=cy+Math.sin(a)*30;
+            const x1=cx+Math.cos(a)*15;
+            const y1=cy+Math.sin(a)*15;
+            drawShape(ctx,sketchLine(x0,y0,x1,y1,{width:1.4,seed:2012+i,overshoot:0}),PALETTE.ink,v);
+            dot(ctx,x0,y0,3,PALETTE.red);
+        }
+    },
+    inkField(ctx,v,cx,cy) {
+        ctx.fillStyle=rgba('midGray',0.5);
+        ctx.beginPath();
+        ctx.ellipse(cx,cy+12,36,13,0,0,Math.PI*2);
+        ctx.fill();
+        for (let i=0;i<5;i++) {
+            const x=cx-26+i*13;
+            const h=14+(i%2)*8;
+            fillTri(ctx,[[x-5,cy+14],[x,cy+14-h],[x+5,cy+14]],PALETTE.ink);
+        }
+        drawShape(ctx,sketchCircle(cx,cy+12,34,{width:1.2,seed:2021}),PALETTE.nearGray,v);
+    },
+    clusterBomb(ctx,v,cx,cy) {
+        dot(ctx,cx,cy,11,PALETTE.ink);
+        for (let i=0;i<4;i++) {
+            const a=i/4*Math.PI*2+0.78;
+            const x=cx+Math.cos(a)*26;
+            const y=cy+Math.sin(a)*22;
+            drawShape(ctx,sketchLine(cx+Math.cos(a)*13,cy+Math.sin(a)*11,x-Math.cos(a)*6,y-Math.sin(a)*6,{width:1.4,seed:2031+i,overshoot:0}),PALETTE.midGray,v);
+            dot(ctx,x,y,5.5,PALETTE.ink);
+        }
+        drawShape(ctx,sketchCircle(cx,cy,12,{width:1.6,seed:2035}),PALETTE.ink,v);
+    },
+    haste(ctx,v,cx,cy) {
+        for (let k=0;k<2;k++) {
+            const x=cx-4+k*18;
+            drawShape(ctx,sketchPath([[x-10,cy-16],[x+6,cy],[x-10,cy+16]],{width:3.2,seed:2041+k}),PALETTE.ink,v);
+        }
+        for (let i=0;i<3;i++) {
+            drawShape(ctx,sketchLine(cx-38,cy-10+i*10,cx-16,cy-10+i*10,{width:1.4,seed:2044+i}),PALETTE.midGray,v);
+        }
+    },
+    echo(ctx,v,cx,cy) {
+        drawShape(ctx,sketchRect(cx-24,cy-20,26,34,{width:1.4,seed:2051}),PALETTE.midGray,v);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(cx-8,cy-12,26,34);
+        drawShape(ctx,sketchRect(cx-8,cy-12,26,34,{width:1.8,seed:2052}),PALETTE.ink,v);
+        const arc=[];
+        for (let i=0;i<=10;i++) {
+            const a=-0.4+i/10*4.4;
+            arc.push([cx+5+Math.cos(a)*8,cy+5+Math.sin(a)*8]);
+        }
+        drawShape(ctx,sketchPath(arc,{width:1.8,seed:2053,overshoot:0}),PALETTE.red,v);
+        const e=arc[arc.length-1];
+        fillTri(ctx,[[e[0]+5,e[1]],[e[0]-3,e[1]-5],[e[0]-2,e[1]+5]],PALETTE.red);
+    },
+    inkStorm(ctx,v,cx,cy) {
+        ctx.fillStyle=PALETTE.nearGray;
+        for (const [x,y,r] of [[cx-14,cy-14,11],[cx,cy-20,13],[cx+14,cy-13,11],[cx,cy-10,12]]) {
+            ctx.beginPath();
+            ctx.arc(x,y,r,0,Math.PI*2);
+            ctx.fill();
+        }
+        const bolt=[[cx+2,cy-6],[cx-8,cy+10],[cx,cy+10],[cx-6,cy+28],[cx+10,cy+6],[cx+2,cy+6],[cx+8,cy-6]];
+        fillTri(ctx,bolt,PALETTE.red);
+        drawShape(ctx,sketchPolygon(bolt,{width:1.2,seed:2061,overshoot:0}),PALETTE.darkRed,v);
     }
 };
 

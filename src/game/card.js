@@ -85,6 +85,10 @@ export class CardEffects {
         }
         this.waveLine=mk();
         this.beamLine=mk();
+        this.bladeMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.62,0.06,3),toonMaterial({light:'paper',mid:'farGray',dark:'midGray'}));
+        this.bladeMesh.visible=false;
+        this.g.scene.add(this.bladeMesh);
+        this.lastPlay=null;
         this.mines=[];
         const mg=new THREE.SphereGeometry(0.42,10,6,0,Math.PI*2,0,Math.PI/2);
         const mm=unlitMaterial({color:'ink',jitter:0.02});
@@ -102,6 +106,8 @@ export class CardEffects {
 
     clear() {
         this.sweeps.length=0;
+        this.bladeMesh.visible=false;
+        this.lastPlay=null;
         this.eraserMesh.visible=false;
         this.redrawLine.visible=false;
         this.waveLine.visible=false;
@@ -242,6 +248,9 @@ export class CardEffects {
         const g=this.g;
         g.particles.burst(target.x,1.0,target.z,8,{color:card.def.rarity==='rare'?'red':'ink',speed:[1,4],up:[1,4],size:[0.08,0.16],life:[0.25,0.5]});
         card.def.effect(this,target,cardParams(card));
+        if (card.id!=='echo') {
+            this.lastPlay={card,target};
+        }
     }
 
     muzzle(dx,dz) {
@@ -452,6 +461,103 @@ export class CardEffects {
             }
             return s.drops.length===0;
         }
+        if (s.type==='blade') {
+            let bx;
+            let bz;
+            const out=k<0.5;
+            if (out) {
+                const f=1-Math.pow(1-k*2,2);
+                bx=s.x+s.dx*s.range*f;
+                bz=s.z+s.dz*s.range*f;
+                s.ex=bx;
+                s.ez=bz;
+            }
+            else {
+                const f=Math.pow((k-0.5)*2,2);
+                bx=s.ex+(p.pos.x-s.ex)*f;
+                bz=s.ez+(p.pos.z-s.ez)*f;
+            }
+            const hit=out?s.hitOut:s.hitBack;
+            for (const e of g.enemies.list.slice()) {
+                if (e.state==='spawn'||hit.has(e.uid)) {
+                    continue;
+                }
+                if (Math.hypot(e.pos.x-bx,e.pos.z-bz)<=this.E.bladeRadius+e.def.radius) {
+                    hit.add(e.uid);
+                    const dl=Math.hypot(bx-(s.px??bx),bz-(s.pz??bz))||1;
+                    g.enemies.damage(e,s.dmg,(bx-(s.px??bx))/dl,(bz-(s.pz??bz))/dl);
+                }
+            }
+            s.px=bx;
+            s.pz=bz;
+            const R=this.E.bladeRadius;
+            g.enemyBullets.killWhere((x,z)=>(x-bx)*(x-bx)+(z-bz)*(z-bz)<R*R,(x,z)=>g.particles.burst(x,1,z,2,{color:'farGray',speed:[1,3],up:[1,2]}));
+            const m=this.bladeMesh;
+            m.visible=k<1;
+            m.position.set(bx,1.0,bz);
+            m.rotation.y+=dt*22;
+            if (Math.random()<0.5) {
+                g.particles.burst(bx,1,bz,1,{color:'farGray',speed:[0.5,1.5],up:[0.5,1.5],size:[0.06,0.1],life:[0.2,0.35]});
+            }
+            if (k>=1) {
+                m.visible=false;
+                return true;
+            }
+            return false;
+        }
+        if (s.type==='field') {
+            s.tick-=dt;
+            if (s.tick<=0) {
+                s.tick=this.E.fieldTick;
+                for (const e of g.enemies.list.slice()) {
+                    if (e.state!=='spawn'&&!e.def.flying&&Math.hypot(e.pos.x-s.x,e.pos.z-s.z)<=s.r+e.def.radius) {
+                        g.enemies.damage(e,s.dps*this.E.fieldTick,0,0,true);
+                    }
+                }
+                const a=Math.random()*Math.PI*2;
+                const rr=Math.sqrt(Math.random())*s.r;
+                g.particles.burst(s.x+Math.cos(a)*rr,0.2,s.z+Math.sin(a)*rr,4,{color:'ink',speed:[0.3,1],up:[3,6],size:[0.06,0.12],life:[0.2,0.4]});
+            }
+            s.ring-=dt;
+            if (s.ring<=0) {
+                s.ring=0.5;
+                g.rings.spawn(s.x,s.z,s.r,'ink',0.3);
+            }
+            return k>=1;
+        }
+        if (s.type==='cluster') {
+            while (s.drops.length>0&&s.drops[0].t<=s.t) {
+                const d=s.drops.shift();
+                g.enemies.damageRadius(d.x,d.z,s.r,s.dmg);
+                if (g.room) {
+                    g.room.damageProps(d.x,d.z,s.r,s.dmg);
+                }
+                g.rings.spawn(d.x,d.z,s.r,'ink',0.25);
+                g.decals.spawn(d.x,d.z,s.r*1.2,'ink','midGray');
+                g.particles.burst(d.x,0.3,d.z,10,{speed:[2,6],up:[3,7],size:[0.08,0.16]});
+                g.fx.cameraShake(0.1);
+            }
+            return s.drops.length===0;
+        }
+        if (s.type==='storm') {
+            s.acc+=dt;
+            while (s.acc>=s.every) {
+                s.acc-=s.every;
+                const pool=g.enemies.list.filter(e=>e.state!=='spawn');
+                if (pool.length===0) {
+                    continue;
+                }
+                const e=pool[Math.floor(Math.random()*pool.length)];
+                const ex=e.pos.x;
+                const ez=e.pos.z;
+                this.link(ex+(Math.random()-0.5)*3,ez-3.5,ex,ez);
+                g.enemies.damage(e,s.dmg,0,1,false);
+                g.rings.spawn(ex,ez,1.3,'red',0.3);
+                g.particles.burst(ex,1.5,ez,10,{color:'red',speed:[2,5],up:[2,6],size:[0.08,0.16]});
+                g.fx.cameraShake(0.12);
+            }
+            return k>=1;
+        }
         if (s.type==='reflect') {
             if (p.reflectT<=0) {
                 return true;
@@ -577,6 +683,91 @@ export class CardEffects {
             return false;
         }
         return null;
+    }
+
+    paperBlade(dx,dz,damage,range) {
+        const p=this.g.player;
+        this.muzzle(dx,dz);
+        this.sweeps.push({type:'blade',t:0,dur:this.E.bladeTime*(range/8),x:p.pos.x,z:p.pos.z,dx,dz,range,dmg:damage,ex:p.pos.x,ez:p.pos.z,hitOut:new Set(),hitBack:new Set()});
+        this.g.fx.fovPunch(0.8);
+    }
+
+    blot(radius,per,max) {
+        const g=this.g;
+        const p=g.player;
+        const px=p.pos.x;
+        const pz=p.pos.z;
+        let n=0;
+        g.enemyBullets.killWhere((x,z)=>(x-px)*(x-px)+(z-pz)*(z-pz)<radius*radius,(x,z)=>{
+            n++;
+            const l=Math.hypot(px-x,pz-z)||1;
+            g.particles.burst(x,1,z,2,{dirX:(px-x)/l,dirZ:(pz-z)/l,cone:0.3,speed:[4,8],up:[0,1],size:[0.06,0.1],life:[0.2,0.3]});
+        });
+        const gain=Math.min(max,Math.floor(n/per));
+        if (gain>0) {
+            g.ink.add(gain);
+        }
+        g.rings.spawn(px,pz,radius,'ink',0.35);
+        g.fx.fovPunch(1.0);
+        p.sqv+=2;
+    }
+
+    inkField(x,z,radius,duration,dps) {
+        const g=this.g;
+        this.sweeps.push({type:'field',t:0,dur:duration,x,z,r:radius,dps,tick:0,ring:0});
+        g.decals.spawn(x,z,radius*2.1,'ink','midGray');
+        g.particles.burst(x,0.3,z,16,{speed:[1,radius*1.6],up:[2,5],size:[0.08,0.14]});
+        g.fx.cameraShake(0.12);
+    }
+
+    clusterBomb(x,z,radius,damage,count) {
+        const g=this.g;
+        const p=g.player;
+        const dx=x-p.pos.x;
+        const dz=z-p.pos.z;
+        const l=Math.hypot(dx,dz)||1;
+        const m=this.muzzle(dx/l,dz/l);
+        const arc=Math.min(this.E.bombArc,l*0.4+0.8);
+        g.lobs.launch(m.x,m.z,x,z,this.E.bombFlight,arc,(lx,lz)=>{
+            this.explode(lx,lz,radius,damage);
+            const drops=[];
+            const a0=Math.random()*Math.PI*2;
+            for (let i=0;i<count;i++) {
+                const a=a0+i/count*Math.PI*2;
+                drops.push({x:lx+Math.cos(a)*radius*1.1,z:lz+Math.sin(a)*radius*1.1,t:0.15+i*0.07});
+            }
+            this.sweeps.push({type:'cluster',t:0,dur:1,drops,r:radius*0.6,dmg:damage*0.6});
+        });
+    }
+
+    haste(duration,mult) {
+        const g=this.g;
+        const p=g.player;
+        p.hasteT=duration;
+        p.hasteMult=mult;
+        p.sqv+=2;
+        g.rings.spawn(p.pos.x,p.pos.z,1.6,'ink',0.3);
+        g.particles.burst(p.pos.x,0.4,p.pos.z,14,{speed:[3,6],up:[0.5,2],size:[0.06,0.12]});
+        g.fx.fovPunch(1.2);
+    }
+
+    echo() {
+        const g=this.g;
+        const lp=this.lastPlay;
+        g.fx.flash('paper',0.2,0.35);
+        if (!lp) {
+            g.ink.add(this.E.echoFallbackInk);
+            return;
+        }
+        g.rings.spawn(g.player.pos.x,g.player.pos.z,2,'red',0.35);
+        lp.card.def.effect(this,lp.target,cardParams(lp.card));
+    }
+
+    inkStorm(duration,damage,every) {
+        const g=this.g;
+        this.sweeps.push({type:'storm',t:0,dur:duration,acc:every*0.6,every,dmg:damage});
+        g.fx.flash('ink',0.25,0.3);
+        g.fx.cameraShake(0.3);
     }
 
     heal(n) {
