@@ -232,6 +232,7 @@ export const TUNING={
         dragThreshold:10,
         targetLift:70,
         mergeCount:3,
+        upFrame:8,
         keycap:{size:34,font:19,pad:9,gap:10,dimAlpha:0.45},
         fieldMargin:0.95,
         inkStrokes:18
@@ -247,6 +248,8 @@ export const TUNING={
         autoClose:7
     },
     ui:{
+        loaderMin:0.7,
+        loaderFade:0.6,
         closeTime:0.28,
         deckCloseTime:0.32,
         deckOutMax:0.75
@@ -311,16 +314,25 @@ export const TUNING={
     },
     reward:{
         choices:2,
-        rareChance:0.15,
-        bossRareChance:0.5,
+        every:2,
+        pickTime:0.65,
+        rareChance:0.12,
         newChance:0.6
     },
     damageNumbers:{
-        life:0.75,
-        rise:40,
-        size:18,
-        critSize:26,
-        mergeTime:0.12
+        life:0.85,
+        rise:46,
+        fall:30,
+        size:20,
+        critSize:30,
+        mergeTime:0.12,
+        drift:40,
+        punch:0.9,
+        punchDecay:14,
+        bigFrom:30,
+        bigRange:120,
+        bigBoost:0.8,
+        burstTime:0.22
     },
     props:{
         barrelHp:25,
@@ -377,7 +389,9 @@ export const TUNING={
         hpPos:[24,22],
         hpLength:220,
         hpHeight:22,
-        legendPad:14
+        legendPad:14,
+        lock:{base:18,perRadius:16,snapTime:0.18,snapGrow:1.2,pulse:6,spin:0.8},
+        reloadRing:12
     },
     quality:{
         low:{pixelRatio:1.0,grain:false,hatchedShadow:false,anisotropy:1,particles:120,hulls:false},
@@ -389,7 +403,8 @@ export const TUNING={
         desktop:2.0
     },
     reducedMotion:{
-        boil:0.35,
-        shake:0.3
+        boil:0,
+        shake:0,
+        flash:0.12
     }
 };

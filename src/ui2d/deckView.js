@@ -50,6 +50,7 @@ export class DeckView {
         this.open=true;
         this.closing=false;
         this.sel=null;
+        this.onClosed=null;
         this.t=0;
     }
 
@@ -107,6 +108,11 @@ export class DeckView {
             if (this.t<=0) {
                 this.t=0;
                 this.closing=false;
+                const cb=this.onClosed;
+                this.onClosed=null;
+                if (cb) {
+                    cb();
+                }
             }
         }
     }

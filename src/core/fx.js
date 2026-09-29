@@ -17,6 +17,9 @@ export const fx={
     },
 
     hitStop(ms,force=false) {
+        if (settings.reducedMotion) {
+            return;
+        }
         if (this.stopCd>0&&!force) {
             return;
         }
@@ -26,24 +29,27 @@ export const fx={
     },
 
     cameraShake(trauma) {
-        if (this.rig) {
+        if (this.rig&&!settings.reducedMotion) {
             this.rig.addTrauma(trauma);
         }
     },
 
     fovPunch(amount) {
-        if (this.rig) {
+        if (this.rig&&!settings.reducedMotion) {
             this.rig.fovPunch(amount);
         }
     },
 
     flash(colorKey,duration,strength=1) {
         if (this.post) {
-            this.post.flash(colorKey,duration,strength*(settings.reducedMotion?0.3:1));
+            this.post.flash(colorKey,duration,strength*(settings.reducedMotion?TUNING.reducedMotion.flash:1));
         }
     },
 
     slowMo(scale,duration) {
+        if (settings.reducedMotion) {
+            return;
+        }
         this.slowScale=scale;
         this.slowTime=duration;
     },

@@ -1,6 +1,6 @@
 import {PALETTE,rgba} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
-import {EASE} from '../core/easing.js';
+import {settings} from '../core/settings.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -8,7 +8,7 @@ export class DamageNumbers {
     constructor(cap=48) {
         this.items=[];
         for (let i=0;i<cap;i++) {
-            this.items.push({active:false,x:0,y:0,z:0,v:0,t:0,crit:false,ox:0,rot:0});
+            this.items.push({active:false,x:0,y:0,z:0,v:0,t:0,crit:false,ox:0,rot:0,bump:0});
         }
         this.next=0;
         this.tmp={x:0,y:0};
@@ -35,6 +35,7 @@ export class DamageNumbers {
             if (it.active&&!it.text&&it.t<D.mergeTime&&Math.abs(it.x-x)<0.9&&Math.abs(it.z-z)<0.9&&it.crit===crit) {
                 it.v+=value;
                 it.t=Math.min(it.t,0.05);
+                it.bump=1;
                 return;
             }
         }
@@ -48,8 +49,9 @@ export class DamageNumbers {
         it.t=0;
         it.crit=crit;
         it.text=null;
-        it.ox=(Math.random()-0.5)*24;
-        it.rot=(Math.random()-0.5)*0.25;
+        it.ox=(Math.random()-0.5)*D.drift;
+        it.rot=(Math.random()-0.5)*0.3;
+        it.bump=0;
     }
 
     clear() {
@@ -63,6 +65,7 @@ export class DamageNumbers {
         for (const it of this.items) {
             if (it.active) {
                 it.t+=dt;
+                it.bump=Math.max(0,it.bump-dt*6);
                 if (it.t>=D.life) {
                     it.active=false;
                 }
@@ -72,6 +75,7 @@ export class DamageNumbers {
 
     draw(ctx,project) {
         const D=TUNING.damageNumbers;
+        const calm=settings.reducedMotion;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         for (const it of this.items) {
@@ -80,19 +84,41 @@ export class DamageNumbers {
             }
             project(it.x,it.y,it.z,this.tmp);
             const k=it.t/D.life;
-            const pop=EASE.easeOutBack(Math.min(1,it.t/0.18));
-            const size=it.text?D.size*(0.6+0.4*pop):(it.crit?D.critSize:D.size)*(0.6+0.4*pop)*(1+Math.min(1.2,Math.log10(Math.max(1,it.v))*0.18));
-            const y=this.tmp.y-it.t*D.rise-EASE.easeOutQuad(Math.min(1,it.t/0.3))*16;
-            const a=k<0.7?1:1-(k-0.7)/0.3;
+            const big=it.text?0:Math.min(1,Math.max(0,(it.v-D.bigFrom)/D.bigRange));
+            const base=it.text?D.size:(it.crit?D.critSize:D.size)*(1+big*D.bigBoost);
+            const punch=calm?0:D.punch*Math.exp(-it.t*D.punchDecay)+it.bump*0.35;
+            const size=base*(1+punch);
+            const up=(1-Math.exp(-it.t*6))*D.rise+(calm?0:Math.max(0,it.t-0.35)*D.fall);
+            const x=this.tmp.x+it.ox*(1-Math.exp(-it.t*6));
+            const y=this.tmp.y-up;
+            const a=k<0.65?1:1-(k-0.65)/0.35;
+            const shake=it.crit&&!calm&&it.t<0.2?(Math.random()-0.5)*6*(1-it.t/0.2):0;
             ctx.save();
-            ctx.translate(this.tmp.x+it.ox,y);
-            ctx.rotate(it.rot);
-            ctx.font='bold '+Math.round(size)+'px '+FONT;
-            const txt=it.text||String(Math.round(it.v));
-            ctx.lineWidth=4;
-            ctx.strokeStyle=rgba('paper',a*0.9);
+            ctx.translate(x+shake,y);
+            ctx.rotate(calm?0:it.rot*(1-Math.min(1,it.t*3)));
+            if ((it.crit||big>0.3)&&!calm&&it.t<D.burstTime) {
+                const f=it.t/D.burstTime;
+                ctx.strokeStyle=it.crit?rgba('red',1-f):rgba('ink',(1-f)*0.8);
+                ctx.lineWidth=3*(1-f)+1;
+                for (let i=0;i<8;i++) {
+                    const an=i/8*Math.PI*2+it.rot*3;
+                    const r0=size*(0.55+f*0.5);
+                    const r1=size*(0.8+f*0.9);
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(an)*r0,Math.sin(an)*r0*0.7);
+                    ctx.lineTo(Math.cos(an)*r1,Math.sin(an)*r1*0.7);
+                    ctx.stroke();
+                }
+            }
+            ctx.font='900 '+Math.round(size)+'px '+FONT;
+            const txt=it.text||String(Math.round(it.v))+(it.crit?'!':'');
+            ctx.fillStyle=rgba('ink',0.28*a);
+            ctx.fillText(txt,2,3);
+            ctx.lineWidth=Math.max(4,size*0.22);
+            ctx.lineJoin='round';
+            ctx.strokeStyle=rgba('paper',a);
             ctx.strokeText(txt,0,0);
-            ctx.fillStyle=it.crit?rgba('red',a):rgba('ink',a);
+            ctx.fillStyle=it.crit?rgba('red',a):(big>0.5?rgba('darkRed',a):rgba('ink',a));
             ctx.fillText(txt,0,0);
             ctx.restore();
         }

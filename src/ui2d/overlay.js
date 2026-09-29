@@ -3,6 +3,7 @@ import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
 import {device,settings} from '../core/settings.js';
 import {time} from '../core/loop.js';
+import {EASE} from '../core/easing.js';
 import {hash1} from '../core/rng.js';
 import {Hud} from './hud.js';
 import {sketchCircle,drawShape} from './sketch.js';
@@ -113,7 +114,10 @@ export class Overlay {
         }
         game.codex.draw(ctx,game.art);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
-            this.drawCrosshair(input.mouse.x,input.mouse.y,input.mouse.down);
+            const play=game.mode==='play'&&game.run.state!=='dead';
+            const lock=play&&!!game.aimTarget&&game.aimTarget.alive;
+            const reload=play&&player.reloadT>0?1-player.reloadT/TUNING.weapon.reloadTime:0;
+            this.drawCrosshair(input.mouse.x,input.mouse.y,input.mouse.down,lock,reload);
         }
         if (this.showDebug&&debug) {
             this.drawDebug(debug);
@@ -142,20 +146,46 @@ export class Overlay {
             }
         }
         if (!e||!e.alive) {
+            this.lockUid=-1;
             return;
         }
-        game.project(e.renderPos.x,e.def.height*0.5,e.renderPos.z,tmp);
-        const r=18+e.def.radius*16;
-        const k=6;
-        ctx.strokeStyle=PALETTE.ink;
-        ctx.lineWidth=2.4;
-        ctx.beginPath();
-        for (const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]) {
-            ctx.moveTo(tmp.x+sx*r,tmp.y+sy*(r-k));
-            ctx.lineTo(tmp.x+sx*r,tmp.y+sy*r);
-            ctx.lineTo(tmp.x+sx*(r-k),tmp.y+sy*r);
+        if (this.lockUid!==e.uid) {
+            this.lockUid=e.uid;
+            this.lockT=0;
         }
-        ctx.stroke();
+        this.lockT+=game.dt;
+        const L=TUNING.hud.lock;
+        game.project(e.renderPos.x,e.def.height*0.5,e.renderPos.z,tmp);
+        const snap=EASE.easeOutBack(Math.min(1,this.lockT/L.snapTime));
+        const r=(L.base+e.def.radius*L.perRadius)*(1+(1-snap)*L.snapGrow)*(1+Math.sin(time.real*L.pulse)*0.05);
+        const k=r*0.4;
+        ctx.save();
+        ctx.translate(tmp.x,tmp.y);
+        ctx.rotate(time.real*L.spin);
+        ctx.globalAlpha=Math.min(1,this.lockT/0.08);
+        ctx.strokeStyle=PALETTE.paper;
+        ctx.lineWidth=6;
+        ctx.lineCap='round';
+        for (let pass=0;pass<2;pass++) {
+            ctx.beginPath();
+            for (const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]) {
+                ctx.moveTo(sx*r,sy*(r-k));
+                ctx.lineTo(sx*r,sy*r);
+                ctx.lineTo(sx*(r-k),sy*r);
+            }
+            ctx.stroke();
+            ctx.strokeStyle=PALETTE.red;
+            ctx.lineWidth=3;
+        }
+        ctx.restore();
+        ctx.fillStyle=PALETTE.red;
+        ctx.beginPath();
+        const dy=tmp.y-r-10-Math.abs(Math.sin(time.real*4))*4;
+        ctx.moveTo(tmp.x,dy+6);
+        ctx.lineTo(tmp.x-6,dy-4);
+        ctx.lineTo(tmp.x+6,dy-4);
+        ctx.closePath();
+        ctx.fill();
     }
 
     drawSticks(input,casting) {
@@ -210,11 +240,37 @@ export class Overlay {
         ctx.fillText(t('ui.dash'),d.x,d.y+1);
     }
 
-    drawCrosshair(x,y,down) {
+    drawCrosshair(x,y,down,locked=false,reload=0) {
         const ctx=this.ctx;
         const r=down?9:12;
-        this.ring(x,y,r,2,PALETTE.ink,97);
-        ctx.strokeStyle=PALETTE.ink;
+        const col=locked?PALETTE.red:PALETTE.ink;
+        if (reload>0) {
+            const R=r+TUNING.hud.reloadRing;
+            ctx.strokeStyle=rgba('ink',0.18);
+            ctx.lineWidth=4;
+            ctx.beginPath();
+            ctx.arc(x,y,R,0,Math.PI*2);
+            ctx.stroke();
+            const a0=-Math.PI/2;
+            const a1=a0+reload*Math.PI*2;
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=4;
+            ctx.beginPath();
+            ctx.arc(x,y,R,a0,a1);
+            ctx.stroke();
+            ctx.fillStyle=PALETTE.red;
+            ctx.beginPath();
+            ctx.arc(x+Math.cos(a1)*R,y+Math.sin(a1)*R,3.5,0,Math.PI*2);
+            ctx.fill();
+        }
+        if (locked) {
+            ctx.fillStyle=rgba('red',0.15);
+            ctx.beginPath();
+            ctx.arc(x,y,r+4,0,Math.PI*2);
+            ctx.fill();
+        }
+        this.ring(x,y,r,2,col,97);
+        ctx.strokeStyle=col;
         ctx.lineWidth=2;
         ctx.beginPath();
         for (let i=0;i<4;i++) {
@@ -223,7 +279,7 @@ export class Overlay {
             ctx.lineTo(x+Math.cos(a)*(r+9),y+Math.sin(a)*(r+9));
         }
         ctx.stroke();
-        ctx.fillStyle=PALETTE.ink;
+        ctx.fillStyle=col;
         ctx.fillRect(x-1.5,y-1.5,3,3);
     }
 

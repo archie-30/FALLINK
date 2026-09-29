@@ -1,7 +1,7 @@
 import {ACTS,ENDLESS} from '../data/levels.js';
 import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
-import {progress} from '../core/progress.js';
+import {progress,effectiveLevel} from '../core/progress.js';
 import {RNG} from '../core/rng.js';
 import {planRoom,planEndless} from './level.js';
 import {RoomDirector} from './room.js';
@@ -70,13 +70,14 @@ export class Run {
         return true;
     }
 
-    rewardChoices() {
+    rewardChoices(kind='mixed') {
         const R=TUNING.reward;
         const boss=this.plan.boss;
-        const rareChance=boss?R.bossRareChance:R.rareChance;
+        const rareChance=kind==='rare'?1:(kind==='normal'?0:R.rareChance);
         const upChance=Math.min(0.6,this.act*0.2+(boss?0.3:0));
-        const pool=unlockedCards(progress.level);
-        const fresh=(UNLOCKS[progress.level]||[]).concat(UNLOCKS[progress.level-1]||[]).filter(id=>pool.includes(id));
+        const lv=effectiveLevel();
+        const pool=unlockedCards(lv);
+        const fresh=(UNLOCKS[lv]||[]).concat(UNLOCKS[lv-1]||[]).filter(id=>pool.includes(id));
         const owned=new Set(this.deckList.map(c=>c.id));
         const out=[];
         let guard=0;
@@ -95,6 +96,43 @@ export class Run {
             out.push(createCard(id,this.rng.next()<upChance));
         }
         return out;
+    }
+
+    rewardPage() {
+        const R=TUNING.reward;
+        return this.plan.boss||this.plan.index%R.every===0;
+    }
+
+    deckCounts() {
+        const out={};
+        for (const c of this.deckList) {
+            const k=c.id;
+            out[k]=out[k]||{all:0,base:0};
+            out[k].all++;
+            if (!c.upgraded) {
+                out[k].base++;
+            }
+        }
+        return out;
+    }
+
+    takeCards(cards) {
+        const merged=[];
+        for (const c of cards) {
+            const m=this.addCard(c);
+            if (m) {
+                merged.push(m);
+            }
+        }
+        const step=()=>{
+            if (merged.length===0||!this.hooks.onMerge) {
+                this.next();
+                return;
+            }
+            this.state='upgrade';
+            this.hooks.onMerge(merged.shift(),step);
+        };
+        step();
     }
 
     addCard(card) {
@@ -166,16 +204,13 @@ export class Run {
         if (this.state==='cleared') {
             this.timer-=dt;
             if (this.timer<=0) {
-                this.state='reward';
-                this.hooks.openReward(this.rewardChoices(),card=>{
-                    const merged=card?this.addCard(card):null;
-                    if (merged&&this.hooks.onMerge) {
-                        this.state='upgrade';
-                        this.hooks.onMerge(merged,()=>this.next());
-                        return;
-                    }
+                if (!this.rewardPage()) {
                     this.next();
-                });
+                    return;
+                }
+                this.state='reward';
+                const groups=this.plan.boss?[{kind:'normal',cards:this.rewardChoices('normal')},{kind:'rare',cards:this.rewardChoices('rare')}]:[{kind:'mixed',cards:this.rewardChoices('mixed')}];
+                this.hooks.openReward(groups,this.deckCounts(),cards=>this.takeCards(cards));
             }
             return;
         }

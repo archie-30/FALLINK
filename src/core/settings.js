@@ -16,7 +16,8 @@ export const settings={
     volume:0.8,
     stickSize:0.45,
     stickX:0.45,
-    stickY:0.4
+    stickY:0.4,
+    godMode:false
 };
 
 export const STICK_DEFAULTS={stickSize:0.45,stickX:0.45,stickY:0.4};
