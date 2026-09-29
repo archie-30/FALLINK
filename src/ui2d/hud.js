@@ -4,6 +4,7 @@ import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
 import {sketchRect,sketchLine,sketchPath,hatchFill,rectPoly,drawShape} from './sketch.js';
 import {EASE} from '../core/easing.js';
+import {wrapText} from './cardView.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -81,6 +82,42 @@ export class Hud {
         this.bannerT=0;
         this.bannerDur=0;
         this.bossShown=1;
+    }
+
+    drawEnemyHp(ctx,enemies,project,tmp) {
+        const E=TUNING.hud.enemyHp;
+        for (const e of enemies.list) {
+            const d=e.def;
+            if (d.boss||!e.alive||(e.state==='spawn'&&!e.quick)) {
+                continue;
+            }
+            project(e.renderPos.x,0,e.renderPos.z,tmp);
+            const n=Math.max(E.minTicks,Math.min(E.maxTicks,Math.round(d.hp/E.hpPerTick)));
+            const r=E.radius+d.radius*E.radiusScale;
+            const span=Math.PI*E.span;
+            const cx=tmp.x;
+            const cy=tmp.y+E.offset+d.radius*E.radiusScale*0.4;
+            const f=Math.max(0,e.hp/e.maxHp);
+            const shown=e.hpShown??f;
+            e.hpShown=shown+(f-shown)*E.follow;
+            const lit=f*n;
+            const trail=e.hpShown*n;
+            for (let i=0;i<n;i++) {
+                const a=Math.PI/2+span/2-span*(i+0.5)/n;
+                const x=cx+Math.cos(a)*r;
+                const y=cy-r+Math.sin(a)*r;
+                const filled=i<Math.ceil(lit-0.001);
+                const lost=!filled&&i<Math.ceil(trail-0.001);
+                ctx.save();
+                ctx.translate(x,y);
+                ctx.rotate(a-Math.PI/2);
+                ctx.fillStyle=PALETTE.paper;
+                ctx.fillRect(-E.tickW/2-1.5,-E.tickH/2-1.5,E.tickW+3,E.tickH+3);
+                ctx.fillStyle=filled?(e.elite?PALETTE.red:PALETTE.ink):(lost?PALETTE.red:rgba('midGray',0.6));
+                ctx.fillRect(-E.tickW/2,-E.tickH/2,E.tickW,E.tickH);
+                ctx.restore();
+            }
+        }
     }
 
     drawAmmo(ctx,player,project,tmp) {
@@ -166,19 +203,37 @@ export class Hud {
         ctx.globalAlpha=out;
         ctx.translate(w/2,h*0.2);
         ctx.scale(inA,inA);
-        ctx.fillStyle=rgba('paper',0.85);
+        const maxW=Math.min(w-48,760);
         ctx.font='bold 38px '+FONT;
-        const tw=ctx.measureText(this.bannerText).width;
-        ctx.fillRect(-tw/2-24,-36,tw+48,this.bannerSub?92:68);
-        drawShape(ctx,sketchRect(-tw/2-24,-36,tw+48,this.bannerSub?92:68,{width:2,seed:701}),PALETTE.ink);
+        let tw=ctx.measureText(this.bannerText).width;
+        const ts=tw>maxW-48?(maxW-48)/tw:1;
+        tw*=ts;
+        ctx.font='16px '+FONT;
+        const subs=this.bannerSub?wrapText(ctx,this.bannerSub,maxW-48):[];
+        let sw=0;
+        for (const l of subs) {
+            sw=Math.max(sw,ctx.measureText(l).width);
+        }
+        const bw=Math.round(Math.max(tw,sw)+48);
+        const bh=Math.round(68+subs.length*24);
+        ctx.fillStyle=rgba('paper',0.85);
+        ctx.fillRect(-bw/2,-36,bw,bh);
+        ctx.save();
+        ctx.translate(-bw/2,-36);
+        drawShape(ctx,sketchRect(0,0,bw,bh,{width:2,seed:701}),PALETTE.ink);
+        ctx.restore();
         ctx.fillStyle=PALETTE.ink;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        ctx.fillText(this.bannerText,0,-2);
-        if (this.bannerSub) {
-            ctx.font='16px '+FONT;
-            ctx.fillStyle=PALETTE.nearGray;
-            ctx.fillText(this.bannerSub,0,34);
+        ctx.save();
+        ctx.scale(ts,ts);
+        ctx.font='bold 38px '+FONT;
+        ctx.fillText(this.bannerText,0,-2/ts);
+        ctx.restore();
+        ctx.font='16px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        for (let i=0;i<subs.length;i++) {
+            ctx.fillText(subs[i],0,34+i*24);
         }
         ctx.restore();
     }

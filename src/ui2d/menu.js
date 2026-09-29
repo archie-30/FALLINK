@@ -50,6 +50,8 @@ class Panel {
         this.height=1;
         this.hoverIdx=-1;
         this.buttons=[];
+        this.closing=false;
+        this.outFrom=0.45;
     }
 
     resize(w,h) {
@@ -59,16 +61,33 @@ class Panel {
 
     show() {
         this.open=true;
+        this.closing=false;
         this.t=0;
     }
 
     hide() {
+        if (!this.open) {
+            return;
+        }
         this.open=false;
+        this.closing=true;
+        this.t=Math.min(this.t,this.outFrom);
+    }
+
+    shown() {
+        return this.open||this.closing;
     }
 
     update(dt) {
         if (this.open) {
             this.t+=dt;
+        }
+        else if (this.closing) {
+            this.t-=dt*this.outFrom/TUNING.ui.closeTime;
+            if (this.t<=0) {
+                this.t=0;
+                this.closing=false;
+            }
         }
     }
 
@@ -101,6 +120,7 @@ export class MainMenu extends Panel {
     constructor(actions) {
         super();
         this.actions=actions;
+        this.outFrom=1.3;
     }
 
     layout() {
@@ -176,7 +196,7 @@ export class MainMenu extends Panel {
     }
 
     draw(ctx) {
-        if (!this.open) {
+        if (!this.shown()) {
             return;
         }
         this.layout();
@@ -244,7 +264,7 @@ export class PauseMenu extends Panel {
     }
 
     draw(ctx) {
-        if (!this.open) {
+        if (!this.shown()) {
             return;
         }
         this.layout();
@@ -274,6 +294,7 @@ export class SettingsMenu extends Panel {
     constructor(actions) {
         super();
         this.actions=actions;
+        this.outFrom=0.35;
         this.drag=null;
         this.rows=[];
         this.anim={};
@@ -406,7 +427,7 @@ export class SettingsMenu extends Panel {
     }
 
     draw(ctx) {
-        if (!this.open) {
+        if (!this.shown()) {
             return;
         }
         this.layout();
@@ -615,7 +636,7 @@ export class Codex extends Panel {
         if (!this.open) {
             return;
         }
-        if (this.detail) {
+        if (this.detailOpen()) {
             this.dScrollTo+=dy;
         }
         else {
@@ -641,11 +662,16 @@ export class Codex extends Panel {
         }
     }
 
+    detailOpen() {
+        return !!this.detail&&!this.detail.closing;
+    }
+
     closeDetail() {
-        if (!this.detail) {
+        if (!this.detailOpen()) {
             return false;
         }
-        this.detail=null;
+        this.detail.closing=true;
+        this.detail.t=Math.min(this.detail.t,0.3);
         return true;
     }
 
@@ -654,6 +680,9 @@ export class Codex extends Panel {
             return false;
         }
         this.layout();
+        if (this.detail&&this.detail.closing) {
+            return true;
+        }
         if (this.detail) {
             if (inRect(this.dClose,x,y)||!inRect(this.dPanel,x,y)) {
                 this.closeDetail();
@@ -715,7 +744,15 @@ export class Codex extends Panel {
         this.dScroll+=(this.dScrollTo-this.dScroll)*k;
         this.animT+=dt;
         if (this.detail) {
-            this.detail.t+=dt;
+            if (this.detail.closing) {
+                this.detail.t-=dt*0.3/TUNING.ui.closeTime;
+                if (this.detail.t<=0) {
+                    this.detail=null;
+                }
+            }
+            else {
+                this.detail.t+=dt;
+            }
         }
     }
 
@@ -729,7 +766,7 @@ export class Codex extends Panel {
     }
 
     hovering(r) {
-        return !this.detail&&inRect(r,this.hx??-1,this.hy??-1)&&inRect(this.view,this.hx??-1,this.hy??-1);
+        return !this.detailOpen()&&inRect(r,this.hx??-1,this.hy??-1)&&inRect(this.view,this.hx??-1,this.hy??-1);
     }
 
     drawCards(ctx,art,v,list) {
@@ -1096,7 +1133,7 @@ export class Codex extends Panel {
     }
 
     draw(ctx,art) {
-        if (!this.open) {
+        if (!this.shown()) {
             return;
         }
         this.layout();
@@ -1164,6 +1201,7 @@ export class RunSummary {
         this.width=1;
         this.height=1;
         this.button={x:0,y:0,w:0,h:0};
+        this.closeK=0;
     }
 
     resize(w,h) {
@@ -1171,8 +1209,21 @@ export class RunSummary {
         this.height=h;
     }
 
+    shown() {
+        return this.open||this.closeK>0;
+    }
+
+    close(toMenu) {
+        this.open=false;
+        this.closeK=1;
+        if (this.onRestart) {
+            this.onRestart(toMenu);
+        }
+    }
+
     show(victory,stats,quit,onRestart) {
         this.open=true;
+        this.closeK=0;
         this.t=0;
         this.victory=victory;
         this.quit=quit;
@@ -1187,17 +1238,12 @@ export class RunSummary {
         const b=this.button;
         if (this.t>(this.victory||this.quit?1.0:2.0)) {
             if (x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h) {
-                this.open=false;
-                if (this.onRestart) {
-                    this.onRestart(false);
-                }
+                this.close(false);
+                return true;
             }
             const m=this.menuButton;
             if (m&&x>=m.x&&x<=m.x+m.w&&y>=m.y&&y<=m.y+m.h) {
-                this.open=false;
-                if (this.onRestart) {
-                    this.onRestart(true);
-                }
+                this.close(true);
             }
         }
         return true;
@@ -1207,12 +1253,27 @@ export class RunSummary {
         if (this.open) {
             this.t+=dt;
         }
+        this.closeK=Math.max(0,this.closeK-dt/TUNING.ui.closeTime);
     }
 
     draw(ctx) {
-        if (!this.open) {
+        if (!this.shown()) {
             return;
         }
+        if (this.closeK>0) {
+            const k=EASE.easeInCubic(1-this.closeK);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0,this.height*k*0.5,this.width,this.height*(1-k));
+            ctx.clip();
+            this.drawBody(ctx);
+            ctx.restore();
+            return;
+        }
+        this.drawBody(ctx);
+    }
+
+    drawBody(ctx) {
         const w=this.width;
         const h=this.height;
         const v=time.boilIndex;

@@ -179,7 +179,7 @@ export const STRINGS={
     'reward.title':'選擇一張卡牌加入牌組',
     'reward.bossTitle':'擊敗頭目！選擇一張卡牌',
     'reward.skip':'跳過',
-    'summary.dead':'你被擦掉了',
+    'summary.dead':'你被擦除了',
     'summary.victory':'全書完成！',
     'summary.act':'到達幕數',
     'summary.rooms':'清除頁數',

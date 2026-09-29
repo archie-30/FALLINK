@@ -156,6 +156,7 @@ export class Enemy {
         this.maxHp=this.hp;
         this.uid=++uidCounter;
         this.alive=true;
+        this.hpShown=1;
         this.state='spawn';
         this.stateT=0;
         this.t=0;

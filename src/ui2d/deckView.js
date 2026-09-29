@@ -2,6 +2,7 @@ import {PALETTE,rgba} from '../data/palette.js';
 import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
 import {EASE} from '../core/easing.js';
+import {TUNING} from '../data/tuning.js';
 import {CARD_W,CARD_H,drawCost,drawCardTooltip} from './cardView.js';
 import {sketchRect,sketchLine,drawShape} from './sketch.js';
 
@@ -18,6 +19,7 @@ export class DeckView {
         this.hx=-1;
         this.hy=-1;
         this.returnPause=false;
+        this.closeK=0;
     }
 
     hover(x,y) {
@@ -42,10 +44,14 @@ export class DeckView {
 
     show() {
         this.open=true;
+        this.closeK=0;
         this.t=0;
     }
 
     hide() {
+        if (this.open) {
+            this.closeK=1;
+        }
         this.open=false;
     }
 
@@ -61,6 +67,7 @@ export class DeckView {
         if (this.open) {
             this.t+=dt;
         }
+        this.closeK=Math.max(0,this.closeK-dt/TUNING.ui.closeTime);
     }
 
     section(ctx,art,cards,title,x,y,w,variant,startIndex) {
@@ -92,7 +99,7 @@ export class DeckView {
             this.rects.push({x:cx-cw/2,y:cy-ch/2,w:cw,h:ch,card:c});
             ctx.save();
             ctx.translate(cx,cy+(1-e)*30);
-            ctx.globalAlpha=Math.min(1,p*2);
+            ctx.globalAlpha*=Math.min(1,p*2);
             ctx.scale(sc*e,sc*e);
             ctx.translate(-CARD_W/2,-CARD_H/2);
             ctx.drawImage(art.face(c,variant),0,0,CARD_W,CARD_H);
@@ -102,9 +109,22 @@ export class DeckView {
     }
 
     draw(ctx,art,deck) {
-        if (!this.open) {
+        if (!this.open&&this.closeK<=0) {
             return;
         }
+        if (this.closeK>0) {
+            const k=EASE.easeInCubic(1-this.closeK);
+            ctx.save();
+            ctx.globalAlpha=1-k;
+            ctx.translate(0,k*this.height*0.25);
+            this.drawBody(ctx,art,deck);
+            ctx.restore();
+            return;
+        }
+        this.drawBody(ctx,art,deck);
+    }
+
+    drawBody(ctx,art,deck) {
         const variant=time.boilIndex;
         const w=this.width;
         const h=this.height;
@@ -129,9 +149,16 @@ export class DeckView {
         const bx=w/2-bw/2;
         const by=h-bh-30;
         this.closeRect={x:bx,y:by,w:bw,h:bh};
-        drawShape(ctx,sketchRect(bx,by,bw,bh,{width:2,seed:77}),PALETTE.ink,variant);
+        const ba=Math.min(1,this.t/0.3);
+        ctx.fillStyle=rgba('paper',0.95*ba);
+        ctx.fillRect(bx,by,bw,bh);
+        ctx.save();
+        ctx.translate(bx,by);
+        drawShape(ctx,sketchRect(0,0,bw,bh,{width:2,seed:77}),PALETTE.ink,variant);
+        ctx.restore();
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 16px '+FONT;
+        ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('deck.close'),w/2,by+bh/2+1);
         ctx.font='13px '+FONT;
