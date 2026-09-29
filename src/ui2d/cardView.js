@@ -2,7 +2,8 @@ import {PALETTE,rgba} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
 import {sketchLine,sketchRect,sketchCircle,sketchPath,sketchPolygon,hatchFill,rectPoly,drawShape} from './sketch.js';
-import {cardName,cardDesc,cardCost,cardKey} from '../game/card.js';
+import {cardName,cardDesc,cardCost,cardKey,cardParams} from '../game/card.js';
+import {unlockLevel} from '../data/cards.js';
 import {RNG} from '../core/rng.js';
 
 export const CARD_W=TUNING.cards.width;
@@ -10,12 +11,15 @@ export const CARD_H=TUNING.cards.height;
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 const VARIANTS=TUNING.boil.variants;
 
+const NO_START='。，、；：）」』！？…%';
+
 export function wrapText(ctx,text,maxW) {
     const lines=[];
     let cur='';
-    for (const ch of text) {
+    const tokens=text.match(/[A-Za-z0-9.%×+]+|[\s\S]/gu)||[];
+    for (const ch of tokens) {
         const test=cur+ch;
-        if (ctx.measureText(test).width>maxW&&cur.length>0) {
+        if (ctx.measureText(test).width>maxW&&cur.length>0&&!NO_START.includes(ch)) {
             lines.push(cur);
             cur=ch;
         }
@@ -564,6 +568,36 @@ function drawPaper(ctx,v,seed) {
     drawShape(ctx,sketchLine(16,34,16,H-6,{width:0.9,jitter:0.4,seed:seed+3,overshoot:0,taper:0.8}),PALETTE.farGray,v);
 }
 
+function drawUpgradeFrame(ctx,v,seed,color) {
+    const W=CARD_W;
+    const H=CARD_H;
+    const g=TUNING.cards.upFrame;
+    drawShape(ctx,sketchRect(g,g,W-g*2,H-g*2,{width:1.3,jitter:0.6,seed:seed+21}),color,v);
+    drawShape(ctx,sketchRect(g-4,g-4,W-g*2+8,H-g*2+8,{width:0.8,jitter:0.8,seed:seed+33}),color,v);
+    const c=g+11;
+    for (const [x,y,sx,sy] of [[g,H-g,1,-1],[W-g,H-g,-1,-1]]) {
+        ctx.fillStyle=color;
+        ctx.beginPath();
+        ctx.moveTo(x,y);
+        ctx.lineTo(x+sx*c,y);
+        ctx.lineTo(x,y+sy*c);
+        ctx.closePath();
+        ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(g+14,H-g-14);
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    for (let i=0;i<10;i++) {
+        const r=i%2===0?8:3.5;
+        const a=-Math.PI/2+i*Math.PI/5;
+        ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
 function renderFace(card,v,scale) {
     const W=CARD_W;
     const H=CARD_H;
@@ -599,6 +633,9 @@ function renderFace(card,v,scale) {
     drawShape(ctx,sketchLine(W/2-26,H-29,W/2+26,H-29,{width:0.9,seed:seed+14,overshoot:1}),PALETTE.midGray,v);
     drawShape(ctx,sketchRect(3,3,W-6,H-6,{width:2.2,jitter:0.9,seed:seed+11}),PALETTE.ink,v);
     drawShape(ctx,sketchLine(W-18,H-4,W-4,H-18,{width:1.2,seed:seed+12}),PALETTE.midGray,v);
+    if (card.upgraded) {
+        drawUpgradeFrame(ctx,v,seed,card.def.rarity==='rare'?PALETTE.red:PALETTE.ink);
+    }
     if (card.def.rarity==='rare') {
         ctx.save();
         ctx.translate(W-24,48);
@@ -747,6 +784,37 @@ export function rareBorderPath() {
     p.lineTo(6,H-6);
     p.closePath();
     return {path:p,length:(W-12+H-12)*2};
+}
+
+const FACT_KEYS=['dps','radius','range','width','duration','heal','ink','hits','jumps','mult','hp','length','push'];
+
+export function cardFacts(card,withDesc=true) {
+    const p=cardParams(card);
+    const mode=card.def.mode;
+    const out=[];
+    if (withDesc) {
+        out.push(t('fact.effect',{v:cardDesc(card)}));
+    }
+    out.push(t('fact.cost',{v:cardCost(card)}));
+    out.push(t('fact.mode',{v:t('cardMode.'+mode)}));
+    if (p.damage!==undefined) {
+        if (p.count&&(mode==='shoot'||mode==='drop')) {
+            out.push(t('fact.damageEach',{v:p.damage,n:p.count}));
+        }
+        else {
+            out.push(t('fact.damage',{v:p.damage}));
+        }
+    }
+    for (const k of FACT_KEYS) {
+        if (p[k]!==undefined&&!(k==='ink'&&card.id==='echo')) {
+            out.push(t('fact.'+k,{v:p[k]}));
+        }
+    }
+    if (p.pct!==undefined) {
+        out.push(t('fact.slow',{v:p.pct}));
+    }
+    out.push(t('fact.unlock',{v:unlockLevel(card.id)}));
+    return out;
 }
 
 export function drawCardTooltip(ctx,card,x,y,maxW=270) {

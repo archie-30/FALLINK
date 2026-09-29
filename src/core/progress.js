@@ -1,5 +1,8 @@
 import {TUNING} from '../data/tuning.js';
 import {UNLOCKS} from '../data/cards.js';
+import {settings} from './settings.js';
+
+const MAX_LEVEL=Math.max(...Object.keys(UNLOCKS).map(Number));
 
 const KEY='inkfall.progress.v1';
 
@@ -43,13 +46,21 @@ export function saveProgress() {
     }
 }
 
+export function godMode() {
+    return !!settings.godMode;
+}
+
+export function effectiveLevel() {
+    return godMode()?Math.max(MAX_LEVEL,progress.level):progress.level;
+}
+
 export function hasSeen(type) {
-    return progress.seen.includes(type);
+    return godMode()||progress.seen.includes(type);
 }
 
 export function markSeen(type) {
     const id=type==='blobSmall'?'blob':type;
-    if (progress.seen.includes(id)) {
+    if (godMode()||progress.seen.includes(id)) {
         return false;
     }
     progress.seen.push(id);

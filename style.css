@@ -48,3 +48,112 @@ html,body {
         display:flex;
     }
 }
+#loader {
+    position:fixed;
+    inset:0;
+    z-index:20;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:var(--paper,#F2F0EB);
+    color:var(--ink,#1A1A1A);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    transition:opacity 0.5s ease,transform 0.5s ease;
+}
+#loader.done {
+    opacity:0;
+    transform:scale(1.04);
+    pointer-events:none;
+}
+.ld-stage {
+    position:relative;
+    width:120px;
+    height:110px;
+}
+.ld-drop {
+    position:absolute;
+    left:50%;
+    top:0;
+    width:22px;
+    height:22px;
+    margin-left:-11px;
+    background:var(--ink,#1A1A1A);
+    border-radius:0 50% 50% 50%;
+    transform:rotate(45deg);
+    animation:ld-fall 1.1s cubic-bezier(0.5,0,0.9,0.4) infinite;
+}
+.ld-splash {
+    position:absolute;
+    left:50%;
+    bottom:6px;
+    width:20px;
+    height:6px;
+    margin-left:-10px;
+    border-radius:50%;
+    border:3px solid var(--ink,#1A1A1A);
+    opacity:0;
+    animation:ld-splash 1.1s ease-out infinite;
+}
+.ld-title {
+    margin-top:10px;
+    font-size:44px;
+    font-weight:900;
+    letter-spacing:6px;
+}
+.ld-bar {
+    position:relative;
+    width:180px;
+    height:4px;
+    margin-top:18px;
+    overflow:hidden;
+    background:rgba(26,26,26,0.12);
+}
+.ld-bar i {
+    position:absolute;
+    top:0;
+    left:-40%;
+    width:40%;
+    height:100%;
+    background:var(--red,#D62828);
+    animation:ld-bar 1.2s ease-in-out infinite;
+}
+@keyframes ld-fall {
+    0% {
+        top:0;
+        opacity:0;
+    }
+    15% {
+        opacity:1;
+    }
+    70% {
+        top:78px;
+        opacity:1;
+    }
+    75%,100% {
+        top:78px;
+        opacity:0;
+    }
+}
+@keyframes ld-splash {
+    0%,68% {
+        opacity:0;
+        transform:scale(0.4);
+    }
+    72% {
+        opacity:1;
+        transform:scale(1);
+    }
+    100% {
+        opacity:0;
+        transform:scale(3.2,1.6);
+    }
+}
+@keyframes ld-bar {
+    0% {
+        left:-40%;
+    }
+    100% {
+        left:100%;
+    }
+}

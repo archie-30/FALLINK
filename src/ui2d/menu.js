@@ -6,13 +6,13 @@ import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
 import {settings,STICK_DEFAULTS} from '../core/settings.js';
 import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel} from '../data/cards.js';
-import {progress,xpToNext,hasSeen} from '../core/progress.js';
+import {progress,xpToNext,hasSeen,effectiveLevel,godMode} from '../core/progress.js';
 import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
 import {ENEMIES} from '../data/enemies.js';
 import {ENDLESS} from '../data/levels.js';
 import {fmtInk} from './hud.js';
 import {CARD_ANIMS,ENEMY_ATTACKS,drawStage} from './codexAnim.js';
-import {CARD_W,CARD_H,drawCost,wrapText} from './cardView.js';
+import {CARD_W,CARD_H,drawCost,wrapText,cardFacts} from './cardView.js';
 import {ENEMY_ICONS} from './enemyIcons.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
@@ -199,6 +199,14 @@ export class MainMenu extends Panel {
         ctx.textAlign='left';
         ctx.textBaseline='top';
         ctx.fillText(t('menu.level',{level:progress.level}),x+14,y+12);
+        if (godMode()) {
+            const lw=ctx.measureText(t('menu.level',{level:progress.level})).width;
+            ctx.save();
+            ctx.fillStyle=PALETTE.red;
+            ctx.font='bold 13px '+FONT;
+            ctx.fillText(t('menu.god'),x+24+lw,y+17);
+            ctx.restore();
+        }
         const need=xpToNext(progress.level);
         const f=Math.min(1,progress.xp/need);
         ctx.fillStyle=rgba('farGray',0.8);
@@ -317,7 +325,7 @@ export class PauseMenu extends Panel {
     }
 }
 
-const SETTING_KEYS=['volume','quality','shake','assist','reduced','fps','stickSize','stickX','stickY'];
+const SETTING_KEYS=['volume','quality','shake','assist','reduced','fps','god','stickSize','stickX','stickY'];
 
 const SLIDERS={volume:'volume',shake:'shake',stickSize:'stickSize',stickX:'stickX',stickY:'stickY'};
 
@@ -345,6 +353,9 @@ export class SettingsMenu extends Panel {
         }
         if (key==='assist') {
             return settings.aimAssist?1:0;
+        }
+        if (key==='god') {
+            return settings.godMode?1:0;
         }
         return settings.showFps?1:0;
     }
@@ -446,6 +457,9 @@ export class SettingsMenu extends Panel {
                 }
                 else if (r.key==='assist') {
                     settings.aimAssist=!settings.aimAssist;
+                }
+                else if (r.key==='god') {
+                    settings.godMode=!settings.godMode;
                 }
                 else {
                     settings.showFps=!settings.showFps;
@@ -849,6 +863,31 @@ export class Codex extends Panel {
         return !this.detailOpen()&&inRect(r,this.hx??-1,this.hy??-1)&&inRect(this.view,this.hx??-1,this.hy??-1);
     }
 
+    drawFacts(ctx,card,x,y,w,maxH) {
+        const facts=cardFacts(card,true);
+        const lh=18;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.font='13px '+FONT;
+        ctx.fillStyle=PALETTE.ink;
+        const first=wrapText(ctx,facts[0],w-14);
+        let yy=y;
+        for (let k=0;k<first.length&&k<2;k++) {
+            ctx.fillText((k===0?'• ':'  ')+first[k],x,yy);
+            yy+=lh;
+        }
+        ctx.fillStyle=PALETTE.nearGray;
+        const rest=facts.slice(1);
+        const cw=w/2;
+        for (let i=0;i<rest.length;i++) {
+            const cy=yy+Math.floor(i/2)*lh;
+            if (cy+lh>y+maxH) {
+                break;
+            }
+            ctx.fillText('• '+rest[i],x+(i%2)*cw,cy);
+        }
+    }
+
     drawCards(ctx,art,v,list) {
         const w=this.width;
         const V=this.view;
@@ -872,7 +911,7 @@ export class Codex extends Panel {
                 continue;
             }
             const need=unlockLevel(c.id);
-            const locked=need>progress.level;
+            const locked=need>effectiveLevel();
             const r={x:cx+4,y:cy,w:colW-8,h:rowH-12,kind:'card',id:c.id};
             if (!locked) {
                 this.hits.push(r);
@@ -903,19 +942,16 @@ export class Codex extends Panel {
             ctx.fillText(locked?'？？？':cardName(c),tx,4);
             ctx.font='13px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
-            const meta=locked?t('codex.locked',{level:need}):(c.def.rarity==='rare'?t('type.ult'):t('type.'+c.def.type))+' · '+t('tooltip.cost',{cost:cardCost(c)})+' · '+t('codex.unlockAt',{level:need});
+            const meta=locked?t('codex.locked',{level:need}):(c.def.rarity==='rare'?t('type.ult'):t('type.'+c.def.type))+' · '+t('codex.unlockAt',{level:need});
             ctx.fillText(meta,tx,28);
             if (!locked) {
-                ctx.fillStyle=PALETTE.ink;
-                ctx.font='14px '+FONT;
                 ctx.globalAlpha*=flipList?0.4+0.6*flip:1;
-                const lines=wrapText(ctx,c.def.rarity==='rare'?cardDesc(c)+'　'+t('codex.rareMerge'):cardDesc(c),tw);
-                for (let k=0;k<lines.length&&k<4;k++) {
-                    ctx.fillText(lines[k],tx,50+k*19);
-                }
+                this.drawFacts(ctx,c,tx,48,tw,CARD_H*sc-44);
                 ctx.fillStyle=hv?PALETTE.red:PALETTE.midGray;
                 ctx.font='12px '+FONT;
-                ctx.fillText(t('codex.clickCard'),tx,CARD_H*sc-16);
+                ctx.textAlign='right';
+                ctx.fillText(t('codex.clickCard'),colW-16,8);
+                ctx.textAlign='left';
             }
             ctx.restore();
         }
@@ -1044,7 +1080,7 @@ export class Codex extends Panel {
         const rare=base.def.rarity==='rare';
         const card=!rare&&d.altAnim>0.5?createCard(d.id,true):base;
         const flip=rare?1:Math.abs(Math.cos(d.altAnim*Math.PI));
-        const sc=Math.min(1.55,(P.h-330)/CARD_H);
+        const sc=Math.min(1.3,(P.h-380)/CARD_H);
         const lw=Math.max(260,CARD_W*sc+40);
         const lx=P.x+28;
         let y=P.y+28;
@@ -1069,15 +1105,19 @@ export class Codex extends Panel {
         y+=36;
         ctx.font='14px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
-        ctx.fillText((rare?t('type.ult'):t('type.'+card.def.type))+' · '+t('tooltip.cost',{cost:cardCost(card)})+' · '+t('codex.unlockAt',{level:unlockLevel(card.id)}),lx,y);
+        ctx.fillText((rare?t('type.ult'):t('type.'+card.def.type))+' · '+t('codex.unlockAt',{level:unlockLevel(card.id)}),lx,y);
         y+=26;
         ctx.save();
         ctx.globalAlpha*=0.4+0.6*flip;
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='15px '+FONT;
-        for (const line of wrapText(ctx,cardDesc(card),lw-10)) {
-            ctx.fillText(line,lx,y);
-            y+=21;
+        const facts=cardFacts(card,true);
+        for (let i=0;i<facts.length;i++) {
+            ctx.fillStyle=i===0?PALETTE.ink:PALETTE.nearGray;
+            ctx.font=(i===0?'15px ':'14px ')+FONT;
+            const ls=wrapText(ctx,facts[i],lw-24);
+            for (let k=0;k<ls.length;k++) {
+                ctx.fillText((k===0?'• ':'  ')+ls[k],lx,y);
+                y+=i===0?21:19;
+            }
         }
         ctx.restore();
         y+=10;
@@ -1291,15 +1331,15 @@ export class Codex extends Panel {
         const tf=ta-Math.floor(Math.min(2.999,ta));
         const hxp=t0.x+(t1.x-t0.x)*tf;
         const stretch=1+Math.sin(tf*Math.PI)*0.25;
-        ctx.fillStyle=Math.abs(ta-1)<0.5?PALETTE.red:PALETTE.ink;
+        ctx.fillStyle=Math.abs(ta-1)<0.5||Math.abs(ta-3)<0.5?PALETTE.red:PALETTE.ink;
         ctx.fillRect(hxp+t0.w*(1-stretch)/2,t0.y,t0.w*stretch,t0.h);
         for (let i=0;i<4;i++) {
             const b=this.tabs[i];
             ctx.save();
             ctx.translate(b.x,b.y);
-            drawShape(ctx,sketchRect(0,0,b.w,b.h,{width:1.8,seed:1500+i}),i===1?PALETTE.red:PALETTE.ink,v);
+            drawShape(ctx,sketchRect(0,0,b.w,b.h,{width:1.8,seed:1500+i}),i%2===1?PALETTE.red:PALETTE.ink,v);
             ctx.restore();
-            ctx.fillStyle=Math.abs(ta-i)<0.5?PALETTE.paper:(i===1?PALETTE.red:PALETTE.ink);
+            ctx.fillStyle=Math.abs(ta-i)<0.5?PALETTE.paper:(i%2===1?PALETTE.red:PALETTE.ink);
             ctx.font='bold 17px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
@@ -1524,7 +1564,7 @@ export class RunSummary {
             ctx.textAlign='center';
             ctx.font='bold 18px '+FONT;
             ctx.fillStyle=PALETTE.ink;
-            let line=t('summary.xp',{xp:pr.xp});
+            let line=pr.god?t('summary.god'):t('summary.xp',{xp:pr.xp});
             if (pr.after>pr.before) {
                 line+='　'+t('summary.levelUp',{level:pr.after});
             }

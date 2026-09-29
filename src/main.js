@@ -27,7 +27,7 @@ import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects,createCard} from './game/card.js';
 import {STARTING_DECK,ALL_CARDS,CARDS} from './data/cards.js';
-import {progress,loadProgress,addXp,markSeen} from './core/progress.js';
+import {progress,loadProgress,addXp,markSeen,godMode} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -159,8 +159,11 @@ function boot() {
         deckView.hide();
         if (deckView.returnPause) {
             deckView.returnPause=false;
-            pauseMenu.show();
-            pauseMenu.t=1;
+            deckView.onClosed=()=>{
+                if (game.mode==='play'&&!summary.open) {
+                    pauseMenu.show();
+                }
+            };
             return;
         }
         fx.paused=false;
@@ -474,12 +477,14 @@ function boot() {
             audio.play('clear',0.8);
             upgradeView.show(id,done);
         },
-        openReward:(cards,cb)=>{
+        openReward:(groups,counts,cb)=>{
             fx.paused=true;
             hand.cancelTargeting();
-            art.warm(cards);
+            for (const g of groups) {
+                art.warm(g.cards);
+            }
             const d=hand.drawRect;
-            reward.show(cards,run.plan.boss?t('reward.bossTitle'):t('reward.title'),cb,{x:d.x+d.w/2,y:d.y+d.h/2});
+            reward.show(groups,run.plan.boss?t('reward.bossTitle'):t('reward.title'),counts,cb,{x:d.x+d.w/2,y:d.y+d.h/2});
         },
         transition:mid=>{
             audio.play('page');
@@ -501,12 +506,19 @@ function boot() {
             if (run.mode==='endless') {
                 stats.xp+=stats.score*TUNING.levels.xpScore;
             }
-            stats.newBest=stats.score>progress[bestKey];
-            progress[bestKey]=Math.max(progress[bestKey],stats.score);
-            stats.best=progress[bestKey];
             stats.mode=run.mode;
-            const res=addXp(stats.xp);
-            summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey))};
+            if (godMode()) {
+                stats.newBest=false;
+                stats.best=progress[bestKey];
+                summary.progress={god:true,xp:0,before:lvBefore,after:lvBefore,unlocked:[]};
+            }
+            else {
+                stats.newBest=stats.score>progress[bestKey];
+                progress[bestKey]=Math.max(progress[bestKey],stats.score);
+                stats.best=progress[bestKey];
+                const res=addXp(stats.xp);
+                summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey))};
+            }
             summary.show(victory,stats,quit,toMenu=>{
                 audio.play('ui');
                 player.hp=TUNING.player.maxHp;
@@ -662,6 +674,7 @@ function boot() {
         overlay.resize(overlay.width,overlay.height);
         renderer.post.setBoilScale(boilScale());
         setJitterScale(boilScale());
+        time.freezeBoil=settings.reducedMotion;
     }
     function resize() {
         const w=Math.max(1,window.innerWidth);
@@ -1157,6 +1170,13 @@ function boot() {
     }
     const loop=createLoop(update,render);
     loop.start();
+    const loader=document.getElementById('loader');
+    if (loader) {
+        setTimeout(()=>{
+            loader.classList.add('done');
+            setTimeout(()=>loader.remove(),TUNING.ui.loaderFade*1000);
+        },TUNING.ui.loaderMin*1000);
+    }
     art.warm(deck.drawPile);
     enterMenu();
     window.INKFALL={transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
