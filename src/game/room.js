@@ -84,3 +84,37 @@ export class RoomDirector {
         }
     }
 }
+
+export class TrainingDirector {
+    constructor(spots,enemies,respawn,allow) {
+        this.enemies=enemies;
+        this.respawn=respawn;
+        this.slots=spots.map(([type,x,z])=>({type:allow(type)?type:'doodle',x,z,e:null,t:0.4}));
+        this.cleared=false;
+        this.boss=null;
+        this.events=[];
+        this.wave=0;
+        this.queue=[];
+    }
+
+    totalWaves() {
+        return 1;
+    }
+
+    update(dt) {
+        this.events.length=0;
+        for (const s of this.slots) {
+            if (s.e&&s.e.alive&&s.e.uid===s.uid) {
+                continue;
+            }
+            s.e=null;
+            s.t-=dt;
+            if (s.t<=0) {
+                s.e=this.enemies.spawn(s.type,s.x,s.z,{hpMult:1,dummy:true});
+                s.uid=s.e.uid;
+                s.t=this.respawn;
+                this.events.push(s.e);
+            }
+        }
+    }
+}

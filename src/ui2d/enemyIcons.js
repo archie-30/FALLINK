@@ -94,6 +94,21 @@ export const ENEMY_ICONS={
         drawShape(ctx,sketchLine(-30,4,-36,-10,{width:1.8,seed:1752}),PALETTE.ink,v);
         drawShape(ctx,sketchLine(-4,22,20,22,{width:1,seed:1753}),PALETTE.midGray,v);
     },
+    inkCloud(ctx,v) {
+        const puffs=[[-14,2,14,1790],[14,2,15,1791],[0,-8,18,1792],[-4,8,13,1793],[8,8,12,1794]];
+        for (const [x,y,r,sd] of puffs) {
+            drawShape(ctx,sketchCircle(x,y,r,{width:1.8,seed:sd}),PALETTE.ink,v);
+        }
+        for (const [x,y,r] of puffs) {
+            dot(ctx,x,y,r-1.6,PALETTE.farGray);
+        }
+        dot(ctx,-7,-2,3,PALETTE.ink);
+        dot(ctx,7,-2,3,PALETTE.ink);
+        for (const [x,sd] of [[-12,1795],[2,1796],[14,1797]]) {
+            fillPoly(ctx,[[x-3,20],[x+3,20],[x,28]],PALETTE.ink);
+            drawShape(ctx,sketchLine(x,20,x,28,{width:1.4,seed:sd,overshoot:0}),PALETTE.ink,v);
+        }
+    },
     inkBottle(ctx,v) {
         const pts=[[-8,-30],[8,-30],[8,-22],[20,-12],[22,26],[-22,26],[-20,-12],[-8,-22]];
         fillPoly(ctx,pts,PALETTE.farGray);

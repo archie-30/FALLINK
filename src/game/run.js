@@ -1,10 +1,10 @@
-import {ACTS,ENDLESS} from '../data/levels.js';
+import {ACTS,ENDLESS,TRAINING} from '../data/levels.js';
 import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
-import {progress,effectiveLevel} from '../core/progress.js';
+import {progress,effectiveLevel,hasSeen} from '../core/progress.js';
 import {RNG} from '../core/rng.js';
 import {planRoom,planEndless} from './level.js';
-import {RoomDirector} from './room.js';
+import {RoomDirector,TrainingDirector} from './room.js';
 import {createCard} from './card.js';
 
 export class Run {
@@ -21,7 +21,8 @@ export class Run {
         this.act=0;
         this.index=0;
         this.lastLayout=null;
-        this.deckList=(startDeck||STARTING_DECK).map(id=>({id,upgraded:false}));
+        const ids=mode==='training'?unlockedCards(effectiveLevel()):(startDeck||STARTING_DECK);
+        this.deckList=ids.map(id=>({id,upgraded:false}));
         this.stats={kills:0,cards:0,damage:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0};
         this.enter();
     }
@@ -38,7 +39,21 @@ export class Run {
         return ACTS[this.act].rooms+1;
     }
 
+    training() {
+        return this.mode==='training';
+    }
+
     enter() {
+        if (this.training()) {
+            const T=TRAINING;
+            this.plan={act:0,index:0,training:true,boss:false,layoutKey:'training',layout:T.layout,hpMult:1,waves:[],barrels:T.barrels,crates:T.crates};
+            const room=this.hooks.enterRoom(this.plan,this.deckList);
+            this.director=new TrainingDirector(T.spots,this.hooks.enemies,T.respawn,hasSeen);
+            this.state='combat';
+            this.timer=0;
+            this.hooks.banner('training',this);
+            return room;
+        }
         this.plan=this.mode==='endless'?planEndless(this.index,this.rng,this.lastLayout):planRoom(this.act,this.index,this.rng,this.lastLayout);
         const forced=new URLSearchParams(location.search).get('mod');
         if (forced&&!this.plan.boss) {
@@ -62,6 +77,10 @@ export class Run {
     }
 
     quit() {
+        if (this.training()) {
+            this.state='idle';
+            return false;
+        }
         if (!this.stats||this.state==='summary'||this.state==='idle') {
             return false;
         }
@@ -187,6 +206,9 @@ export class Run {
             this.director.update(dt,player);
             for (const e of this.director.events) {
                 this.hooks.onSpawn(e);
+            }
+            if (this.training()) {
+                return;
             }
             if (this.director.cleared) {
                 this.state='cleared';

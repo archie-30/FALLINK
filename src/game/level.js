@@ -2,7 +2,7 @@ import {LAYOUTS,NORMAL_LAYOUTS,ACTS,ENEMY_COST,ENEMY_ORDER,STORY_INTRO,ENDLESS} 
 
 export const BOSSES=['inkBottle','scissors','book'];
 
-export const MODS=['inkRain','dark','elite','hurry'];
+export const MODS=['dark','elite','hurry'];
 
 function weightedPick(pool,rng,maxCost) {
     let total=0;

@@ -1433,6 +1433,42 @@ export const ENEMY_ATTACKS={
             }
         }
     ],
+    inkCloud:[
+        {
+            key:'rain',
+            dmg:{kind:'hit',n:1},
+            period:3.4,
+            draw(S,k) {
+                const px=PX+1+seg(k,0.3,0.7)*1.6;
+                S.player(px,PY,0);
+                const swell=seg(k,0.05,0.2)*(1-seg(k,0.2,0.26));
+                S.circle(11.5,PY+1.6,0.9,PALETTE.ink,0.1);
+                S.enemy('inkCloud',11.5,PY-1.2+Math.sin(k*Math.PI*4)*0.15,{sx:1+swell*0.2});
+                const spots=[[PX+2.6,PY],[PX+0.4,PY-2.2],[PX+4,PY+2]];
+                for (let i=0;i<spots.length;i++) {
+                    const [x,y]=spots[i];
+                    const k0=0.26;
+                    const k1=0.56+i*0.05;
+                    const mark=seg(k,k0,k0+0.04)*(1-seg(k,k1,k1+0.02));
+                    const shrink=1-seg(k,k0,k1);
+                    S.circle(x,y,0.9,PALETTE.red,0.12*mark);
+                    S.ring(x,y,0.9,PALETTE.red,0.08,mark);
+                    S.ring(x,y,0.2+0.7*shrink,PALETTE.red,0.05,mark*0.8);
+                    const f=seg(k,k1-0.08,k1);
+                    if (f>0&&f<1) {
+                        S.circle(x,y-(1-f)*3,0.22,PALETTE.ink,1);
+                    }
+                    const sp=seg(k,k1,k1+0.3);
+                    if (sp>0) {
+                        S.circle(x,y,1.1,PALETTE.nearGray,0.35*(1-seg(k,0.9,1)));
+                        if (sp<1) {
+                            S.burst(x,y,1.2,sp,PALETTE.ink);
+                        }
+                    }
+                }
+            }
+        }
+    ],
     inkBottle:[
         {
             key:'spiral',

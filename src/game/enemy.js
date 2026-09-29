@@ -172,6 +172,7 @@ export class Enemy {
         this.hp=d.hp*(o.hpMult||1);
         this.act=o.act||0;
         this.elite=!!o.elite;
+        this.dummy=!!o.dummy;
         this.yawGroup.scale.setScalar(d.scale*(this.elite?TUNING.elite.scale:1));
         const A=TUNING.accent;
         this.accentOn=this.elite||!!d.boss;
@@ -301,6 +302,13 @@ export class Enemy {
                 this.setState('move');
             }
         }
+        else if (this.dummy) {
+            this.manual=true;
+            this.tele=null;
+            this.aimX=this.nx;
+            this.aimZ=this.nz;
+            this.vel.multiplyScalar(Math.exp(-8*dt));
+        }
         else {
             this.think(dt,ctx);
         }
@@ -354,7 +362,7 @@ export class Enemy {
         this.sq+=this.sqv*dt;
         this.sq=Math.max(-0.45,Math.min(0.45,this.sq));
         this.kick*=Math.exp(-14*dt);
-        if (this.state!=='spawn'&&this.stunT<=0&&this.canContact()&&this.dist<d.radius+TUNING.player.radius) {
+        if (this.state!=='spawn'&&this.stunT<=0&&!this.dummy&&this.canContact()&&this.dist<d.radius+TUNING.player.radius) {
             p.hurt(d.contactDamage,this.nx,this.nz);
         }
     }
@@ -1037,6 +1045,139 @@ class Bird extends Enemy {
     }
 }
 
+function dripGeo() {
+    const g=new THREE.ConeGeometry(0.09,0.3,6);
+    g.rotateX(Math.PI);
+    return g;
+}
+
+class InkCloud extends Enemy {
+    buildBody() {
+        const body=this.mat('body');
+        const head=this.mat('head');
+        const ink=this.inkMat();
+        this.fly=new THREE.Group();
+        this.fly.position.y=this.def.flyHeight;
+        this.puffs=[];
+        for (const [x,y,z,r] of [[0,0.1,0,0.62],[-0.55,-0.05,0.05,0.45],[0.55,-0.02,-0.05,0.48],[0.2,0.4,-0.1,0.42],[-0.25,0.3,0.2,0.36]]) {
+            const m=this.hullify(new THREE.Mesh(geo('cloudPuff',()=>new THREE.SphereGeometry(1,10,7)),body));
+            m.position.set(x,y,z);
+            m.scale.setScalar(r);
+            this.fly.add(m);
+            this.puffs.push({m,r});
+        }
+        for (const sx of [-1,1]) {
+            const e=new THREE.Mesh(geo('cloudEye',()=>new THREE.SphereGeometry(0.1,7,5)),head);
+            e.position.set(sx*0.2,0.12,0.58);
+            this.fly.add(e);
+            const pu=new THREE.Mesh(geo('cloudPupil',()=>new THREE.SphereGeometry(0.05,6,4)),ink);
+            pu.position.set(sx*0.2,0.1,0.66);
+            this.fly.add(pu);
+        }
+        this.dripMeshes=[];
+        for (const [x,z] of [[-0.35,0.1],[0.1,-0.15],[0.45,0.15]]) {
+            const dr=new THREE.Mesh(geo('cloudDrip',dripGeo),ink);
+            dr.position.set(x,-0.5,z);
+            this.fly.add(dr);
+            this.dripMeshes.push(dr);
+        }
+        this.body.add(this.fly);
+    }
+
+    onReset() {
+        const d=this.def;
+        this.castT=rng.range(d.firstCast[0],d.firstCast[1]);
+        this.driftSign=rng.sign();
+        this.driftT=rng.range(1.5,3);
+        this.drops=[];
+    }
+
+    canContact() {
+        return false;
+    }
+
+    hide() {
+        super.hide();
+        this.drops=[];
+    }
+
+    cast(ctx) {
+        const d=this.def;
+        const p=ctx.player;
+        const n=d.drops+(this.elite?d.eliteDrops:0);
+        for (let i=0;i<n;i++) {
+            const x=p.pos.x+(i===0?p.vel.x*d.dropLead:rng.range(-d.dropSpread,d.dropSpread));
+            const z=p.pos.z+(i===0?p.vel.z*d.dropLead:rng.range(-d.dropSpread,d.dropSpread)*0.8);
+            const t=d.dropDelay+i*d.dropStagger;
+            this.drops.push({x,z,t});
+            ctx.dangerRings.spawn(x,z,d.ringRadius,'red',t);
+        }
+        this.sqv-=2.5;
+    }
+
+    think(dt,ctx) {
+        const d=this.def;
+        this.aimX=this.nx;
+        this.aimZ=this.nz;
+        for (let i=this.drops.length-1;i>=0;i--) {
+            const q=this.drops[i];
+            q.t-=dt;
+            if (q.t<=0) {
+                this.drops.splice(i,1);
+                if (Math.hypot(ctx.player.pos.x-q.x,ctx.player.pos.z-q.z)<d.hitRadius) {
+                    ctx.player.hurt(d.dropDamage,0,1);
+                }
+                if (ctx.onInkDrop) {
+                    ctx.onInkDrop(q.x,q.z,d.puddleRadius,d.puddleTime,d.puddleSlow);
+                }
+            }
+        }
+        if (this.state==='move') {
+            let push=0;
+            if (this.dist>d.range[1]) {
+                push=1;
+            }
+            else if (this.dist<d.range[0]) {
+                push=-1;
+            }
+            this.driftT-=dt;
+            if (this.driftT<=0) {
+                this.driftT=rng.range(1.5,3);
+                this.driftSign=-this.driftSign;
+            }
+            this.wx=this.nx*push-this.nz*this.driftSign*d.drift;
+            this.wz=this.nz*push+this.nx*this.driftSign*d.drift;
+            this.castT-=dt;
+            if (this.castT<=0) {
+                this.setState('telegraph');
+            }
+        }
+        else if (this.state==='telegraph') {
+            this.vel.multiplyScalar(Math.exp(-6*dt));
+            this.manual=true;
+            if (this.stateT>=d.telegraph) {
+                this.cast(ctx);
+                this.setState('move');
+                this.castT=rng.range(d.castEvery[0],d.castEvery[1]);
+            }
+        }
+    }
+
+    pose() {
+        const d=this.def;
+        const tg=this.state==='telegraph'?Math.min(1,this.stateT/d.telegraph):0;
+        this.fly.position.y=d.flyHeight+Math.sin(time.real*2.2+this.phase)*0.18+tg*0.25;
+        for (let i=0;i<this.puffs.length;i++) {
+            const q=this.puffs[i];
+            q.m.scale.setScalar(q.r*(1+tg*0.18+Math.sin(time.real*3+i*1.7)*0.04));
+        }
+        for (let i=0;i<this.dripMeshes.length;i++) {
+            const dr=this.dripMeshes[i];
+            dr.position.y=-0.5-((time.real*0.9+i*0.33)%1)*0.4*(1+tg);
+        }
+    }
+}
+
 class InkBottle extends Enemy {
     buildBody() {
         const body=this.mat('body');
@@ -1146,7 +1287,7 @@ class InkBottle extends Enemy {
             this.wz=cz/cl*0.5;
         }
         if (this.state==='move') {
-            this.patternT-=dt*(1+ph*0.35);
+            this.patternT-=dt*(1+ph*d.phaseRush);
             if (this.patternT<=0) {
                 this.pattern=this.choose();
                 this.setState('telegraph');
@@ -1179,21 +1320,21 @@ class InkBottle extends Enemy {
             if (this.pattern==='spiral') {
                 this.fireAcc+=dt;
                 const arms=ph>=2?3:2;
-                while (this.fireAcc>=0.075) {
-                    this.fireAcc-=0.075;
+                while (this.fireAcc>=d.spiralRate) {
+                    this.fireAcc-=d.spiralRate;
                     for (let i=0;i<arms;i++) {
                         const a=this.spiralA+i/arms*Math.PI*2;
                         ctx.enemyBullets.spawn(px+Math.cos(a)*1.8,pz+Math.sin(a)*1.8,Math.cos(a),Math.sin(a),sp,d.bulletDamage,d.bulletLife);
                     }
                     this.spiralA+=0.22;
                 }
-                if (this.stateT>=3.0) {
+                if (this.stateT>=d.spiralTime) {
                     this.finish();
                 }
             }
             else if (this.pattern==='fan') {
                 this.fireAcc+=dt;
-                if (this.fireAcc>=0.4||this.volley===0) {
+                if (this.fireAcc>=d.fanRate||this.volley===0) {
                     this.fireAcc=0;
                     const base=Math.atan2(this.nz,this.nx);
                     const n=ph>=1?9:7;
@@ -1243,7 +1384,7 @@ class InkBottle extends Enemy {
 
     finish() {
         this.setState('move');
-        this.patternT=rng.range(0.8,1.4);
+        this.patternT=rng.range(this.def.patternGap[0],this.def.patternGap[1]);
     }
 
     pose() {
@@ -1694,7 +1835,7 @@ class Book extends Enemy {
     }
 }
 
-const CLASSES={doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkBottle:InkBottle,scissors:Scissors,book:Book};
+const CLASSES={doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkCloud:InkCloud,inkBottle:InkBottle,scissors:Scissors,book:Book};
 
 export class EnemyManager {
     constructor(parent,fxScene) {
@@ -1716,7 +1857,7 @@ export class EnemyManager {
             e=new C(type,ENEMIES[type],this.parent,this.fxScene);
             pool.push(e);
         }
-        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite});
+        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite,dummy:o.dummy});
         this.list.push(e);
         if (this.onSpawned) {
             this.onSpawned(e);
@@ -1773,7 +1914,7 @@ export class EnemyManager {
         if (d.split) {
             for (let k=0;k<d.splitCount;k++) {
                 const a=Math.atan2(dz,dx)+(k===0?1.2:-1.2);
-                this.spawn(d.split,e.pos.x+Math.cos(a)*0.7,e.pos.z+Math.sin(a)*0.7,{quick:true});
+                this.spawn(d.split,e.pos.x+Math.cos(a)*0.7,e.pos.z+Math.sin(a)*0.7,{quick:true,dummy:e.dummy});
             }
         }
     }
