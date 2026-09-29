@@ -37,7 +37,7 @@ import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
-import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu} from './ui2d/menu.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Tutorial} from './ui2d/menu.js';
 import {DEFAULT_SKIN} from './data/skins.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
@@ -811,6 +811,12 @@ function boot() {
             codex.show();
         },
         training:()=>startGame('training'),
+        tutorial:()=>{
+            audio.play('ui');
+            settings.tutorialSeen=true;
+            saveSettings();
+            tutorial.show();
+        },
         skin:()=>{
             audio.play('ui');
             mainMenu.hide();
@@ -831,6 +837,13 @@ function boot() {
             audio.play('ui');
             skinEditor.hide();
             mainMenu.show();
+        }
+    });
+    const tutorial=new Tutorial({
+        select:()=>audio.play('page',1.4),
+        back:()=>{
+            audio.play('ui');
+            tutorial.hide();
         }
     });
     const levelView=new LevelView({
@@ -913,7 +926,7 @@ function boot() {
             codex.hide();
         }
     });
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,tutorial];
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
@@ -980,6 +993,9 @@ function boot() {
             }
             if (levelView.open) {
                 return levelView.down(x,y);
+            }
+            if (tutorial.open) {
+                return tutorial.down(x,y);
             }
             if (skinEditor.open) {
                 return skinEditor.down(x,y);
@@ -1109,6 +1125,10 @@ function boot() {
             levelView.hide();
             return;
         }
+        if (tutorial.open) {
+            tutorial.actions.back();
+            return;
+        }
         if (skinEditor.open) {
             skinEditor.actions.back();
             return;
@@ -1155,6 +1175,17 @@ function boot() {
         }
     };
     window.addEventListener('keydown',()=>audio.unlock());
+    window.addEventListener('keydown',e=>{
+        if (!tutorial.open) {
+            return;
+        }
+        if (e.code==='ArrowRight'||e.code==='Enter'||e.code==='Space') {
+            tutorial.step(1);
+        }
+        else if (e.code==='ArrowLeft') {
+            tutorial.step(-1);
+        }
+    });
     input.onFirstTouch=()=>{
         if (settings.fullscreen) {
             requestFullscreen();
@@ -1182,7 +1213,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out);
-    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin};
+    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -1509,7 +1540,7 @@ function boot() {
     }
     art.warm(deck.drawPile);
     enterMenu();
-    window.INKFALL={audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKFALL={tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

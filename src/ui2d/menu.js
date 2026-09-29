@@ -168,7 +168,7 @@ function drawStarterTag(ctx,id,x,y,px,v) {
     ctx.restore();
 }
 
-const MENU_ACTS=['start','endless','training','skin','settings','codex'];
+const MENU_ACTS=['start','endless','training','tutorial','skin','settings','codex'];
 
 const MAX_LEVEL=Math.max(...Object.keys(UNLOCKS).map(Number));
 
@@ -329,6 +329,22 @@ export class MainMenu extends Panel {
         ctx.restore();
         for (let i=0;i<MENU_ACTS.length;i++) {
             drawButton(ctx,this.buttons[i],t('menu.'+MENU_ACTS[i]),v,(this.t-0.35-i*0.08)/0.45,this.hoverIdx===i,this.buttons[i].h<46?19:22);
+        }
+        const ti=MENU_ACTS.indexOf('tutorial');
+        if (!settings.tutorialSeen&&ti>=0&&this.t>0.9) {
+            const b=this.buttons[ti];
+            const bob=Math.sin(time.real*4)*2;
+            ctx.save();
+            ctx.translate(b.x+b.w-6,b.y+2+bob);
+            ctx.rotate(0.12);
+            ctx.fillStyle=PALETTE.red;
+            ctx.fillRect(-24,-11,48,22);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.font='bold 12px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('tut.new'),0,1);
+            ctx.restore();
         }
         this.drawLevel(ctx,v);
     }
@@ -3039,4 +3055,331 @@ export class TrainingMenu extends Panel {
         }
         ctx.restore();
     }
+}
+
+const TUTORIAL=[
+    {key:'goal',draw:'goal'},
+    {key:'move',anim:['card','rapid']},
+    {key:'dash',anim:['card','inkDash']},
+    {key:'cards',anim:['card','scatter']},
+    {key:'ult',anim:['card','execute']},
+    {key:'warn',anim:['enemy','compass']},
+    {key:'deck',draw:'merge'},
+    {key:'grow',draw:'grow'}
+];
+
+export class Tutorial extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.35;
+        this.page=0;
+        this.pageAnim=0;
+        this.animT=0;
+        this.hx=-1;
+        this.hy=-1;
+        this.dots=[];
+    }
+
+    show() {
+        super.show();
+        this.page=0;
+        this.pageAnim=0;
+        this.animT=0;
+    }
+
+    hover(x,y) {
+        super.hover(x,y);
+        this.hx=x;
+        this.hy=y;
+    }
+
+    go(i) {
+        const n=Math.max(0,Math.min(TUTORIAL.length-1,i));
+        if (n!==this.page) {
+            this.page=n;
+            this.animT=0;
+            if (this.actions.select) {
+                this.actions.select();
+            }
+        }
+    }
+
+    step(d) {
+        if (d>0&&this.page===TUTORIAL.length-1) {
+            this.actions.back();
+            return;
+        }
+        this.go(this.page+d);
+    }
+
+    layout() {
+        const w=this.width;
+        const h=this.height;
+        const small=h<600;
+        const pw=Math.min(980,w-24);
+        const ph=Math.min(h-20,small?h-20:620);
+        this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
+        const by=this.P.y+ph-(small?48:66);
+        const bw=small?130:160;
+        const bh=small?38:46;
+        this.prevBtn={x:this.P.x+24,y:by,w:bw,h:bh};
+        this.nextBtn={x:this.P.x+pw-24-bw,y:by,w:bw,h:bh};
+        this.closeBtn={x:this.P.x+pw-44,y:this.P.y+12,w:32,h:32};
+        this.buttons=[this.prevBtn,this.nextBtn,this.closeBtn];
+    }
+
+    down(x,y) {
+        if (!this.open) {
+            return false;
+        }
+        this.layout();
+        if (inRect(this.closeBtn,x,y)) {
+            this.actions.back();
+            return true;
+        }
+        if (inRect(this.prevBtn,x,y)&&this.page>0) {
+            this.step(-1);
+            return true;
+        }
+        if (inRect(this.nextBtn,x,y)) {
+            this.step(1);
+            return true;
+        }
+        for (let i=0;i<this.dots.length;i++) {
+            if (inRect(this.dots[i],x,y)) {
+                this.go(i);
+                return true;
+            }
+        }
+        return true;
+    }
+
+    update(dt) {
+        super.update(dt);
+        this.animT+=dt;
+        this.pageAnim+=(this.page-this.pageAnim)*(1-Math.exp(-TUNING.tutorial.follow*dt));
+    }
+
+    drawIllus(ctx,page,x,y,w,h,art,v) {
+        ctx.save();
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(x,y,w,h);
+        if (page.anim) {
+            const src=page.anim[0]==='card'?CARD_ANIMS[page.anim[1]]:ENEMY_ATTACKS[page.anim[1]][0];
+            drawStage(ctx,x,y,w,h,src,this.animT,v);
+        }
+        else if (page.draw==='goal') {
+            const n=5;
+            const bw=Math.min(90,(w-40)/n-12);
+            const bx=x+w/2-(n*(bw+12)-12)/2;
+            const cy=y+h*0.5;
+            for (let i=0;i<n;i++) {
+                const k=Math.max(0,Math.min(1,(this.animT-i*0.35)/0.3));
+                const boss=i===n-1;
+                const rx=bx+i*(bw+12);
+                ctx.fillStyle=k>=1?rgba(boss?'red':'ink',0.1):rgba('paper',1);
+                ctx.fillRect(rx,cy-bw*0.7,bw,bw*1.4);
+                drawShape(ctx,sketchRect(rx,cy-bw*0.7,bw,bw*1.4,{width:boss?2.4:1.6,seed:1900+i}),boss?PALETTE.red:PALETTE.ink,v);
+                ctx.save();
+                ctx.translate(rx+bw/2,cy);
+                const sc=bw/90*(0.9+0.1*EASE.easeOutBack(k));
+                ctx.scale(sc,sc);
+                ENEMY_ICONS[boss?'inkBottle':FOE_LIST[i%FOE_LIST.length]](ctx,v);
+                ctx.restore();
+                ctx.fillStyle=boss?PALETTE.red:PALETTE.nearGray;
+                ctx.font='bold 13px '+FONT;
+                ctx.textAlign='center';
+                ctx.textBaseline='top';
+                ctx.fillText(t(boss?'tut.bossPage':'tut.page',{n:i+1}),rx+bw/2,cy+bw*0.75);
+                if (i===0||i===2||i===4) {
+                    ctx.fillStyle=PALETTE.red;
+                    ctx.fillText('★',rx+bw/2,cy-bw*0.7-18);
+                }
+            }
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font='12px '+FONT;
+            ctx.textAlign='center';
+            ctx.fillText(t('tut.starNote'),x+w/2,y+h-26);
+        }
+        else if (page.draw==='merge') {
+            const cs=Math.min(w/520,h/300);
+            const cx=x+w/2;
+            const cy=y+h/2;
+            const k=(this.animT%3.2)/3.2;
+            const gather=EASE.easeInOutCubic(Math.max(0,Math.min(1,(k-0.1)/0.35)));
+            const flash=Math.max(0,Math.min(1,(k-0.45)/0.1));
+            const card=createCard('scatter',false);
+            const up=createCard('scatter',true);
+            for (let i=0;i<3;i++) {
+                if (flash>=1) {
+                    break;
+                }
+                ctx.save();
+                ctx.translate(cx+(i-1)*150*cs*(1-gather),cy);
+                ctx.rotate((i-1)*0.12*(1-gather));
+                ctx.scale(cs*0.9,cs*0.9);
+                ctx.drawImage(art.face(card,v),-59,-82,118,164);
+                ctx.restore();
+            }
+            if (flash>0) {
+                ctx.save();
+                ctx.translate(cx,cy);
+                const e=EASE.easeOutBack(Math.min(1,flash*1.2));
+                ctx.scale(cs*1.1*e,cs*1.1*e);
+                ctx.drawImage(art.face(up,v),-59,-82,118,164);
+                ctx.restore();
+                ctx.fillStyle=rgba('paper',Math.max(0,0.8-flash));
+                ctx.fillRect(x,y,w,h);
+            }
+            ctx.fillStyle=PALETTE.red;
+            ctx.font='bold 15px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='bottom';
+            ctx.fillText(t('tut.mergeNote'),cx,y+h-14);
+        }
+        else if (page.draw==='grow') {
+            const k=(this.animT%3)/3;
+            const bw=w*0.7;
+            const bx=x+w/2-bw/2;
+            const by=y+h*0.4;
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold 22px '+FONT;
+            ctx.textAlign='left';
+            ctx.textBaseline='bottom';
+            ctx.fillText(t('menu.level',{level:k>0.6?3:2}),bx,by-10);
+            ctx.fillStyle=rgba('farGray',0.8);
+            ctx.fillRect(bx,by,bw,14);
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillRect(bx,by,bw*(k>0.6?(k-0.6)*0.5:0.3+k*1.15),14);
+            drawShape(ctx,sketchRect(bx,by,bw,14,{width:1.4,seed:1950}),PALETTE.ink,v);
+            if (k>0.6) {
+                const q=Math.min(1,(k-0.6)/0.15);
+                ctx.save();
+                ctx.translate(bx+bw/2,by+60);
+                ctx.scale(EASE.easeOutBack(q),EASE.easeOutBack(q));
+                ctx.fillStyle=PALETTE.red;
+                ctx.font='bold 20px '+FONT;
+                ctx.textAlign='center';
+                ctx.textBaseline='middle';
+                ctx.fillText(t('tut.unlockNote'),0,0);
+                ctx.restore();
+            }
+        }
+        drawShape(ctx,sketchRect(x,y,w,h,{width:1.8,seed:1960}),PALETTE.ink,v);
+        ctx.restore();
+    }
+
+    drawPage(ctx,i,x,y,w,h,art,v,small) {
+        const page=TUTORIAL[i];
+        const touch=device.mobile;
+        const iw=w*0.5;
+        const ih=Math.min(h-20,iw*9/16);
+        this.drawIllus(ctx,page,x,y+(h-ih)/2,iw,ih,art,v);
+        const tx=x+iw+28;
+        const tw=w-iw-28;
+        let ty=y+(small?4:20);
+        ctx.fillStyle=PALETTE.red;
+        ctx.font='bold 13px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillText(t('tut.step',{n:i+1,total:TUTORIAL.length}),tx,ty);
+        ty+=22;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(small?20:26)+'px '+FONT;
+        ctx.fillText(t('tut.'+page.key+'.title'),tx,ty);
+        ty+=small?32:44;
+        const body=t((touch&&hasTouchText(page.key)?'tut.'+page.key+'.touch':'tut.'+page.key+'.body'));
+        ctx.font=(small?'13px ':'15px ')+FONT;
+        const lh=small?19:24;
+        for (const para of body.split('|')) {
+            const lines=wrapText(ctx,para,tw-18);
+            ctx.fillStyle=PALETTE.red;
+            ctx.fillText('•',tx,ty);
+            ctx.fillStyle=PALETTE.ink;
+            for (const ln of lines) {
+                ctx.fillText(ln,tx+16,ty);
+                ty+=lh;
+            }
+            ty+=small?4:8;
+        }
+    }
+
+    draw(ctx,art) {
+        if (!this.shown()) {
+            return;
+        }
+        this.layout();
+        const w=this.width;
+        const h=this.height;
+        const v=time.boilIndex;
+        const P=this.P;
+        const small=h<600;
+        const a=EASE.easeOutBack(Math.min(1,this.t/0.4));
+        ctx.save();
+        ctx.fillStyle=rgba('paper',Math.min(0.85,this.t*4));
+        ctx.fillRect(0,0,w,h);
+        ctx.translate(w/2,h/2);
+        ctx.scale(0.9+0.1*a,0.9+0.1*a);
+        ctx.translate(-w/2,-h/2);
+        ctx.globalAlpha=Math.min(1,this.t*4);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(P.x,P.y,P.w,P.h);
+        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:1970}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(small?18:24)+'px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('menu.tutorial'),P.x+24,P.y+(small?22:32));
+        const cb=this.closeBtn;
+        const ch=inRect(cb,this.hx,this.hy);
+        drawShape(ctx,sketchLine(cb.x+8,cb.y+8,cb.x+cb.w-8,cb.y+cb.h-8,{width:ch?3:2.2,seed:1971}),ch?PALETTE.red:PALETTE.ink,v);
+        drawShape(ctx,sketchLine(cb.x+cb.w-8,cb.y+8,cb.x+8,cb.y+cb.h-8,{width:ch?3:2.2,seed:1972}),ch?PALETTE.red:PALETTE.ink,v);
+        const cx=P.x+24;
+        const cy=P.y+(small?44:64);
+        const cw=P.w-48;
+        const chh=this.prevBtn.y-cy-(small?8:16);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(P.x+4,cy-4,P.w-8,chh+8);
+        ctx.clip();
+        const base=Math.floor(this.pageAnim);
+        for (const i of [base,base+1]) {
+            if (i<0||i>=TUTORIAL.length) {
+                continue;
+            }
+            const off=(i-this.pageAnim)*P.w;
+            if (Math.abs(off)>=P.w) {
+                continue;
+            }
+            ctx.save();
+            ctx.globalAlpha*=1-Math.min(1,Math.abs(off)/P.w)*0.8;
+            ctx.translate(off,0);
+            this.drawPage(ctx,i,cx,cy,cw,chh,art,v,small);
+            ctx.restore();
+        }
+        ctx.restore();
+        const last=this.page===TUTORIAL.length-1;
+        if (this.page>0) {
+            drawButton(ctx,this.prevBtn,t('tut.prev'),v,1,this.hoverIdx===0,small?15:17);
+        }
+        drawButton(ctx,this.nextBtn,t(last?'tut.done':'tut.next'),v,1,this.hoverIdx===1,small?15:17);
+        this.dots=[];
+        const n=TUTORIAL.length;
+        const dy=this.prevBtn.y+this.prevBtn.h/2;
+        for (let i=0;i<n;i++) {
+            const dx=P.x+P.w/2+(i-(n-1)/2)*24;
+            const on=Math.max(0,1-Math.abs(this.pageAnim-i));
+            ctx.fillStyle=on>0.5?PALETTE.red:rgba('ink',0.3);
+            ctx.beginPath();
+            ctx.arc(dx,dy,5+on*3,0,Math.PI*2);
+            ctx.fill();
+            this.dots.push({x:dx-11,y:dy-12,w:22,h:24});
+        }
+        ctx.restore();
+    }
+}
+
+function hasTouchText(key) {
+    return key==='move'||key==='dash'||key==='cards'||key==='ult';
 }

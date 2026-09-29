@@ -113,6 +113,7 @@ export class Overlay {
             game.mainMenu.draw(ctx);
         }
         game.levelView.draw(ctx);
+        game.tutorial.draw(ctx,game.art);
         game.skinEditor.draw(ctx);
         game.settingsMenu.draw(ctx);
         if (game.settingsMenu.open&&((game.settingsMenu.drag&&/^stick/.test(game.settingsMenu.drag.key))||game.settingsMenu.resetFlash>0)) {
