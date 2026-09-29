@@ -251,6 +251,8 @@ export const TUNING={
     ui:{
         loaderMin:0.7,
         loaderFade:0.6,
+        skinSpin:0.7,
+        skinCam:{dist:7,height:4.2,look:1.1,shift:1.8,follow:5},
         closeTime:0.28,
         deckCloseTime:0.32,
         deckOutMax:0.75
@@ -313,11 +315,27 @@ export const TUNING={
         xpVictory:200,
         xpScore:0.02
     },
+    ultFx:{
+        time:1.3,
+        calmTime:0.8,
+        slow:0.35,
+        slowTime:0.55,
+        bandY:0.7,
+        motifY:0.4
+    },
     levelView:{
         rowH:84
     },
     training:{
-        ink:10
+        ink:10,
+        respawn:1.6,
+        maxFoes:12,
+        rows:[-4,-1.5,-6.5,1],
+        colStep:3,
+        clear:1.4,
+        center:-2.5,
+        hpOptions:[1,3,10],
+        dpsWindow:5
     },
     reward:{
         choices:2,
@@ -397,6 +415,7 @@ export const TUNING={
         hpLength:220,
         hpHeight:22,
         legendPad:14,
+        trainBuffY:272,
         lock:{base:18,perRadius:16,snapTime:0.18,snapGrow:1.2,pulse:6,spin:0.8},
         reloadRing:12
     },

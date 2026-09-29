@@ -100,11 +100,12 @@ export const TRAINING={
         {type:'wall',x:-5,z:5.5,w:3,h:1.0,d:0.7,rot:0.3},
         {type:'wall',x:5,z:5.5,w:3,h:1.0,d:0.7,rot:-0.3}
     ],{spawn:[0,4]}),
-    spots:[['doodle',-6,-3],['sprayer',0,-5.5],['eraserMonster',6,-3],['compass',-9.5,2],['bird',9.5,1.5]],
-    respawn:1.6,
+    solid:['wall','pillar','box'],
     barrels:2,
     crates:2
 };
+
+export const TRAINING_MAPS=['training','crossroads','colonnade','trenches','crates','circle','lanes','bossArena'];
 
 export const NORMAL_LAYOUTS=['crossroads','colonnade','trenches','crates','circle','lanes'];
 

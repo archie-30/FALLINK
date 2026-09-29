@@ -414,16 +414,6 @@ export class Hand {
         this.lastDiscard=v.card;
     }
 
-    keyDiscard() {
-        const v=this.targetView;
-        if (!v||v.state!=='idle') {
-            return false;
-        }
-        this.cancelTargeting();
-        this.discardView(v);
-        return true;
-    }
-
     removeView(v) {
         const i=this.views.indexOf(v);
         if (i>=0) {
@@ -1186,10 +1176,8 @@ export class Hand {
             this.drawKeycap(ctx,x,y,String(i+1),v===this.targetView&&!!v,i===2,!v,variant);
         }
         const [dx]=this.pileCenter(this.drawRect);
-        const [ex]=this.pileCenter(this.discardRect);
         const py=this.drawRect.y-(K.gap+K.size/2)*s;
         this.drawKeycap(ctx,dx,py,t('key.tab'),false,false,false,variant);
-        this.drawKeycap(ctx,ex,py,t('key.q'),!!this.targetView,false,!this.targetView,variant);
     }
 
     drawKeycap(ctx,x,y,label,active,red,dim,variant) {

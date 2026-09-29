@@ -5,11 +5,10 @@ import {time} from '../core/loop.js';
 import {sketchRect,sketchLine,sketchPath,hatchFill,rectPoly,drawShape} from './sketch.js';
 import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
-import {device} from '../core/settings.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
-const DESKTOP_KEYS=[
+export const DESKTOP_KEYS=[
     ['legend.move.key','legend.move'],
     ['legend.aim.key','legend.aim'],
     ['legend.fire.key','legend.fire'],
@@ -23,11 +22,10 @@ const DESKTOP_KEYS=[
     ['legend.deck.key','legend.deck'],
     ['legend.quality.key','legend.quality'],
     ['legend.debug.key','legend.debug'],
-    ['legend.pause.key','legend.pause'],
-    ['legend.hide.key','legend.hide']
+    ['legend.pause.key','legend.pause']
 ];
 
-const TOUCH_KEYS=[
+export const TOUCH_KEYS=[
     ['legend.touch.move.key','legend.touch.move'],
     ['legend.touch.aim.key','legend.touch.aim'],
     ['legend.touch.dash.key','legend.touch.dash'],
@@ -37,8 +35,7 @@ const TOUCH_KEYS=[
     ['legend.touch.discard.key','legend.touch.discard'],
     ['legend.touch.deck.key','legend.touch.deck'],
     ['legend.touch.pause.key','legend.touch.pause'],
-    ['legend.touch.debug.key','legend.touch.debug'],
-    ['legend.touch.hide.key','legend.touch.hide']
+    ['legend.touch.debug.key','legend.touch.debug']
 ];
 
 function wobblyLine(ctx,x1,y1,x2,y2,seed,amp=0.8) {
@@ -70,9 +67,6 @@ export function fmtInk(v) {
 export class Hud {
     constructor() {
         this.hpShown=TUNING.player.maxHp;
-        this.legendOpen=true;
-        this.legendBox={x:0,y:0,w:0,h:0,titleH:0};
-        this.touchCollapsedOnce=false;
         this.inkShown=0;
         this.slosh=0;
         this.inkShakeT=0;
@@ -272,11 +266,6 @@ export class Hud {
         }
         const p=run.plan;
         if (p.training) {
-            ctx.fillStyle=PALETTE.ink;
-            ctx.font='bold 15px '+FONT;
-            ctx.textAlign='center';
-            ctx.textBaseline='top';
-            ctx.fillText(t(device.mobile?'training.infoTouch':'training.info'),w/2,14);
             return;
         }
         const title=run.mode==='endless'?t('run.endlessInfo',{page:p.index+1,score:run.stats.score}):t('run.info',{act:p.act+1,page:p.index+1,pages:run.totalRooms(),score:run.stats.score});
@@ -335,15 +324,6 @@ export class Hud {
     inkFail() {
         this.inkShakeT=0.4;
         this.slosh=Math.min(1.5,this.slosh+0.5);
-    }
-
-    toggleLegend() {
-        this.legendOpen=!this.legendOpen;
-    }
-
-    hitLegendTitle(x,y) {
-        const b=this.legendBox;
-        return x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.titleH;
     }
 
     update(dt,player,ink) {
@@ -438,9 +418,9 @@ export class Hud {
         ctx.restore();
     }
 
-    drawBuffs(ctx,player) {
+    drawBuffs(ctx,player,top=null) {
         const x=TUNING.hud.hpPos[0];
-        let y=TUNING.hud.hpPos[1]+TUNING.hud.hpHeight+130;
+        let y=top??TUNING.hud.hpPos[1]+TUNING.hud.hpHeight+130;
         const rows=[];
         if (player.rapidT>0) {
             rows.push([t('hud.rapid')+' ×'+player.rapidMult,player.rapidT,4,640]);
@@ -524,69 +504,63 @@ export class Hud {
         ctx.fillText(t('hud.hp')+' '+Math.ceil(player.hp)+' / '+max,x,y+h+8);
     }
 
-    drawLegend(ctx,width,height,touch) {
-        const P=TUNING.hud.legendPad;
-        const rows=touch?TOUCH_KEYS:DESKTOP_KEYS;
-        const title=t('legend.title')+(touch?'':'（H）');
-        ctx.font='13px '+FONT;
-        ctx.textBaseline='middle';
-        ctx.textAlign='left';
-        let keyW=0;
-        let labW=0;
-        for (const r of rows) {
-            keyW=Math.max(keyW,ctx.measureText(t(r[0])).width);
-            labW=Math.max(labW,ctx.measureText(t(r[1])).width);
+    drawTrainingInfo(ctx,st,foes,touch,height) {
+        const T=TUNING.training;
+        const now=time.real;
+        let win=0;
+        for (const q of st.log) {
+            if (now-q.t<=T.dpsWindow) {
+                win+=q.dmg;
+            }
         }
-        ctx.font='bold 14px '+FONT;
-        const titleW=ctx.measureText(title).width+(touch?24:0);
-        const rowH=24;
-        const titleH=30;
-        const w=Math.max(titleW+P*2,keyW+labW+P*2+26);
-        const h=this.legendOpen?titleH+rows.length*rowH+P*0.6:titleH;
+        const span=Math.min(T.dpsWindow,Math.max(1,now-(st.start||now)));
+        const rows=[
+            [t('trainInfo.total'),String(Math.round(st.total)),true],
+            [t('trainInfo.dps',{s:T.dpsWindow}),String(Math.round(win/span)),true],
+            [t('trainInfo.max'),String(Math.round(st.max)),false],
+            [t('trainInfo.last'),st.last>0?String(Math.round(st.last)):'—',false],
+            [t('trainInfo.kills'),String(st.kills),false],
+            [t('trainInfo.cards'),String(st.cards),false],
+            [t('trainInfo.hurt'),String(st.hurt),st.hurtT>0],
+            [t('trainInfo.foes'),String(foes),false]
+        ];
         const x=16;
-        const y=height-16-h;
-        this.legendBox={x,y,w,h,titleH};
-        ctx.fillStyle=rgba('paper',0.88);
+        const y=14;
+        const w=236;
+        const rh=21;
+        const h=40+rows.length*rh+26;
+        ctx.save();
+        if (height<600) {
+            ctx.translate(x,y);
+            ctx.scale(0.74,0.74);
+            ctx.translate(-x,-y);
+        }
+        ctx.fillStyle=rgba('paper',0.9);
         ctx.fillRect(x,y,w,h);
-        ctx.strokeStyle=PALETTE.ink;
-        ctx.lineWidth=1.8;
-        wobblyRect(ctx,x,y,w,h,201,0.7);
+        drawShape(ctx,sketchRect(x,y,w,h,{width:1.8,seed:1700}),PALETTE.ink);
         ctx.fillStyle=PALETTE.ink;
-        ctx.fillText(title,x+P,y+titleH/2+1);
-        if (touch) {
-            const cx=x+w-P-6;
-            const cy=y+titleH/2;
-            ctx.lineWidth=2;
-            ctx.beginPath();
-            if (this.legendOpen) {
-                ctx.moveTo(cx-5,cy-2);
-                ctx.lineTo(cx,cy+3);
-                ctx.lineTo(cx+5,cy-2);
-            }
-            else {
-                ctx.moveTo(cx-5,cy+2);
-                ctx.lineTo(cx,cy-3);
-                ctx.lineTo(cx+5,cy+2);
-            }
-            ctx.stroke();
-        }
-        if (!this.legendOpen) {
-            return;
-        }
-        ctx.strokeStyle=PALETTE.midGray;
-        ctx.lineWidth=1;
-        wobblyLine(ctx,x+8,y+titleH,x+w-8,y+titleH,301,0.5);
-        ctx.font='13px '+FONT;
+        ctx.font='bold 15px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('trainInfo.title'),x+14,y+20);
+        drawShape(ctx,sketchLine(x+10,y+36,x+w-10,y+36,{width:1,seed:1701}),PALETTE.midGray);
         for (let i=0;i<rows.length;i++) {
-            const ry=y+titleH+P*0.3+i*rowH+rowH/2;
-            const kw=ctx.measureText(t(rows[i][0])).width+12;
-            ctx.strokeStyle=PALETTE.nearGray;
-            ctx.lineWidth=1.3;
-            wobblyRect(ctx,x+P,ry-9,kw,18,400+i*7,0.5);
-            ctx.fillStyle=PALETTE.ink;
-            ctx.fillText(t(rows[i][0]),x+P+6,ry+1);
+            const ry=y+48+i*rh;
+            const [label,val,hi]=rows[i];
+            ctx.font='13px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
-            ctx.fillText(t(rows[i][1]),x+P+keyW+26,ry+1);
+            ctx.textAlign='left';
+            ctx.fillText(label,x+14,ry);
+            const pop=i===3?Math.max(0,st.lastT):0;
+            ctx.font='bold '+Math.round(15+pop*6)+'px '+FONT;
+            ctx.fillStyle=i===6&&st.hurtT>0?PALETTE.red:(hi?PALETTE.ink:PALETTE.nearGray);
+            ctx.textAlign='right';
+            ctx.fillText(val,x+w-14,ry);
         }
+        ctx.font='11px '+FONT;
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.textAlign='left';
+        ctx.fillText(t(touch?'trainInfo.hintTouch':'trainInfo.hint'),x+14,y+h-14);
+        ctx.restore();
     }
 }

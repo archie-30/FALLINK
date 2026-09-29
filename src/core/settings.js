@@ -17,8 +17,12 @@ export const settings={
     stickSize:0.45,
     stickX:0.45,
     stickY:0.4,
-    godMode:false
+    godMode:false,
+    skin:{coat:'gray',limbs:'charcoal',face:'paper',accent:'ink'},
+    training:{map:'training',foes:{doodle:3},elite:false,attack:false,refill:'fixed',ammo:true,props:true,respawn:true,hp:1}
 };
+
+export const TRAINING_DEFAULTS=JSON.parse(JSON.stringify(settings.training));
 
 export const STICK_DEFAULTS={stickSize:0.45,stickX:0.45,stickY:0.4};
 
@@ -41,6 +45,7 @@ export function loadSettings() {
         if (raw) {
             Object.assign(settings,JSON.parse(raw));
         }
+        settings.training={...TRAINING_DEFAULTS,...settings.training};
     }
     catch (e) {
     }

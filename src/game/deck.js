@@ -13,6 +13,7 @@ export class Deck {
         this.timers=[];
         this.locked=false;
         this.reshuffleT=0;
+        this.provider=null;
         this.events={onDraw:null,onBurn:null,onReshuffleStart:null,onReshuffleEnd:null};
     }
 
@@ -80,7 +81,7 @@ export class Deck {
         }
         this.hand.splice(i,1);
         this.discardPile.push(card);
-        if (!isUlt(card.id)) {
+        if (!isUlt(card.id)||this.provider) {
             this.requestDraw(TUNING.deck.replaceDelay);
         }
         return true;
@@ -148,6 +149,15 @@ export class Deck {
         let guard=0;
         while (this.timers.length>0&&this.timers[0]<=0&&guard<40) {
             guard++;
+            const forced=this.provider?this.provider():null;
+            if (forced) {
+                this.timers.shift();
+                this.hand.push(forced);
+                if (this.events.onDraw) {
+                    this.events.onDraw(forced);
+                }
+                continue;
+            }
             if (this.normalCount()>=TUNING.deck.handSize||!this.hasNormalLeft()) {
                 this.timers.shift();
                 continue;

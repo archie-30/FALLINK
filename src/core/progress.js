@@ -58,6 +58,10 @@ export function hasSeen(type) {
     return godMode()||progress.seen.includes(type);
 }
 
+export function trainable(type) {
+    return type==='doodle'||hasSeen(type);
+}
+
 export function markSeen(type) {
     const id=type==='blobSmall'?'blob':type;
     if (godMode()||progress.seen.includes(id)) {

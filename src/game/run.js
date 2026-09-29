@@ -1,7 +1,8 @@
-import {ACTS,ENDLESS,TRAINING} from '../data/levels.js';
+import {ACTS,ENDLESS,TRAINING,LAYOUTS} from '../data/levels.js';
+import {settings} from '../core/settings.js';
 import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
-import {progress,effectiveLevel,hasSeen} from '../core/progress.js';
+import {progress,effectiveLevel,trainable} from '../core/progress.js';
 import {RNG} from '../core/rng.js';
 import {planRoom,planEndless} from './level.js';
 import {RoomDirector,TrainingDirector} from './room.js';
@@ -46,9 +47,12 @@ export class Run {
     enter() {
         if (this.training()) {
             const T=TRAINING;
-            this.plan={act:0,index:0,training:true,boss:false,layoutKey:'training',layout:T.layout,hpMult:1,waves:[],barrels:T.barrels,crates:T.crates};
+            const c=settings.training;
+            const base=c.map==='training'?T.layout:(LAYOUTS[c.map]||T.layout);
+            const layout=c.props?base:{...base,props:base.props.filter(q=>!T.solid.includes(q.type))};
+            this.plan={act:0,index:0,training:true,boss:false,layoutKey:'training',layout,hpMult:1,waves:[],barrels:c.props?T.barrels:0,crates:c.props?T.crates:0};
             const room=this.hooks.enterRoom(this.plan,this.deckList);
-            this.director=new TrainingDirector(T.spots,this.hooks.enemies,T.respawn,hasSeen);
+            this.director=new TrainingDirector(c,this.hooks.enemies,room,trainable);
             this.state='combat';
             this.timer=0;
             this.hooks.banner('training',this);

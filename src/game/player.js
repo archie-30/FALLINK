@@ -4,6 +4,7 @@ import {toonMaterial,unlitMaterial,registerShadow} from '../render/materials.js'
 import {addHull as addHullBase} from '../render/outline.js';
 import {resolveCircle,clampToBounds} from '../core/collision.js';
 import {time} from '../core/loop.js';
+import {SKIN_TONES,ACCENTS} from '../data/palette.js';
 
 const _mv={x:0,z:0};
 
@@ -67,11 +68,12 @@ export class Player {
     build(parent) {
         const J=TUNING.boil.vertexJitter;
         const g=this.ghost;
-        const tm=o=>toonMaterial(g?{...o,ghost:true,unique:true,alpha:0.75}:o);
+        const tm=o=>toonMaterial(g?{...o,ghost:true,unique:true,alpha:0.75}:{...o,unique:true});
         const dark=tm({light:'midGray',mid:'nearGray',dark:'ink',jitter:J});
         const coat=tm({light:'farGray',mid:'midGray',dark:'ink',jitter:J});
         const face=tm({light:'paper',mid:'farGray',dark:'midGray',jitter:J});
-        const ink=g?dark:unlitMaterial({color:'ink',jitter:J});
+        const ink=g?dark:unlitMaterial({color:'ink',jitter:J,unique:true});
+        this.skinMats={coat,limbs:dark,face,accent:g?null:ink};
         this.ghostMats=g?[dark,coat,face]:[];
         const hull={jitter:J};
         const addHull=g?()=>null:addHullBase;
@@ -170,6 +172,23 @@ export class Player {
         this.muzzle.position.z=0.46;
         this.gun.add(this.muzzle);
         parent.add(this.root);
+    }
+
+    applySkin(skin) {
+        for (const part of ['coat','limbs','face']) {
+            const tones=SKIN_TONES[skin[part]];
+            const m=this.skinMats[part];
+            if (!tones||!m) {
+                continue;
+            }
+            m.uniforms.uColLight.value.set(tones[0]);
+            m.uniforms.uColMid.value.set(tones[1]);
+            m.uniforms.uColDark.value.set(tones[2]);
+        }
+        const a=this.skinMats.accent;
+        if (a&&ACCENTS[skin.accent]) {
+            a.uniforms.uColor.value.set(ACCENTS[skin.accent]);
+        }
     }
 
     buildShield() {

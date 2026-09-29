@@ -537,6 +537,6 @@ export function isUlt(id) {
     return CARDS[id].rarity==='rare';
 }
 
-export const STARTING_DECK=['scatter','scatter','pierce','bomb','pencilWall','eraser','paperShield','trap','execute'];
+export const STARTING_DECK=['scatter','scatter','pierce','bomb','pencilWall','eraser','paperShield','execute'];
 
 export const ALL_CARDS=Object.keys(CARDS);

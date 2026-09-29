@@ -1,3 +1,4 @@
+import {circleVs} from '../core/collision.js';
 import {TUNING} from '../data/tuning.js';
 
 export class RoomDirector {
@@ -86,33 +87,89 @@ export class RoomDirector {
 }
 
 export class TrainingDirector {
-    constructor(spots,enemies,respawn,allow) {
+    constructor(cfg,enemies,room,allow) {
         this.enemies=enemies;
-        this.respawn=respawn;
-        this.slots=spots.map(([type,x,z])=>({type:allow(type)?type:'doodle',x,z,e:null,t:0.4}));
+        this.room=room;
+        this.allow=allow;
         this.cleared=false;
         this.boss=null;
         this.events=[];
         this.wave=0;
         this.queue=[];
+        this.configure(cfg);
     }
 
     totalWaves() {
         return 1;
     }
 
+    spots(n) {
+        const T=TUNING.training;
+        const b=this.room.bounds;
+        const tmp={x:0,z:0,depth:0};
+        const out=[];
+        for (const z of T.rows) {
+            for (let x=Math.ceil(b.minX+2);x<=b.maxX-2;x+=T.colStep) {
+                if (z<b.minZ+1.5||z>b.maxZ-1.5) {
+                    continue;
+                }
+                let ok=true;
+                for (const c of this.room.colliders) {
+                    if (circleVs(x,z,T.clear,c,tmp)) {
+                        ok=false;
+                        break;
+                    }
+                }
+                if (ok) {
+                    out.push([x,z]);
+                }
+            }
+        }
+        out.sort((p,q)=>Math.hypot(p[0]*0.6,p[1]-T.center)-Math.hypot(q[0]*0.6,q[1]-T.center));
+        return out.slice(0,n);
+    }
+
+    configure(cfg) {
+        this.cfg=cfg;
+        this.enemies.clear();
+        const types=[];
+        for (const k in cfg.foes) {
+            if (!this.allow(k)) {
+                continue;
+            }
+            for (let i=0;i<cfg.foes[k];i++) {
+                types.push(k);
+            }
+        }
+        const pts=this.spots(types.length);
+        this.slots=types.slice(0,pts.length).map((type,i)=>({type,x:pts[i][0],z:pts[i][1],e:null,uid:-1,t:0.3+i*0.12}));
+    }
+
+    setAttack(on) {
+        this.cfg.attack=on;
+        for (const s of this.slots) {
+            if (s.e&&s.e.alive) {
+                s.e.dummy=!on;
+            }
+        }
+    }
+
     update(dt) {
         this.events.length=0;
+        const T=TUNING.training;
         for (const s of this.slots) {
             if (s.e&&s.e.alive&&s.e.uid===s.uid) {
                 continue;
             }
-            s.e=null;
+            if (s.e&&!this.cfg.respawn) {
+                continue;
+            }
             s.t-=dt;
             if (s.t<=0) {
-                s.e=this.enemies.spawn(s.type,s.x,s.z,{hpMult:1,dummy:true});
+                const c=this.cfg;
+                s.e=this.enemies.spawn(s.type,s.x,s.z,{hpMult:c.hp*(c.elite?TUNING.elite.hp:1),dummy:!c.attack,elite:c.elite});
                 s.uid=s.e.uid;
-                s.t=this.respawn;
+                s.t=T.respawn;
                 this.events.push(s.e);
             }
         }

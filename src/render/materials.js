@@ -184,7 +184,7 @@ export function unlitMaterial(opts={}) {
     const color=opts.color||'red';
     const jitter=opts.jitter??0;
     const key='unlit|'+color+'|'+jitter;
-    if (cache.has(key)) {
+    if (!opts.unique&&cache.has(key)) {
         return cache.get(key);
     }
     const mat=new THREE.ShaderMaterial({
@@ -198,7 +198,9 @@ export function unlitMaterial(opts={}) {
         }
     });
     track(mat,jitter);
-    cache.set(key,mat);
+    if (!opts.unique) {
+        cache.set(key,mat);
+    }
     return mat;
 }
 

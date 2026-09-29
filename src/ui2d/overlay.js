@@ -49,7 +49,6 @@ export class Overlay {
         ctx.clearRect(0,0,this.width,this.height);
         ctx.lineCap='round';
         ctx.lineJoin='round';
-        const touchUi=device.mobile||input.lastDevice==='touch';
         game.transition.draw(ctx,this.width,this.height);
         const dying=game.run.state==='dead';
         if (game.mode==='play'&&dying) {
@@ -58,17 +57,19 @@ export class Overlay {
         if (game.mode==='play'&&!dying) {
             this.hud.drawEnemyHp(ctx,game.enemies,game.project,this.tmp3||(this.tmp3={x:0,y:0}));
             game.dmgNums.draw(ctx,game.project);
-            this.hud.drawAmmo(ctx,player,game.project,this.tmp||(this.tmp={x:0,y:0}));
+            const training=game.run.mode==='training';
+            if (!training||!settings.training.ammo) {
+                this.hud.drawAmmo(ctx,player,game.project,this.tmp||(this.tmp={x:0,y:0}));
+            }
             this.drawLock(ctx,game);
-            this.hud.drawHp(ctx,player);
-            this.hud.drawInk(ctx,game.ink);
-            this.hud.drawBuffs(ctx,player);
-            if (!touchUi) {
-                this.hud.drawLegend(ctx,this.width,this.height,false);
+            if (training) {
+                this.hud.drawTrainingInfo(ctx,game.trainStats,game.enemies.aliveCount(),device.mobile||input.lastDevice==='touch',this.height);
             }
             else {
-                this.hud.legendBox={x:0,y:0,w:0,h:0,titleH:0};
+                this.hud.drawHp(ctx,player);
+                this.hud.drawInk(ctx,game.ink);
             }
+            this.hud.drawBuffs(ctx,player,training?TUNING.hud.trainBuffY*(this.height<600?0.74:1):null);
             game.hand.draw(ctx,game.art);
             if (input.lastDevice==='touch') {
                 this.drawSticks(input,!!game.hand.targetView);
@@ -81,8 +82,10 @@ export class Overlay {
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
             this.hud.drawToast(ctx,this.width,game.dt);
+            game.ultCutin.draw(ctx,this.width,this.height);
             this.hud.drawPause(ctx,this.width);
             game.deckView.draw(ctx,game.art,game.deck);
+            game.trainingMenu.draw(ctx);
             game.trainingPicker.draw(ctx,game.art);
             game.reward.draw(ctx,game.art);
             game.upgradeView.draw(ctx,game.art);
@@ -110,6 +113,7 @@ export class Overlay {
             game.mainMenu.draw(ctx);
         }
         game.levelView.draw(ctx);
+        game.skinEditor.draw(ctx);
         game.settingsMenu.draw(ctx);
         if (game.settingsMenu.open&&((game.settingsMenu.drag&&/^stick/.test(game.settingsMenu.drag.key))||game.settingsMenu.resetFlash>0)) {
             this.drawSticks(input,false);
