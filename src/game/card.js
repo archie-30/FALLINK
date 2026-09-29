@@ -11,11 +11,17 @@ export function createCard(id,upgraded=false) {
 }
 
 export function cardCost(card) {
-    return card.upgraded&&card.def.upgraded.cost!==undefined?card.def.upgraded.cost:card.def.cost;
+    if (!card.upgraded) {
+        return card.def.cost;
+    }
+    if (card.def.rarity==='rare') {
+        return Math.max(0,card.def.cost-1);
+    }
+    return card.def.upgraded.cost!==undefined?card.def.upgraded.cost:card.def.cost;
 }
 
 export function cardParams(card) {
-    return card.upgraded?{...card.def.params,...card.def.upgraded.params}:card.def.params;
+    return card.upgraded&&card.def.rarity!=='rare'?{...card.def.params,...card.def.upgraded.params}:card.def.params;
 }
 
 export function cardName(card) {

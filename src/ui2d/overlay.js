@@ -83,6 +83,7 @@ export class Overlay {
             this.hud.drawPause(ctx,this.width);
             game.deckView.draw(ctx,game.art,game.deck);
             game.reward.draw(ctx,game.art);
+            game.upgradeView.draw(ctx,game.art);
             game.summary.draw(ctx);
             game.pause.draw(ctx);
             if (game.pause.open) {

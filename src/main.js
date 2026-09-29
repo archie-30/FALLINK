@@ -25,7 +25,7 @@ import {Player,Clone} from './game/player.js';
 import {BulletSystem,Lobs} from './game/bullet.js';
 import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
-import {CardEffects} from './game/card.js';
+import {CardEffects,createCard} from './game/card.js';
 import {STARTING_DECK,ALL_CARDS,CARDS} from './data/cards.js';
 import {progress,loadProgress,addXp,markSeen} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
@@ -36,6 +36,7 @@ import {Run} from './game/run.js';
 import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
+import {UpgradeView} from './ui2d/upgrade.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex} from './ui2d/menu.js';
 import {audio} from './core/audio.js';
 import {ENDLESS,MENU_SCENE} from './data/levels.js';
@@ -268,7 +269,7 @@ function boot() {
         fx.fovPunch(F.fovKill);
         fx.flash('paper',F.killFlash*3,0.35);
         if (run.stats) {
-            run.addScore(e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?3:1));
+            run.addScore(e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?TUNING.elite.score:1));
             run.stats.kills++;
             run.stats.xp+=e.def.boss?TUNING.levels.xpBoss:TUNING.levels.xpKill*(e.def.cost||1);
         }
@@ -368,6 +369,7 @@ function boot() {
     };
     player.events.onDown=()=>run.playerDown();
     const reward=new RewardView();
+    const upgradeView=new UpgradeView();
     const summary=new RunSummary();
     const transition=new Transition();
     function allShards() {
@@ -467,6 +469,11 @@ function boot() {
                 overlay.hud.banner(t('run.cleared'),'',1.3);
             }
         },
+        onMerge:(id,done)=>{
+            art.warm([createCard(id),createCard(id,true)]);
+            audio.play('clear',0.8);
+            upgradeView.show(id,done);
+        },
         openReward:(cards,cb)=>{
             fx.paused=true;
             hand.cancelTargeting();
@@ -548,6 +555,7 @@ function boot() {
         pauseMenu.hide();
         summary.open=false;
         reward.open=false;
+        upgradeView.open=false;
         mainMenu.show();
         renderer.post.drawIn(1.6,0.2);
     }
@@ -560,7 +568,7 @@ function boot() {
         run.start(startIds(),mode);
     }
     function openPause() {
-        if (game.mode!=='play'||pauseMenu.open||summary.open||reward.open||transition.active) {
+        if (game.mode!=='play'||pauseMenu.open||summary.open||reward.open||upgradeView.open||transition.active) {
             return;
         }
         audio.play('ui');
@@ -621,6 +629,7 @@ function boot() {
         }
     });
     const codex=new Codex({
+        select:()=>audio.play('ui'),
         back:()=>{
             audio.play('ui');
             codex.hide();
@@ -662,6 +671,7 @@ function boot() {
         hand.resize(w,h);
         deckView.resize(w,h);
         reward.resize(w,h);
+        upgradeView.resize(w,h);
         summary.resize(w,h);
         for (const m of menus) {
             m.resize(w,h);
@@ -707,6 +717,9 @@ function boot() {
             }
             if (summary.open) {
                 return summary.down(x,y);
+            }
+            if (upgradeView.open) {
+                return upgradeView.down(x,y);
             }
             if (reward.open) {
                 return reward.down(x,y);
@@ -767,7 +780,7 @@ function boot() {
         }
     };
     input.onDeckKey=()=>{
-        if (reward.open||summary.open||codex.open||settingsMenu.open||game.mode!=='play') {
+        if (reward.open||upgradeView.open||summary.open||codex.open||settingsMenu.open||game.mode!=='play') {
             return;
         }
         if (deckView.open) {
@@ -804,7 +817,7 @@ function boot() {
         openPause();
     };
     input.onWheel=dy=>codex.wheel(dy);
-    input.canStick=()=>game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!reward.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.canStick=()=>game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     input.onAimRelease=(vx,vy,mag,tap)=>{
         if (hand.targetView&&run.state==='combat'&&input.canStick()) {
             hand.stickCast(vx,vy,mag,tap);
@@ -834,7 +847,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out);
-    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex};
+    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -934,18 +947,45 @@ function boot() {
             }
         }
     }
+    let bossDropT=0;
+    function updateBossDrops(dt) {
+        const B=TUNING.bossDrop;
+        if (game.mode!=='play'||run.state!=='combat'||!run.plan||!run.plan.boss) {
+            bossDropT=B.first;
+            return;
+        }
+        bossDropT-=dt;
+        if (bossDropT>0) {
+            return;
+        }
+        bossDropT=B.interval[0]+Math.random()*(B.interval[1]-B.interval[0]);
+        if (pickups.items.filter(q=>q.active&&q.type==='ink').length>=B.max) {
+            return;
+        }
+        for (let i=0;i<8;i++) {
+            const s=game.room.freeSpot(dropRng);
+            if (s&&Math.hypot(s.x-player.pos.x,s.z-player.pos.z)>=B.minPlayerDist) {
+                pickups.spawn('ink',s.x,s.z,B.ink);
+                rings.spawn(s.x,s.z,1.2,'ink',0.4);
+                particles.burst(s.x,2.5,s.z,8,{speed:[1,3],up:[-4,-1],size:[0.08,0.14]});
+                return;
+            }
+        }
+    }
+    const dropRng=new RNG(4242);
     function update(dt) {
         if (run.state!=='dead') {
             player.update(dt,input,ctx,aim);
         }
         const hurry=game.mod==='hurry'&&game.mode==='play'?1.25:1;
         enemies.update(dt*hurry,ctx);
-        pickups.update(dt,player,(type,x,z)=>{
+        pickups.update(dt,player,(type,x,z,amount)=>{
             const P=TUNING.props;
             audio.play('clear',1.5);
             if (type==='ink') {
-                ink.add(P.pickupInk);
-                floatText(x,z,t('pickup.ink',{n:P.pickupInk}));
+                const n=amount||P.pickupInk;
+                ink.add(n);
+                floatText(x,z,t('pickup.ink',{n}));
             }
             else {
                 player.hp=Math.min(TUNING.player.maxHp,player.hp+P.pickupHeal);
@@ -956,6 +996,7 @@ function boot() {
         if (game.mod==='inkRain'&&game.mode==='play'&&run.state==='combat') {
             updateRain(dt);
         }
+        updateBossDrops(dt);
         const room=game.room;
         playerBullets.update(dt,room);
         enemyBullets.update(dt*hurry,room);
@@ -1033,6 +1074,7 @@ function boot() {
         }
         dmgNums.update(dt*Math.max(time.timeScale,fx.paused?0:0.25));
         reward.update(dt);
+        upgradeView.update(dt);
         summary.update(dt);
         transition.update(dt);
         for (const m of menus) {
@@ -1114,7 +1156,7 @@ function boot() {
     loop.start();
     art.warm(deck.drawPile);
     enterMenu();
-    window.INKFALL={transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKFALL={transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

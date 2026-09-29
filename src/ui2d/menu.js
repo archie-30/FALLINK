@@ -7,7 +7,7 @@ import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
 import {settings} from '../core/settings.js';
 import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel} from '../data/cards.js';
 import {progress,xpToNext,hasSeen} from '../core/progress.js';
-import {createCard,cardDesc} from '../game/card.js';
+import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
 import {ENEMIES} from '../data/enemies.js';
 import {ENDLESS} from '../data/levels.js';
 import {fmtInk} from './hud.js';
@@ -19,6 +19,33 @@ const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
 function inRect(r,x,y) {
     return x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h;
+}
+
+function lerp1(a,b,f) {
+    return a+(b-a)*Math.max(0,Math.min(1,f));
+}
+
+function drawToggle(ctx,r,labels,anim,v,red=false) {
+    const c=red?PALETTE.red:PALETTE.ink;
+    ctx.fillStyle=PALETTE.paper;
+    ctx.fillRect(r.x,r.y,r.w,r.h);
+    const hw=r.w/2;
+    const k=EASE.easeInOutCubic(Math.max(0,Math.min(1,anim)));
+    const squash=1-Math.sin(k*Math.PI)*0.12;
+    ctx.fillStyle=c;
+    ctx.fillRect(r.x+3+k*hw,r.y+3+(1-squash)*r.h/2,hw-6,(r.h-6)*squash);
+    ctx.save();
+    ctx.translate(r.x,r.y);
+    drawShape(ctx,sketchRect(0,0,Math.round(r.w),Math.round(r.h),{width:1.8,seed:1990}),c,v);
+    ctx.restore();
+    ctx.font='bold 14px '+FONT;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    for (let i=0;i<2;i++) {
+        const on=Math.abs(k-i)<0.5;
+        ctx.fillStyle=on?PALETTE.paper:c;
+        ctx.fillText(labels[i],r.x+hw*i+hw/2,r.y+r.h/2+1);
+    }
 }
 
 function drawButton(ctx,b,label,v,appear,hover,size=20) {
@@ -588,6 +615,12 @@ export class Codex extends Panel {
         this.tab=0;
         const all=ALL_CARDS.map(id=>createCard(id));
         this.lists=[all.filter(c=>c.def.rarity!=='rare'),all.filter(c=>c.def.rarity==='rare')];
+        this.upList=this.lists[0].map(c=>createCard(c.id,true));
+        this.showUp=false;
+        this.upAnim=0;
+        this.tabAnim=0;
+        this.upToggle=null;
+        this.dToggle=null;
         this.scroll=0;
         this.scrollTo=0;
         this.contentH=0;
@@ -646,6 +679,9 @@ export class Codex extends Panel {
     }
 
     setTab(i) {
+        if (i!==this.tab&&this.actions.select) {
+            this.actions.select();
+        }
         this.tab=i;
         this.t=0.3;
         this.scroll=0;
@@ -653,7 +689,7 @@ export class Codex extends Panel {
     }
 
     openDetail(kind,id) {
-        this.detail={kind,id,t:0};
+        this.detail={kind,id,t:0,alt:kind==='card'&&this.showUp,altAnim:kind==='card'&&this.showUp?1:0};
         this.animT=0;
         this.dScroll=0;
         this.dScrollTo=0;
@@ -688,6 +724,13 @@ export class Codex extends Panel {
                 this.closeDetail();
                 return true;
             }
+            if (this.dToggle&&inRect(this.dToggle,x,y)) {
+                this.detail.alt=!this.detail.alt;
+                if (this.actions.select) {
+                    this.actions.select();
+                }
+                return true;
+            }
             this.drag={y0:y,s0:this.dScrollTo,x0:x,moved:false,detail:true};
             return true;
         }
@@ -696,6 +739,12 @@ export class Codex extends Panel {
         }
         else if (this.tabs.some(b=>inRect(b,x,y))) {
             this.setTab(this.tabs.findIndex(b=>inRect(b,x,y)));
+        }
+        else if (this.tab===0&&this.upToggle&&inRect(this.upToggle,x,y)) {
+            this.showUp=!this.showUp;
+            if (this.actions.select) {
+                this.actions.select();
+            }
         }
         else if (inRect(this.view,x,y)) {
             this.drag={y0:y,s0:this.scrollTo,x0:x,moved:false,detail:false};
@@ -743,7 +792,11 @@ export class Codex extends Panel {
         this.scroll+=(this.scrollTo-this.scroll)*k;
         this.dScroll+=(this.dScrollTo-this.dScroll)*k;
         this.animT+=dt;
+        const ka=1-Math.exp(-TUNING.codex.toggleFollow*dt);
+        this.upAnim+=((this.showUp?1:0)-this.upAnim)*ka;
+        this.tabAnim+=(this.tab-this.tabAnim)*ka;
         if (this.detail) {
+            this.detail.altAnim+=((this.detail.alt?1:0)-this.detail.altAnim)*ka;
             if (this.detail.closing) {
                 this.detail.t-=dt*0.3/TUNING.ui.closeTime;
                 if (this.detail.t<=0) {
@@ -778,8 +831,10 @@ export class Codex extends Panel {
         const rowH=CARD_H*sc+TUNING.codex.rowGap;
         const x0=w/2-colW*cols/2;
         this.contentH=Math.ceil(list.length/cols)*rowH+10;
+        const flipList=list===this.lists[0];
+        const flip=flipList?Math.abs(Math.cos(this.upAnim*Math.PI)):1;
         for (let i=0;i<list.length;i++) {
-            const c=list[i];
+            const c=flipList&&this.upAnim>0.5?this.upList[i]:list[i];
             const cx=x0+(i%cols)*colW;
             const cy=V.y+10+Math.floor(i/cols)*rowH-this.scroll;
             if (cy>V.y+V.h||cy+rowH<V.y) {
@@ -804,7 +859,9 @@ export class Codex extends Panel {
             }
             ctx.translate(cx+8,cy+(1-p)*16);
             ctx.save();
-            ctx.scale(sc,sc);
+            ctx.translate(CARD_W*sc/2,0);
+            ctx.scale(sc*Math.max(0.03,locked?1:flip),sc);
+            ctx.translate(-CARD_W/2,0);
             ctx.drawImage(locked?art.back(v):art.face(c,v),0,0,CARD_W,CARD_H);
             if (!locked) {
                 drawCost(ctx,c,false,v);
@@ -816,15 +873,16 @@ export class Codex extends Panel {
             ctx.textBaseline='top';
             ctx.fillStyle=c.def.rarity==='rare'?PALETTE.red:PALETTE.ink;
             ctx.font='bold 18px '+FONT;
-            ctx.fillText(locked?'？？？':t(c.def.nameKey),tx,4);
+            ctx.fillText(locked?'？？？':cardName(c),tx,4);
             ctx.font='13px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
-            const meta=locked?t('codex.locked',{level:need}):(c.def.rarity==='rare'?t('type.ult'):t('type.'+c.def.type))+' · '+t('tooltip.cost',{cost:c.def.cost})+' · '+t('codex.unlockAt',{level:need});
+            const meta=locked?t('codex.locked',{level:need}):(c.def.rarity==='rare'?t('type.ult'):t('type.'+c.def.type))+' · '+t('tooltip.cost',{cost:cardCost(c)})+' · '+t('codex.unlockAt',{level:need});
             ctx.fillText(meta,tx,28);
             if (!locked) {
                 ctx.fillStyle=PALETTE.ink;
                 ctx.font='14px '+FONT;
-                const lines=wrapText(ctx,t(c.def.descKey,c.def.params),tw);
+                ctx.globalAlpha*=flipList?0.4+0.6*flip:1;
+                const lines=wrapText(ctx,c.def.rarity==='rare'?cardDesc(c)+'　'+t('codex.rareMerge'):cardDesc(c),tw);
                 for (let k=0;k<lines.length&&k<4;k++) {
                     ctx.fillText(lines[k],tx,50+k*19);
                 }
@@ -943,43 +1001,52 @@ export class Codex extends Panel {
 
     drawCardDetail(ctx,art,v) {
         const P=this.dPanel;
-        const card=createCard(this.detail.id);
-        const up=createCard(this.detail.id,true);
-        const sc=Math.min(1.7,(P.h-300)/CARD_H);
-        const lw=Math.max(240,CARD_W*sc+40);
+        const d=this.detail;
+        const base=createCard(d.id);
+        const rare=base.def.rarity==='rare';
+        const card=!rare&&d.altAnim>0.5?createCard(d.id,true):base;
+        const flip=rare?1:Math.abs(Math.cos(d.altAnim*Math.PI));
+        const sc=Math.min(1.55,(P.h-330)/CARD_H);
+        const lw=Math.max(260,CARD_W*sc+40);
         const lx=P.x+28;
         let y=P.y+28;
         ctx.save();
-        ctx.translate(lx,y);
-        ctx.scale(sc,sc);
+        ctx.translate(lx+CARD_W*sc/2,y);
+        ctx.scale(sc*Math.max(0.03,flip),sc);
+        ctx.translate(-CARD_W/2,0);
         ctx.drawImage(art.face(card,v),0,0,CARD_W,CARD_H);
         drawCost(ctx,card,false,v);
         ctx.restore();
-        y+=CARD_H*sc+18;
-        const rare=card.def.rarity==='rare';
+        this.dToggle=null;
+        y+=CARD_H*sc+12;
+        if (!rare) {
+            this.dToggle={x:lx,y,w:150,h:30};
+            drawToggle(ctx,this.dToggle,[t('codex.base'),t('codex.plus')],d.altAnim,v);
+            y+=40;
+        }
         ctx.textAlign='left';
         ctx.textBaseline='top';
         ctx.fillStyle=rare?PALETTE.red:PALETTE.ink;
         ctx.font='bold 26px '+FONT;
-        ctx.fillText(t(card.def.nameKey),lx,y);
+        ctx.fillText(cardName(card),lx,y);
         y+=36;
         ctx.font='14px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
-        ctx.fillText((rare?t('type.ult'):t('type.'+card.def.type))+' · '+t('tooltip.cost',{cost:card.def.cost})+' · '+t('codex.unlockAt',{level:unlockLevel(card.id)}),lx,y);
+        ctx.fillText((rare?t('type.ult'):t('type.'+card.def.type))+' · '+t('tooltip.cost',{cost:cardCost(card)})+' · '+t('codex.unlockAt',{level:unlockLevel(card.id)}),lx,y);
         y+=26;
+        ctx.save();
+        ctx.globalAlpha*=0.4+0.6*flip;
         ctx.fillStyle=PALETTE.ink;
         ctx.font='15px '+FONT;
         for (const line of wrapText(ctx,cardDesc(card),lw-10)) {
             ctx.fillText(line,lx,y);
             y+=21;
         }
-        y+=8;
-        ctx.fillStyle=PALETTE.nearGray;
+        ctx.restore();
+        y+=10;
+        ctx.fillStyle=rare?PALETTE.red:PALETTE.nearGray;
         ctx.font='bold 13px '+FONT;
-        ctx.fillText(t('codex.upgraded',{cost:up.def.upgraded?up.def.upgraded.cost:card.def.cost}),lx,y);
-        y+=20;
-        ctx.font='13px '+FONT;
-        for (const line of wrapText(ctx,cardDesc(up),lw-10)) {
+        for (const line of wrapText(ctx,rare?t('codex.rareMerge'):t('codex.normalMerge'),lw-10)) {
             ctx.fillText(line,lx,y);
             y+=18;
         }
@@ -998,20 +1065,27 @@ export class Codex extends Panel {
         ctx.fillText(t('codex.demoHint'),stx,P.y+66+sh);
     }
 
-    enemyStats(id) {
+    enemyStats(id,e) {
         const d=ENEMIES[id];
+        const E=TUNING.elite;
+        const hp=Math.round(d.hp*lerp1(1,E.hp,e));
+        const inkV=(d.ink||1)*lerp1(1,TUNING.ink.eliteMult,e);
+        const score=Math.round(ENDLESS.scoreKill*(d.cost||1)*lerp1(1,E.score,e));
         const rows=[
-            [t('codex.stat.hp'),String(d.hp)],
-            [t('codex.stat.speed'),d.speed>0?String(d.speed):t('codex.stat.still')],
-            [t('codex.stat.attack'),String(d.chargeDamage||d.bulletDamage||d.contactDamage)],
-            [t('codex.stat.contact'),String(d.contactDamage)],
-            [t('codex.stat.ink'),'+'+fmtInk(d.ink||1)],
-            [t('codex.stat.type'),d.boss?t('codex.type.boss'):(d.flying?t('codex.type.fly'):t('codex.type.ground'))],
-            [t('codex.stat.score'),String(d.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(d.cost||1))],
-            [t('codex.stat.first'),t('codex.first.'+id)]
+            [t('codex.stat.hp'),String(hp),true],
+            [t('codex.stat.speed'),d.speed>0?String(d.speed):t('codex.stat.still'),false],
+            [t('codex.stat.contact'),String(d.contactDamage),false],
+            [t('codex.stat.ink'),'+'+fmtInk(Math.round(inkV*2)/2),true],
+            [t('codex.stat.type'),d.boss?t('codex.type.boss'):(d.flying?t('codex.type.fly'):t('codex.type.ground')),false],
+            [t('codex.stat.score'),String(d.boss?ENDLESS.scoreBoss:score),true],
+            [t('codex.stat.first'),t(e>0.5?'codex.first.elite':'codex.first.'+id),e>0.5]
         ];
         if (d.weakMult) {
-            rows.push([t('codex.stat.weak'),t('codex.weak.'+id)]);
+            rows.push([t('codex.stat.weak'),t('codex.weak.'+id),false]);
+        }
+        if (!d.boss) {
+            rows.push([t('codex.stat.size'),e>0.5?'×'+E.scale:'×1',true]);
+            rows.push([t('codex.stat.knock'),e>0.5?t('codex.knock.elite',{n:Math.round((1-E.knock)*100)}):t('codex.knock.normal'),true]);
         }
         return rows;
     }
@@ -1021,6 +1095,7 @@ export class Codex extends Panel {
         const V=this.dView;
         const id=this.detail.id;
         const boss=ENEMIES[id].boss;
+        const e=boss?0:this.detail.altAnim;
         ctx.save();
         ctx.beginPath();
         ctx.rect(V.x,V.y,V.w,V.h);
@@ -1032,24 +1107,50 @@ export class Codex extends Panel {
         ctx.fillRect(lx,y,150,150);
         ctx.save();
         ctx.translate(lx,y);
-        drawShape(ctx,sketchRect(0,0,150,150,{width:2,seed:2201}),boss?PALETTE.red:PALETTE.ink,v);
-        ctx.translate(75,80);
-        ctx.scale(1.8,1.8);
+        drawShape(ctx,sketchRect(0,0,150,150,{width:2,seed:2201}),boss||e>0.5?PALETTE.red:PALETTE.ink,v);
+        ctx.translate(75,82);
+        const isc=1.6*lerp1(1,TUNING.elite.scale,e);
+        ctx.scale(isc,isc);
         ENEMY_ICONS[id](ctx,v);
         ctx.restore();
+        if (e>0.02) {
+            ctx.save();
+            ctx.globalAlpha*=Math.min(1,e*1.5);
+            ctx.translate(lx+118,y+22);
+            ctx.rotate(0.25);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.fillRect(-24,-11,48,22);
+            drawShape(ctx,sketchRect(-24,-11,48,22,{width:1.6,seed:2205}),PALETTE.red,v);
+            ctx.fillStyle=PALETTE.red;
+            ctx.font='bold 13px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('hud.elite'),0,1);
+            ctx.restore();
+        }
         const tx=lx+176;
         ctx.textAlign='left';
         ctx.textBaseline='top';
         ctx.fillStyle=boss?PALETTE.red:PALETTE.ink;
         ctx.font='bold 28px '+FONT;
         ctx.fillText(t('enemy.'+id)+(boss?'　'+t('codex.boss'):''),tx,y);
+        this.dToggle=null;
+        if (!boss) {
+            ctx.font='bold 28px '+FONT;
+            const nw=ctx.measureText(t('enemy.'+id)).width;
+            this.dToggle={x:tx+nw+22,y:y+2,w:136,h:30};
+            drawToggle(ctx,this.dToggle,[t('codex.normalFoe'),t('hud.elite')],e,v,e>0.5);
+            this.dToggle={x:this.dToggle.x,y:this.dToggle.y-this.dScroll,w:this.dToggle.w,h:this.dToggle.h};
+            ctx.textAlign='left';
+            ctx.textBaseline='top';
+        }
         ctx.font='14px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         const dl=wrapText(ctx,t('codex.'+id),P.x+P.w-40-tx);
         for (let i=0;i<dl.length;i++) {
             ctx.fillText(dl[i],tx,y+40+i*19);
         }
-        const rows=this.enemyStats(id);
+        const rows=this.enemyStats(id,e);
         const sy=y+44+dl.length*19+6;
         const colW=Math.min(260,(P.x+P.w-40-tx)/2);
         for (let i=0;i<rows.length;i++) {
@@ -1059,7 +1160,7 @@ export class Codex extends Panel {
             ctx.fillStyle=PALETTE.nearGray;
             ctx.fillText(rows[i][0],cx,cy);
             ctx.font='bold 15px '+FONT;
-            ctx.fillStyle=PALETTE.ink;
+            ctx.fillStyle=rows[i][2]&&e>0.5?PALETTE.red:PALETTE.ink;
             ctx.fillText(rows[i][1],cx+92,cy);
         }
         y=Math.max(y+170,sy+Math.ceil(rows.length/2)*26+8);
@@ -1092,11 +1193,14 @@ export class Codex extends Panel {
                 ctx.fillStyle=PALETTE.ink;
                 ctx.font='bold 17px '+FONT;
                 ctx.fillText(t('atk.'+id+'.'+a.key),ax,cy+2);
+                ctx.fillStyle=a.dmg.kind==='none'||a.dmg.kind==='slow'?PALETTE.midGray:PALETTE.red;
+                ctx.font='bold 13px '+FONT;
+                ctx.fillText(t('codex.dmg.'+a.dmg.kind,{n:a.dmg.n}),ax,cy+26);
                 ctx.fillStyle=PALETTE.nearGray;
                 ctx.font='13px '+FONT;
                 const ls=wrapText(ctx,t('atk.'+id+'.'+a.key+'.desc'),aw);
-                for (let k=0;k<ls.length&&k<7;k++) {
-                    ctx.fillText(ls[k],ax,cy+28+k*18);
+                for (let k=0;k<ls.length&&k<6;k++) {
+                    ctx.fillText(ls[k],ax,cy+48+k*18);
                 }
             }
         }
@@ -1149,21 +1253,37 @@ export class Codex extends Panel {
         ctx.textBaseline='middle';
         ctx.fillText(t('menu.codex'),w/2,36);
         const tl=[t('codex.normal'),t('codex.ult'),t('codex.enemies')];
+        const ta=this.tabAnim;
+        const t0=this.tabs[Math.floor(Math.min(1.999,ta))];
+        const t1=this.tabs[Math.min(2,Math.floor(Math.min(1.999,ta))+1)];
+        const tf=ta-Math.floor(Math.min(1.999,ta));
+        const hxp=t0.x+(t1.x-t0.x)*tf;
+        const stretch=1+Math.sin(tf*Math.PI)*0.25;
+        ctx.fillStyle=Math.abs(ta-1)<0.5?PALETTE.red:PALETTE.ink;
+        ctx.fillRect(hxp+t0.w*(1-stretch)/2,t0.y,t0.w*stretch,t0.h);
         for (let i=0;i<3;i++) {
             const b=this.tabs[i];
-            if (this.tab===i) {
-                ctx.fillStyle=i===1?PALETTE.red:PALETTE.ink;
-                ctx.fillRect(b.x,b.y,b.w,b.h);
-            }
             ctx.save();
             ctx.translate(b.x,b.y);
             drawShape(ctx,sketchRect(0,0,b.w,b.h,{width:1.8,seed:1500+i}),i===1?PALETTE.red:PALETTE.ink,v);
             ctx.restore();
-            ctx.fillStyle=this.tab===i?PALETTE.paper:(i===1?PALETTE.red:PALETTE.ink);
+            ctx.fillStyle=Math.abs(ta-i)<0.5?PALETTE.paper:(i===1?PALETTE.red:PALETTE.ink);
             ctx.font='bold 17px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
             ctx.fillText(tl[i],b.x+b.w/2,b.y+b.h/2+1);
+        }
+        this.upToggle=null;
+        if (this.tab===0||this.tabAnim<0.99) {
+            const tb=this.tabs[2];
+            const r={x:Math.min(w-190,tb.x+tb.w+24),y:tb.y+5,w:150,h:30};
+            ctx.save();
+            ctx.globalAlpha*=Math.max(0,1-this.tabAnim);
+            drawToggle(ctx,r,[t('codex.base'),t('codex.plus')],this.upAnim,v);
+            ctx.restore();
+            if (this.tab===0) {
+                this.upToggle=r;
+            }
         }
         const V=this.view;
         this.hits=[];
