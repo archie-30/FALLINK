@@ -13,7 +13,7 @@ import {ENEMIES} from '../data/enemies.js';
 import {ENDLESS,TRAINING_MAPS} from '../data/levels.js';
 import {fmtInk,DESKTOP_KEYS,TOUCH_KEYS} from './hud.js';
 import {CARD_ANIMS,ENEMY_ATTACKS,drawStage} from './codexAnim.js';
-import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip} from './cardView.js';
+import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip,cardBrief,cardChips} from './cardView.js';
 import {ENEMY_ICONS} from './enemyIcons.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
@@ -990,29 +990,37 @@ export class Codex extends Panel {
         return !this.detailOpen()&&inRect(r,this.hx??-1,this.hy??-1)&&inRect(this.view,this.hx??-1,this.hy??-1);
     }
 
-    drawFacts(ctx,card,x,y,w,maxH) {
-        const facts=cardFacts(card,true);
-        const lh=18;
+    drawBrief(ctx,card,x,y,w,v) {
         ctx.textAlign='left';
         ctx.textBaseline='top';
-        ctx.font='13px '+FONT;
+        ctx.font='14px '+FONT;
         ctx.fillStyle=PALETTE.ink;
-        const first=wrapText(ctx,facts[0],w-14);
+        const lines=wrapText(ctx,cardBrief(card),w-6);
         let yy=y;
-        for (let k=0;k<first.length&&k<2;k++) {
-            ctx.fillText((k===0?'• ':'  ')+first[k],x,yy);
-            yy+=lh;
+        for (let k=0;k<lines.length&&k<2;k++) {
+            ctx.fillText(lines[k],x,yy);
+            yy+=19;
         }
-        ctx.fillStyle=PALETTE.nearGray;
-        const rest=facts.slice(1);
-        const cw=w/2;
-        for (let i=0;i<rest.length;i++) {
-            const cy=yy+Math.floor(i/2)*lh;
-            if (cy+lh>y+maxH) {
+        yy+=8;
+        let cx=x;
+        const rare=card.def.rarity==='rare';
+        const chips=cardChips(card);
+        ctx.font='bold 13px '+FONT;
+        ctx.textBaseline='middle';
+        for (let i=0;i<chips.length;i++) {
+            const cw=ctx.measureText(chips[i]).width+16;
+            if (cx+cw>x+w) {
                 break;
             }
-            ctx.fillText('• '+rest[i],x+(i%2)*cw,cy);
+            const hi=i===1;
+            ctx.fillStyle=hi?(rare?rgba('red',0.12):rgba('ink',0.08)):rgba('paper',0.9);
+            ctx.fillRect(cx,yy,cw,24);
+            drawShape(ctx,sketchRect(cx,yy,cw,24,{width:1.2,seed:1800+i*7+card.id.length}),hi&&rare?PALETTE.red:PALETTE.nearGray,v);
+            ctx.fillStyle=hi&&rare?PALETTE.red:PALETTE.ink;
+            ctx.fillText(chips[i],cx+8,yy+13);
+            cx+=cw+8;
         }
+        ctx.textBaseline='top';
     }
 
     drawCards(ctx,art,v,list) {
@@ -1076,7 +1084,7 @@ export class Codex extends Panel {
             ctx.fillText(meta,tx,28);
             if (!locked) {
                 ctx.globalAlpha*=flipList?0.4+0.6*flip:1;
-                this.drawFacts(ctx,c,tx,48,tw,CARD_H*sc-44);
+                this.drawBrief(ctx,c,tx,50,tw,v);
                 ctx.fillStyle=hv?PALETTE.red:PALETTE.midGray;
                 ctx.font='12px '+FONT;
                 ctx.textAlign='right';
@@ -1158,9 +1166,29 @@ export class Codex extends Panel {
             }
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='13px '+FONT;
-            const lines=wrapText(ctx,seen?t('codex.'+id):t('codex.unseen'),tw);
-            for (let k=0;k<lines.length&&k<3;k++) {
-                ctx.fillText(lines[k],tx,y+32+k*18);
+            const full=seen?t('codex.'+id):t('codex.unseen');
+            const cut=full.indexOf('。');
+            const lines=wrapText(ctx,cut>0?full.slice(0,cut):full,tw);
+            for (let k=0;k<lines.length&&k<1;k++) {
+                ctx.fillText(lines[k]+(lines.length>1?'…':''),tx,y+32);
+            }
+            if (seen) {
+                const d=ENEMIES[id];
+                const E=TUNING.elite;
+                const chips=[t('chip.hp',{v:Math.round(d.hp*lerp1(1,E.hp,el))}),t('chip.ink',{v:fmtInk((d.ink||1)*lerp1(1,TUNING.ink.eliteMult,el))}),d.boss?t('codex.type.boss'):(d.flying?t('codex.type.fly'):t('codex.type.ground'))];
+                let cx=tx;
+                ctx.font='bold 12px '+FONT;
+                ctx.textBaseline='middle';
+                for (let k=0;k<chips.length;k++) {
+                    const cw=ctx.measureText(chips[k]).width+14;
+                    ctx.fillStyle=k===0?rgba(boss?'red':'ink',0.08):rgba('paper',0.9);
+                    ctx.fillRect(cx,y+54,cw,22);
+                    drawShape(ctx,sketchRect(cx,y+54,cw,22,{width:1.1,seed:1850+k+i*3}),PALETTE.nearGray,v);
+                    ctx.fillStyle=PALETTE.ink;
+                    ctx.fillText(chips[k],cx+7,y+66);
+                    cx+=cw+6;
+                }
+                ctx.textBaseline='top';
             }
             if (seen) {
                 ctx.fillStyle=hv?PALETTE.red:PALETTE.midGray;
@@ -1833,7 +1861,12 @@ export class TrainingPicker extends Panel {
         this.layout();
         this.touch=type!=='mouse';
         if (inRect(this.backBtn,x,y)) {
-            this.actions.back();
+            if (this.startMode) {
+                this.actions.random();
+            }
+            else {
+                this.actions.back();
+            }
             return true;
         }
         if (inRect(this.okBtn,x,y)) {
@@ -1918,7 +1951,7 @@ export class TrainingPicker extends Panel {
         ctx.font='bold '+(h<600?22:28)+'px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='middle';
-        ctx.fillText(t('training.pickTitle'),V.x,this.toggle.y+this.toggle.h/2);
+        ctx.fillText(t(this.startMode?'training.startTitle':'training.pickTitle'),V.x,this.toggle.y+this.toggle.h/2);
         ctx.font='13px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         ctx.textAlign='right';
@@ -2000,7 +2033,7 @@ export class TrainingPicker extends Panel {
         this.contentH=y+this.scroll-V.y;
         ctx.restore();
         this.clampScroll();
-        drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0);
+        drawButton(ctx,this.backBtn,t(this.startMode?'training.random':'menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0);
         const n=this.sel.length;
         if (n>0) {
             ctx.save();
@@ -2233,38 +2266,64 @@ export class LevelView extends Panel {
 
 function drawSkinFigure(ctx,x,y,s,skin,v,seed) {
     const T=SKIN_TONES;
-    const coat=T[skin.coat]||T.gray;
-    const limbs=T[skin.limbs]||T.charcoal;
-    const face=T[skin.face]||T.paper;
+    const tone=k=>T[skin[k]]||T[DEFAULT_SKIN[k]];
+    const coat=tone('coat');
+    const limbs=tone('limbs');
+    const hat=tone('hat');
+    const gear=tone('gear');
+    const face=tone('face');
     const acc=ACCENTS[skin.accent]||ACCENTS.ink;
     ctx.save();
     ctx.translate(x,y);
     ctx.scale(s,s);
     ctx.fillStyle=limbs[1];
-    ctx.fillRect(-9,14,7,16);
-    ctx.fillRect(2,14,7,16);
-    ctx.fillRect(-19,-6,7,17);
-    ctx.fillRect(12,-6,7,17);
+    ctx.fillRect(-9,16,7,11);
+    ctx.fillRect(2,16,7,11);
+    ctx.fillStyle=gear[1];
+    ctx.fillRect(-11,26,10,5);
+    ctx.fillRect(1,26,10,5);
+    ctx.fillStyle=coat[1];
+    ctx.fillRect(-19,-6,7,14);
+    ctx.fillRect(12,-6,7,14);
+    ctx.fillStyle=limbs[2];
+    ctx.fillRect(-19,7,7,2);
+    ctx.fillRect(12,7,7,2);
+    ctx.fillStyle=gear[1];
+    ctx.beginPath();
+    ctx.arc(-15.5,12,3.6,0,Math.PI*2);
+    ctx.arc(15.5,12,3.6,0,Math.PI*2);
+    ctx.fill();
     ctx.fillStyle=coat[1];
     ctx.fillRect(-12,-8,24,26);
     ctx.fillStyle=coat[0];
-    ctx.fillRect(-12,-8,9,26);
+    ctx.fillRect(-12,-8,8,26);
+    ctx.fillStyle=gear[1];
+    ctx.fillRect(-12,8,24,4);
+    ctx.fillStyle=face[0];
+    ctx.fillRect(-2.5,8,5,4);
+    ctx.fillStyle=acc;
+    ctx.fillRect(-1,-3,2,2);
+    ctx.fillRect(-1,2,2,2);
+    ctx.fillStyle=hat[1];
+    ctx.fillRect(-10,-11,20,5);
     ctx.fillStyle=face[0];
     ctx.beginPath();
-    ctx.arc(0,-19,11,0,Math.PI*2);
+    ctx.arc(0,-20,11,0,Math.PI*2);
     ctx.fill();
-    ctx.fillStyle=limbs[2];
+    ctx.fillStyle=hat[1];
+    ctx.fillRect(-8,-31,16,3);
+    ctx.fillStyle=hat[2];
     ctx.beginPath();
-    ctx.moveTo(-5,-28);
-    ctx.lineTo(5,-28);
-    ctx.lineTo(1,-38);
+    ctx.moveTo(-5,-30);
+    ctx.lineTo(5,-30);
+    ctx.lineTo(1,-40);
     ctx.closePath();
     ctx.fill();
     ctx.fillStyle=acc;
-    ctx.fillRect(-5,-21,2.4,5);
-    ctx.fillRect(2.6,-21,2.4,5);
+    ctx.fillRect(-5,-22,2.4,5);
+    ctx.fillRect(2.6,-22,2.4,5);
     drawShape(ctx,sketchRect(-12,-8,24,26,{width:1.4,seed}),PALETTE.ink,v);
-    drawShape(ctx,sketchCircle(0,-19,11,{width:1.4,seed:seed+1}),PALETTE.ink,v);
+    drawShape(ctx,sketchCircle(0,-20,11,{width:1.4,seed:seed+1}),PALETTE.ink,v);
     ctx.restore();
 }
 
@@ -2292,6 +2351,24 @@ export class SkinEditor extends Panel {
         this.hits=[];
         this.hx=-1;
         this.hy=-1;
+        this.dragYaw=0;
+        this.drag=null;
+    }
+
+    show() {
+        super.show();
+        this.dragYaw=0;
+        this.drag=null;
+    }
+
+    move(x) {
+        if (this.drag) {
+            this.dragYaw=this.drag.y0+(x-this.drag.x0)*TUNING.ui.skinDrag;
+        }
+    }
+
+    up() {
+        this.drag=null;
     }
 
     skin() {
@@ -2301,7 +2378,7 @@ export class SkinEditor extends Panel {
     layout() {
         const w=this.width;
         const h=this.height;
-        const pw=h<600?Math.min(520,w*0.55):Math.min(430,Math.max(300,w*0.4));
+        const pw=h<760?Math.min(560,w*0.56):Math.min(430,Math.max(300,w*0.4));
         this.P={x:16,y:12,w:pw,h:h-24};
         const bw=(pw-50)/2;
         const by=this.P.y+this.P.h-(h<600?50:62);
@@ -2335,6 +2412,10 @@ export class SkinEditor extends Panel {
             this.actions.select();
             return true;
         }
+        if (x>this.P.x+this.P.w) {
+            this.drag={x0:x,y0:this.dragYaw};
+            return true;
+        }
         for (const q of this.hits) {
             if (inRect(q,x,y)) {
                 if (q.preset) {
@@ -2360,7 +2441,7 @@ export class SkinEditor extends Panel {
         const h=this.height;
         const P=this.P;
         const a=EASE.easeOutCubic(Math.min(1,this.t/0.35));
-        const small=h<600;
+        const small=h<760;
         const cur=this.skin();
         ctx.save();
         ctx.translate(-(1-a)*(P.w+40),0);
@@ -2388,7 +2469,7 @@ export class SkinEditor extends Panel {
             const pr=SKIN_PRESETS[i];
             const cx=P.x+18+(i%cols)*(cw+8);
             const cy=y+Math.floor(i/cols)*(ch+8);
-            const sel=['coat','limbs','face','accent'].every(k=>pr[k]===cur[k]);
+            const sel=SKIN_PARTS.every(q=>pr[q.key]===cur[q.key]);
             const hov=inRect({x:cx,y:cy,w:cw,h:ch},this.hx,this.hy);
             ctx.fillStyle=sel?rgba('red',0.08):(hov?rgba('farGray',0.6):rgba('paper',0.9));
             ctx.fillRect(cx,cy,cw,ch);
@@ -2405,7 +2486,7 @@ export class SkinEditor extends Panel {
         }
         y+=Math.ceil(SKIN_PRESETS.length/cols)*(ch+8)+(small?4:10);
         const r=small?9:13;
-        const lw=small?92:0;
+        const lw=small?136:0;
         for (const part of SKIN_PARTS) {
             ctx.font='bold '+(small?13:14)+'px '+FONT;
             ctx.fillStyle=PALETTE.ink;
@@ -2425,6 +2506,17 @@ export class SkinEditor extends Panel {
             }
             y+=Math.ceil(list.length/per)*(r*2+(small?6:10))+(small?4:10);
         }
+        ctx.restore();
+        ctx.save();
+        ctx.globalAlpha=a*(this.drag?0.4:0.85);
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font='14px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='bottom';
+        ctx.fillText(t('skin.drag'),P.x+P.w+(this.width-P.x-P.w)/2,this.height-18);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(-(1-a)*(P.w+40),0);
         drawButton(ctx,this.resetBtn,t('skin.reset'),v,(this.t-0.1)/0.3,this.hoverIdx===0,16);
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.15)/0.3,this.hoverIdx===1,18);
         ctx.restore();
@@ -2478,10 +2570,12 @@ export class TrainingMenu extends Panel {
     }
 
     total() {
-        const f=settings.training.foes;
+        const c=settings.training;
         let n=0;
-        for (const k in f) {
-            n+=f[k];
+        for (const map of [c.foes,c.elites||{}]) {
+            for (const k in map) {
+                n+=map[k];
+            }
         }
         return n;
     }
@@ -2548,12 +2642,12 @@ export class TrainingMenu extends Panel {
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('trainMenu.title'),w/2,py+(small?20:34));
-        const rh=small?(ph-110)/8:48;
-        const colW=pw/2;
+        const rh=small?(ph-110)/7:52;
+        const colW=pw*0.46;
         const lx=px+22;
-        const cx=px+colW*0.42;
-        const cw=colW*0.52;
-        let y=py+(small?50:78);
+        const cx=px+colW*0.5;
+        const cw=colW*0.46;
+        let y=py+(small?50:82);
         const add=(r,act)=>this.hits.push({...r,act});
         this.rowLabel(ctx,t('trainMenu.map'),lx,y);
         const maps=TRAINING_MAPS;
@@ -2571,7 +2665,7 @@ export class TrainingMenu extends Panel {
             });
         }
         y+=rh;
-        const toggles=[['props','room'],['attack','attack'],['elite','foes'],['respawn','foes'],['ammo','ammo']];
+        const toggles=[['props','room'],['attack','attack'],['respawn','foes'],['immortal','immortal'],['ammo','ammo']];
         for (let i=0;i<toggles.length;i++) {
             const [key,kind]=toggles[i];
             this.rowLabel(ctx,t('trainMenu.'+key),lx,y);
@@ -2586,19 +2680,6 @@ export class TrainingMenu extends Panel {
             });
             y+=rh;
         }
-        this.rowLabel(ctx,t('trainMenu.hp'),lx,y);
-        const hi=Math.max(0,T.hpOptions.indexOf(c.hp));
-        drawSeg(ctx,cx,y,cw,T.hpOptions.map(n=>'×'+n),hi,v,1630);
-        const hw=cw/T.hpOptions.length;
-        for (let i=0;i<T.hpOptions.length;i++) {
-            const n=T.hpOptions[i];
-            const act=()=>{
-                c.hp=n;
-                this.change('foes');
-            };
-            add({x:cx+i*hw,y:y-14,w:hw,h:28},act);
-        }
-        y+=rh;
         this.rowLabel(ctx,t('trainMenu.refill'),lx,y);
         drawSeg(ctx,cx,y,cw,[t('trainMenu.fixed'),t('trainMenu.random')],c.refill==='fixed'?0:1,v,1640);
         const modes=['fixed','random'];
@@ -2609,65 +2690,129 @@ export class TrainingMenu extends Panel {
             };
             add({x:cx+i*cw/2,y:y-14,w:cw/2,h:28},act);
         }
-        const rx=px+colW+10;
-        const rw=colW-32;
-        let ry=py+(small?50:78);
-        const tot=this.total();
+        const rx=px+colW+14;
+        const rw=pw-colW-36;
+        let ry=py+(small?50:82);
+        const tot=c.random?c.randCount:this.total();
+        const stepper=(x,yy,val,canDown,canUp,down,up,seed,red)=>{
+            for (const [dx,ok,ch,fn] of [[0,canDown,'－',down],[70,canUp,'＋',up]]) {
+                const r={x:x+dx,y:yy-13,w:28,h:26};
+                drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:1.3,seed:seed+dx}),ok?PALETTE.ink:PALETTE.farGray,v);
+                ctx.fillStyle=ok?PALETTE.ink:PALETTE.farGray;
+                ctx.font='15px '+FONT;
+                ctx.textAlign='center';
+                ctx.fillText(ch,r.x+14,yy+1);
+                if (ok) {
+                    add(r,fn);
+                }
+            }
+            ctx.fillStyle=val>0?(red?PALETTE.red:PALETTE.ink):PALETTE.midGray;
+            ctx.font='bold 16px '+FONT;
+            ctx.textAlign='center';
+            ctx.fillText(String(val),x+49,yy+1);
+        };
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 15px '+FONT;
         ctx.textAlign='left';
         ctx.fillText(t('trainMenu.foes',{n:tot,max:T.maxFoes}),rx,ry);
-        const clr={x:rx+rw-70,y:ry-14,w:70,h:28};
+        const clr={x:rx+rw-64,y:ry-14,w:64,h:28};
         drawShape(ctx,sketchRect(clr.x,clr.y,clr.w,clr.h,{width:1.4,seed:1650}),PALETTE.ink,v);
         ctx.font='13px '+FONT;
         ctx.textAlign='center';
-        ctx.fillText(t('trainMenu.clear'),clr.x+35,ry+1);
+        ctx.fillText(t('trainMenu.clear'),clr.x+32,ry+1);
         add(clr,()=>{
             c.foes={};
+            c.elites={};
+            c.random=false;
             this.change('foes');
         });
+        ry+=small?28:38;
+        this.rowLabel(ctx,t('trainMenu.randomFoes'),rx,ry);
+        drawSwitch(ctx,rx+110,ry,!!c.random,v,1655);
+        add({x:rx+106,y:ry-16,w:64,h:32},()=>{
+            c.random=!c.random;
+            this.change('foes');
+        });
+        if (c.random) {
+            const sx=rx+rw-100;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font='13px '+FONT;
+            ctx.textAlign='right';
+            ctx.fillText(t('trainMenu.randCount'),sx-8,ry);
+            stepper(sx,ry,c.randCount,c.randCount>1,c.randCount<T.maxFoes,()=>{
+                c.randCount--;
+                this.change('foes');
+            },()=>{
+                c.randCount++;
+                this.change('foes');
+            },1656,false);
+            ry+=small?26:34;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font='13px '+FONT;
+            ctx.textAlign='right';
+            ctx.fillText(t('trainMenu.randElite'),sx-8,ry);
+            const ev=c.randElite;
+            stepper(sx,ry,ev,ev>0,ev<100,()=>{
+                c.randElite=Math.max(0,ev-T.eliteStep);
+                this.change('foes');
+            },()=>{
+                c.randElite=Math.min(100,ev+T.eliteStep);
+                this.change('foes');
+            },1657,true);
+            ctx.fillStyle=PALETTE.red;
+            ctx.font='12px '+FONT;
+            ctx.textAlign='left';
+            ctx.fillText('%',sx+102,ry+1);
+        }
         ry+=small?26:36;
-        const frh=small?(ph-150)/FOE_LIST.length:44;
+        const nx=rx+rw-210;
+        const ex=rx+rw-100;
+        ctx.font='bold 12px '+FONT;
+        ctx.textAlign='center';
+        ctx.fillStyle=c.random?PALETTE.farGray:PALETTE.nearGray;
+        ctx.fillText(t('trainMenu.normal'),nx+49,ry);
+        ctx.fillStyle=c.random?PALETTE.farGray:PALETTE.red;
+        ctx.fillText(t('trainMenu.eliteCol'),ex+49,ry);
+        ry+=small?20:26;
+        const frh=small?Math.min(34,(py+ph-60-ry)/FOE_LIST.length):Math.min(44,(py+ph-84-ry)/FOE_LIST.length);
+        const elites=c.elites||(c.elites={});
         for (let i=0;i<FOE_LIST.length;i++) {
             const id=FOE_LIST[i];
-            const seen=trainable(id);
+            const ok=trainable(id);
             const n=c.foes[id]||0;
+            const m=elites[id]||0;
             ctx.save();
-            ctx.globalAlpha*=seen?1:0.4;
-            ctx.translate(rx+16,ry);
-            const k=(small?22:30)/60;
+            ctx.globalAlpha*=ok&&!c.random?1:0.4;
+            ctx.translate(rx+14,ry);
+            const k=(small?20:28)/60;
             ctx.scale(k,k);
             ENEMY_ICONS[id](ctx,v);
             ctx.restore();
-            ctx.fillStyle=seen?PALETTE.ink:PALETTE.midGray;
-            ctx.font='15px '+FONT;
+            ctx.fillStyle=ok?(c.random?PALETTE.midGray:PALETTE.ink):PALETTE.midGray;
+            ctx.font='14px '+FONT;
             ctx.textAlign='left';
-            ctx.fillText(seen?t('enemy.'+id):t('trainMenu.unseen'),rx+40,ry);
-            if (seen) {
-                const bx=rx+rw-120;
-                for (const [dx,d,ch] of [[0,-1,'－'],[88,1,'＋']]) {
-                    const r={x:bx+dx,y:ry-14,w:32,h:28};
-                    const dis=(d<0&&n<=0)||(d>0&&tot>=T.maxFoes);
-                    drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:1.4,seed:1660+i*2+d}),dis?PALETTE.midGray:PALETTE.ink,v);
-                    ctx.fillStyle=dis?PALETTE.midGray:PALETTE.ink;
-                    ctx.textAlign='center';
-                    ctx.fillText(ch,r.x+16,ry+1);
-                    if (!dis) {
-                        add(r,()=>{
-                            c.foes[id]=Math.max(0,n+d);
-                            this.change('foes');
-                        });
-                    }
-                }
-                ctx.fillStyle=n>0?PALETTE.red:PALETTE.nearGray;
-                ctx.font='bold 17px '+FONT;
-                ctx.textAlign='center';
-                ctx.fillText(String(n),bx+60,ry+1);
+            ctx.fillText(ok?t('enemy.'+id):t('trainMenu.unseen'),rx+36,ry);
+            if (ok&&!c.random) {
+                const room=tot<T.maxFoes;
+                stepper(nx,ry,n,n>0,room,()=>{
+                    c.foes[id]=n-1;
+                    this.change('foes');
+                },()=>{
+                    c.foes[id]=n+1;
+                    this.change('foes');
+                },1660+i*4,false);
+                stepper(ex,ry,m,m>0,room,()=>{
+                    elites[id]=m-1;
+                    this.change('foes');
+                },()=>{
+                    elites[id]=m+1;
+                    this.change('foes');
+                },1700+i*4,true);
             }
             ry+=frh;
         }
         const by=py+ph-(small?46:64);
-        const btns=[['trainMenu.resume','resume'],['trainMenu.pick','pick'],['trainMenu.reset','reset'],['menu.settings','settings'],['trainMenu.leave','leave']];
+        const btns=[['trainMenu.leave','leave'],['trainMenu.pick','pick'],['trainMenu.reset','reset'],['menu.settings','settings'],['trainMenu.resume','resume']];
         const bw2=Math.min(160,(pw-40-(btns.length-1)*10)/btns.length);
         const bx0=w/2-(btns.length*bw2+(btns.length-1)*10)/2;
         this.buttons=[];

@@ -86,6 +86,8 @@ export class RoomDirector {
     }
 }
 
+const TRAIN_POOL=['doodle','blob','sprayer','inkCloud','bird','compass','eraserMonster'];
+
 export class TrainingDirector {
     constructor(cfg,enemies,room,allow) {
         this.enemies=enemies;
@@ -129,20 +131,36 @@ export class TrainingDirector {
         return out.slice(0,n);
     }
 
+    roll() {
+        const c=this.cfg;
+        const pool=TRAIN_POOL.filter(k=>this.allow(k));
+        const type=pool[Math.floor(Math.random()*pool.length)]||'doodle';
+        return {type,elite:Math.random()*100<c.randElite};
+    }
+
     configure(cfg) {
         this.cfg=cfg;
         this.enemies.clear();
-        const types=[];
-        for (const k in cfg.foes) {
-            if (!this.allow(k)) {
-                continue;
-            }
-            for (let i=0;i<cfg.foes[k];i++) {
-                types.push(k);
+        const list=[];
+        if (cfg.random) {
+            for (let i=0;i<cfg.randCount;i++) {
+                list.push(this.roll());
             }
         }
-        const pts=this.spots(types.length);
-        this.slots=types.slice(0,pts.length).map((type,i)=>({type,x:pts[i][0],z:pts[i][1],e:null,uid:-1,t:0.3+i*0.12}));
+        else {
+            for (const [map,elite] of [[cfg.foes,false],[cfg.elites||{},true]]) {
+                for (const k in map) {
+                    if (!this.allow(k)) {
+                        continue;
+                    }
+                    for (let i=0;i<map[k];i++) {
+                        list.push({type:k,elite});
+                    }
+                }
+            }
+        }
+        const pts=this.spots(list.length);
+        this.slots=list.slice(0,pts.length).map((q,i)=>({type:q.type,elite:q.elite,x:pts[i][0],z:pts[i][1],e:null,uid:-1,t:0.3+i*0.12}));
     }
 
     setAttack(on) {
@@ -150,6 +168,15 @@ export class TrainingDirector {
         for (const s of this.slots) {
             if (s.e&&s.e.alive) {
                 s.e.dummy=!on;
+            }
+        }
+    }
+
+    setImmortal(on) {
+        this.cfg.immortal=on;
+        for (const s of this.slots) {
+            if (s.e&&s.e.alive) {
+                s.e.immortal=on;
             }
         }
     }
@@ -167,7 +194,10 @@ export class TrainingDirector {
             s.t-=dt;
             if (s.t<=0) {
                 const c=this.cfg;
-                s.e=this.enemies.spawn(s.type,s.x,s.z,{hpMult:c.hp*(c.elite?TUNING.elite.hp:1),dummy:!c.attack,elite:c.elite});
+                if (c.random&&s.e) {
+                    Object.assign(s,this.roll());
+                }
+                s.e=this.enemies.spawn(s.type,s.x,s.z,{hpMult:s.elite?TUNING.elite.hp:1,dummy:!c.attack,elite:s.elite,immortal:c.immortal});
                 s.uid=s.e.uid;
                 s.t=T.respawn;
                 this.events.push(s.e);

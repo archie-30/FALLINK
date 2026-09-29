@@ -788,6 +788,29 @@ export function rareBorderPath() {
 
 const FACT_KEYS=['dps','radius','range','width','duration','heal','ink','hits','jumps','mult','hp','length','push'];
 
+export function cardBrief(card) {
+    const d=cardDesc(card);
+    const cut=d.search(/[，。；：]/);
+    return cut>4?d.slice(0,cut):d;
+}
+
+export function cardChips(card) {
+    const p=cardParams(card);
+    const mode=card.def.mode;
+    const out=[t('chip.cost',{v:cardCost(card)})];
+    if (p.damage!==undefined) {
+        out.push(p.count&&(mode==='shoot'||mode==='drop')?t('chip.damageEach',{v:p.damage,n:p.count}):t('chip.damage',{v:p.damage}));
+    }
+    else {
+        const k=FACT_KEYS.find(q=>p[q]!==undefined);
+        if (k) {
+            out.push(t('fact.'+k,{v:p[k]}).replace('：',' '));
+        }
+    }
+    out.push(t('cardMode.'+mode));
+    return out;
+}
+
 export function cardFacts(card,withDesc=true) {
     const p=cardParams(card);
     const mode=card.def.mode;

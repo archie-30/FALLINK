@@ -151,7 +151,9 @@ export class Deck {
             guard++;
             const forced=this.provider?this.provider():null;
             if (forced) {
-                this.timers.shift();
+                if (!isUlt(forced.id)) {
+                    this.timers.shift();
+                }
                 this.hand.push(forced);
                 if (this.events.onDraw) {
                     this.events.onDraw(forced);

@@ -251,7 +251,7 @@ export const TUNING={
     ui:{
         loaderMin:0.7,
         loaderFade:0.6,
-        skinSpin:0.7,
+        skinDrag:0.012,
         skinCam:{dist:7,height:4.2,look:1.1,shift:1.8,follow:5},
         closeTime:0.28,
         deckCloseTime:0.32,
@@ -316,7 +316,8 @@ export const TUNING={
         xpScore:0.02
     },
     ultFx:{
-        time:1.3,
+        time:1.6,
+        impact:0.26,
         calmTime:0.8,
         slow:0.35,
         slowTime:0.55,
@@ -334,7 +335,7 @@ export const TUNING={
         colStep:3,
         clear:1.4,
         center:-2.5,
-        hpOptions:[1,3,10],
+        eliteStep:10,
         dpsWindow:5
     },
     reward:{

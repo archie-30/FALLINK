@@ -82,7 +82,7 @@ export class Overlay {
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
             this.hud.drawToast(ctx,this.width,game.dt);
-            game.ultCutin.draw(ctx,this.width,this.height);
+            game.ultCutin.draw(ctx,this.width,this.height,game.art);
             this.hud.drawPause(ctx,this.width);
             game.deckView.draw(ctx,game.art,game.deck);
             game.trainingMenu.draw(ctx);

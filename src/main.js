@@ -26,8 +26,8 @@ import {BulletSystem,Lobs} from './game/bullet.js';
 import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects,createCard} from './game/card.js';
-import {STARTING_DECK,ALL_CARDS,CARDS,isUlt} from './data/cards.js';
-import {progress,loadProgress,addXp,markSeen,godMode} from './core/progress.js';
+import {STARTING_DECK,ALL_CARDS,CARDS,isUlt,unlockedCards} from './data/cards.js';
+import {progress,loadProgress,addXp,markSeen,godMode,effectiveLevel} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -145,7 +145,7 @@ function boot() {
         game.room.zones.addPuddle(x,z,r,dur,slow);
         decals.spawn(x,z,r*1.7,'ink','nearGray');
         particles.burst(x,0.3,z,10,{speed:[2,5],up:[3,6],size:[0.1,0.2]});
-        audio.play('hit',0.6);
+        audio.play('drop');
     };
     ctx.onPuddle=(x,z,r,dur,slow)=>{
         game.room.zones.addPuddle(x,z,r,dur,slow);
@@ -162,26 +162,49 @@ function boot() {
     function resetTrainStats() {
         Object.assign(trainStats,{total:0,max:0,last:0,lastT:0,kills:0,cards:0,hurt:0,hurtT:0,log:[],start:time.real});
     }
+    function trainPool(rare) {
+        return unlockedCards(effectiveLevel()).filter(id=>isUlt(id)===rare);
+    }
+    function pickRandom(list,n) {
+        const a=list.slice();
+        const out=[];
+        while (out.length<n&&a.length>0) {
+            out.push(a.splice(Math.floor(Math.random()*a.length),1)[0]);
+        }
+        return out;
+    }
     function trainProvider() {
-        if (run.mode!=='training'||settings.training.refill!=='fixed'||trainFixed.length===0) {
+        if (run.mode!=='training') {
             return null;
         }
-        const have=deck.hand.map(c=>c.id);
-        for (const f of trainFixed) {
-            const k=have.indexOf(f.id);
-            if (k>=0) {
-                have.splice(k,1);
-                continue;
+        if (settings.training.refill==='fixed') {
+            const have=deck.hand.map(c=>c.id);
+            for (const f of trainFixed) {
+                const k=have.indexOf(f.id);
+                if (k>=0) {
+                    have.splice(k,1);
+                    continue;
+                }
+                if (isUlt(f.id)?deck.ultCard():deck.normalCount()>=TUNING.deck.handSize) {
+                    continue;
+                }
+                return createCard(f.id,f.upgraded);
             }
-            if (isUlt(f.id)?deck.ultCard():deck.normalCount()>=TUNING.deck.handSize) {
-                continue;
+        }
+        if (!deck.ultCard()) {
+            const rare=trainPool(true);
+            if (rare.length>0) {
+                return createCard(rare[Math.floor(Math.random()*rare.length)]);
             }
-            return createCard(f.id,f.upgraded);
         }
         return null;
     }
-    function openPicker() {
+    function trainRandomPick() {
+        trainPick(pickRandom(trainPool(false),TUNING.deck.handSize).concat(pickRandom(trainPool(true),1)),false);
+    }
+    function openPicker(start=false) {
         hand.cancelTargeting();
+        trainingPicker.startMode=start;
         pickerReturn=trainingMenu.open?'training':null;
         if (trainingMenu.open) {
             trainingMenu.hide();
@@ -191,6 +214,10 @@ function boot() {
         fx.paused=true;
     }
     function closePicker(resume) {
+        if (trainingPicker.startMode&&!resume) {
+            trainRandomPick();
+            return;
+        }
         trainingPicker.hide();
         if (pickerReturn==='training'&&!resume) {
             pickerReturn=null;
@@ -198,6 +225,7 @@ function boot() {
             return;
         }
         pickerReturn=null;
+        trainingPicker.startMode=false;
         fx.paused=false;
         input.mouse.down=false;
     }
@@ -297,7 +325,7 @@ function boot() {
             if (card.def.rarity==='rare') {
                 ultCutin.play(card);
                 fx.slowMo(TUNING.ultFx.slow,TUNING.ultFx.slowTime);
-                audio.play('boss',1.3);
+                audio.play('ult');
             }
             effects.run(card,target);
             audio.play(card.def.id==='pencilWall'?'wall':(card.def.type==='terrain'?'erase':'card'));
@@ -423,7 +451,9 @@ function boot() {
         particles.burst(x,1.0,z,PT.inkKill,{color:'ink',speed:[2,8],up:[2,7],size:[0.1,0.22]});
         particles.burst(x,1.0,z,PT.redKill,{color:'red',dirX:dx,dirZ:dz,cone:0.8,speed:[4,10],up:[1,5],size:[0.08,0.18]});
     };
+    player.events.onReload=()=>audio.play('reload');
     player.events.onDash=()=>{
+        audio.play('dash');
         fx.fovPunch(TUNING.player.dashFovPunch);
         fx.cameraShake(TUNING.player.dashTrauma);
     };
@@ -709,6 +739,9 @@ function boot() {
         resetTrainStats();
         deck.provider=mode==='training'?trainProvider:null;
         run.start(startIds(),mode);
+        if (mode==='training') {
+            openPicker(true);
+        }
     }
     function openPause() {
         if (game.mode==='play'&&run.mode==='training'&&!trainingMenu.open&&!trainingPicker.open&&!transition.active) {
@@ -795,6 +828,12 @@ function boot() {
             else if (kind==='attack') {
                 run.director.setAttack(settings.training.attack);
             }
+            else if (kind==='immortal') {
+                run.director.setImmortal(settings.training.immortal);
+            }
+            else if (kind==='refill') {
+                deck.requestDraw(0.2);
+            }
         },
         resume:closeTrainingMenu,
         pick:openPicker,
@@ -812,6 +851,7 @@ function boot() {
     });
     const trainingPicker=new TrainingPicker({
         pick:trainPick,
+        random:trainRandomPick,
         select:()=>audio.play('ui'),
         back:()=>{
             audio.play('ui');
@@ -978,6 +1018,10 @@ function boot() {
                 levelView.move(x,y);
                 return;
             }
+            if (skinEditor.open) {
+                skinEditor.move(x,y);
+                return;
+            }
             if (trainingPicker.open) {
                 trainingPicker.move(x,y);
                 return;
@@ -988,6 +1032,7 @@ function boot() {
             settingsMenu.up();
             codex.up(x,y);
             levelView.up();
+            skinEditor.up();
             trainingPicker.up(x,y);
             hand.up(x,y,id,type,button);
         },
@@ -1201,15 +1246,11 @@ function boot() {
         }
     }
     const dropRng=new RNG(4242);
-    let skinSpin=0.6;
     let skinZoom=0;
+    const NO_AIM={mode:'none'};
     function update(dt) {
-        if (skinEditor.shown()) {
-            skinSpin+=dt*TUNING.ui.skinSpin;
-            player.faceDir(Math.sin(skinSpin),Math.cos(skinSpin));
-        }
         if (run.state!=='dead') {
-            player.update(dt,input,ctx,aim);
+            player.update(dt,input,ctx,skinEditor.shown()?NO_AIM:aim);
         }
         shared.uMist.value.x+=(player.pos.x-shared.uMist.value.x)*Math.min(1,dt*TUNING.fog.mist.follow);
         shared.uMist.value.y+=(player.pos.z-shared.uMist.value.y)*Math.min(1,dt*TUNING.fog.mist.follow);
@@ -1300,6 +1341,11 @@ function boot() {
         fx.update(dt);
         tweens.update(dt*time.timeScale,dt);
         setBoilSeed(time.boilIndex);
+        if (skinEditor.shown()) {
+            const a=menuAngle+skinEditor.dragYaw;
+            player.faceDir(Math.sin(a),Math.cos(a));
+            player.moveYaw=a;
+        }
         player.sync(alpha);
         enemies.sync(alpha,dt);
         playerBullets.render(alpha);
@@ -1418,7 +1464,7 @@ function boot() {
     }
     art.warm(deck.drawPile);
     enterMenu();
-    window.INKFALL={ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKFALL={audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();
