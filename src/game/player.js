@@ -72,9 +72,11 @@ export class Player {
         const dark=tm({light:'midGray',mid:'nearGray',dark:'ink',jitter:J});
         const coat=tm({light:'farGray',mid:'midGray',dark:'ink',jitter:J});
         const face=tm({light:'paper',mid:'farGray',dark:'midGray',jitter:J});
+        const hat=tm({light:'midGray',mid:'nearGray',dark:'ink',jitter:J});
+        const gear=tm({light:'nearGray',mid:'nearGray',dark:'ink',jitter:J});
         const ink=g?dark:unlitMaterial({color:'ink',jitter:J,unique:true});
-        this.skinMats={coat,limbs:dark,face,accent:g?null:ink};
-        this.ghostMats=g?[dark,coat,face]:[];
+        this.skinMats={coat,limbs:dark,face,hat,gear,accent:g?null:ink};
+        this.ghostMats=g?[dark,coat,face,hat,gear]:[];
         const hull={jitter:J};
         const addHull=g?()=>null:addHullBase;
         this.root=new THREE.Group();
@@ -98,15 +100,20 @@ export class Player {
         this.leanGroup.add(this.stretch);
         this.stretch.add(this.aimFrame);
         this.aimFrame.add(this.body);
-        const legGeo=capsule(0.12,0.26);
+        const legGeo=capsule(0.12,0.2);
+        const shoeGeo=new THREE.BoxGeometry(0.22,0.13,0.32);
         this.legs=[];
         for (const sx of [-1,1]) {
             const pivot=new THREE.Group();
             pivot.position.set(sx*0.15,0.5,0);
             const leg=new THREE.Mesh(legGeo,dark);
-            leg.position.y=-0.25;
+            leg.position.y=-0.2;
             addHull(leg,hull);
             pivot.add(leg);
+            const shoe=new THREE.Mesh(shoeGeo,gear);
+            shoe.position.set(0,-0.43,0.05);
+            addHull(shoe,hull);
+            pivot.add(shoe);
             this.body.add(pivot);
             this.legs.push(pivot);
         }
@@ -115,9 +122,42 @@ export class Player {
         this.torso.scale.z=0.85;
         addHull(this.torso,hull);
         this.body.add(this.torso);
+        const hem=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.32,0.1,12),coat);
+        hem.position.y=-0.28;
+        this.torso.add(hem);
+        const belt=new THREE.Mesh(new THREE.TorusGeometry(0.285,0.045,5,16),gear);
+        belt.rotation.x=Math.PI/2;
+        belt.position.y=-0.14;
+        this.torso.add(belt);
+        const buckle=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.08,0.04),face);
+        buckle.position.set(0,-0.14,0.29);
+        this.torso.add(buckle);
+        const btnGeo=new THREE.SphereGeometry(0.032,6,4);
+        for (const by of [0.02,0.14]) {
+            const b=new THREE.Mesh(btnGeo,ink);
+            b.position.set(0,by,0.28);
+            this.torso.add(b);
+        }
+        const pouch=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.3,0.14),gear);
+        pouch.position.set(0,0.02,-0.3);
+        addHull(pouch,hull);
+        this.torso.add(pouch);
+        const flap=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.08,0.16),hat);
+        flap.position.set(0,0.16,-0.3);
+        this.torso.add(flap);
+        const scarf=new THREE.Mesh(new THREE.TorusGeometry(0.2,0.075,6,14),hat);
+        scarf.rotation.x=Math.PI/2;
+        scarf.position.y=1.2;
+        addHull(scarf,hull);
+        this.body.add(scarf);
+        const tail=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.26,0.05),hat);
+        tail.position.set(0.1,1.06,-0.2);
+        tail.rotation.set(0.35,0,-0.25);
+        this.body.add(tail);
+        this.scarfTail=tail;
         this.head=new THREE.Group();
         this.head.position.y=1.46;
-        const skull=new THREE.Mesh(new THREE.SphereGeometry(0.31,10,7),face);
+        const skull=new THREE.Mesh(new THREE.SphereGeometry(0.31,12,9),face);
         addHull(skull,hull);
         this.head.add(skull);
         const eyeGeo=new THREE.BoxGeometry(0.06,0.13,0.05);
@@ -125,22 +165,42 @@ export class Player {
             const eye=new THREE.Mesh(eyeGeo,ink);
             eye.position.set(sx*0.1,0.03,0.28);
             this.head.add(eye);
+            const cheek=new THREE.Mesh(new THREE.CircleGeometry(0.035,8),coat);
+            cheek.position.set(sx*0.17,-0.07,0.265);
+            cheek.rotation.y=sx*0.55;
+            this.head.add(cheek);
         }
-        const drop=new THREE.Mesh(new THREE.ConeGeometry(0.15,0.36,8),dark);
-        drop.position.set(0,0.36,-0.06);
+        const brim=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.24,0.06,12),hat);
+        brim.position.set(0,0.24,-0.02);
+        brim.rotation.x=-0.3;
+        addHull(brim,hull);
+        this.head.add(brim);
+        const drop=new THREE.Mesh(new THREE.ConeGeometry(0.15,0.36,10),hat);
+        drop.position.set(0,0.4,-0.08);
         drop.rotation.x=-0.45;
         addHull(drop,hull);
         this.head.add(drop);
+        const tip=new THREE.Mesh(new THREE.SphereGeometry(0.045,6,4),ink);
+        tip.position.set(0,0.55,-0.17);
+        this.head.add(tip);
         this.body.add(this.head);
-        const armGeo=capsule(0.08,0.28);
+        const armGeo=capsule(0.08,0.22);
+        const handGeo=new THREE.SphereGeometry(0.085,8,6);
         this.arms=[];
         for (const sx of [-1,1]) {
             const pivot=new THREE.Group();
             pivot.position.set(sx*0.36,1.08,0);
-            const arm=new THREE.Mesh(armGeo,dark);
-            arm.position.y=-0.2;
+            const arm=new THREE.Mesh(armGeo,coat);
+            arm.position.y=-0.16;
             addHull(arm,hull);
             pivot.add(arm);
+            const cuff=new THREE.Mesh(new THREE.CylinderGeometry(0.095,0.095,0.06,8),dark);
+            cuff.position.y=-0.32;
+            pivot.add(cuff);
+            const hand=new THREE.Mesh(handGeo,gear);
+            hand.position.y=-0.41;
+            addHull(hand,hull);
+            pivot.add(hand);
             this.body.add(pivot);
             this.arms.push(pivot);
         }
@@ -157,16 +217,21 @@ export class Player {
         this.arms[0].add(this.bottle);
         this.gun=new THREE.Group();
         this.gun.position.set(0.34,1.0,0.42);
-        const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,0.5,6),dark);
+        const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,0.5,8),gear);
         barrel.rotation.x=Math.PI/2;
         addHull(barrel,hull);
-        const nib=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.2,6),ink);
+        const nib=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.2,8),ink);
         nib.rotation.x=Math.PI/2;
         nib.position.z=0.35;
-        const band=new THREE.Mesh(new THREE.CylinderGeometry(0.085,0.085,0.08,6),face);
+        const band=new THREE.Mesh(new THREE.CylinderGeometry(0.085,0.085,0.08,8),face);
         band.rotation.x=Math.PI/2;
         band.position.z=0.2;
-        this.gun.add(barrel,nib,band);
+        const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.082,0.07,0.08,8),hat);
+        cap.rotation.x=Math.PI/2;
+        cap.position.z=-0.27;
+        const clip=new THREE.Mesh(new THREE.BoxGeometry(0.025,0.03,0.26),face);
+        clip.position.set(0,0.09,-0.08);
+        this.gun.add(barrel,nib,band,cap,clip);
         this.body.add(this.gun);
         this.muzzle=new THREE.Object3D();
         this.muzzle.position.z=0.46;
@@ -175,7 +240,7 @@ export class Player {
     }
 
     applySkin(skin) {
-        for (const part of ['coat','limbs','face']) {
+        for (const part of ['coat','limbs','face','hat','gear']) {
             const tones=SKIN_TONES[skin[part]];
             const m=this.skinMats[part];
             if (!tones||!m) {

@@ -173,6 +173,7 @@ export class Enemy {
         this.act=o.act||0;
         this.elite=!!o.elite;
         this.dummy=!!o.dummy;
+        this.immortal=!!o.immortal;
         this.yawGroup.scale.setScalar(d.scale*(this.elite?TUNING.elite.scale:1));
         const A=TUNING.accent;
         this.accentOn=this.elite||!!d.boss;
@@ -1857,7 +1858,7 @@ export class EnemyManager {
             e=new C(type,ENEMIES[type],this.parent,this.fxScene);
             pool.push(e);
         }
-        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite,dummy:o.dummy});
+        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite,dummy:o.dummy,immortal:o.immortal});
         this.list.push(e);
         if (this.onSpawned) {
             this.onSpawned(e);
@@ -1944,7 +1945,11 @@ export class EnemyManager {
         if (e.vulnT>0) {
             dmg*=e.vulnMult;
         }
-        const dead=e.hurt(dmg,dx,dz);
+        let dead=e.hurt(dmg,dx,dz);
+        if (dead&&e.immortal) {
+            e.hp=e.maxHp;
+            dead=false;
+        }
         if (this.onDamage) {
             this.onDamage(e,dmg,crit);
         }
