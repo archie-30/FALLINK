@@ -160,15 +160,32 @@ export const SOUNDS={
     },
     ult:{
         gap:0.4,
-        gain:0.75,
-        rev:0.55,
+        gain:0.85,
+        rev:0.6,
         layers:[
-            {kind:'noise',dur:0.42,attack:0.12,gain:0.45,filter:{type:'bandpass',f0:350,f1:6500,q:0.9,time:0.38}},
-            {kind:'tone',wave:'sine',f0:160,f1:52,dur:0.55,gain:0.6,delay:0.3,sweep:0.25},
-            {kind:'noise',dur:0.12,gain:0.35,delay:0.3,filter:{type:'lowpass',f0:1200,q:0.7}},
-            {kind:'tone',wave:'sine',f0:1047,dur:1.3,gain:0.14,delay:0.34},
-            {kind:'tone',wave:'sine',f0:1568,dur:1.1,gain:0.09,delay:0.36},
-            {kind:'tone',wave:'sine',f0:2093,dur:0.8,gain:0.05,delay:0.38}
+            {kind:'noise',dur:0.25,gain:0.4,filter:{type:'bandpass',f0:600,f1:5000,q:0.8,time:0.2}},
+            {kind:'tone',wave:'triangle',f0:98,dur:1.6,attack:0.01,gain:0.35},
+            {kind:'tone',wave:'sine',f0:196,dur:1.3,gain:0.14},
+            {kind:'tone',wave:'sine',f0:294,dur:1.1,gain:0.08},
+            {kind:'noise',dur:1.3,attack:1.22,gain:0.42,delay:0.05,filter:{type:'bandpass',f0:180,f1:7000,q:1.4,time:1.25}},
+            {kind:'tone',wave:'sawtooth',f0:55,f1:220,dur:1.3,attack:1.2,gain:0.12,delay:0.05,sweep:1.25,filter:{type:'lowpass',f0:300,f1:1800,q:2,time:1.25},trem:{rate:9,depth:0.6}},
+            {kind:'tone',wave:'sine',f0:62,f1:48,dur:0.35,gain:0.5,delay:0.02}
+        ]
+    },
+    ultHit:{
+        gap:0.3,
+        gain:1,
+        rev:0.7,
+        layers:[
+            {kind:'tone',wave:'sine',f0:95,f1:28,dur:1.4,gain:0.9,sweep:0.9},
+            {kind:'tone',wave:'triangle',f0:190,f1:60,dur:0.5,gain:0.35,sweep:0.4},
+            {kind:'noise',dur:0.7,gain:0.7,filter:{type:'lowpass',f0:3500,f1:180,q:0.7,time:0.6}},
+            {kind:'noise',dur:0.09,gain:0.5,filter:{type:'highpass',f0:2500,q:0.7}},
+            {kind:'noise',dur:0.5,gain:0.25,delay:0.08,filter:{type:'bandpass',f0:1800,f1:500,q:2}},
+            {kind:'tone',wave:'sine',f0:523,dur:1.8,gain:0.1,delay:0.05},
+            {kind:'tone',wave:'sine',f0:622,dur:1.7,gain:0.08,delay:0.05},
+            {kind:'tone',wave:'sine',f0:784,dur:1.6,gain:0.07,delay:0.05},
+            {kind:'tone',wave:'sine',f0:1046,dur:1.2,gain:0.05,delay:0.05}
         ]
     }
 };

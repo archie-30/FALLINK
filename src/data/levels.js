@@ -156,11 +156,11 @@ const MENU_DECOR=[
 ];
 
 export const MENU_SCENE={
-    layout:{...LAYOUTS.crossroads,props:LAYOUTS.crossroads.props.concat(MENU_DECOR)},
+    layout:{...LAYOUTS.crossroads,props:LAYOUTS.crossroads.props.filter(q=>Math.hypot(q.x,q.z-1.5)>5).concat(MENU_DECOR)},
     seed:77,
-    barrels:1,
-    crates:2,
-    enemies:[['doodle',-4,-3,2.4],['blob',5,-2,0],['compass',-7,4,0.8]],
+    barrels:0,
+    crates:0,
+    enemies:[['doodle',-6,-5,2.4],['blob',7,-3,0],['compass',-8,5,0.8]],
     decals:[[-3,2,2.6],[6,-5,3.2],[-8,-6,2.2],[9,3,1.8],[1,6.5,2.4],[-6,7,1.6]]
 };
 

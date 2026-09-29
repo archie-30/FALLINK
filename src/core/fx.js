@@ -10,6 +10,7 @@ export const fx={
     slowScale:1,
     slowTime:0,
     paused:false,
+    cutin:false,
 
     init(rig,post) {
         this.rig=rig;
@@ -68,7 +69,7 @@ export const fx={
                 this.slowScale=1;
             }
         }
-        if (this.paused) {
+        if (this.paused||this.cutin) {
             time.timeScale=0;
             return;
         }
