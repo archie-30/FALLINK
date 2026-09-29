@@ -1,4 +1,5 @@
 import {TUNING} from '../data/tuning.js';
+import {settings} from './settings.js';
 
 function makeStick() {
     return {id:-1,cx:0,cy:0,r:70,ox:0,oy:0,x:0,y:0,vx:0,vy:0,mag:0,maxMag:0,t0:0};
@@ -74,14 +75,16 @@ export class Input {
         this.width=w;
         this.height=h;
         const I=TUNING.input;
-        const r=Math.max(I.stickMin,Math.min(I.stickMax,h*I.stickScale));
-        const pad=Math.max(I.stickPad[0],r*0.35);
+        const S=settings;
+        const r=Math.max(I.stickMin,Math.min(I.stickMax,h*I.stickScale))*(I.stickSizeRange[0]+(I.stickSizeRange[1]-I.stickSizeRange[0])*S.stickSize);
+        const padX=I.stickXRange[0]+(w*I.stickXRange[1]-I.stickXRange[0])*S.stickX;
+        const padY=I.stickYRange[0]+(h*I.stickYRange[1]-I.stickYRange[0])*S.stickY;
         for (const s of [this.move,this.aim]) {
             s.r=r;
-            s.cy=h-I.stickPad[1]-r;
+            s.cy=h-padY-r;
         }
-        this.move.cx=pad+r;
-        this.aim.cx=w-pad-r;
+        this.move.cx=padX+r;
+        this.aim.cx=w-padX-r;
         for (const s of [this.move,this.aim]) {
             if (s.id<0) {
                 s.ox=s.cx;

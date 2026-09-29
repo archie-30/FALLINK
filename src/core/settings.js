@@ -13,7 +13,10 @@ export const settings={
     showFps:false,
     shake:1,
     aimAssist:true,
-    volume:0.8
+    volume:0.8,
+    stickSize:0.45,
+    stickX:0.45,
+    stickY:0.4
 };
 
 export function detectDevice() {

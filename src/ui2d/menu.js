@@ -317,6 +317,10 @@ export class PauseMenu extends Panel {
     }
 }
 
+const SETTING_KEYS=['volume','quality','shake','assist','reduced','fps','stickSize','stickX','stickY'];
+
+const SLIDERS={volume:'volume',shake:'shake',stickSize:'stickSize',stickX:'stickX',stickY:'stickY'};
+
 export class SettingsMenu extends Panel {
     constructor(actions) {
         super();
@@ -330,11 +334,8 @@ export class SettingsMenu extends Panel {
     }
 
     target(key) {
-        if (key==='volume') {
-            return settings.volume;
-        }
-        if (key==='shake') {
-            return settings.shake;
+        if (SLIDERS[key]) {
+            return settings[SLIDERS[key]];
         }
         if (key==='quality') {
             return ['low','mid','high'].indexOf(settings.quality);
@@ -350,7 +351,7 @@ export class SettingsMenu extends Panel {
 
     show() {
         super.show();
-        for (const k of ['volume','quality','shake','assist','reduced','fps']) {
+        for (const k of SETTING_KEYS) {
             this.anim[k]=this.target(k);
             this.pulse[k]=0;
         }
@@ -373,28 +374,30 @@ export class SettingsMenu extends Panel {
     layout() {
         const w=this.width;
         const h=this.height;
-        const pw=Math.min(560,w-40);
+        const keys=SETTING_KEYS;
+        const avail=h-190;
+        const cols=keys.length*58>avail&&w>=760?2:1;
+        const per=Math.ceil(keys.length/cols);
+        const rh=Math.max(40,Math.min(60,avail/per));
+        const colW=Math.min(560,(w-40)/cols);
+        const pw=colW*cols;
         const px=w/2-pw/2;
-        const top=Math.max(110,h*0.24);
-        this.panel={x:px,y:top-90,w:pw,h:6*62+190};
+        const ph=per*rh+160;
+        const top=Math.max(90,(h-ph)/2+90);
+        this.panel={x:px,y:top-90,w:pw,h:ph};
         this.rows=[];
-        const keys=['volume','quality','shake','assist','reduced','fps'];
         for (let i=0;i<keys.length;i++) {
-            const y=top+i*62;
-            this.rows.push({key:keys[i],y,cx:px+pw*0.4,cw:pw*0.42});
+            const c=Math.floor(i/per);
+            const x0=px+c*colW;
+            this.rows.push({key:keys[i],y:top+(i%per)*rh,lx:x0+28,cx:x0+colW*0.44,cw:colW*0.38});
         }
-        this.back={x:w/2-90,y:top+6*62+14,w:180,h:48};
+        this.back={x:w/2-90,y:top+per*rh+4,w:180,h:48};
         this.buttons=[this.back];
     }
 
     sliderSet(row,x) {
         const v=Math.max(0,Math.min(1,(x-row.cx)/row.cw));
-        if (row.key==='volume') {
-            settings.volume=Math.round(v*20)/20;
-        }
-        else {
-            settings.shake=Math.round(v*20)/20;
-        }
+        settings[SLIDERS[row.key]]=Math.round(v*20)/20;
         this.bump(row.key);
     }
 
@@ -413,7 +416,7 @@ export class SettingsMenu extends Panel {
             if (Math.abs(y-r.y)>24) {
                 continue;
             }
-            if (r.key==='volume'||r.key==='shake') {
+            if (SLIDERS[r.key]) {
                 if (x>=r.cx-12&&x<=r.cx+r.cw+12) {
                     this.drag=r;
                     this.sliderSet(r,x);
@@ -486,14 +489,14 @@ export class SettingsMenu extends Panel {
             ctx.textAlign='left';
             ctx.fillStyle=PALETTE.ink;
             const label=t('settings.'+r.key);
-            ctx.fillText(label,P.x+28,r.y);
-            const ix=P.x+28+ctx.measureText(label).width+16;
+            ctx.fillText(label,r.lx,r.y);
+            const ix=r.lx+ctx.measureText(label).width+16;
             const over=Math.hypot((this.hx??-99)-ix,(this.hy??-99)-r.y)<13;
             this.drawInfoIcon(ctx,ix,r.y,over,v);
             if (over) {
                 this.info={key:r.key,x:ix,y:r.y};
             }
-            if (r.key==='volume'||r.key==='shake') {
+            if (SLIDERS[r.key]) {
                 const val=Math.max(0,Math.min(1,an));
                 const kr=10+pu*4;
                 drawShape(ctx,sketchLine(r.cx,r.y,r.cx+r.cw,r.y,{width:2,seed:1410+i,overshoot:1}),PALETTE.midGray,v);
@@ -618,6 +621,9 @@ export class Codex extends Panel {
         this.upList=this.lists[0].map(c=>createCard(c.id,true));
         this.showUp=false;
         this.upAnim=0;
+        this.showElite=false;
+        this.eliteAnim=0;
+        this.eliteToggle=null;
         this.tabAnim=0;
         this.upToggle=null;
         this.dToggle=null;
@@ -689,7 +695,8 @@ export class Codex extends Panel {
     }
 
     openDetail(kind,id) {
-        this.detail={kind,id,t:0,alt:kind==='card'&&this.showUp,altAnim:kind==='card'&&this.showUp?1:0};
+        const alt=kind==='card'?this.showUp:this.showElite&&!ENEMIES[id].boss;
+        this.detail={kind,id,t:0,alt,altAnim:alt?1:0};
         this.animT=0;
         this.dScroll=0;
         this.dScrollTo=0;
@@ -746,6 +753,12 @@ export class Codex extends Panel {
                 this.actions.select();
             }
         }
+        else if (this.tab===2&&this.eliteToggle&&inRect(this.eliteToggle,x,y)) {
+            this.showElite=!this.showElite;
+            if (this.actions.select) {
+                this.actions.select();
+            }
+        }
         else if (inRect(this.view,x,y)) {
             this.drag={y0:y,s0:this.scrollTo,x0:x,moved:false,detail:false};
         }
@@ -794,6 +807,7 @@ export class Codex extends Panel {
         this.animT+=dt;
         const ka=1-Math.exp(-TUNING.codex.toggleFollow*dt);
         this.upAnim+=((this.showUp?1:0)-this.upAnim)*ka;
+        this.eliteAnim+=((this.showElite?1:0)-this.eliteAnim)*ka;
         this.tabAnim+=(this.tab-this.tabAnim)*ka;
         if (this.detail) {
             this.detail.altAnim+=((this.detail.alt?1:0)-this.detail.altAnim)*ka;
@@ -932,9 +946,12 @@ export class Codex extends Panel {
             ctx.translate(x+8,y+4);
             drawShape(ctx,sketchRect(0,0,86,86,{width:1.6,seed:1800+i}),boss?PALETTE.red:PALETTE.ink,v);
             ctx.restore();
+            const el=boss?0:this.eliteAnim;
             ctx.save();
             ctx.translate(x+51,y+47);
             if (seen) {
+                const es=lerp1(1,1.18,el);
+                ctx.scale(es,es);
                 ENEMY_ICONS[id](ctx,v);
             }
             else {
@@ -951,7 +968,15 @@ export class Codex extends Panel {
             ctx.textBaseline='top';
             ctx.fillStyle=boss?PALETTE.red:PALETTE.ink;
             ctx.font='bold 18px '+FONT;
-            ctx.fillText(seen?t('enemy.'+id)+(boss?'　'+t('codex.boss'):''):'？？？',tx,y+6);
+            ctx.fillText(seen?(el>0.5?t('hud.elite')+' ':'')+t('enemy.'+id)+(boss?'　'+t('codex.boss'):''):'？？？',tx,y+6);
+            if (seen&&el>0.02) {
+                ctx.save();
+                ctx.globalAlpha*=el;
+                ctx.strokeStyle=PALETTE.red;
+                ctx.lineWidth=2.5;
+                ctx.strokeRect(x+5,y+1,92,92);
+                ctx.restore();
+            }
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='13px '+FONT;
             const lines=wrapText(ctx,seen?t('codex.'+id):t('codex.unseen'),tw);
@@ -1018,11 +1043,10 @@ export class Codex extends Panel {
         drawCost(ctx,card,false,v);
         ctx.restore();
         this.dToggle=null;
-        y+=CARD_H*sc+12;
+        y+=CARD_H*sc+16;
         if (!rare) {
-            this.dToggle={x:lx,y,w:150,h:30};
+            this.dToggle={x:P.x+P.w-28-150,y:P.y+22,w:150,h:30};
             drawToggle(ctx,this.dToggle,[t('codex.base'),t('codex.plus')],d.altAnim,v);
-            y+=40;
         }
         ctx.textAlign='left';
         ctx.textBaseline='top';
@@ -1135,15 +1159,6 @@ export class Codex extends Panel {
         ctx.font='bold 28px '+FONT;
         ctx.fillText(t('enemy.'+id)+(boss?'　'+t('codex.boss'):''),tx,y);
         this.dToggle=null;
-        if (!boss) {
-            ctx.font='bold 28px '+FONT;
-            const nw=ctx.measureText(t('enemy.'+id)).width;
-            this.dToggle={x:tx+nw+22,y:y+2,w:136,h:30};
-            drawToggle(ctx,this.dToggle,[t('codex.normalFoe'),t('hud.elite')],e,v,e>0.5);
-            this.dToggle={x:this.dToggle.x,y:this.dToggle.y-this.dScroll,w:this.dToggle.w,h:this.dToggle.h};
-            ctx.textAlign='left';
-            ctx.textBaseline='top';
-        }
         ctx.font='14px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         const dl=wrapText(ctx,t('codex.'+id),P.x+P.w-40-tx);
@@ -1206,6 +1221,10 @@ export class Codex extends Panel {
         }
         this.dContentH=y+Math.ceil(atks.length/cols)*ch-P.y;
         ctx.restore();
+        if (!boss) {
+            this.dToggle={x:P.x+P.w-28-150,y:P.y+22,w:150,h:30};
+            drawToggle(ctx,this.dToggle,[t('codex.normalFoe'),t('hud.elite')],e,v,e>0.5);
+        }
         this.drawFades(ctx,V,this.dScroll,this.dContentH);
         this.drawScrollbar(ctx,V,this.dScroll,this.dContentH,P.x+P.w-16);
     }
@@ -1274,16 +1293,28 @@ export class Codex extends Panel {
             ctx.fillText(tl[i],b.x+b.w/2,b.y+b.h/2+1);
         }
         this.upToggle=null;
-        if (this.tab===0||this.tabAnim<0.99) {
-            const tb=this.tabs[2];
-            const r={x:Math.min(w-190,tb.x+tb.w+24),y:tb.y+5,w:150,h:30};
+        this.eliteToggle=null;
+        const tb=this.tabs[2];
+        const tr={x:Math.min(w-190,tb.x+tb.w+24),y:tb.y+5,w:150,h:30};
+        const a0=Math.max(0,1-Math.abs(this.tabAnim)*1.5);
+        const a2=Math.max(0,1-Math.abs(this.tabAnim-2)*1.5);
+        if (a0>0) {
             ctx.save();
-            ctx.globalAlpha*=Math.max(0,1-this.tabAnim);
-            drawToggle(ctx,r,[t('codex.base'),t('codex.plus')],this.upAnim,v);
+            ctx.globalAlpha*=a0;
+            drawToggle(ctx,tr,[t('codex.base'),t('codex.plus')],this.upAnim,v);
             ctx.restore();
-            if (this.tab===0) {
-                this.upToggle=r;
-            }
+        }
+        if (a2>0) {
+            ctx.save();
+            ctx.globalAlpha*=a2;
+            drawToggle(ctx,tr,[t('codex.normalFoe'),t('hud.elite')],this.eliteAnim,v,this.eliteAnim>0.5);
+            ctx.restore();
+        }
+        if (this.tab===0) {
+            this.upToggle=tr;
+        }
+        if (this.tab===2) {
+            this.eliteToggle=tr;
         }
         const V=this.view;
         this.hits=[];

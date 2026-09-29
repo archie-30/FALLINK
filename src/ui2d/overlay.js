@@ -69,7 +69,7 @@ export class Overlay {
                 this.hud.legendBox={x:0,y:0,w:0,h:0,titleH:0};
             }
             game.hand.draw(ctx,game.art);
-            if (touchUi) {
+            if (input.lastDevice==='touch') {
                 this.drawSticks(input,!!game.hand.targetView);
                 const ta=game.hand.tooltipAnchor();
                 if (ta) {
@@ -108,6 +108,9 @@ export class Overlay {
             game.mainMenu.draw(ctx);
         }
         game.settingsMenu.draw(ctx);
+        if (game.settingsMenu.open&&game.settingsMenu.drag&&/^stick/.test(game.settingsMenu.drag.key)) {
+            this.drawSticks(input,false);
+        }
         game.codex.draw(ctx,game.art);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             this.drawCrosshair(input.mouse.x,input.mouse.y,input.mouse.down);

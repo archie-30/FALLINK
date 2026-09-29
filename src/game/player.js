@@ -184,11 +184,12 @@ export class Player {
         const m=toonMaterial({light:'paper',mid:'farGray',dark:'midGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide});
         this.shieldGroup=new THREE.Group();
         this.panels=[];
-        for (let i=0;i<3;i++) {
+        const n=TUNING.effects.shieldPanels;
+        for (let i=0;i<n;i++) {
             const holder=new THREE.Group();
-            holder.rotation.y=i*Math.PI*2/3;
+            holder.rotation.y=i*Math.PI*2/n;
             const mesh=new THREE.Mesh(geo,m);
-            mesh.rotation.z=(i-1)*0.12;
+            mesh.rotation.z=((i%3)-1)*0.12;
             holder.add(mesh);
             holder.visible=false;
             this.shieldGroup.add(holder);
@@ -204,6 +205,7 @@ export class Player {
         }
         for (let i=0;i<this.panels.length;i++) {
             this.panels[i].visible=i<n;
+            this.panels[i].rotation.y=i*Math.PI*2/Math.max(1,n);
         }
     }
 

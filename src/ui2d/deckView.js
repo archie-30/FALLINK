@@ -19,12 +19,16 @@ export class DeckView {
         this.hx=-1;
         this.hy=-1;
         this.returnPause=false;
-        this.closeK=0;
+        this.closing=false;
+        this.outRate=1;
+        this.count=0;
+        this.sel=null;
     }
 
     hover(x,y) {
         this.hx=x;
         this.hy=y;
+        this.touch=false;
     }
 
     hovered() {
@@ -44,35 +48,67 @@ export class DeckView {
 
     show() {
         this.open=true;
-        this.closeK=0;
+        this.closing=false;
+        this.sel=null;
         this.t=0;
     }
 
     hide() {
-        if (this.open) {
-            this.closeK=1;
+        if (!this.open) {
+            return;
         }
         this.open=false;
+        this.closing=true;
+        this.sel=null;
+        this.hx=-1;
+        this.hy=-1;
+        this.t=Math.min(this.t,Math.min(TUNING.ui.deckOutMax,0.4+this.count*0.03));
+        this.outRate=this.t/TUNING.ui.deckCloseTime;
     }
 
-    down(x,y) {
+    tap(x,y,type) {
         if (!this.open) {
             return false;
         }
+        const c=this.closeRect;
+        if (x>=c.x&&x<=c.x+c.w&&y>=c.y&&y<=c.y+c.h) {
+            return false;
+        }
+        const hx=this.hx;
+        const hy=this.hy;
+        this.touch=type!=='mouse';
         this.hx=x;
         this.hy=y;
-        if (this.hovered()) {
+        const hit=this.hovered();
+        if (type==='mouse') {
+            return !!hit;
+        }
+        if (hit) {
+            this.sel=hit.card;
             return true;
         }
-        this.hide();
-        return true;
+        this.hx=-1;
+        this.hy=-1;
+        if (this.sel) {
+            this.sel=null;
+            return true;
+        }
+        this.hx=hx;
+        this.hy=hy;
+        return false;
     }
 
     update(dt) {
         if (this.open) {
             this.t+=dt;
         }
-        this.closeK=Math.max(0,this.closeK-dt/TUNING.ui.closeTime);
+        else if (this.closing) {
+            this.t-=dt*this.outRate;
+            if (this.t<=0) {
+                this.t=0;
+                this.closing=false;
+            }
+        }
     }
 
     section(ctx,art,cards,title,x,y,w,variant,startIndex) {
@@ -114,18 +150,10 @@ export class DeckView {
     }
 
     draw(ctx,art,deck) {
-        if (!this.open&&this.closeK<=0) {
+        if (!this.open&&!this.closing) {
             return;
         }
-        if (this.closeK>0) {
-            const k=EASE.easeInCubic(1-this.closeK);
-            ctx.save();
-            ctx.globalAlpha=1-k;
-            ctx.translate(0,k*this.height*0.25);
-            this.drawBody(ctx,art,deck);
-            ctx.restore();
-            return;
-        }
+        this.count=deck.drawPile.length+deck.discardPile.length;
         this.drawBody(ctx,art,deck);
     }
 
@@ -168,8 +196,8 @@ export class DeckView {
         ctx.fillText(t('deck.close'),w/2,by+bh/2+1);
         ctx.font='13px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
-        ctx.fillText(t('deck.hoverHint'),w/2,by-16);
-        const hv=this.hovered();
+        ctx.fillText(t(this.touch?'deck.tapHint':'deck.hoverHint'),w/2,by-16);
+        const hv=this.open?this.hovered():null;
         if (hv) {
             ctx.save();
             ctx.strokeStyle=PALETTE.red;
