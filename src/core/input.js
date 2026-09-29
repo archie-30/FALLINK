@@ -23,10 +23,8 @@ export class Input {
         this.onToggleDebug=null;
         this.onCycleQuality=null;
         this.onFirstTouch=null;
-        this.onToggleLegend=null;
         this.onCardKey=null;
         this.onDeckKey=null;
-        this.onDiscardKey=null;
         this.onEscape=null;
         this.onPauseKey=null;
         this.onWheel=null;
@@ -157,18 +155,8 @@ export class Input {
             }
             return;
         }
-        if (e.code==='KeyQ'&&!e.repeat) {
-            if (this.onDiscardKey) {
-                this.onDiscardKey();
-            }
-        }
         if (e.code==='KeyR'&&!e.repeat) {
             this.reloadQueued=true;
-        }
-        if (e.code==='KeyH'&&!e.repeat) {
-            if (this.onToggleLegend) {
-                this.onToggleLegend();
-            }
         }
         if (e.code==='Space') {
             e.preventDefault();

@@ -37,7 +37,10 @@ import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
-import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView} from './ui2d/menu.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu} from './ui2d/menu.js';
+import {DEFAULT_SKIN} from './data/skins.js';
+import {EASE} from './core/easing.js';
+import {UltCutin} from './ui2d/ultCutin.js';
 import {audio} from './core/audio.js';
 import {ENDLESS,MENU_SCENE} from './data/levels.js';
 import {renderFlags} from './render/materials.js';
@@ -90,6 +93,7 @@ function boot() {
     const game={room:null,mode:'menu'};
     let menuAngle=0;
     const player=new Player(actors);
+    player.applySkin({...DEFAULT_SKIN,...settings.skin});
     player.spawn(new THREE.Vector3(0,0,4));
     const rig=new CameraRig(1);
     rig.follow(player.pos,0,0);
@@ -151,12 +155,36 @@ function boot() {
     };
     const tmpV=new THREE.Vector3();
     const tmpG=new THREE.Vector3();
-    let pickerReturnPause=false;
+    const ultCutin=new UltCutin();
+    let pickerReturn=null;
+    let trainFixed=[];
+    const trainStats={total:0,max:0,last:0,lastT:0,kills:0,cards:0,hurt:0,hurtT:0,log:[],start:0};
+    function resetTrainStats() {
+        Object.assign(trainStats,{total:0,max:0,last:0,lastT:0,kills:0,cards:0,hurt:0,hurtT:0,log:[],start:time.real});
+    }
+    function trainProvider() {
+        if (run.mode!=='training'||settings.training.refill!=='fixed'||trainFixed.length===0) {
+            return null;
+        }
+        const have=deck.hand.map(c=>c.id);
+        for (const f of trainFixed) {
+            const k=have.indexOf(f.id);
+            if (k>=0) {
+                have.splice(k,1);
+                continue;
+            }
+            if (isUlt(f.id)?deck.ultCard():deck.normalCount()>=TUNING.deck.handSize) {
+                continue;
+            }
+            return createCard(f.id,f.upgraded);
+        }
+        return null;
+    }
     function openPicker() {
         hand.cancelTargeting();
-        pickerReturnPause=pauseMenu.open;
-        if (pauseMenu.open) {
-            pauseMenu.hide();
+        pickerReturn=trainingMenu.open?'training':null;
+        if (trainingMenu.open) {
+            trainingMenu.hide();
         }
         audio.play('ui');
         trainingPicker.show();
@@ -164,33 +192,59 @@ function boot() {
     }
     function closePicker(resume) {
         trainingPicker.hide();
-        if (pickerReturnPause&&!resume) {
-            pauseMenu.show();
+        if (pickerReturn==='training'&&!resume) {
+            pickerReturn=null;
+            trainingMenu.show();
             return;
         }
-        pickerReturnPause=false;
+        pickerReturn=null;
         fx.paused=false;
         input.mouse.down=false;
     }
-    function trainPick(id,upgraded) {
-        const card=createCard(id,upgraded);
-        if (isUlt(id)) {
+    function trainPick(ids,upgraded) {
+        const normals=ids.filter(id=>!isUlt(id));
+        const ult=ids.find(id=>isUlt(id));
+        trainFixed=ids.map(id=>({id,upgraded}));
+        if (normals.length>0) {
+            const old=hand.normals().filter(v=>v.state==='idle'||v.state==='draw');
+            const drop=Math.max(0,Math.min(old.length,deck.normalCount()+normals.length-TUNING.deck.handSize));
+            for (let k=0;k<drop;k++) {
+                hand.discardView(old[k]);
+            }
+        }
+        if (ult) {
             const u=hand.ultView();
             if (u) {
                 hand.discardView(u);
             }
         }
-        else if (deck.normalCount()>=TUNING.deck.handSize) {
-            const n=hand.normals().filter(v=>v.state==='idle'||v.state==='draw');
-            if (n.length>0) {
-                hand.discardView(n[0]);
-            }
+        const names=[];
+        for (const id of normals.concat(ult?[ult]:[])) {
+            const card=createCard(id,upgraded);
+            deck.hand.push(card);
+            hand.onDraw(card);
+            names.push(t(card.def.nameKey)+(upgraded?'+':''));
         }
-        deck.hand.push(card);
-        hand.onDraw(card);
-        overlay.hud.toast(t('training.picked',{name:t(card.def.nameKey)+(upgraded?'+':'')}));
+        overlay.hud.toast(t('training.picked',{name:names.join('、')}));
         audio.play('card');
         closePicker(true);
+    }
+    function openTrainingMenu() {
+        hand.cancelTargeting();
+        audio.play('ui');
+        trainingMenu.show();
+        fx.paused=true;
+    }
+    function closeTrainingMenu() {
+        audio.play('ui');
+        trainingMenu.hide();
+        fx.paused=false;
+        input.mouse.down=false;
+        input.dashQueued=false;
+        if (trainingMenu.pendingRoom) {
+            trainingMenu.pendingRoom=false;
+            run.enter();
+        }
     }
     function openDeck() {
         if (run.mode==='training'&&game.mode==='play') {
@@ -240,6 +294,11 @@ function boot() {
         },
         mouseScreen:()=>input.lastDevice==='mouse'&&input.mouse.inside?input.mouse:null,
         execute:(card,target)=>{
+            if (card.def.rarity==='rare') {
+                ultCutin.play(card);
+                fx.slowMo(TUNING.ultFx.slow,TUNING.ultFx.slowTime);
+                audio.play('boss',1.3);
+            }
             effects.run(card,target);
             audio.play(card.def.id==='pencilWall'?'wall':(card.def.type==='terrain'?'erase':'card'));
         },
@@ -249,6 +308,9 @@ function boot() {
             audio.play('card');
             if (run.stats) {
                 run.stats.cards++;
+            }
+            if (run.mode==='training') {
+                trainStats.cards++;
             }
         }
     });
@@ -288,6 +350,13 @@ function boot() {
     const dmgNums=new DamageNumbers();
     enemies.onDamage=(e,dmg,crit)=>{
         dmgNums.spawn(e.pos.x,e.def.height*0.9,e.pos.z,dmg,crit);
+        if (run.mode==='training') {
+            trainStats.total+=dmg;
+            trainStats.max=Math.max(trainStats.max,dmg);
+            trainStats.last=dmg;
+            trainStats.lastT=1;
+            trainStats.log.push({t:time.real,dmg});
+        }
     };
     enemies.onHit=(e,x,z,dx,dz,dead,quiet,crit)=>{
         if (dead) {
@@ -317,6 +386,9 @@ function boot() {
         const z=e.pos.z;
         const D=TUNING.decals;
         ink.add((e.def.ink||1)*(e.elite?TUNING.ink.eliteMult:1));
+        if (run.mode==='training') {
+            trainStats.kills++;
+        }
         audio.play(e.def.boss?'boss':'kill',0.8+Math.random()*0.4);
         fx.hitStop(F.hitStopKill,true);
         fx.cameraShake(F.shakeKill);
@@ -362,6 +434,10 @@ function boot() {
         fx.fovPunch(W.recoilFov);
     };
     player.events.onHurt=p=>{
+        if (run.mode==='training') {
+            trainStats.hurt++;
+            trainStats.hurtT=1;
+        }
         audio.play('hurt');
         fx.hitStop(F.hitStopHurt,true);
         fx.cameraShake(F.shakeHurt);
@@ -609,6 +685,8 @@ function boot() {
             decals.spawn(x,z,size,'ink','midGray');
         }
         hand.reset();
+        ultCutin.active=null;
+        deck.provider=null;
         deck.reset([]);
         run.state='idle';
         run.plan=null;
@@ -627,9 +705,16 @@ function boot() {
         game.mode='play';
         player.hp=TUNING.player.maxHp;
         ink.value=TUNING.ink.start;
+        trainFixed=[];
+        resetTrainStats();
+        deck.provider=mode==='training'?trainProvider:null;
         run.start(startIds(),mode);
     }
     function openPause() {
+        if (game.mode==='play'&&run.mode==='training'&&!trainingMenu.open&&!trainingPicker.open&&!transition.active) {
+            openTrainingMenu();
+            return;
+        }
         if (game.mode!=='play'||pauseMenu.open||summary.open||reward.open||upgradeView.open||transition.active) {
             return;
         }
@@ -669,15 +754,60 @@ function boot() {
             codex.show();
         },
         training:()=>startGame('training'),
+        skin:()=>{
+            audio.play('ui');
+            mainMenu.hide();
+            skinEditor.show();
+        },
         levels:()=>{
             audio.play('ui');
             levelView.show();
+        }
+    });
+    const skinEditor=new SkinEditor({
+        changed:skin=>{
+            player.applySkin(skin);
+            saveSettings();
+        },
+        select:()=>audio.play('ui'),
+        back:()=>{
+            audio.play('ui');
+            skinEditor.hide();
+            mainMenu.show();
         }
     });
     const levelView=new LevelView({
         back:()=>{
             audio.play('ui');
             levelView.hide();
+        }
+    });
+    const trainingMenu=new TrainingMenu({
+        select:()=>audio.play('ui'),
+        changed:kind=>{
+            saveSettings();
+            if (run.mode!=='training'||!run.director||!run.director.configure) {
+                return;
+            }
+            if (kind==='foes') {
+                run.director.configure(settings.training);
+            }
+            else if (kind==='attack') {
+                run.director.setAttack(settings.training.attack);
+            }
+        },
+        resume:closeTrainingMenu,
+        pick:openPicker,
+        reset:()=>{
+            resetTrainStats();
+            overlay.hud.toast(t('trainMenu.resetDone'));
+        },
+        settings:()=>openSettings('training'),
+        leave:()=>{
+            trainingMenu.hide();
+            trainingMenu.pendingRoom=false;
+            run.quit();
+            enterMenu();
         }
     });
     const trainingPicker=new TrainingPicker({
@@ -706,6 +836,7 @@ function boot() {
     });
     const settingsMenu=new SettingsMenu({
         changed:settingsChanged,
+        select:()=>audio.play('ui'),
         back:()=>{
             audio.play('ui');
             settingsMenu.hide();
@@ -718,7 +849,7 @@ function boot() {
             codex.hide();
         }
     });
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu];
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
@@ -774,7 +905,6 @@ function boot() {
         saveSettings();
         applyQuality();
     };
-    input.onToggleLegend=()=>overlay.hud.toggleLegend();
     input.ui={
         down:(x,y,id,type,button)=>{
             audio.unlock();
@@ -787,8 +917,14 @@ function boot() {
             if (levelView.open) {
                 return levelView.down(x,y);
             }
+            if (skinEditor.open) {
+                return skinEditor.down(x,y);
+            }
             if (trainingPicker.open) {
                 return trainingPicker.down(x,y,type);
+            }
+            if (trainingMenu.open) {
+                return trainingMenu.down(x,y);
             }
             if (mainMenu.open) {
                 return mainMenu.down(x,y);
@@ -825,10 +961,6 @@ function boot() {
             }
             if (overlay.hud.hitPause(x,y,overlay.width)) {
                 openPause();
-                return true;
-            }
-            if (overlay.hud.hitLegendTitle(x,y)) {
-                overlay.hud.toggleLegend();
                 return true;
             }
             return hand.down(x,y,id,type,button);
@@ -872,13 +1004,8 @@ function boot() {
         leave:()=>hand.leave()
     };
     input.onCardKey=i=>{
-        if (!deckView.open&&!trainingPicker.open&&!reward.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
+        if (!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
             hand.keyPlay(i);
-        }
-    };
-    input.onDiscardKey=()=>{
-        if (!deckView.open&&!trainingPicker.open&&!reward.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
-            hand.keyDiscard();
         }
     };
     input.onDeckKey=()=>{
@@ -898,7 +1025,9 @@ function boot() {
     input.onEscape=()=>{
         audio.unlock();
         if (settingsMenu.open) {
-            settingsMenu.hide();
+            if (!settingsMenu.closeKeys()) {
+                settingsMenu.hide();
+            }
             return;
         }
         if (codex.open) {
@@ -911,8 +1040,16 @@ function boot() {
             levelView.hide();
             return;
         }
+        if (skinEditor.open) {
+            skinEditor.actions.back();
+            return;
+        }
         if (trainingPicker.open) {
             closePicker(false);
+            return;
+        }
+        if (trainingMenu.open) {
+            closeTrainingMenu();
             return;
         }
         if (pauseMenu.open) {
@@ -934,7 +1071,7 @@ function boot() {
         levelView.wheel(dy);
         trainingPicker.wheel(dy);
     };
-    input.canStick=()=>game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.canStick=()=>game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     input.onAimRelease=(vx,vy,mag,tap)=>{
         if (hand.targetView&&run.state==='combat'&&input.canStick()) {
             hand.stickCast(vx,vy,mag,tap);
@@ -964,7 +1101,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out);
-    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker};
+    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -1064,7 +1201,13 @@ function boot() {
         }
     }
     const dropRng=new RNG(4242);
+    let skinSpin=0.6;
+    let skinZoom=0;
     function update(dt) {
+        if (skinEditor.shown()) {
+            skinSpin+=dt*TUNING.ui.skinSpin;
+            player.faceDir(Math.sin(skinSpin),Math.cos(skinSpin));
+        }
         if (run.state!=='dead') {
             player.update(dt,input,ctx,aim);
         }
@@ -1074,6 +1217,15 @@ function boot() {
             player.hp=TUNING.player.maxHp;
             if (ink.value<TUNING.training.ink) {
                 ink.value=TUNING.training.ink;
+            }
+            if (settings.training.ammo) {
+                player.ammo=TUNING.weapon.magazine;
+            }
+            trainStats.lastT=Math.max(0,trainStats.lastT-dt*3);
+            trainStats.hurtT=Math.max(0,trainStats.hurtT-dt*1.5);
+            const cut=time.real-TUNING.training.dpsWindow;
+            while (trainStats.log.length>0&&trainStats.log[0].t<cut) {
+                trainStats.log.shift();
             }
         }
         const hurry=game.mod==='hurry'&&game.mode==='play'?1.25:1;
@@ -1176,6 +1328,7 @@ function boot() {
         for (const m of menus) {
             m.update(dt);
         }
+        ultCutin.update(fx.paused?0:dt);
         gameUi.dt=dt;
         gameUi.mode=game.mode;
         for (const c of clones) {
@@ -1214,10 +1367,16 @@ function boot() {
             look.z+=(lz-look.z)*k;
         }
         if (game.mode==='menu') {
-            menuAngle+=dt*0.12;
+            const S=TUNING.ui.skinCam;
+            skinZoom+=((skinEditor.open?1:0)-skinZoom)*(1-Math.exp(-S.follow*dt));
+            menuAngle+=dt*0.12*(1-skinZoom);
             const cam=rig.camera;
-            cam.position.set(Math.sin(menuAngle)*24,15,Math.cos(menuAngle)*24);
-            cam.lookAt(0,0.5,0);
+            const z=EASE.easeInOutCubic(skinZoom);
+            const sa=Math.sin(menuAngle);
+            const ca=Math.cos(menuAngle);
+            const p=player.renderPos;
+            cam.position.set(sa*24+(p.x+sa*S.dist-sa*24)*z,15+(S.height-15)*z,ca*24+(p.z+ca*S.dist-ca*24)*z);
+            cam.lookAt((p.x-ca*S.shift)*z,0.5+(S.look-0.5)*z,(p.z+sa*S.shift)*z);
             if (cam.fov!==TUNING.camera.fov) {
                 cam.fov=TUNING.camera.fov;
                 cam.updateProjectionMatrix();
@@ -1259,7 +1418,7 @@ function boot() {
     }
     art.warm(deck.drawPile);
     enterMenu();
-    window.INKFALL={trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKFALL={ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();
