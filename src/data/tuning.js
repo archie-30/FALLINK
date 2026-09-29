@@ -181,10 +181,18 @@ export const TUNING={
         heartFov:0.5
     },
     input:{
-        stickRadius:70,
         deadZone:0.14,
-        dashButtonRadius:46,
-        dashButtonOffset:[96,104]
+        stickMin:50,
+        stickMax:76,
+        stickScale:0.1,
+        stickPad:[26,30],
+        stickGrab:1.7,
+        dashScale:0.56,
+        dashAngle:-2.25,
+        dashGap:16,
+        dashButtonRadius:44,
+        tapTime:260,
+        cancelScale:0.36
     },
     ink:{
         max:10,
@@ -224,6 +232,10 @@ export const TUNING={
         keycap:{size:34,font:19,pad:9,gap:10,dimAlpha:0.45},
         fieldMargin:0.95,
         inkStrokes:18
+    },
+    perf:{
+        lowFps:42,
+        window:4
     },
     ui:{
         closeTime:0.28
@@ -318,6 +330,7 @@ export const TUNING={
         eraseTime:0.8
     },
     hud:{
+        toastTime:3,
         enemyHp:{minTicks:4,maxTicks:12,hpPerTick:8,radius:30,radiusScale:20,span:0.5,offset:26,follow:0.08,tickW:3.5,tickH:10},
         hpPos:[24,22],
         hpLength:220,

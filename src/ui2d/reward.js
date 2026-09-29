@@ -83,6 +83,10 @@ export class RewardView {
             return true;
         }
         const i=this.hitIndex(x,y);
+        if (i>=0&&this.hover!==i) {
+            this.hover=i;
+            return true;
+        }
         if (i>=0) {
             this.picked=i;
             this.pickT=0;
