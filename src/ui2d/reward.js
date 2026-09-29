@@ -2,7 +2,7 @@ import {PALETTE,rgba} from '../data/palette.js';
 import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
 import {EASE} from '../core/easing.js';
-import {CARD_W,CARD_H,drawCost,rareBorderPath} from './cardView.js';
+import {CARD_W,CARD_H,drawCost,rareBorderPath,drawCardTooltip} from './cardView.js';
 import {sketchRect,sketchLine,drawShape} from './sketch.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
@@ -205,5 +205,11 @@ export class RewardView {
         ctx.textBaseline='middle';
         ctx.fillText(t('reward.skip'),w/2,by+bh/2+1);
         ctx.restore();
+        if (this.hover>=0&&this.picked===-2&&this.t>0.6) {
+            const it=this.items[this.hover];
+            const left=it.x<w/2;
+            const ox=CARD_W*s*0.55+150;
+            drawCardTooltip(ctx,it.card,left?it.x-ox:it.x+ox,it.y+CARD_H*s*0.45);
+        }
     }
 }

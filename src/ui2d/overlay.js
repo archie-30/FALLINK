@@ -55,6 +55,7 @@ export class Overlay {
             game.summary.draw(ctx);
         }
         if (game.mode==='play'&&!dying) {
+            this.hud.drawEnemyHp(ctx,game.enemies,game.project,this.tmp3||(this.tmp3={x:0,y:0}));
             game.dmgNums.draw(ctx,game.project);
             this.hud.drawAmmo(ctx,player,game.project,this.tmp||(this.tmp={x:0,y:0}));
             this.drawLock(ctx,game);
@@ -93,6 +94,9 @@ export class Overlay {
                     ctx.fillText(t('pause.hint'),this.width/2,this.height-game.hand.s*164*0.8-100*game.hand.s);
                 }
             }
+        }
+        if (game.mode!=='play') {
+            game.summary.draw(ctx);
         }
         if (!game.codex.open&&!game.settingsMenu.open) {
             game.mainMenu.draw(ctx);

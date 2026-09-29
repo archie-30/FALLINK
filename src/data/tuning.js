@@ -225,6 +225,9 @@ export const TUNING={
         fieldMargin:0.95,
         inkStrokes:18
     },
+    ui:{
+        closeTime:0.28
+    },
     settingsUi:{
         follow:14,
         pulseDecay:3
@@ -315,6 +318,7 @@ export const TUNING={
         eraseTime:0.8
     },
     hud:{
+        enemyHp:{minTicks:4,maxTicks:12,hpPerTick:8,radius:30,radiusScale:20,span:0.5,offset:26,follow:0.08,tickW:3.5,tickH:10},
         hpPos:[24,22],
         hpLength:220,
         hpHeight:22,
