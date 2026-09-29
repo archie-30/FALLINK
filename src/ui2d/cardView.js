@@ -506,7 +506,7 @@ function renderFace(card,v,scale) {
         ctx.save();
         ctx.translate(W-24,48);
         ctx.rotate(0.28);
-        drawShape(ctx,sketchRect(-17,-8,34,16,{width:1.5,seed:seed+13,overshoot:1}),PALETTE.red,v);
+        drawShape(ctx,sketchRect(-21,-8,42,16,{width:1.5,seed:seed+13,overshoot:1}),PALETTE.red,v);
         ctx.fillStyle=PALETTE.red;
         ctx.font='bold 10px '+FONT;
         ctx.textAlign='center';

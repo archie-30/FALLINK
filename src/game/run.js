@@ -99,6 +99,20 @@ export class Run {
 
     addCard(card) {
         this.deckList.push({id:card.id,upgraded:card.upgraded});
+        if (card.upgraded) {
+            return null;
+        }
+        const n=TUNING.cards.mergeCount;
+        const same=this.deckList.filter(c=>c.id===card.id&&!c.upgraded);
+        if (same.length<n) {
+            return null;
+        }
+        for (const c of same.slice(0,n)) {
+            this.deckList.splice(this.deckList.indexOf(c),1);
+        }
+        this.deckList.push({id:card.id,upgraded:true});
+        this.stats.merges=(this.stats.merges||0)+1;
+        return card.id;
     }
 
     next() {
@@ -154,8 +168,11 @@ export class Run {
             if (this.timer<=0) {
                 this.state='reward';
                 this.hooks.openReward(this.rewardChoices(),card=>{
-                    if (card) {
-                        this.addCard(card);
+                    const merged=card?this.addCard(card):null;
+                    if (merged&&this.hooks.onMerge) {
+                        this.state='upgrade';
+                        this.hooks.onMerge(merged,()=>this.next());
+                        return;
                     }
                     this.next();
                 });

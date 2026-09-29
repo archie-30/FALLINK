@@ -1,3 +1,5 @@
+import {TUNING} from '../data/tuning.js';
+
 export class RoomDirector {
     constructor(plan,enemies,room,rng) {
         this.plan=plan;
@@ -51,7 +53,7 @@ export class RoomDirector {
                     this.eliteWave=this.wave;
                     elite=true;
                 }
-                const e=this.enemies.spawn(s.type,x,z,{hpMult:this.plan.hpMult*(s.boss?this.plan.bossHp:1)*(elite?2.5:1),elite});
+                const e=this.enemies.spawn(s.type,x,z,{hpMult:this.plan.hpMult*(s.boss?this.plan.bossHp:1)*(elite?TUNING.elite.hp:1),elite});
                 if (s.boss) {
                     this.boss=e;
                 }

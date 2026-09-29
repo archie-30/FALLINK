@@ -26,10 +26,11 @@ export class Pickups {
         }
     }
 
-    spawn(type,x,z) {
+    spawn(type,x,z,amount=0) {
         const it=this.items.find(q=>!q.active)||this.items[0];
         it.active=true;
         it.type=type;
+        it.amount=amount;
         it.x=x;
         it.z=z;
         it.t=0;
@@ -62,7 +63,7 @@ export class Pickups {
             if (it.t>0.4&&Math.hypot(player.pos.x-it.x,player.pos.z-it.z)<1.2) {
                 it.active=false;
                 it.mesh.visible=false;
-                onPick(it.type,it.x,it.z);
+                onPick(it.type,it.x,it.z,it.amount);
             }
         }
     }

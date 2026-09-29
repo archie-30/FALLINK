@@ -1073,6 +1073,7 @@ export const ENEMY_ATTACKS={
     doodle:[
         {
             key:'shot',
+            dmg:{kind:'bullet',n:1},
             period:2.6,
             draw(S,k) {
                 const ex=11.5+Math.sin(k*Math.PI*2)*0.3;
@@ -1088,6 +1089,7 @@ export const ENEMY_ATTACKS={
     blob:[
         {
             key:'hop',
+            dmg:{kind:'bullet',n:1},
             period:3.2,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1115,6 +1117,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'split',
+            dmg:{kind:'hit',n:1},
             period:3,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1133,6 +1136,7 @@ export const ENEMY_ATTACKS={
     compass:[
         {
             key:'ring',
+            dmg:{kind:'bullet',n:1},
             period:3,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1153,6 +1157,7 @@ export const ENEMY_ATTACKS={
     eraserMonster:[
         {
             key:'charge',
+            dmg:{kind:'hit',n:2},
             period:3.2,
             draw(S,k,t) {
                 S.player(PX,6.8,0);
@@ -1172,6 +1177,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'erase',
+            dmg:{kind:'hit',n:2},
             period:3.2,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1196,6 +1202,7 @@ export const ENEMY_ATTACKS={
     bird:[
         {
             key:'swoop',
+            dmg:{kind:'hit',n:1},
             period:3.2,
             draw(S,k) {
                 S.player(PX+2,PY,0);
@@ -1230,6 +1237,7 @@ export const ENEMY_ATTACKS={
     inkBottle:[
         {
             key:'spiral',
+            dmg:{kind:'bullet',n:1},
             period:3.2,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1251,6 +1259,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'fan',
+            dmg:{kind:'bullet',n:1},
             period:3,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1272,6 +1281,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'ring',
+            dmg:{kind:'bullet',n:1},
             period:3,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1291,6 +1301,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'spill',
+            dmg:{kind:'slow',n:0},
             period:3.4,
             draw(S,k) {
                 const px=lerp(PX,PX+1,seg(k,0.6,0.9));
@@ -1315,6 +1326,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'summon',
+            dmg:{kind:'none',n:0},
             period:3,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1331,6 +1343,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'weak',
+            dmg:{kind:'none',n:0},
             period:3,
             draw(S,k,t) {
                 const cx=9;
@@ -1351,6 +1364,7 @@ export const ENEMY_ATTACKS={
     scissors:[
         {
             key:'dash',
+            dmg:{kind:'hit',n:2},
             period:3.4,
             draw(S,k,t) {
                 S.player(PX+1,6.5,0);
@@ -1379,6 +1393,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'snip',
+            dmg:{kind:'bullet',n:1},
             period:3,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1400,6 +1415,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'spin',
+            dmg:{kind:'bullet',n:1},
             period:3.2,
             draw(S,k,t) {
                 S.player(PX,PY,0);
@@ -1423,6 +1439,7 @@ export const ENEMY_ATTACKS={
     book:[
         {
             key:'wall',
+            dmg:{kind:'bullet',n:1},
             period:3.2,
             draw(S,k) {
                 const gap=5.8;
@@ -1445,6 +1462,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'rain',
+            dmg:{kind:'bullet',n:1},
             period:3.2,
             draw(S,k) {
                 S.player(PX+1,PY,0);
@@ -1468,6 +1486,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'slam',
+            dmg:{kind:'bullet',n:1},
             period:3,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1488,6 +1507,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'summon',
+            dmg:{kind:'none',n:0},
             period:3,
             draw(S,k) {
                 S.player(PX,PY,0);
@@ -1508,6 +1528,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'rest',
+            dmg:{kind:'none',n:0},
             period:3,
             draw(S,k) {
                 S.player(PX,PY,0);

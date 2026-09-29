@@ -152,7 +152,7 @@ export class Enemy {
         this.hp=d.hp*(o.hpMult||1);
         this.act=o.act||0;
         this.elite=!!o.elite;
-        this.yawGroup.scale.setScalar(d.scale*(this.elite?1.3:1));
+        this.yawGroup.scale.setScalar(d.scale*(this.elite?TUNING.elite.scale:1));
         this.maxHp=this.hp;
         this.uid=++uidCounter;
         this.alive=true;
@@ -221,7 +221,7 @@ export class Enemy {
 
     hurt(dmg,dx,dz) {
         const F=TUNING.feel;
-        const km=(this.def.knockMult??1)*(this.elite?0.3:1);
+        const km=(this.def.knockMult??1)*(this.elite?TUNING.elite.knock:1);
         this.hp-=dmg;
         this.flashT=F.flashTime;
         this.vel.x+=dx*F.knockback*km;

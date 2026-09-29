@@ -229,6 +229,7 @@ export const TUNING={
         shakeTime:0.35,
         dragThreshold:10,
         targetLift:70,
+        mergeCount:3,
         keycap:{size:34,font:19,pad:9,gap:10,dimAlpha:0.45},
         fieldMargin:0.95,
         inkStrokes:18
@@ -236,6 +237,12 @@ export const TUNING={
     perf:{
         lowFps:42,
         window:4
+    },
+    upgrade:{
+        gather:0.75,
+        merge:1.35,
+        reveal:0.8,
+        autoClose:7
     },
     ui:{
         closeTime:0.28
@@ -245,6 +252,7 @@ export const TUNING={
         pulseDecay:3
     },
     codex:{
+        toggleFollow:10,
         cardPanelH:640,
         cardScale:0.95,
         rowGap:26,
@@ -312,6 +320,19 @@ export const TUNING={
         barrelDamage:45,
         pickupInk:2,
         pickupHeal:1
+    },
+    bossDrop:{
+        interval:[9,14],
+        first:6,
+        ink:1,
+        max:2,
+        minPlayerDist:3.5
+    },
+    elite:{
+        hp:2.5,
+        scale:1.3,
+        knock:0.3,
+        score:3
     },
     run:{
         bossHeal:4
