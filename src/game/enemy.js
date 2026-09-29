@@ -75,7 +75,27 @@ export class Enemy {
         this.yawGroup.add(this.squash);
         this.squash.add(this.body);
         this.buildBody();
+        this.buildAccent();
         parent.add(this.root);
+    }
+
+    buildAccent() {
+        const A=TUNING.accent;
+        const red=toonMaterial({light:'red',mid:'red',dark:'darkRed',jitter:TUNING.boil.vertexJitter});
+        this.accent=new THREE.Group();
+        const ring=new THREE.Mesh(geo('accentRing',()=>new THREE.TorusGeometry(A.ring,A.tube,5,14)),red);
+        ring.rotation.x=Math.PI/2;
+        this.accent.add(ring);
+        const spike=geo('accentSpike',()=>new THREE.ConeGeometry(A.spikeR,A.spikeH,5));
+        for (let i=0;i<A.spikes;i++) {
+            const a=i/A.spikes*Math.PI*2;
+            const m=new THREE.Mesh(spike,red);
+            m.position.set(Math.cos(a)*A.ring,A.spikeH*0.45,Math.sin(a)*A.ring);
+            m.rotation.set(Math.sin(a)*0.35,0,-Math.cos(a)*0.35);
+            this.accent.add(m);
+        }
+        this.accent.visible=false;
+        this.root.add(this.accent);
     }
 
     mat(k) {
@@ -153,6 +173,10 @@ export class Enemy {
         this.act=o.act||0;
         this.elite=!!o.elite;
         this.yawGroup.scale.setScalar(d.scale*(this.elite?TUNING.elite.scale:1));
+        const A=TUNING.accent;
+        this.accentOn=this.elite||!!d.boss;
+        this.accent.scale.setScalar(d.boss?A.bossScale:A.eliteScale);
+        this.accent.position.y=d.height*(this.elite?TUNING.elite.scale:1)*(d.boss?A.bossLift:A.eliteLift);
         this.maxHp=this.hp;
         this.uid=++uidCounter;
         this.alive=true;
@@ -350,7 +374,11 @@ export class Enemy {
             m.uniforms.uFlash.value=fl;
             m.uniforms.uRevealY.value=ry;
         }
-        this.hull.uniforms.uColor.value.copy(pal(fl?'paper':'ink'));
+        this.hull.uniforms.uColor.value.copy(pal(fl?'paper':(this.elite?'darkRed':'ink')));
+        this.accent.visible=this.accentOn&&!spawning;
+        if (this.accentOn) {
+            this.accent.rotation.y=time.real*TUNING.accent.spin;
+        }
         const hs=!spawning&&renderFlags.hulls;
         if (this.hullShown!==hs) {
             this.hullShown=hs;
@@ -478,7 +506,8 @@ class Doodle extends Enemy {
             this.fireT-=dt;
             if (this.fireT<=0) {
                 this.setState('telegraph');
-                this.teleLine(this.nx,this.nz,d.telegraphLength,d.telegraph,this.act>=1?3:1,this.act>=1?0.32:0);
+                const multi=(d.pellets||1)>1;
+                this.teleLine(this.nx,this.nz,d.telegraphLength,d.telegraph,multi?3:1,multi?d.spread/2:0);
             }
         }
         else if (this.state==='telegraph') {
@@ -509,11 +538,11 @@ class Doodle extends Enemy {
         const sn=Math.sin(this.yaw);
         const mx=this.pos.x+0.38*s*c+0.55*s*sn;
         const mz=this.pos.z-0.38*s*sn+0.55*s*c;
-        const n=this.act>=1?3:1;
+        const n=d.pellets||1;
         const base=Math.atan2(this.aimZ,this.aimX);
         const sp=d.bulletSpeed*(1+this.act*0.1);
         for (let i=0;i<n;i++) {
-            const a=n>1?base+(i/(n-1)-0.5)*0.32:base;
+            const a=n>1?base+(i/(n-1)-0.5)*d.spread:base;
             ctx.enemyBullets.spawn(mx,mz,Math.cos(a),Math.sin(a),sp,d.bulletDamage,d.bulletLife);
         }
         ctx.muzzle.show(mx,TUNING.weapon.height,mz,'red',0.8);
@@ -531,6 +560,24 @@ class Doodle extends Enemy {
         this.arm.rotation.x=-0.5-aiming*0.95+this.kick*0.5;
         this.torso.rotation.z=Math.sin(this.phase*0.5)*0.08*s;
         this.head.rotation.x=aiming*-0.12;
+    }
+}
+
+class Sprayer extends Doodle {
+    buildBody() {
+        super.buildBody();
+        const limb=this.mat('limb');
+        const body=this.mat('body');
+        const mouth=this.hullify(new THREE.Mesh(geo('sprayMouth',()=>new THREE.CylinderGeometry(0.2,0.08,0.26,8,1,true)),limb));
+        mouth.rotation.x=Math.PI/2;
+        mouth.position.set(0,-0.4,0.44);
+        this.arm.add(mouth);
+        const brim=this.hullify(new THREE.Mesh(geo('sprayBrim',()=>new THREE.CylinderGeometry(0.46,0.46,0.05,10)),body));
+        brim.position.y=0.14;
+        this.head.add(brim);
+        const top=this.hullify(new THREE.Mesh(geo('sprayTop',()=>new THREE.CylinderGeometry(0.24,0.28,0.24,10)),body));
+        top.position.y=0.28;
+        this.head.add(top);
     }
 }
 
@@ -1647,7 +1694,7 @@ class Book extends Enemy {
     }
 }
 
-const CLASSES={doodle:Doodle,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkBottle:InkBottle,scissors:Scissors,book:Book};
+const CLASSES={doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkBottle:InkBottle,scissors:Scissors,book:Book};
 
 export class EnemyManager {
     constructor(parent,fxScene) {

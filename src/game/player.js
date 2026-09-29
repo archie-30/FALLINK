@@ -50,6 +50,8 @@ export class Player {
         this.poseStep=-1;
         this.fireCd=0;
         this.rapidT=0;
+        this.hasteT=0;
+        this.hasteMult=1;
         this.rapidMult=1;
         this.dualT=0;
         this.reflectT=0;
@@ -228,6 +230,8 @@ export class Player {
         this.root.position.copy(p);
         this.dashT=0;
         this.rapidT=0;
+        this.hasteT=0;
+        this.hasteMult=1;
         this.dualT=0;
         this.reflectT=0;
         this.ammo=TUNING.weapon.magazine;
@@ -379,7 +383,8 @@ export class Player {
             this.aimDirX=_mv.x/moveLen;
             this.aimDirZ=_mv.z/moveLen;
         }
-        this.dashCd=Math.max(0,this.dashCd-dt);
+        this.dashCd=Math.max(0,this.dashCd-dt*(this.hasteT>0?this.hasteMult:1));
+        this.hasteT=Math.max(0,this.hasteT-dt);
         if (input.consumeDash()&&this.dashCd<=0) {
             let dx=this.aimDirX;
             let dz=this.aimDirZ;
@@ -401,8 +406,9 @@ export class Player {
         }
         else {
             const slow=room.zones.playerSlowAt(this.pos.x,this.pos.z);
-            const tx=_mv.x*P.speed*slow;
-            const tz=_mv.z*P.speed*slow;
+            const hm=this.hasteT>0?this.hasteMult:1;
+            const tx=_mv.x*P.speed*slow*hm;
+            const tz=_mv.z*P.speed*slow*hm;
             const rate=(moveLen>0.05?P.accel:P.friction)*dt;
             const ex=tx-this.vel.x;
             const ez=tz-this.vel.z;

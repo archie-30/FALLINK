@@ -1066,10 +1066,209 @@ export const CARD_ANIMS={
                 }
             }
         }
+    },
+    paperBlade:{
+        period:2.8,
+        draw(S,k,t) {
+            S.player(PX,PY,0);
+            const f=seg(k,0.12,0.75);
+            const out=f<0.5;
+            const d=out?(1-Math.pow(1-f*2,2))*9:(1-Math.pow((f-0.5)*2,2))*9;
+            const bx=PX+0.8+d;
+            const foes=[['doodle',7.5,PY+0.2],['blob',10.8,PY-0.3]];
+            for (const [id,x,y] of foes) {
+                const hitA=0.12+0.63*0.5*(1-Math.sqrt(1-(x-PX-0.8)/9));
+                const flash=(Math.abs(bx-x)<0.9&&f>0&&f<1)?1:0;
+                S.enemy(id,x,y,{flash,shake:flash?t:0});
+                if (k>hitA&&k<hitA+0.25) {
+                    S.num('22',x,y-0.5,seg(k,hitA,hitA+0.25),PALETTE.ink,15);
+                }
+            }
+            if (f>0&&f<1) {
+                const c=S.ctx;
+                c.save();
+                c.translate(bx,PY);
+                c.rotate(t*18);
+                S.path([[0,-0.5],[0.45,0.3],[-0.45,0.3]],PALETTE.farGray,0,1,true);
+                S.path([[0,-0.5],[0.45,0.3],[-0.45,0.3],[0,-0.5]],PALETTE.ink,0.07);
+                c.restore();
+            }
+        }
+    },
+    blot:{
+        period:2.8,
+        draw(S,k) {
+            S.player(8,PY,0);
+            const hit=0.4;
+            for (let i=0;i<12;i++) {
+                const an=i/12*Math.PI*2+hash(i);
+                const r0=3.2+hash(i+3)*0.8;
+                const r=k<hit?lerp(r0+1.5,r0,seg(k,0,hit)):lerp(r0,0.3,easeOut(seg(k,hit,hit+0.15)));
+                if (k<hit+0.15) {
+                    S.bullet(8+Math.cos(an)*r,PY+Math.sin(an)*r*0.8,'enemy',k<hit?1:1-seg(k,hit,hit+0.15));
+                }
+            }
+            S.ring(8,PY,lerp(4.2,0.5,seg(k,hit,hit+0.15)),PALETTE.ink,0.1,k>hit&&k<hit+0.15?1:0);
+            S.num('+3',8,PY-0.6,seg(k,hit+0.1,hit+0.6),PALETTE.ink,18);
+        }
+    },
+    inkField:{
+        period:3.2,
+        draw(S,k,t) {
+            S.player(PX,PY,0);
+            const cx=10.5;
+            const on=seg(k,0.1,0.18)*(1-seg(k,0.85,0.95));
+            S.circle(cx,PY,2.4*on,PALETTE.midGray,0.45);
+            S.ring(cx,PY,2.4,PALETTE.ink,0.08,on);
+            for (let i=0;i<7;i++) {
+                const x=cx+(hash(i)-0.5)*3.6;
+                const y=PY+(hash(i+9)-0.5)*3;
+                const h=0.35+0.25*Math.abs(Math.sin(t*6+i));
+                S.path([[x-0.18,y],[x,y-h*on],[x+0.18,y]],PALETTE.ink,0,on,true);
+            }
+            const ex=lerp(15,6,seg(k,0.15,0.95));
+            const inside=Math.abs(ex-cx)<2.4&&on>0.5;
+            S.enemy('doodle',ex,PY+0.6,{flash:inside?(Math.floor(t*8)%2):0});
+            if (inside) {
+                S.num('6',ex,PY,(t*4)%1,PALETTE.red,14);
+            }
+        }
+    },
+    clusterBomb:{
+        period:3,
+        draw(S,k) {
+            S.player(PX,PY,0);
+            const tx=10.5;
+            const hit=0.45;
+            if (k>=0.12&&k<hit) {
+                const f=(k-0.12)/(hit-0.12);
+                S.circle(lerp(PX+0.8,tx,f),PY-Math.sin(f*Math.PI)*3,0.32,PALETTE.ink);
+            }
+            const e=seg(k,hit,hit+0.15);
+            if (e>0&&e<1) {
+                S.ring(tx,PY,2*easeOut(e),PALETTE.ink,0.2*(1-e)+0.05);
+                S.burst(tx,PY,2.5,e,PALETTE.ink);
+            }
+            for (let i=0;i<4;i++) {
+                const an=i/4*Math.PI*2+0.6;
+                const x=tx+Math.cos(an)*2.4;
+                const y=PY+Math.sin(an)*2.2;
+                const k0=hit+0.1+i*0.06;
+                const f=seg(k,hit,k0);
+                if (k>hit&&k<k0) {
+                    S.circle(lerp(tx,x,f),lerp(PY,y,f)-Math.sin(f*Math.PI)*1.2,0.16,PALETTE.ink);
+                }
+                const ee=seg(k,k0,k0+0.12);
+                if (ee>0&&ee<1) {
+                    S.ring(x,y,1.2*easeOut(ee),PALETTE.ink,0.12*(1-ee)+0.04);
+                }
+                if (k>k0) {
+                    S.circle(x,y,0.7,PALETTE.midGray,0.35*(1-seg(k,0.85,1)));
+                }
+            }
+            S.target('blob',tx,PY,k,hit);
+            S.target('doodle',tx+2.2,PY-2,k,hit+0.16);
+            S.target('bird',tx-2,PY+2.1,k,hit+0.28);
+        }
+    },
+    haste:{
+        period:2.8,
+        draw(S,k,t) {
+            const on=seg(k,0.1,0.15)*(1-seg(k,0.85,0.9));
+            const x=lerp(2.5,13.5,inOut(seg(k,0.15,0.85)));
+            const y=PY+Math.sin(k*Math.PI*4)*1.5;
+            if (on>0) {
+                for (let i=1;i<5;i++) {
+                    S.line(x-i*0.5,y+(hash(i+Math.floor(t*10))-0.5)*0.6,x-i*0.5-0.8,y,PALETTE.midGray,0.07,on*(1-i*0.2));
+                }
+            }
+            S.player(x,y,0);
+            S.text('×1.4',x,y-1.2,14,PALETTE.ink,on);
+            S.ring(2.5,PY,0.9+seg(k,0.1,0.25),PALETTE.ink,0.08,1-seg(k,0.1,0.25));
+        }
+    },
+    echo:{
+        period:3.4,
+        draw(S,k) {
+            S.player(PX,PY,0);
+            const drop=(k0)=>{
+                const f=seg(k,k0,k0+0.25);
+                if (f>0&&f<1) {
+                    S.circle(lerp(PX+0.8,10.5,f),PY-Math.sin(f*Math.PI)*2.5,0.3,PALETTE.ink);
+                }
+                const e=seg(k,k0+0.25,k0+0.4);
+                if (e>0&&e<1) {
+                    S.ring(10.5,PY,2*easeOut(e),PALETTE.ink,0.18*(1-e)+0.04);
+                    S.burst(10.5,PY,2.4,e,PALETTE.ink);
+                }
+            };
+            drop(0.08);
+            S.ring(PX,PY,0.8+seg(k,0.5,0.62)*1.4,PALETTE.red,0.1,k>0.5&&k<0.62?1-seg(k,0.5,0.62):0);
+            S.text('×2',PX,PY-1.3,16,PALETTE.red,seg(k,0.5,0.55)*(1-seg(k,0.85,0.9)));
+            drop(0.55);
+            S.target('doodle',10.3,PY-0.8,k,0.33);
+            S.target('eraserMonster',10.8,PY+0.6,k,0.8);
+        }
+    },
+    inkStorm:{
+        period:3.4,
+        draw(S,k,t) {
+            S.player(PX,PY,0);
+            const on=seg(k,0.05,0.12)*(1-seg(k,0.88,0.95));
+            S.rect(0,0,SW,SH,PALETTE.ink,0.12*on);
+            const foes=[['doodle',9,2.4],['blob',12,4.8],['bird',10,7],['compass',13.5,2.2]];
+            const strikes=[[0,0.2],[1,0.32],[2,0.44],[3,0.56],[1,0.68],[0,0.8]];
+            const dead=new Set([0]);
+            for (let i=0;i<foes.length;i++) {
+                const [id,x,y]=foes[i];
+                let flash=0;
+                for (const [fi,kk] of strikes) {
+                    if (fi===i&&k>kk&&k<kk+0.06) {
+                        flash=1;
+                    }
+                }
+                S.target(id,x,y,k,dead.has(i)?0.8:null,{flash});
+            }
+            for (const [fi,kk] of strikes) {
+                const a=seg(k,kk,kk+0.02)*(1-seg(k,kk+0.06,kk+0.1));
+                if (a>0) {
+                    const [,x,y]=foes[fi];
+                    jag(S,x+(hash(fi)-0.5)*2,0,x,y,fi+Math.floor(t*30),PALETTE.red,0.14,a);
+                    S.ring(x,y,0.9,PALETTE.red,0.08,a);
+                    S.num('40',x,y-0.6,seg(k,kk,kk+0.25),PALETTE.red,15);
+                }
+            }
+        }
     }
 };
 
 export const ENEMY_ATTACKS={
+    sprayer:[
+        {
+            key:'spread',
+            dmg:{kind:'bullet',n:1},
+            period:2.8,
+            draw(S,k) {
+                const ex=9.5+Math.sin(k*Math.PI*2)*0.3;
+                const ey=PY;
+                S.player(PX,PY,0);
+                S.enemy('sprayer',ex,ey);
+                const tf=seg(k,0.15,0.4);
+                const ta=1-seg(k,0.4,0.42);
+                for (let i=0;i<3;i++) {
+                    const a=Math.PI+(i-1)*0.4;
+                    S.tele(ex,ey,ex+Math.cos(a)*5,ey+Math.sin(a)*5,tf,ta);
+                }
+                for (let i=0;i<5;i++) {
+                    const a=Math.PI+(i/4-0.5)*0.8;
+                    const f=seg(k,0.42,0.72);
+                    if (f>0&&f<1) {
+                        S.bullet(ex+Math.cos(a)*(0.8+f*5),ey+Math.sin(a)*(0.8+f*5),'enemy',1-f*f);
+                    }
+                }
+            }
+        }
+    ],
     doodle:[
         {
             key:'shot',

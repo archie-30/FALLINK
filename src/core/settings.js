@@ -19,6 +19,8 @@ export const settings={
     stickY:0.4
 };
 
+export const STICK_DEFAULTS={stickSize:0.45,stickX:0.45,stickY:0.4};
+
 export function detectDevice() {
     const coarse=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches;
     const touch=navigator.maxTouchPoints>0;

@@ -430,18 +430,28 @@ export class Hud {
     }
 
     drawBuffs(ctx,player) {
-        if (player.rapidT<=0) {
-            return;
-        }
         const x=TUNING.hud.hpPos[0];
-        const y=TUNING.hud.hpPos[1]+TUNING.hud.hpHeight+130;
-        ctx.fillStyle=PALETTE.ink;
+        let y=TUNING.hud.hpPos[1]+TUNING.hud.hpHeight+130;
+        const rows=[];
+        if (player.rapidT>0) {
+            rows.push([t('hud.rapid')+' ×'+player.rapidMult,player.rapidT,4,640]);
+        }
+        if (player.hasteT>0) {
+            rows.push([t('hud.haste')+' ×'+player.hasteMult,player.hasteT,5,641]);
+        }
+        if (player.dualT>0) {
+            rows.push([t('hud.dual'),player.dualT,6,642]);
+        }
         ctx.font='bold 13px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='top';
-        ctx.fillText(t('hud.rapid')+' ×'+player.rapidMult+'  '+player.rapidT.toFixed(1)+t('hud.seconds'),x,y);
-        const w=120*Math.min(1,player.rapidT/4);
-        drawShape(ctx,sketchLine(x,y+20,x+Math.max(2,Math.round(w)),y+20,{width:3,seed:640,overshoot:0}),PALETTE.ink);
+        for (const [label,left,full,seed] of rows) {
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillText(label+'  '+left.toFixed(1)+t('hud.seconds'),x,y);
+            const w=120*Math.min(1,left/full);
+            drawShape(ctx,sketchLine(x,y+20,x+Math.max(2,Math.round(w)),y+20,{width:3,seed,overshoot:0}),PALETTE.ink);
+            y+=32;
+        }
     }
 
     drawHp(ctx,player) {

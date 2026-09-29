@@ -1,4 +1,4 @@
-import {LAYOUTS,NORMAL_LAYOUTS,ACTS,ENEMY_COST,ENEMY_ORDER,ENDLESS} from '../data/levels.js';
+import {LAYOUTS,NORMAL_LAYOUTS,ACTS,ENEMY_COST,ENEMY_ORDER,STORY_INTRO,ENDLESS} from '../data/levels.js';
 
 export const BOSSES=['inkBottle','scissors','book'];
 
@@ -28,11 +28,11 @@ function weightedPick(pool,rng,maxCost) {
 }
 
 function storyTypes(act,index) {
-    let n=1;
+    let g=index;
     for (let a=0;a<act;a++) {
-        n+=ACTS[a].rooms;
+        g+=ACTS[a].rooms;
     }
-    return Math.min(ENEMY_ORDER.length,n+index);
+    return Math.max(1,STORY_INTRO.filter(r=>r<=g).length);
 }
 
 function endlessTypes(page) {

@@ -286,6 +286,10 @@ export const TUNING={
         missDamage:40,
         eraserSweep:0.28,
         shieldPanels:4,
+        bladeTime:1.1,
+        bladeRadius:1.0,
+        fieldTick:0.25,
+        echoFallbackInk:2,
         shieldRadius:1.05,
         shieldSpin:2.4,
         dashSpeed:26,
@@ -332,6 +336,18 @@ export const TUNING={
         ink:1,
         max:2,
         minPlayerDist:3.5
+    },
+    accent:{
+        ring:0.24,
+        tube:0.035,
+        spikes:5,
+        spikeR:0.05,
+        spikeH:0.2,
+        eliteScale:1.0,
+        bossScale:2.4,
+        eliteLift:1.05,
+        bossLift:1.02,
+        spin:0.6
     },
     elite:{
         hp:2.5,
