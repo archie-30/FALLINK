@@ -595,6 +595,7 @@ function boot() {
         applyQuality();
         audio.setVolume(settings.volume);
         overlay.showDebug=settings.showFps;
+        input.resize(input.width,input.height);
     }
     const mainMenu=new MainMenu({
         start:()=>startGame('story'),
@@ -728,7 +729,9 @@ function boot() {
                 return true;
             }
             if (deckView.open) {
-                closeDeck();
+                if (!deckView.tap(x,y,type)) {
+                    closeDeck();
+                }
                 return true;
             }
             if (overlay.hud.hitPause(x,y,overlay.width)) {

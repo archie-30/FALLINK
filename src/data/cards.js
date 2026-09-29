@@ -16,7 +16,7 @@ export const CARDS={
         id:'pierce',
         nameKey:'card.pierce.name',
         descKey:'card.pierce.desc',
-        cost:3,
+        cost:2,
         rarity:'common',
         type:'attack',
         targeting:'direction',
@@ -59,7 +59,7 @@ export const CARDS={
         type:'attack',
         targeting:'none',
         params:{duration:4,mult:2},
-        upgraded:{cost:1,params:{duration:5,mult:2}},
+        upgraded:{cost:2,params:{duration:5,mult:2}},
         effect:(g,t,p)=>g.buffRapid(p.duration,p.mult)
     },
     execute:{
@@ -93,20 +93,20 @@ export const CARDS={
         id:'eraser',
         nameKey:'card.eraser.name',
         descKey:'card.eraser.desc',
-        cost:1,
+        cost:2,
         rarity:'common',
         type:'terrain',
         targeting:'direction',
         range:7,
         params:{range:7,angle:1.4},
-        upgraded:{cost:1,params:{range:9,angle:1.8}},
+        upgraded:{cost:2,params:{range:9,angle:1.8}},
         effect:(g,t,p)=>g.eraseCone(t.dx,t.dz,p.range,p.angle)
     },
     eraseCover:{
         id:'eraseCover',
         nameKey:'card.eraseCover.name',
         descKey:'card.eraseCover.desc',
-        cost:2,
+        cost:1,
         rarity:'common',
         type:'terrain',
         targeting:'point',
@@ -119,38 +119,38 @@ export const CARDS={
         id:'trap',
         nameKey:'card.trap.name',
         descKey:'card.trap.desc',
-        cost:2,
+        cost:1,
         rarity:'common',
         type:'terrain',
         targeting:'point',
         range:11,
         params:{radius:2.6,duration:6,slow:0.35,pct:65},
-        upgraded:{cost:2,params:{radius:3.4,duration:8,slow:0.25,pct:75}},
+        upgraded:{cost:1,params:{radius:3.4,duration:8,slow:0.25,pct:75}},
         effect:(g,t,p)=>g.trapCircle(t.x,t.z,p.radius,p.duration,p.slow)
     },
     paperShield:{
         id:'paperShield',
         nameKey:'card.paperShield.name',
         descKey:'card.paperShield.desc',
-        cost:2,
+        cost:3,
         rarity:'common',
         type:'defense',
         targeting:'none',
         params:{hits:3},
-        upgraded:{cost:1,params:{hits:3}},
+        upgraded:{cost:3,params:{hits:4}},
         effect:(g,t,p)=>g.paperShield(p.hits)
     },
     inkDash:{
         id:'inkDash',
         nameKey:'card.inkDash.name',
         descKey:'card.inkDash.desc',
-        cost:1,
+        cost:2,
         rarity:'common',
         type:'defense',
         targeting:'direction',
         range:6,
         params:{dps:40,duration:4},
-        upgraded:{cost:1,params:{dps:60,duration:5}},
+        upgraded:{cost:2,params:{dps:60,duration:5}},
         effect:(g,t,p)=>g.inkDash(t.dx,t.dz,p.dps,p.duration)
     },
     timeStop:{
@@ -162,7 +162,7 @@ export const CARDS={
         type:'utility',
         targeting:'none',
         params:{duration:2},
-        upgraded:{cost:2,params:{duration:3}},
+        upgraded:{cost:3,params:{duration:3}},
         effect:(g,t,p)=>g.timeStop(p.duration)
     },
     clone:{
@@ -182,36 +182,36 @@ export const CARDS={
         id:'redraw',
         nameKey:'card.redraw.name',
         descKey:'card.redraw.desc',
-        cost:2,
+        cost:3,
         rarity:'rare',
         type:'utility',
         targeting:'none',
         params:{ink:5},
-        upgraded:{cost:1,params:{ink:6}},
+        upgraded:{cost:2,params:{ink:6}},
         effect:(g,t,p)=>g.redraw(p.ink)
     },
     whiteout:{
         id:'whiteout',
         nameKey:'card.whiteout.name',
         descKey:'card.whiteout.desc',
-        cost:2,
+        cost:3,
         rarity:'common',
         type:'defense',
         targeting:'none',
         params:{heal:2},
-        upgraded:{cost:2,params:{heal:3}},
+        upgraded:{cost:3,params:{heal:3}},
         effect:(g,t,p)=>g.heal(p.heal)
     },
     shockwave:{
         id:'shockwave',
         nameKey:'card.shockwave.name',
         descKey:'card.shockwave.desc',
-        cost:1,
+        cost:2,
         rarity:'common',
         type:'defense',
         targeting:'none',
         params:{radius:4,damage:15,push:14},
-        upgraded:{cost:1,params:{radius:5,damage:22,push:16}},
+        upgraded:{cost:2,params:{radius:5,damage:22,push:16}},
         effect:(g,t,p)=>g.shockwave(p.radius,p.damage,p.push)
     },
     mark:{
@@ -224,7 +224,7 @@ export const CARDS={
         targeting:'point',
         range:14,
         params:{radius:3,duration:6,mult:2},
-        upgraded:{cost:0,params:{radius:3.5,duration:8,mult:2}},
+        upgraded:{cost:1,params:{radius:3.5,duration:8,mult:2}},
         effect:(g,t,p)=>g.mark(t.x,t.z,p.radius,p.duration,p.mult)
     },
     inkMine:{
@@ -249,7 +249,7 @@ export const CARDS={
         type:'attack',
         targeting:'none',
         params:{duration:6},
-        upgraded:{cost:1,params:{duration:8}},
+        upgraded:{cost:2,params:{duration:8}},
         effect:(g,t,p)=>g.dualWield(p.duration)
     },
     pin:{
@@ -295,12 +295,12 @@ export const CARDS={
         id:'reflect',
         nameKey:'card.reflect.name',
         descKey:'card.reflect.desc',
-        cost:1,
+        cost:2,
         rarity:'common',
         type:'defense',
         targeting:'none',
         params:{duration:3},
-        upgraded:{cost:1,params:{duration:4.5}},
+        upgraded:{cost:2,params:{duration:4.5}},
         effect:(g,t,p)=>g.reflect(p.duration)
     },
     inkWell:{
@@ -312,7 +312,7 @@ export const CARDS={
         type:'utility',
         targeting:'none',
         params:{ink:3},
-        upgraded:{cost:0,params:{ink:3}},
+        upgraded:{cost:1,params:{ink:4}},
         effect:(g,t,p)=>g.gainInk(p.ink)
     },
     tsunami:{
@@ -332,13 +332,13 @@ export const CARDS={
         id:'blackHole',
         nameKey:'card.blackHole.name',
         descKey:'card.blackHole.desc',
-        cost:4,
+        cost:5,
         rarity:'rare',
         type:'attack',
         targeting:'point',
         range:12,
         params:{radius:7,duration:2.5,damage:90},
-        upgraded:{cost:3,params:{radius:8,duration:2.5,damage:120}},
+        upgraded:{cost:4,params:{radius:8,duration:2.5,damage:120}},
         effect:(g,t,p)=>g.blackHole(t.x,t.z,p.radius,p.duration,p.damage)
     },
     barrage:{
@@ -370,12 +370,12 @@ export const CARDS={
         id:'freezeAll',
         nameKey:'card.freezeAll.name',
         descKey:'card.freezeAll.desc',
-        cost:3,
+        cost:4,
         rarity:'rare',
         type:'utility',
         targeting:'none',
         params:{duration:3},
-        upgraded:{cost:2,params:{duration:4}},
+        upgraded:{cost:3,params:{duration:4}},
         effect:(g,t,p)=>g.freezeAll(p.duration)
     }
 };

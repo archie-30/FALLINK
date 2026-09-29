@@ -185,8 +185,10 @@ export const TUNING={
         stickMin:50,
         stickMax:76,
         stickScale:0.1,
-        stickPad:[26,30],
-        stickGrab:1.7,
+        stickGrab:2.1,
+        stickSizeRange:[0.75,1.45],
+        stickXRange:[14,0.2],
+        stickYRange:[14,0.36],
         dashScale:0.56,
         dashAngle:-2.25,
         dashGap:16,
@@ -245,7 +247,9 @@ export const TUNING={
         autoClose:7
     },
     ui:{
-        closeTime:0.28
+        closeTime:0.28,
+        deckCloseTime:0.32,
+        deckOutMax:0.75
     },
     settingsUi:{
         follow:14,
@@ -281,6 +285,7 @@ export const TUNING={
         missRadius:1.6,
         missDamage:40,
         eraserSweep:0.28,
+        shieldPanels:4,
         shieldRadius:1.05,
         shieldSpin:2.4,
         dashSpeed:26,
