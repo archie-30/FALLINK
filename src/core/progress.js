@@ -8,6 +8,7 @@ export const progress={
     level:1,
     bestScore:0,
     bestStory:0,
+    seen:[],
     bestAct:0
 };
 
@@ -20,7 +21,14 @@ export function loadProgress() {
     }
     catch (e) {
     }
-    const lv=Number(new URLSearchParams(location.search).get('level'));
+    if (!Array.isArray(progress.seen)) {
+        progress.seen=[];
+    }
+    const q=new URLSearchParams(location.search);
+    if (q.get('seen')==='all') {
+        progress.seen=['doodle','blob','bird','compass','eraserMonster','inkBottle','scissors','book'];
+    }
+    const lv=Number(q.get('level'));
     if (lv>0) {
         progress.level=lv;
         progress.xp=0;
@@ -33,6 +41,20 @@ export function saveProgress() {
     }
     catch (e) {
     }
+}
+
+export function hasSeen(type) {
+    return progress.seen.includes(type);
+}
+
+export function markSeen(type) {
+    const id=type==='blobSmall'?'blob':type;
+    if (progress.seen.includes(id)) {
+        return false;
+    }
+    progress.seen.push(id);
+    saveProgress();
+    return true;
 }
 
 export function xpToNext(level) {

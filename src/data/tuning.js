@@ -59,7 +59,6 @@ export const TUNING={
         lookAhead:2.4,
         mouseLookFactor:0.22,
         boundsMargin:[6,-2,4],
-        bossBias:0.5,
         maxOffset:0.55,
         maxRoll:0.045,
         shakeFreq:22,
@@ -97,7 +96,8 @@ export const TUNING={
         dashInvuln:true,
         flickerFps:15,
         hurtKnockback:6,
-        respawnInvuln:2.0
+        respawnInvuln:2.0,
+        reloadPose:{raise:0.18,snap:0.8,gunTilt:1.15,gunLift:0.28,gunBack:0.18,shake:0.14,shakeFreq:42,armRaise:0.55,offArm:1.2,offArmIn:0.55,headTilt:0.28,pourTilt:1.3}
     },
     weapon:{
         fireInterval:0.11,
@@ -189,8 +189,9 @@ export const TUNING={
     ink:{
         max:10,
         start:3,
-        perHit:0.15,
-        perKill:1.0
+        eliteMult:2,
+        popupTime:1.1,
+        popupRise:34
     },
     deck:{
         handSize:2,
@@ -224,7 +225,12 @@ export const TUNING={
         fieldMargin:0.95,
         inkStrokes:18
     },
+    settingsUi:{
+        follow:14,
+        pulseDecay:3
+    },
     codex:{
+        cardPanelH:640,
         cardScale:0.95,
         rowGap:26,
         follow:18,

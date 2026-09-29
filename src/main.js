@@ -27,7 +27,7 @@ import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects} from './game/card.js';
 import {STARTING_DECK,ALL_CARDS,CARDS} from './data/cards.js';
-import {progress,loadProgress,addXp} from './core/progress.js';
+import {progress,loadProgress,addXp,markSeen} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -38,7 +38,7 @@ import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex} from './ui2d/menu.js';
 import {audio} from './core/audio.js';
-import {LAYOUTS,ENDLESS,MENU_SCENE} from './data/levels.js';
+import {ENDLESS,MENU_SCENE} from './data/levels.js';
 import {renderFlags} from './render/materials.js';
 import {Transition} from './ui2d/transition.js';
 import {DamageNumbers} from './ui2d/damageNumbers.js';
@@ -88,7 +88,6 @@ function boot() {
     const {scene,world,actors,fxScene}=createScene();
     const game={room:null,mode:'menu'};
     let menuAngle=0;
-    const menuBirds=[];
     const player=new Player(actors);
     player.spawn(new THREE.Vector3(0,0,4));
     const rig=new CameraRig(1);
@@ -147,11 +146,22 @@ function boot() {
     const tmpG=new THREE.Vector3();
     function openDeck() {
         hand.cancelTargeting();
+        deckView.returnPause=pauseMenu.open;
+        if (pauseMenu.open) {
+            audio.play('ui');
+            pauseMenu.hide();
+        }
         deckView.show();
         fx.paused=true;
     }
     function closeDeck() {
         deckView.hide();
+        if (deckView.returnPause) {
+            deckView.returnPause=false;
+            pauseMenu.show();
+            pauseMenu.t=1;
+            return;
+        }
         fx.paused=false;
     }
     const hand=new Hand({
@@ -228,7 +238,6 @@ function boot() {
         if (dead) {
             return;
         }
-        ink.add(TUNING.ink.perHit);
         audio.play('hit',crit?1.5:0.9+Math.random()*0.2);
         if (crit) {
             particles.burst(x,1.4,z,5,{color:'red',dirX:dx,dirZ:dz,cone:1.2,speed:[3,7],up:[2,5]});
@@ -243,11 +252,16 @@ function boot() {
         fx.fovPunch(F.fovHit);
         particles.burst(x,H,z,PT.inkHit,{color:'ink',dirX:dx,dirZ:dz,cone:0.9,speed:[3,7],up:[1,4]});
     };
+    enemies.onSpawned=e=>{
+        if (game.mode==='play') {
+            markSeen(e.type);
+        }
+    };
     enemies.onKill=(e,dx,dz)=>{
         const x=e.pos.x;
         const z=e.pos.z;
         const D=TUNING.decals;
-        ink.add(TUNING.ink.perKill);
+        ink.add((e.def.ink||1)*(e.elite?TUNING.ink.eliteMult:1));
         audio.play(e.def.boss?'boss':'kill',0.8+Math.random()*0.4);
         fx.hitStop(F.hitStopKill,true);
         fx.cameraShake(F.shakeKill);
@@ -507,7 +521,7 @@ function boot() {
             game.room.destroy();
         }
         const M=MENU_SCENE;
-        const r=buildRoom(LAYOUTS.crossroads,world,fxScene,{rng:new RNG(M.seed),barrels:M.barrels,crates:M.crates});
+        const r=buildRoom(M.layout,world,fxScene,{rng:new RNG(M.seed),barrels:M.barrels,crates:M.crates});
         r.shards=terrainShards;
         r.onBreak=onBreak;
         game.mod=null;
@@ -521,10 +535,6 @@ function boot() {
         enemies.hpMult=1;
         for (const [type,x,z,yaw] of M.enemies) {
             enemies.spawn(type,x,z,{quick:true}).yaw=yaw;
-        }
-        menuBirds.length=0;
-        for (const b of M.birds) {
-            menuBirds.push({e:enemies.spawn('bird',b.r,0,{quick:true}),...b});
         }
         for (const [x,z,size] of M.decals) {
             decals.spawn(x,z,size,'ink','midGray');
@@ -589,6 +599,11 @@ function boot() {
     });
     const pauseMenu=new PauseMenu({
         resume:closePause,
+        deck:openDeck,
+        codex:()=>{
+            audio.play('ui');
+            codex.show();
+        },
         settings:()=>openSettings('pause'),
         quit:()=>{
             audio.play('ui');
@@ -621,7 +636,6 @@ function boot() {
     };
     const aim={mode:'none',point:new THREE.Vector3(),dx:0,dz:-1,sx:0,sy:0};
     const look={x:0,z:0};
-    const bias={x:0,z:0};
     function applyQuality() {
         const q=qualityConfig();
         textures.hatch.anisotropy=Math.min(q.anisotropy,renderer.gl.capabilities.getMaxAnisotropy());
@@ -680,6 +694,10 @@ function boot() {
                 return mainMenu.down(x,y);
             }
             if (pauseMenu.open) {
+                if (hand.inRect(hand.drawRect,x,y)||hand.inRect(hand.discardRect,x,y)) {
+                    openDeck();
+                    return true;
+                }
                 return pauseMenu.down(x,y);
             }
             if (summary.open) {
@@ -718,7 +736,7 @@ function boot() {
         },
         up:(x,y,id,type,button)=>{
             settingsMenu.up();
-            codex.up();
+            codex.up(x,y);
             hand.up(x,y,id,type,button);
         },
         hover:(x,y)=>{
@@ -728,6 +746,7 @@ function boot() {
                 }
             }
             reward.hoverAt(x,y);
+            deckView.hover(x,y);
             hand.hoverAt(x,y,pauseMenu.open);
         },
         leave:()=>hand.leave()
@@ -743,7 +762,7 @@ function boot() {
         }
     };
     input.onDeckKey=()=>{
-        if (reward.open||summary.open) {
+        if (reward.open||summary.open||codex.open||settingsMenu.open||game.mode!=='play') {
             return;
         }
         if (deckView.open) {
@@ -760,7 +779,9 @@ function boot() {
             return;
         }
         if (codex.open) {
-            codex.hide();
+            if (!codex.closeDetail()) {
+                codex.hide();
+            }
             return;
         }
         if (pauseMenu.open) {
@@ -998,52 +1019,32 @@ function boot() {
         overlay.hud.update(dt,player,ink);
         updateDamageFx(dt);
         const L=TUNING.camera;
-        let lx=0;
-        let lz=0;
-        if (aim.mode==='point') {
-            lx=(aim.point.x-player.renderPos.x)*L.mouseLookFactor;
-            lz=(aim.point.z-player.renderPos.z)*L.mouseLookFactor;
-            const l=Math.hypot(lx,lz);
-            if (l>L.lookAhead) {
-                lx*=L.lookAhead/l;
-                lz*=L.lookAhead/l;
-            }
-        }
-        else if (aim.mode==='dir') {
-            lx=aim.dx*L.lookAhead;
-            lz=aim.dz*L.lookAhead;
-        }
-        else {
-            lx=player.vel.x/TUNING.player.speed*L.lookAhead*0.5;
-            lz=player.vel.z/TUNING.player.speed*L.lookAhead*0.5;
-        }
-        const k=1-Math.exp(-5*dt);
-        look.x+=(lx-look.x)*k;
-        look.z+=(lz-look.z)*k;
-        const bossE=enemies.boss();
-        let bx=0;
-        let bz=0;
-        if (bossE) {
-            bx=(bossE.renderPos.x-player.renderPos.x)*TUNING.camera.bossBias;
-            bz=(bossE.renderPos.z-player.renderPos.z)*TUNING.camera.bossBias;
-        }
-        bias.x+=(bx-bias.x)*(1-Math.exp(-3*dt));
-        bias.z+=(bz-bias.z)*(1-Math.exp(-3*dt));
-        if (game.mode==='menu') {
-            for (const b of menuBirds) {
-                const a=time.real*b.speed+b.phase;
-                const e=b.e;
-                e.pos.set(Math.cos(a)*b.r,0,Math.sin(a)*b.r);
-                e.prev.copy(e.pos);
-                e.renderPos.copy(e.pos);
-                e.root.position.copy(e.pos);
-                const sg=Math.sign(b.speed);
-                e.yaw=Math.atan2(-Math.sin(a)*sg,Math.cos(a)*sg);
-                e.yawGroup.rotation.y=e.yaw;
-                if (e.fly) {
-                    e.fly.position.y=e.def.flyHeight+Math.sin(time.real*3+b.phase)*0.25;
+        const viewFrozen=game.mode==='play'&&(fx.paused||pauseMenu.open||deckView.open);
+        if (!viewFrozen) {
+            let lx=0;
+            let lz=0;
+            if (aim.mode==='point') {
+                lx=(aim.point.x-player.renderPos.x)*L.mouseLookFactor;
+                lz=(aim.point.z-player.renderPos.z)*L.mouseLookFactor;
+                const l=Math.hypot(lx,lz);
+                if (l>L.lookAhead) {
+                    lx*=L.lookAhead/l;
+                    lz*=L.lookAhead/l;
                 }
             }
+            else if (aim.mode==='dir') {
+                lx=aim.dx*L.lookAhead;
+                lz=aim.dz*L.lookAhead;
+            }
+            else {
+                lx=player.vel.x/TUNING.player.speed*L.lookAhead*0.5;
+                lz=player.vel.z/TUNING.player.speed*L.lookAhead*0.5;
+            }
+            const k=1-Math.exp(-5*dt);
+            look.x+=(lx-look.x)*k;
+            look.z+=(lz-look.z)*k;
+        }
+        if (game.mode==='menu') {
             menuAngle+=dt*0.12;
             const cam=rig.camera;
             cam.position.set(Math.sin(menuAngle)*24,15,Math.cos(menuAngle)*24);
@@ -1054,8 +1055,8 @@ function boot() {
             }
             cam.updateMatrixWorld();
         }
-        else if (!pauseMenu.open) {
-            rig.follow(player.renderPos,look.x+bias.x,look.z+bias.z);
+        else if (!viewFrozen) {
+            rig.follow(player.renderPos,look.x,look.z);
             rig.update(dt);
         }
         input.getAim(aim);
@@ -1082,7 +1083,7 @@ function boot() {
     loop.start();
     art.warm(deck.drawPile);
     enterMenu();
-    window.INKFALL={transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,summary,codex,pauseMenu,mainMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKFALL={transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

@@ -1,5 +1,6 @@
 export const ENEMIES={
     doodle:{
+        ink:1,
         nameKey:'enemy.doodle',
         hp:38,
         radius:0.55,
@@ -29,6 +30,7 @@ export const ENEMIES={
         }
     },
     blob:{
+        ink:1.5,
         nameKey:'enemy.blob',
         hp:52,
         radius:0.75,
@@ -59,6 +61,7 @@ export const ENEMIES={
         }
     },
     blobSmall:{
+        ink:0.5,
         nameKey:'enemy.blob',
         hp:14,
         radius:0.45,
@@ -82,6 +85,7 @@ export const ENEMIES={
         }
     },
     compass:{
+        ink:1.5,
         nameKey:'enemy.compass',
         hp:58,
         radius:0.6,
@@ -111,6 +115,7 @@ export const ENEMIES={
         }
     },
     eraserMonster:{
+        ink:2,
         nameKey:'enemy.eraserMonster',
         hp:90,
         radius:0.8,
@@ -139,6 +144,7 @@ export const ENEMIES={
         }
     },
     bird:{
+        ink:1,
         nameKey:'enemy.bird',
         hp:26,
         radius:0.6,
@@ -167,6 +173,7 @@ export const ENEMIES={
         }
     },
     inkBottle:{
+        ink:4,
         nameKey:'enemy.inkBottle',
         hp:900,
         radius:1.7,
@@ -196,6 +203,7 @@ export const ENEMIES={
         }
     },
     scissors:{
+        ink:4,
         nameKey:'enemy.scissors',
         hp:1000,
         radius:1.4,
@@ -223,6 +231,7 @@ export const ENEMIES={
         }
     },
     book:{
+        ink:4,
         nameKey:'enemy.book',
         hp:1300,
         radius:2.0,
