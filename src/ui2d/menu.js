@@ -179,25 +179,24 @@ export class MainMenu extends Panel {
         this.outFrom=1.3;
     }
 
-    layout() {
+    column() {
         const w=this.width;
+        const M=TUNING.menu;
+        const cw=Math.min(M.colMax,w*M.colFrac-M.colPad*2);
+        return {cx:w*(1-M.colFrac/2),cw};
+    }
+
+    layout() {
         const h=this.height;
+        const small=h<600;
+        const {cx,cw}=this.column();
         this.buttons=[];
-        if (h>=600) {
-            const bw=240;
-            const bh=Math.min(50,(h*0.5-60)/5-10);
-            for (let i=0;i<MENU_ACTS.length;i++) {
-                this.buttons.push({x:w/2-bw/2,y:h*0.43+i*(bh+10),w:bw,h:bh});
-            }
-            return;
-        }
-        const bw=Math.min(200,(w-80)/3);
-        const bh=44;
+        const bw=Math.min(small?220:260,cw);
+        const top=small?h*0.3:h*0.3;
+        const avail=(small?h-top-14:h-top-190);
+        const bh=Math.min(small?40:52,avail/MENU_ACTS.length-(small?6:10));
         for (let i=0;i<MENU_ACTS.length;i++) {
-            const row=i<3?0:1;
-            const n=row===0?3:MENU_ACTS.length-3;
-            const col=row===0?i:i-3;
-            this.buttons.push({x:w/2+(col-(n-1)/2)*(bw+14)-bw/2,y:h*0.5+row*(bh+12),w:bw,h:bh});
+            this.buttons.push({x:cx-bw/2,y:top+i*(bh+(small?6:10)),w:bw,h:bh});
         }
     }
 
@@ -223,15 +222,21 @@ export class MainMenu extends Panel {
     }
 
     drawLevel(ctx,v) {
-        const w=this.width;
+        const h=this.height;
+        const small=h<600;
         const pw=260;
         const ph=140;
-        const x=w-pw-24;
-        const y=24;
-        this.levelRect={x,y,w:pw,h:ph};
+        const {cx}=this.column();
+        const sc=small?0.72:1;
+        const x=small?16:cx-pw/2;
+        const y=small?14:h-ph-26;
+        this.levelRect={x,y,w:pw*sc,h:ph*sc};
         const a=Math.max(0,Math.min(1,(this.t-0.6)/0.4));
         ctx.save();
         ctx.globalAlpha=a;
+        ctx.translate(x,y);
+        ctx.scale(sc,sc);
+        ctx.translate(-x,-y);
         ctx.fillStyle=this.levelHover?rgba('farGray',0.95):rgba('paper',0.9);
         ctx.fillRect(x,y,pw,ph);
         drawShape(ctx,sketchRect(x,y,pw,ph,{width:this.levelHover?2.6:1.8,seed:1360}),PALETTE.ink,v);
@@ -282,12 +287,34 @@ export class MainMenu extends Panel {
         const w=this.width;
         const h=this.height;
         const v=time.boilIndex;
-        const a=EASE.easeOutBack(Math.min(1,this.t/0.6))*(h<600?0.72:1);
+        const {cx,cw}=this.column();
+        const M=TUNING.menu;
+        const pa=EASE.easeOutCubic(Math.min(1,this.t/0.5));
+        const px0=w*(1-M.colFrac)+(1-pa)*w*M.colFrac;
         ctx.save();
-        ctx.translate(w/2,h*0.27);
+        const g=ctx.createLinearGradient(px0-60,0,px0+40,0);
+        g.addColorStop(0,rgba('paper',0));
+        g.addColorStop(1,rgba('paper',0.86));
+        ctx.fillStyle=g;
+        ctx.fillRect(px0-60,0,w-px0+60,h);
+        const edge=[];
+        for (let i=0;i<=16;i++) {
+            edge.push([px0+10+Math.sin(i*1.7)*4,i*h/16]);
+        }
+        ctx.strokeStyle=rgba('ink',0.55);
+        ctx.lineWidth=2;
+        ctx.beginPath();
+        ctx.moveTo(edge[0][0],edge[0][1]);
+        for (const q of edge) {
+            ctx.lineTo(q[0],q[1]);
+        }
+        ctx.stroke();
+        ctx.restore();
+        const small=h<600;
+        const a=EASE.easeOutBack(Math.min(1,this.t/0.6))*Math.min(small?0.62:1,cw/520);
+        ctx.save();
+        ctx.translate(cx,small?h*0.14:h*0.15);
         ctx.scale(a,a);
-        ctx.fillStyle=rgba('paper',0.8);
-        ctx.fillRect(-250,-70,500,150);
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 84px '+FONT;
         ctx.textAlign='center';
@@ -364,7 +391,7 @@ export class PauseMenu extends Panel {
     }
 }
 
-const SETTING_KEYS=['volume','quality','shake','assist','reduced','fps','god','stickSize','stickX','stickY'];
+const SETTING_KEYS=['volume','quality','shake','assist','reduced','full','fps','god','stickSize','stickX','stickY'];
 
 const SLIDERS={volume:'volume',shake:'shake',stickSize:'stickSize',stickX:'stickX',stickY:'stickY'};
 
@@ -395,6 +422,9 @@ export class SettingsMenu extends Panel {
         }
         if (key==='god') {
             return settings.godMode?1:0;
+        }
+        if (key==='full') {
+            return settings.fullscreen?1:0;
         }
         return settings.showFps?1:0;
     }
@@ -430,7 +460,7 @@ export class SettingsMenu extends Panel {
 
     bump(key) {
         this.pulse[key]=1;
-        this.actions.changed();
+        this.actions.changed(key);
     }
 
     layout() {
@@ -527,6 +557,9 @@ export class SettingsMenu extends Panel {
                 }
                 else if (r.key==='god') {
                     settings.godMode=!settings.godMode;
+                }
+                else if (r.key==='full') {
+                    settings.fullscreen=!settings.fullscreen;
                 }
                 else {
                     settings.showFps=!settings.showFps;
@@ -2523,31 +2556,6 @@ export class SkinEditor extends Panel {
     }
 }
 
-function drawSwitch(ctx,x,y,on,v,seed) {
-    ctx.fillStyle=on?PALETTE.ink:PALETTE.paper;
-    ctx.fillRect(x,y-13,56,26);
-    drawShape(ctx,sketchRect(x,y-13,56,26,{width:1.6,seed}),PALETTE.ink,v);
-    ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
-    ctx.beginPath();
-    ctx.arc(on?x+41:x+15,y,8,0,Math.PI*2);
-    ctx.fill();
-}
-
-function drawSeg(ctx,x,y,w,labels,idx,v,seed) {
-    const seg=w/labels.length;
-    for (let i=0;i<labels.length;i++) {
-        const on=i===idx;
-        ctx.fillStyle=on?PALETTE.ink:PALETTE.paper;
-        ctx.fillRect(x+i*seg+2,y-13,seg-4,26);
-        drawShape(ctx,sketchRect(x+i*seg+2,y-13,seg-4,26,{width:1.4,seed:seed+i}),PALETTE.ink,v);
-        ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
-        ctx.font=(on?'bold ':'')+'13px '+FONT;
-        ctx.textAlign='center';
-        ctx.textBaseline='middle';
-        ctx.fillText(labels[i],x+i*seg+seg/2,y+1);
-    }
-}
-
 export class TrainingMenu extends Panel {
     constructor(actions) {
         super();
@@ -2557,11 +2565,16 @@ export class TrainingMenu extends Panel {
         this.hx=-1;
         this.hy=-1;
         this.pendingRoom=false;
+        this.pulse={};
+        this.anim={};
+        this.pop={};
     }
 
     show() {
         super.show();
         this.pendingRoom=false;
+        this.pulse={};
+        this.pop={};
     }
 
     hover(x,y) {
@@ -2586,6 +2599,10 @@ export class TrainingMenu extends Panel {
         }
         for (const q of this.hits) {
             if (inRect(q,x,y)) {
+                this.pulse[q.key]=1;
+                if (q.pop) {
+                    this.pop[q.pop]=1;
+                }
                 q.act();
                 if (this.actions.select) {
                     this.actions.select();
@@ -2596,11 +2613,47 @@ export class TrainingMenu extends Panel {
         return true;
     }
 
+    update(dt) {
+        super.update(dt);
+        const k=1-Math.exp(-TUNING.settingsUi.follow*dt);
+        for (const key in this.pulse) {
+            this.pulse[key]=Math.max(0,this.pulse[key]-dt*TUNING.trainUi.pulseDecay);
+        }
+        for (const key in this.pop) {
+            this.pop[key]=Math.max(0,this.pop[key]-dt*TUNING.trainUi.popDecay);
+        }
+        const c=settings.training;
+        for (const key of ['props','attack','respawn','immortal','ammo','random']) {
+            this.anim[key]=(this.anim[key]??(c[key]?1:0))+(((c[key]?1:0))-(this.anim[key]??0))*k;
+        }
+        this.anim.refill=(this.anim.refill??(c.refill==='fixed'?0:1))+((c.refill==='fixed'?0:1)-(this.anim.refill??0))*k;
+        for (const id of BOSS_LIST) {
+            const on=(c.bosses||{})[id]>0?1:0;
+            this.anim['b'+id]=(this.anim['b'+id]??on)+(on-(this.anim['b'+id]??on))*k;
+        }
+    }
+
     change(kind) {
         if (kind==='room') {
             this.pendingRoom=true;
         }
         this.actions.changed(kind);
+    }
+
+    rowIn(i) {
+        return EASE.easeOutCubic(Math.max(0,Math.min(1,(this.t-0.08-i*0.035)/0.3)));
+    }
+
+    fxBegin(ctx,key,r) {
+        const hv=inRect(r,this.hx,this.hy);
+        const p=this.pulse[key]||0;
+        const sc=1+(hv?TUNING.trainUi.hoverScale:0)+Math.sin(p*Math.PI)*TUNING.trainUi.pressScale;
+        ctx.save();
+        ctx.translate(r.x+r.w/2,r.y+r.h/2);
+        ctx.scale(sc,sc);
+        ctx.rotate(hv?-0.02:0);
+        ctx.translate(-(r.x+r.w/2),-(r.y+r.h/2));
+        return hv;
     }
 
     rowLabel(ctx,label,x,y) {
@@ -2609,6 +2662,69 @@ export class TrainingMenu extends Panel {
         ctx.textAlign='left';
         ctx.textBaseline='middle';
         ctx.fillText(label,x,y);
+    }
+
+    drawSwitch(ctx,key,x,y,v,seed) {
+        const f=Math.max(0,Math.min(1,this.anim[key]??0));
+        const r={x,y:y-13,w:56,h:26};
+        const hv=this.fxBegin(ctx,key,r);
+        ctx.fillStyle=hv?PALETTE.farGray:PALETTE.paper;
+        ctx.fillRect(r.x,r.y,r.w,r.h);
+        ctx.fillStyle=rgba('ink',f);
+        ctx.fillRect(r.x,r.y,r.w,r.h);
+        drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:hv?2.2:1.6,seed}),PALETTE.ink,v);
+        const squash=1+Math.sin(f*Math.PI)*0.35;
+        ctx.fillStyle=f>0.5?PALETTE.paper:PALETTE.ink;
+        ctx.beginPath();
+        ctx.ellipse(x+15+26*f,y,8*squash,8/squash,0,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font=((this.pulse[key]||0)>0.3?'bold ':'')+'13px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t(f>0.5?'settings.on':'settings.off'),x+66,y);
+        return {x:x-4,y:y-16,w:110,h:32};
+    }
+
+    drawSeg(ctx,key,x,y,w,labels,v,seed) {
+        const seg=w/labels.length;
+        const f=this.anim[key]??0;
+        const r={x,y:y-13,w,h:26};
+        const hv=this.fxBegin(ctx,key,r);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(x,y-13,w,26);
+        const sq=1-Math.sin((f%1)*Math.PI)*0.1;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(x+f*seg+3,y-12*sq,seg-6,24*sq);
+        drawShape(ctx,sketchRect(x,y-13,w,26,{width:hv?2:1.4,seed}),PALETTE.ink,v);
+        for (let i=0;i<labels.length;i++) {
+            const on=Math.abs(f-i)<0.5;
+            ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
+            ctx.font=(on?'bold ':'')+'13px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(labels[i],x+i*seg+seg/2,y+1);
+        }
+        ctx.restore();
+    }
+
+    smallBtn(ctx,key,r,label,ok,v,seed,red=false) {
+        const hv=ok&&this.fxBegin(ctx,key,r);
+        if (!ok) {
+            ctx.save();
+        }
+        const col=ok?(red?PALETTE.red:PALETTE.ink):PALETTE.farGray;
+        const p=this.pulse[key]||0;
+        ctx.fillStyle=p>0.05?rgba(red?'red':'ink',0.25*p):(hv?rgba('farGray',0.8):rgba('paper',0.9));
+        ctx.fillRect(r.x,r.y,r.w,r.h);
+        drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:hv?2:1.3,seed}),col,v);
+        ctx.fillStyle=col;
+        ctx.font=(hv?'bold ':'')+'15px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(label,r.x+r.w/2,r.y+r.h/2+1);
+        ctx.restore();
     }
 
     draw(ctx) {
@@ -2621,12 +2737,13 @@ export class TrainingMenu extends Panel {
         const c=settings.training;
         const T=TUNING.training;
         const small=h<600;
-        const pw=Math.min(960,w-20);
-        const ph=Math.min(h-16,small?h-16:640);
+        const pw=Math.min(980,w-20);
+        const ph=Math.min(h-16,small?h-16:660);
         const px=w/2-pw/2;
         const py=h/2-ph/2;
         const a=EASE.easeOutBack(Math.min(1,this.t/0.35));
         this.hits=[];
+        const add=(r,act,key,pop=null)=>this.hits.push({...r,act,key,pop});
         ctx.save();
         ctx.fillStyle=rgba('paper',Math.min(0.8,this.t*4));
         ctx.fillRect(0,0,w,h);
@@ -2642,117 +2759,198 @@ export class TrainingMenu extends Panel {
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('trainMenu.title'),w/2,py+(small?20:34));
-        const rh=small?(ph-110)/7:52;
+        const tw=ctx.measureText(t('trainMenu.title')).width;
+        drawShape(ctx,sketchLine(w/2-tw/2,py+(small?34:54),w/2-tw/2+tw*Math.min(1,this.t/0.4),py+(small?34:54),{width:2.4,seed:1601}),PALETTE.red,v);
+        const rh=small?(ph-110)/8:52;
         const colW=pw*0.46;
         const lx=px+22;
         const cx=px+colW*0.5;
         const cw=colW*0.46;
-        let y=py+(small?50:82);
-        const add=(r,act)=>this.hits.push({...r,act});
+        let y=py+(small?50:84);
+        let row=0;
+        const rowStart=()=>{
+            const k=this.rowIn(row++);
+            ctx.save();
+            ctx.globalAlpha*=k;
+            ctx.translate(-(1-k)*30,0);
+        };
+        rowStart();
         this.rowLabel(ctx,t('trainMenu.map'),lx,y);
         const maps=TRAINING_MAPS;
         const mi=Math.max(0,maps.indexOf(c.map));
+        const mp=this.pop.map||0;
+        ctx.save();
+        ctx.translate(cx+cw/2,y);
+        ctx.scale(1+mp*0.25,1+mp*0.25);
+        ctx.fillStyle=mp>0.1?PALETTE.red:PALETTE.ink;
         ctx.font='bold 14px '+FONT;
         ctx.textAlign='center';
-        ctx.fillText(t('map.'+maps[mi]),cx+cw/2,y);
+        ctx.fillText(t('map.'+maps[mi]),0,0);
+        ctx.restore();
         for (const [dx,dir,ch] of [[0,-1,'‹'],[cw-28,1,'›']]) {
             const r={x:cx+dx,y:y-14,w:28,h:28};
-            drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:1.5,seed:1610+dir}),PALETTE.ink,v);
-            ctx.fillText(ch,r.x+14,y+1);
+            this.smallBtn(ctx,'map'+dir,r,ch,true,v,1610+dir);
             add(r,()=>{
                 c.map=maps[(mi+dir+maps.length)%maps.length];
                 this.change('room');
-            });
+            },'map'+dir,'map');
         }
+        ctx.restore();
         y+=rh;
         const toggles=[['props','room'],['attack','attack'],['respawn','foes'],['immortal','immortal'],['ammo','ammo']];
         for (let i=0;i<toggles.length;i++) {
             const [key,kind]=toggles[i];
+            rowStart();
             this.rowLabel(ctx,t('trainMenu.'+key),lx,y);
-            drawSwitch(ctx,cx,y,!!c[key],v,1620+i);
-            ctx.fillStyle=PALETTE.nearGray;
-            ctx.font='13px '+FONT;
-            ctx.textAlign='left';
-            ctx.fillText(t(c[key]?'settings.on':'settings.off'),cx+66,y);
-            add({x:cx-4,y:y-16,w:110,h:32},()=>{
+            const r=this.drawSwitch(ctx,key,cx,y,v,1620+i);
+            add(r,()=>{
                 c[key]=!c[key];
                 this.change(kind);
-            });
+            },key);
+            ctx.restore();
             y+=rh;
         }
+        rowStart();
         this.rowLabel(ctx,t('trainMenu.refill'),lx,y);
-        drawSeg(ctx,cx,y,cw,[t('trainMenu.fixed'),t('trainMenu.random')],c.refill==='fixed'?0:1,v,1640);
+        this.drawSeg(ctx,'refill',cx,y,cw,[t('trainMenu.fixed'),t('trainMenu.random')],v,1640);
         const modes=['fixed','random'];
         for (let i=0;i<modes.length;i++) {
             const act=()=>{
                 c.refill=modes[i];
                 this.change('refill');
             };
-            add({x:cx+i*cw/2,y:y-14,w:cw/2,h:28},act);
+            add({x:cx+i*cw/2,y:y-14,w:cw/2,h:28},act,'refill');
         }
+        ctx.restore();
+        y+=rh;
+        rowStart();
+        this.rowLabel(ctx,t('trainMenu.bosses'),lx,y);
+        const bosses=c.bosses||(c.bosses={});
+        const bw=Math.min(64,cw/3-6);
+        for (let i=0;i<BOSS_LIST.length;i++) {
+            const id=BOSS_LIST[i];
+            const ok=trainable(id);
+            const f=this.anim['b'+id]||0;
+            const r={x:cx+i*(bw+8),y:y-bw*0.42,w:bw,h:bw*0.84};
+            const key='b'+id;
+            const hv=ok&&this.fxBegin(ctx,key,r);
+            if (!ok) {
+                ctx.save();
+            }
+            ctx.fillStyle=rgba('red',0.16*f);
+            ctx.fillRect(r.x,r.y,r.w,r.h);
+            drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:f>0.5||hv?2.4:1.3,seed:1680+i}),ok?(f>0.5?PALETTE.red:PALETTE.ink):PALETTE.farGray,v);
+            ctx.save();
+            ctx.globalAlpha*=ok?1:0.35;
+            ctx.translate(r.x+r.w/2,r.y+r.h/2);
+            const ks=r.h/72*(1+f*0.12);
+            ctx.scale(ks,ks);
+            ENEMY_ICONS[id](ctx,v);
+            ctx.restore();
+            if (f>0.02) {
+                ctx.fillStyle=PALETTE.red;
+                ctx.beginPath();
+                ctx.arc(r.x+r.w,r.y,9*f,0,Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle=PALETTE.paper;
+                ctx.font='bold 11px '+FONT;
+                ctx.textAlign='center';
+                ctx.fillText('✓',r.x+r.w,r.y+1);
+            }
+            ctx.restore();
+            if (ok) {
+                add(r,()=>{
+                    bosses[id]=bosses[id]>0?0:1;
+                    this.change('foes');
+                },key);
+            }
+        }
+        ctx.restore();
         const rx=px+colW+14;
         const rw=pw-colW-36;
-        let ry=py+(small?50:82);
+        let ry=py+(small?50:84);
         const tot=c.random?c.randCount:this.total();
-        const stepper=(x,yy,val,canDown,canUp,down,up,seed,red)=>{
-            for (const [dx,ok,ch,fn] of [[0,canDown,'－',down],[70,canUp,'＋',up]]) {
+        const stepper=(key,x,yy,val,canDown,canUp,down,up,seed,red)=>{
+            for (const [dx,ok,ch,fn,d] of [[0,canDown,'－',down,'-'],[70,canUp,'＋',up,'+']]) {
                 const r={x:x+dx,y:yy-13,w:28,h:26};
-                drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:1.3,seed:seed+dx}),ok?PALETTE.ink:PALETTE.farGray,v);
-                ctx.fillStyle=ok?PALETTE.ink:PALETTE.farGray;
-                ctx.font='15px '+FONT;
-                ctx.textAlign='center';
-                ctx.fillText(ch,r.x+14,yy+1);
+                this.smallBtn(ctx,key+d,r,ch,ok,v,seed+dx,red);
                 if (ok) {
-                    add(r,fn);
+                    add(r,fn,key+d,key);
                 }
             }
+            const pp=this.pop[key]||0;
+            ctx.save();
+            ctx.translate(x+49,yy+1);
+            ctx.scale(1+pp*0.45,1+pp*0.45);
             ctx.fillStyle=val>0?(red?PALETTE.red:PALETTE.ink):PALETTE.midGray;
             ctx.font='bold 16px '+FONT;
             ctx.textAlign='center';
-            ctx.fillText(String(val),x+49,yy+1);
+            ctx.textBaseline='middle';
+            ctx.fillText(String(val),0,0);
+            ctx.restore();
         };
+        let rrow=0;
+        const rStart=()=>{
+            const k=this.rowIn(rrow++);
+            ctx.save();
+            ctx.globalAlpha*=k;
+            ctx.translate((1-k)*30,0);
+        };
+        rStart();
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 15px '+FONT;
         ctx.textAlign='left';
+        ctx.textBaseline='middle';
         ctx.fillText(t('trainMenu.foes',{n:tot,max:T.maxFoes}),rx,ry);
         const clr={x:rx+rw-64,y:ry-14,w:64,h:28};
-        drawShape(ctx,sketchRect(clr.x,clr.y,clr.w,clr.h,{width:1.4,seed:1650}),PALETTE.ink,v);
-        ctx.font='13px '+FONT;
-        ctx.textAlign='center';
-        ctx.fillText(t('trainMenu.clear'),clr.x+32,ry+1);
+        this.smallBtn(ctx,'clear',clr,t('trainMenu.clear'),true,v,1650);
         add(clr,()=>{
             c.foes={};
             c.elites={};
+            c.bosses={};
             c.random=false;
             this.change('foes');
-        });
+        },'clear');
+        ctx.restore();
         ry+=small?28:38;
+        rStart();
         this.rowLabel(ctx,t('trainMenu.randomFoes'),rx,ry);
-        drawSwitch(ctx,rx+110,ry,!!c.random,v,1655);
-        add({x:rx+106,y:ry-16,w:64,h:32},()=>{
+        const rr=this.drawSwitch(ctx,'random',rx+110,ry,v,1655);
+        add(rr,()=>{
             c.random=!c.random;
             this.change('foes');
-        });
-        if (c.random) {
+        },'random');
+        const ra=Math.max(0,Math.min(1,this.anim.random||0));
+        if (ra>0.02) {
+            ctx.save();
+            ctx.globalAlpha*=ra;
             const sx=rx+rw-100;
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='13px '+FONT;
             ctx.textAlign='right';
             ctx.fillText(t('trainMenu.randCount'),sx-8,ry);
-            stepper(sx,ry,c.randCount,c.randCount>1,c.randCount<T.maxFoes,()=>{
+            stepper('randCount',sx,ry,c.randCount,c.random&&c.randCount>1,c.random&&c.randCount<T.maxFoes,()=>{
                 c.randCount--;
                 this.change('foes');
             },()=>{
                 c.randCount++;
                 this.change('foes');
             },1656,false);
-            ry+=small?26:34;
+            ctx.restore();
+        }
+        ctx.restore();
+        ry+=small?26:34;
+        rStart();
+        if (ra>0.02) {
+            ctx.save();
+            ctx.globalAlpha*=ra;
+            const sx=rx+rw-100;
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='13px '+FONT;
             ctx.textAlign='right';
             ctx.fillText(t('trainMenu.randElite'),sx-8,ry);
             const ev=c.randElite;
-            stepper(sx,ry,ev,ev>0,ev<100,()=>{
+            stepper('randElite',sx,ry,ev,c.random&&ev>0,c.random&&ev<100,()=>{
                 c.randElite=Math.max(0,ev-T.eliteStep);
                 this.change('foes');
             },()=>{
@@ -2763,45 +2961,54 @@ export class TrainingMenu extends Panel {
             ctx.font='12px '+FONT;
             ctx.textAlign='left';
             ctx.fillText('%',sx+102,ry+1);
+            ctx.restore();
         }
-        ry+=small?26:36;
+        ctx.restore();
+        ry+=small?22:30;
         const nx=rx+rw-210;
         const ex=rx+rw-100;
+        const dim=1-ra*0.6;
+        rStart();
         ctx.font='bold 12px '+FONT;
         ctx.textAlign='center';
-        ctx.fillStyle=c.random?PALETTE.farGray:PALETTE.nearGray;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.globalAlpha*=dim;
         ctx.fillText(t('trainMenu.normal'),nx+49,ry);
-        ctx.fillStyle=c.random?PALETTE.farGray:PALETTE.red;
+        ctx.fillStyle=PALETTE.red;
         ctx.fillText(t('trainMenu.eliteCol'),ex+49,ry);
+        ctx.restore();
         ry+=small?20:26;
-        const frh=small?Math.min(34,(py+ph-60-ry)/FOE_LIST.length):Math.min(44,(py+ph-84-ry)/FOE_LIST.length);
+        const frh=small?Math.min(32,(py+ph-60-ry)/FOE_LIST.length):Math.min(42,(py+ph-84-ry)/FOE_LIST.length);
         const elites=c.elites||(c.elites={});
         for (let i=0;i<FOE_LIST.length;i++) {
             const id=FOE_LIST[i];
             const ok=trainable(id);
             const n=c.foes[id]||0;
             const m=elites[id]||0;
+            rStart();
+            ctx.globalAlpha*=ok?dim:0.4;
+            const bob=Math.sin(time.real*3+i)*(n+m>0?2:0);
             ctx.save();
-            ctx.globalAlpha*=ok&&!c.random?1:0.4;
-            ctx.translate(rx+14,ry);
+            ctx.translate(rx+14,ry+bob);
             const k=(small?20:28)/60;
             ctx.scale(k,k);
             ENEMY_ICONS[id](ctx,v);
             ctx.restore();
-            ctx.fillStyle=ok?(c.random?PALETTE.midGray:PALETTE.ink):PALETTE.midGray;
-            ctx.font='14px '+FONT;
+            ctx.fillStyle=ok?PALETTE.ink:PALETTE.midGray;
+            ctx.font=(n+m>0?'bold ':'')+'14px '+FONT;
             ctx.textAlign='left';
+            ctx.textBaseline='middle';
             ctx.fillText(ok?t('enemy.'+id):t('trainMenu.unseen'),rx+36,ry);
             if (ok&&!c.random) {
                 const room=tot<T.maxFoes;
-                stepper(nx,ry,n,n>0,room,()=>{
+                stepper('n'+id,nx,ry,n,n>0,room,()=>{
                     c.foes[id]=n-1;
                     this.change('foes');
                 },()=>{
                     c.foes[id]=n+1;
                     this.change('foes');
                 },1660+i*4,false);
-                stepper(ex,ry,m,m>0,room,()=>{
+                stepper('e'+id,ex,ry,m,m>0,room,()=>{
                     elites[id]=m-1;
                     this.change('foes');
                 },()=>{
@@ -2809,6 +3016,7 @@ export class TrainingMenu extends Panel {
                     this.change('foes');
                 },1700+i*4,true);
             }
+            ctx.restore();
             ry+=frh;
         }
         const by=py+ph-(small?46:64);
@@ -2819,8 +3027,15 @@ export class TrainingMenu extends Panel {
         for (let i=0;i<btns.length;i++) {
             const r={x:bx0+i*(bw2+10),y:by,w:bw2,h:small?38:48};
             this.buttons.push(r);
-            drawButton(ctx,r,t(btns[i][0]),v,(this.t-0.1-i*0.04)/0.3,inRect(r,this.hx,this.hy),small?14:16);
-            add(r,()=>this.actions[btns[i][1]]());
+            const key='btn'+i;
+            const p=this.pulse[key]||0;
+            ctx.save();
+            ctx.translate(r.x+r.w/2,r.y+r.h/2);
+            ctx.scale(1-Math.sin(p*Math.PI)*0.08,1-Math.sin(p*Math.PI)*0.08);
+            ctx.translate(-(r.x+r.w/2),-(r.y+r.h/2));
+            drawButton(ctx,r,t(btns[i][0]),v,(this.t-0.2-i*0.05)/0.3,inRect(r,this.hx,this.hy),small?14:16);
+            ctx.restore();
+            add(r,()=>this.actions[btns[i][1]](),key);
         }
         ctx.restore();
     }

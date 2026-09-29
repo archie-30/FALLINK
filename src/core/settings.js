@@ -18,8 +18,9 @@ export const settings={
     stickX:0.45,
     stickY:0.4,
     godMode:false,
+    fullscreen:true,
     skin:{coat:'gray',limbs:'charcoal',hat:'charcoal',gear:'graphite',face:'paper',accent:'ink'},
-    training:{map:'training',foes:{doodle:3},elites:{},attack:false,refill:'fixed',ammo:true,props:true,respawn:true,immortal:false,random:false,randCount:5,randElite:20}
+    training:{map:'training',foes:{doodle:3},elites:{},attack:false,refill:'fixed',ammo:true,props:true,respawn:true,immortal:false,random:false,randCount:5,randElite:20,bosses:{}}
 };
 
 export const TRAINING_DEFAULTS=JSON.parse(JSON.stringify(settings.training));

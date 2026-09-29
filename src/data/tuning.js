@@ -316,13 +316,32 @@ export const TUNING={
         xpScore:0.02
     },
     ultFx:{
-        time:1.6,
+        time:1.7,
+        release:0.8,
+        hitShake:0.9,
+        hitFov:3,
         impact:0.26,
         calmTime:0.8,
         slow:0.35,
         slowTime:0.55,
         bandY:0.7,
         motifY:0.4
+    },
+    trainUi:{
+        pulseDecay:3.2,
+        popDecay:4,
+        hoverScale:0.06,
+        pressScale:0.18
+    },
+    menu:{
+        colFrac:0.34,
+        colMax:420,
+        colPad:20,
+        camRadius:12.5,
+        camHeight:7,
+        sway:0.35,
+        camLook:1.3,
+        camSpin:0.1
     },
     levelView:{
         rowH:84
@@ -336,6 +355,8 @@ export const TUNING={
         clear:1.4,
         center:-2.5,
         eliteStep:10,
+        bossSpots:[[0,-5.5],[-8,-5],[8,-5]],
+        bossClear:3.6,
         dpsWindow:5
     },
     reward:{

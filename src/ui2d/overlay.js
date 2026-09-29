@@ -121,8 +121,8 @@ export class Overlay {
         game.codex.draw(ctx,game.art);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             const play=game.mode==='play'&&game.run.state!=='dead';
-            const lock=play&&!!game.aimTarget&&game.aimTarget.alive;
-            const reload=play&&player.reloadT>0?1-player.reloadT/TUNING.weapon.reloadTime:0;
+            const lock=play&&!game.frozen&&!!game.aimTarget&&game.aimTarget.alive;
+            const reload=play&&!game.frozen&&player.reloadT>0?1-player.reloadT/TUNING.weapon.reloadTime:0;
             this.drawCrosshair(input.mouse.x,input.mouse.y,input.mouse.down,lock,reload);
         }
         if (this.showDebug&&debug) {

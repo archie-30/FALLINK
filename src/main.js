@@ -25,7 +25,7 @@ import {Player,Clone} from './game/player.js';
 import {BulletSystem,Lobs} from './game/bullet.js';
 import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
-import {CardEffects,createCard} from './game/card.js';
+import {CardEffects,createCard,cardParams} from './game/card.js';
 import {STARTING_DECK,ALL_CARDS,CARDS,isUlt,unlockedCards} from './data/cards.js';
 import {progress,loadProgress,addXp,markSeen,godMode,effectiveLevel} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
@@ -59,6 +59,12 @@ function applyTheme() {
         meta.setAttribute('content',PALETTE.paper);
     }
     document.getElementById('rotate-text').textContent=t('ui.rotate');
+}
+
+function exitFullscreen() {
+    if (document.fullscreenElement&&document.exitFullscreen) {
+        document.exitFullscreen().catch(()=>{});
+    }
 }
 
 async function requestFullscreen() {
@@ -323,9 +329,18 @@ function boot() {
         mouseScreen:()=>input.lastDevice==='mouse'&&input.mouse.inside?input.mouse:null,
         execute:(card,target)=>{
             if (card.def.rarity==='rare') {
-                ultCutin.play(card);
-                fx.slowMo(TUNING.ultFx.slow,TUNING.ultFx.slowTime);
+                fx.cutin=true;
+                hand.cancelTargeting();
+                input.mouse.down=false;
                 audio.play('ult');
+                ultCutin.play(card,()=>{
+                    fx.cutin=false;
+                    audio.play('ultHit');
+                    fx.cameraShake(TUNING.ultFx.hitShake);
+                    fx.fovPunch(TUNING.ultFx.hitFov);
+                    effects.run(card,target);
+                },{params:cardParams(card),last:effects.lastPlay?effects.lastPlay.card:null});
+                return;
             }
             effects.run(card,target);
             audio.play(card.def.id==='pencilWall'?'wall':(card.def.type==='terrain'?'erase':'card'));
@@ -715,7 +730,8 @@ function boot() {
             decals.spawn(x,z,size,'ink','midGray');
         }
         hand.reset();
-        ultCutin.active=null;
+        ultCutin.cancel();
+        fx.cutin=false;
         deck.provider=null;
         deck.reset([]);
         run.state='idle';
@@ -771,7 +787,15 @@ function boot() {
         settingsReturn=from;
         settingsMenu.show();
     }
-    function settingsChanged() {
+    function settingsChanged(key) {
+        if (key==='full') {
+            if (settings.fullscreen) {
+                requestFullscreen();
+            }
+            else {
+                exitFullscreen();
+            }
+        }
         saveSettings();
         applyQuality();
         audio.setVolume(settings.volume);
@@ -990,7 +1014,7 @@ function boot() {
             if (reward.open) {
                 return reward.down(x,y);
             }
-            if (transition.active) {
+            if (transition.active||fx.cutin) {
                 return true;
             }
             if (deckView.open) {
@@ -1049,7 +1073,7 @@ function boot() {
         leave:()=>hand.leave()
     };
     input.onCardKey=i=>{
-        if (!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
+        if (!fx.cutin&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
             hand.keyPlay(i);
         }
     };
@@ -1116,7 +1140,7 @@ function boot() {
         levelView.wheel(dy);
         trainingPicker.wheel(dy);
     };
-    input.canStick=()=>game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.canStick=()=>!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     input.onAimRelease=(vx,vy,mag,tap)=>{
         if (hand.targetView&&run.state==='combat'&&input.canStick()) {
             hand.stickCast(vx,vy,mag,tap);
@@ -1132,10 +1156,22 @@ function boot() {
     };
     window.addEventListener('keydown',()=>audio.unlock());
     input.onFirstTouch=()=>{
-        if (device.mobile) {
+        if (settings.fullscreen) {
             requestFullscreen();
         }
     };
+    const gestureFull=()=>{
+        if (settings.fullscreen&&!document.fullscreenElement) {
+            requestFullscreen();
+        }
+    };
+    window.addEventListener('pointerdown',gestureFull);
+    window.addEventListener('keydown',e=>{
+        if (e.code!=='Escape') {
+            gestureFull();
+        }
+    });
+    document.addEventListener('fullscreenchange',()=>setTimeout(resize,60));
     overlay.showDebug=settings.showFps;
     window.addEventListener('resize',resize);
     window.addEventListener('orientationchange',()=>setTimeout(resize,150));
@@ -1250,7 +1286,7 @@ function boot() {
     const NO_AIM={mode:'none'};
     function update(dt) {
         if (run.state!=='dead') {
-            player.update(dt,input,ctx,skinEditor.shown()?NO_AIM:aim);
+            player.update(dt,input,ctx,game.mode==='menu'?NO_AIM:aim);
         }
         shared.uMist.value.x+=(player.pos.x-shared.uMist.value.x)*Math.min(1,dt*TUNING.fog.mist.follow);
         shared.uMist.value.y+=(player.pos.z-shared.uMist.value.y)*Math.min(1,dt*TUNING.fog.mist.follow);
@@ -1341,8 +1377,8 @@ function boot() {
         fx.update(dt);
         tweens.update(dt*time.timeScale,dt);
         setBoilSeed(time.boilIndex);
-        if (skinEditor.shown()) {
-            const a=menuAngle+skinEditor.dragYaw;
+        if (game.mode==='menu') {
+            const a=menuAngle+(skinEditor.shown()?skinEditor.dragYaw:Math.sin(time.real*0.7)*TUNING.menu.sway);
             player.faceDir(Math.sin(a),Math.cos(a));
             player.moveYaw=a;
         }
@@ -1376,6 +1412,7 @@ function boot() {
         }
         ultCutin.update(fx.paused?0:dt);
         gameUi.dt=dt;
+        gameUi.frozen=fx.paused||fx.cutin;
         gameUi.mode=game.mode;
         for (const c of clones) {
             c.sync(alpha);
@@ -1415,21 +1452,29 @@ function boot() {
         if (game.mode==='menu') {
             const S=TUNING.ui.skinCam;
             skinZoom+=((skinEditor.open?1:0)-skinZoom)*(1-Math.exp(-S.follow*dt));
-            menuAngle+=dt*0.12*(1-skinZoom);
+            const MM=TUNING.menu;
+            menuAngle+=dt*MM.camSpin*(1-skinZoom);
             const cam=rig.camera;
             const z=EASE.easeInOutCubic(skinZoom);
             const sa=Math.sin(menuAngle);
             const ca=Math.cos(menuAngle);
             const p=player.renderPos;
-            cam.position.set(sa*24+(p.x+sa*S.dist-sa*24)*z,15+(S.height-15)*z,ca*24+(p.z+ca*S.dist-ca*24)*z);
-            cam.lookAt((p.x-ca*S.shift)*z,0.5+(S.look-0.5)*z,(p.z+sa*S.shift)*z);
+            const R=MM.camRadius+(S.dist-MM.camRadius)*z;
+            cam.position.set(p.x+sa*R,MM.camHeight+(S.height-MM.camHeight)*z,p.z+ca*R);
+            cam.lookAt(p.x-ca*S.shift*z,MM.camLook+(S.look-MM.camLook)*z,p.z+sa*S.shift*z);
+            const W=renderer.width;
+            const H=renderer.height;
+            cam.setViewOffset(W,H,W*(MM.colFrac/2)*(1-z),0,W,H);
             if (cam.fov!==TUNING.camera.fov) {
                 cam.fov=TUNING.camera.fov;
                 cam.updateProjectionMatrix();
             }
             cam.updateMatrixWorld();
         }
-        else if (!viewFrozen) {
+        else if (rig.camera.view&&rig.camera.view.enabled) {
+            rig.camera.clearViewOffset();
+        }
+        if (game.mode!=='menu'&&!viewFrozen) {
             rig.follow(player.renderPos,look.x,look.z);
             rig.update(dt);
         }

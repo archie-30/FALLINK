@@ -159,8 +159,12 @@ export class TrainingDirector {
                 }
             }
         }
-        const pts=this.spots(list.length);
+        const T=TUNING.training;
+        const bosses=Object.keys(cfg.bosses||{}).filter(k=>cfg.bosses[k]>0&&this.allow(k));
+        const bpts=T.bossSpots.slice(0,bosses.length);
+        const pts=this.spots(list.length+bpts.length*6).filter(p=>bpts.every(b=>Math.hypot(p[0]-b[0],p[1]-b[1])>T.bossClear));
         this.slots=list.slice(0,pts.length).map((q,i)=>({type:q.type,elite:q.elite,x:pts[i][0],z:pts[i][1],e:null,uid:-1,t:0.3+i*0.12}));
+        bosses.forEach((type,i)=>this.slots.push({type,elite:false,boss:true,x:bpts[i][0],z:bpts[i][1],e:null,uid:-1,t:0.4+i*0.3}));
     }
 
     setAttack(on) {
@@ -194,7 +198,7 @@ export class TrainingDirector {
             s.t-=dt;
             if (s.t<=0) {
                 const c=this.cfg;
-                if (c.random&&s.e) {
+                if (c.random&&s.e&&!s.boss) {
                     Object.assign(s,this.roll());
                 }
                 s.e=this.enemies.spawn(s.type,s.x,s.z,{hpMult:s.elite?TUNING.elite.hp:1,dummy:!c.attack,elite:s.elite,immortal:c.immortal});
