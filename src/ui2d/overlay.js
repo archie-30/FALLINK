@@ -83,6 +83,7 @@ export class Overlay {
             this.hud.drawToast(ctx,this.width,game.dt);
             this.hud.drawPause(ctx,this.width);
             game.deckView.draw(ctx,game.art,game.deck);
+            game.trainingPicker.draw(ctx,game.art);
             game.reward.draw(ctx,game.art);
             game.upgradeView.draw(ctx,game.art);
             game.summary.draw(ctx);
@@ -108,6 +109,7 @@ export class Overlay {
         if (!game.codex.open&&!game.settingsMenu.open) {
             game.mainMenu.draw(ctx);
         }
+        game.levelView.draw(ctx);
         game.settingsMenu.draw(ctx);
         if (game.settingsMenu.open&&((game.settingsMenu.drag&&/^stick/.test(game.settingsMenu.drag.key))||game.settingsMenu.resetFlash>0)) {
             this.drawSticks(input,false);

@@ -26,6 +26,8 @@ export const shared={
     uFogLift:{value:new THREE.Color()},
     uFogColor:{value:new THREE.Color()},
     uFog:{value:new THREE.Vector3()},
+    uMist:{value:new THREE.Vector4(0,0,1000,1001)},
+    uMistK:{value:0},
     uJitterScale:{value:1},
     tGBuf:{value:null},
     uScreen:{value:new THREE.Vector2(1,1)}
@@ -91,6 +93,8 @@ export function toonMaterial(opts={}) {
         uFogLift:shared.uFogLift,
         uFogColor:shared.uFogColor,
         uFog:shared.uFog,
+        uMist:shared.uMist,
+        uMistK:shared.uMistK,
         uColLight:{value:pal(light).clone()},
         uColMid:{value:pal(mid).clone()},
         uColDark:{value:pal(dark).clone()},
@@ -162,6 +166,9 @@ export function hullMaterial(opts={}) {
             uFar:shared.uFar,
             uJitter:{value:0},
             uWidth:{value:width},
+            uMist:shared.uMist,
+            uMistK:shared.uMistK,
+            uFogColor:shared.uFogColor,
             uColor:{value:pal(color).clone()}
         },
         side:THREE.BackSide

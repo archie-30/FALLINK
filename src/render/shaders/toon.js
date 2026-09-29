@@ -41,6 +41,8 @@ uniform float uBoilSeed;
 uniform vec3 uFogLift;
 uniform vec3 uFogColor;
 uniform vec3 uFog;
+uniform vec4 uMist;
+uniform float uMistK;
 uniform float uFar;
 uniform float uFlash;
 uniform vec3 uFlashColor;
@@ -181,6 +183,7 @@ void main() {
     float f=smoothstep(uFog.x,uFog.y,vDepth);
     col=mix(col,max(col,uFogLift),f);
     col=mix(col,uFogColor,f*f*uFog.z);
+    col=mix(col,uFogColor,smoothstep(uMist.z,uMist.w,distance(vWorldPos.xz,uMist.xy))*uMistK);
     col=mix(col,uFlashColor,uFlash);
     vec3 vn=normalize((viewMatrix*vec4(n,0.0)).xyz);
     gl_FragColor=vec4(col,uAlpha);
@@ -192,11 +195,15 @@ export const HULL_VERT=`
 ${JITTER}
 ${MODEL_MATRIX}
 uniform float uWidth;
+uniform vec4 uMist;
 varying float vDepth;
+varying float vMist;
 void main() {
     mat4 m=getModel();
     vec3 p=position+boilJitter(position)+normalize(normal)*uWidth;
-    vec4 vp=viewMatrix*m*vec4(p,1.0);
+    vec4 wp=m*vec4(p,1.0);
+    vMist=smoothstep(uMist.z,uMist.w,distance(wp.xz,uMist.xy));
+    vec4 vp=viewMatrix*wp;
     vDepth=-vp.z;
     gl_Position=projectionMatrix*vp;
 }
@@ -205,10 +212,13 @@ void main() {
 export const HULL_FRAG=`
 ${GBUF_OUT}
 uniform vec3 uColor;
+uniform vec3 uFogColor;
+uniform float uMistK;
 uniform float uFar;
 varying float vDepth;
+varying float vMist;
 void main() {
-    gl_FragColor=vec4(uColor,1.0);
+    gl_FragColor=vec4(mix(uColor,uFogColor,vMist*uMistK),1.0);
     gBuf=vec4(0.5,0.5,1.0,vDepth/uFar);
 }
 `;

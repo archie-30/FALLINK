@@ -91,18 +91,33 @@ export const LAYOUTS={
     ],{size:[32,22],spawn:[0,5],bossSpawn:[0,-3]})
 };
 
+export const TRAINING={
+    layout:room([
+        {type:'pillar',x:-12,z:-6.5,r:0.7,h:2.8},
+        {type:'pillar',x:12,z:-6.5,r:0.7,h:2.8},
+        {type:'pillar',x:-12,z:7,r:0.7,h:2.8},
+        {type:'pillar',x:12,z:7,r:0.7,h:2.8},
+        {type:'wall',x:-5,z:5.5,w:3,h:1.0,d:0.7,rot:0.3},
+        {type:'wall',x:5,z:5.5,w:3,h:1.0,d:0.7,rot:-0.3}
+    ],{spawn:[0,4]}),
+    spots:[['doodle',-6,-3],['sprayer',0,-5.5],['eraserMonster',6,-3],['compass',-9.5,2],['bird',9.5,1.5]],
+    respawn:1.6,
+    barrels:2,
+    crates:2
+};
+
 export const NORMAL_LAYOUTS=['crossroads','colonnade','trenches','crates','circle','lanes'];
 
-export const ENEMY_ORDER=['doodle','blob','sprayer','bird','compass','eraserMonster'];
+export const ENEMY_ORDER=['doodle','blob','sprayer','inkCloud','bird','compass','eraserMonster'];
 
-export const STORY_INTRO=[0,2,5,7,9,11];
+export const STORY_INTRO=[0,2,4,5,7,9,11];
 
-export const ENEMY_COST={doodle:1,blob:2,sprayer:2,compass:2,bird:1,eraserMonster:2};
+export const ENEMY_COST={doodle:1,blob:2,sprayer:2,inkCloud:2,compass:2,bird:1,eraserMonster:2};
 
 export const ACTS=[
     {rooms:4,budget:[6,8,9,11],waves:[2,2,3,3],pool:{doodle:4,blob:2,sprayer:2,bird:1,compass:1},hpMult:1,bossHp:1},
-    {rooms:4,budget:[10,12,13,15],waves:[2,3,3,3],pool:{doodle:2,blob:2,sprayer:2,compass:2,bird:2,eraserMonster:1},hpMult:1.3,bossHp:1},
-    {rooms:4,budget:[13,15,17,20],waves:[3,3,3,4],pool:{doodle:2,blob:2,sprayer:2,compass:2,bird:2,eraserMonster:2},hpMult:1.65,bossHp:1}
+    {rooms:4,budget:[10,12,13,15],waves:[2,3,3,3],pool:{doodle:2,blob:2,sprayer:2,inkCloud:2,compass:2,bird:2,eraserMonster:1},hpMult:1.3,bossHp:1},
+    {rooms:4,budget:[13,15,17,20],waves:[3,3,3,4],pool:{doodle:2,blob:2,sprayer:2,inkCloud:2,compass:2,bird:2,eraserMonster:2},hpMult:1.65,bossHp:1}
 ];
 
 export const ENDLESS={

@@ -35,7 +35,8 @@ export const TUNING={
     fog:{
         near:20,
         far:55,
-        max:0.85
+        max:0.85,
+        mist:{near:6.5,far:13,max:0.72,follow:6}
     },
     grid:{
         size:2,
@@ -311,6 +312,12 @@ export const TUNING={
         xpAct:60,
         xpVictory:200,
         xpScore:0.02
+    },
+    levelView:{
+        rowH:84
+    },
+    training:{
+        ink:10
     },
     reward:{
         choices:2,

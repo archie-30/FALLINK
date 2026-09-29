@@ -5,6 +5,7 @@ import {time} from '../core/loop.js';
 import {sketchRect,sketchLine,sketchPath,hatchFill,rectPoly,drawShape} from './sketch.js';
 import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
+import {device} from '../core/settings.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -270,6 +271,14 @@ export class Hud {
             return;
         }
         const p=run.plan;
+        if (p.training) {
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold 15px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='top';
+            ctx.fillText(t(device.mobile?'training.infoTouch':'training.info'),w/2,14);
+            return;
+        }
         const title=run.mode==='endless'?t('run.endlessInfo',{page:p.index+1,score:run.stats.score}):t('run.info',{act:p.act+1,page:p.index+1,pages:run.totalRooms(),score:run.stats.score});
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 15px '+FONT;

@@ -4,15 +4,15 @@ import {time} from '../core/loop.js';
 import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
-import {settings,STICK_DEFAULTS} from '../core/settings.js';
-import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel} from '../data/cards.js';
+import {settings,STICK_DEFAULTS,device} from '../core/settings.js';
+import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel,STARTING_DECK,unlockedCards} from '../data/cards.js';
 import {progress,xpToNext,hasSeen,effectiveLevel,godMode} from '../core/progress.js';
 import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
 import {ENEMIES} from '../data/enemies.js';
 import {ENDLESS} from '../data/levels.js';
 import {fmtInk} from './hud.js';
 import {CARD_ANIMS,ENEMY_ATTACKS,drawStage} from './codexAnim.js';
-import {CARD_W,CARD_H,drawCost,wrapText,cardFacts} from './cardView.js';
+import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip} from './cardView.js';
 import {ENEMY_ICONS} from './enemyIcons.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
@@ -143,6 +143,34 @@ class Panel {
     }
 }
 
+export function starterCount(id) {
+    return STARTING_DECK.filter(q=>q===id).length;
+}
+
+function drawStarterTag(ctx,id,x,y,px,v) {
+    const n=starterCount(id);
+    if (n===0) {
+        return;
+    }
+    ctx.save();
+    ctx.font='bold '+px+'px '+FONT;
+    ctx.textAlign='left';
+    ctx.textBaseline='top';
+    const label=t('codex.starter',{n});
+    const w=ctx.measureText(label).width+14;
+    const h=px+8;
+    ctx.fillStyle=rgba('red',0.1);
+    ctx.fillRect(x,y-3,w,h);
+    drawShape(ctx,sketchRect(x,y-3,w,h,{width:1.3,seed:970+id.length}),PALETTE.red,v);
+    ctx.fillStyle=PALETTE.red;
+    ctx.fillText(label,x+7,y+1);
+    ctx.restore();
+}
+
+const MENU_ACTS=['start','endless','training','settings','codex'];
+
+const MAX_LEVEL=Math.max(...Object.keys(UNLOCKS).map(Number));
+
 export class MainMenu extends Panel {
     constructor(actions) {
         super();
@@ -153,12 +181,28 @@ export class MainMenu extends Panel {
     layout() {
         const w=this.width;
         const h=this.height;
-        const bw=240;
-        const bh=50;
         this.buttons=[];
-        for (let i=0;i<4;i++) {
-            this.buttons.push({x:w/2-bw/2,y:h*0.46+i*(bh+12),w:bw,h:bh});
+        if (h>=600) {
+            const bw=240;
+            const bh=Math.min(50,(h*0.5-60)/5-10);
+            for (let i=0;i<MENU_ACTS.length;i++) {
+                this.buttons.push({x:w/2-bw/2,y:h*0.43+i*(bh+10),w:bw,h:bh});
+            }
+            return;
         }
+        const bw=Math.min(200,(w-80)/3);
+        const bh=44;
+        for (let i=0;i<MENU_ACTS.length;i++) {
+            const row=i<3?0:1;
+            const n=row===0?3:MENU_ACTS.length-3;
+            const col=row===0?i:i-3;
+            this.buttons.push({x:w/2+(col-(n-1)/2)*(bw+14)-bw/2,y:h*0.5+row*(bh+12),w:bw,h:bh});
+        }
+    }
+
+    hover(x,y) {
+        super.hover(x,y);
+        this.levelHover=!!this.levelRect&&inRect(this.levelRect,x,y);
     }
 
     down(x,y) {
@@ -166,18 +210,13 @@ export class MainMenu extends Panel {
             return false;
         }
         this.layout();
+        if (this.levelRect&&inRect(this.levelRect,x,y)) {
+            this.actions.levels();
+            return true;
+        }
         const i=this.hitButton(x,y);
-        if (i===0) {
-            this.actions.start();
-        }
-        else if (i===1) {
-            this.actions.endless();
-        }
-        else if (i===2) {
-            this.actions.settings();
-        }
-        else if (i===3) {
-            this.actions.codex();
+        if (i>=0) {
+            this.actions[MENU_ACTS[i]]();
         }
         return true;
     }
@@ -188,12 +227,13 @@ export class MainMenu extends Panel {
         const ph=140;
         const x=w-pw-24;
         const y=24;
+        this.levelRect={x,y,w:pw,h:ph};
         const a=Math.max(0,Math.min(1,(this.t-0.6)/0.4));
         ctx.save();
         ctx.globalAlpha=a;
-        ctx.fillStyle=rgba('paper',0.9);
+        ctx.fillStyle=this.levelHover?rgba('farGray',0.95):rgba('paper',0.9);
         ctx.fillRect(x,y,pw,ph);
-        drawShape(ctx,sketchRect(x,y,pw,ph,{width:1.8,seed:1360}),PALETTE.ink,v);
+        drawShape(ctx,sketchRect(x,y,pw,ph,{width:this.levelHover?2.6:1.8,seed:1360}),PALETTE.ink,v);
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 20px '+FONT;
         ctx.textAlign='left';
@@ -227,6 +267,9 @@ export class MainMenu extends Panel {
         ctx.fillStyle=PALETTE.ink;
         ctx.fillText(t('menu.bestStory',{score:progress.bestStory||0}),x+14,y+ph-38);
         ctx.fillText(t('menu.best',{score:progress.bestScore||0}),x+14,y+ph-20);
+        ctx.textAlign='right';
+        ctx.fillStyle=this.levelHover?PALETTE.red:PALETTE.midGray;
+        ctx.fillText(t('menu.levelMore'),x+pw-14,y+ph-20);
         ctx.restore();
     }
 
@@ -238,7 +281,7 @@ export class MainMenu extends Panel {
         const w=this.width;
         const h=this.height;
         const v=time.boilIndex;
-        const a=EASE.easeOutBack(Math.min(1,this.t/0.6));
+        const a=EASE.easeOutBack(Math.min(1,this.t/0.6))*(h<600?0.72:1);
         ctx.save();
         ctx.translate(w/2,h*0.27);
         ctx.scale(a,a);
@@ -256,9 +299,8 @@ export class MainMenu extends Panel {
         ctx.fillStyle=PALETTE.nearGray;
         ctx.fillText(t('menu.subtitle'),0,64);
         ctx.restore();
-        const labels=[t('menu.start'),t('menu.endless'),t('menu.settings'),t('menu.codex')];
-        for (let i=0;i<4;i++) {
-            drawButton(ctx,this.buttons[i],labels[i],v,(this.t-0.35-i*0.1)/0.45,this.hoverIdx===i,22);
+        for (let i=0;i<MENU_ACTS.length;i++) {
+            drawButton(ctx,this.buttons[i],t('menu.'+MENU_ACTS[i]),v,(this.t-0.35-i*0.08)/0.45,this.hoverIdx===i,this.buttons[i].h<46?19:22);
         }
         this.drawLevel(ctx,v);
         ctx.font='13px '+FONT;
@@ -318,7 +360,7 @@ export class PauseMenu extends Panel {
         ctx.textBaseline='middle';
         ctx.fillText(t('pause.title'),0,0);
         ctx.restore();
-        const labels=[t('pause.resume'),t('pause.deck'),t('menu.codex'),t('menu.settings'),t('pause.quit')];
+        const labels=[t('pause.resume'),t(this.training?'pause.pickCard':'pause.deck'),t('menu.codex'),t('menu.settings'),t(this.training?'pause.leaveTraining':'pause.quit')];
         for (let i=0;i<5;i++) {
             drawButton(ctx,this.buttons[i],labels[i],v,(this.t-0.08-i*0.07)/0.35,this.hoverIdx===i);
         }
@@ -634,7 +676,7 @@ export class SettingsMenu extends Panel {
     }
 }
 
-const FOE_LIST=['doodle','blob','sprayer','bird','compass','eraserMonster'];
+const FOE_LIST=['doodle','blob','sprayer','inkCloud','bird','compass','eraserMonster'];
 
 const BOSS_LIST=['inkBottle','scissors','book'];
 
@@ -940,6 +982,9 @@ export class Codex extends Panel {
             ctx.fillStyle=c.def.rarity==='rare'?PALETTE.red:PALETTE.ink;
             ctx.font='bold 18px '+FONT;
             ctx.fillText(locked?'？？？':cardName(c),tx,4);
+            if (!locked) {
+                drawStarterTag(ctx,c.id,tx+ctx.measureText(cardName(c)).width+10,6,12,v);
+            }
             ctx.font='13px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
             const meta=locked?t('codex.locked',{level:need}):(c.def.rarity==='rare'?t('type.ult'):t('type.'+c.def.type))+' · '+t('codex.unlockAt',{level:need});
@@ -1102,6 +1147,7 @@ export class Codex extends Panel {
         ctx.fillStyle=rare?PALETTE.red:PALETTE.ink;
         ctx.font='bold 26px '+FONT;
         ctx.fillText(cardName(card),lx,y);
+        drawStarterTag(ctx,card.id,lx+ctx.measureText(cardName(card)).width+12,y+5,14,v);
         y+=36;
         ctx.font='14px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
@@ -1595,5 +1641,441 @@ export class RunSummary {
         drawShape(ctx,sketchRect(m.x,m.y,m.w,m.h,{width:2.2,seed:921}),PALETTE.ink,v);
         ctx.fillText(t('summary.menu'),m.x+m.w/2,m.y+bh/2+1);
         ctx.globalAlpha=1;
+    }
+}
+
+export class TrainingPicker extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.35;
+        this.upgraded=false;
+        this.upAnim=0;
+        this.scroll=0;
+        this.scrollTo=0;
+        this.drag=null;
+        this.hits=[];
+        this.hoverId=null;
+        this.contentH=0;
+        this.view={x:0,y:0,w:1,h:1};
+        this.toggle={x:0,y:0,w:0,h:0};
+        this.backBtn={x:0,y:0,w:0,h:0};
+        this.touch=false;
+    }
+
+    show() {
+        super.show();
+        this.scroll=0;
+        this.scrollTo=0;
+        this.hoverId=null;
+        this.drag=null;
+    }
+
+    layout() {
+        const w=this.width;
+        const h=this.height;
+        const vw=Math.min(1100,w-40);
+        const top=h<600?76:106;
+        this.view={x:w/2-vw/2,y:top,w:vw,h:h-top-(h<600?64:84)};
+        this.toggle={x:this.view.x+vw-170,y:top-46,w:170,h:32};
+        this.backBtn={x:w/2-90,y:h-(h<600?54:68),w:180,h:h<600?44:50};
+    }
+
+    lists() {
+        const ids=unlockedCards(effectiveLevel());
+        return [ids.filter(id=>CARDS[id].rarity!=='rare'),ids.filter(id=>CARDS[id].rarity==='rare')];
+    }
+
+    scale() {
+        return Math.max(0.5,Math.min(0.78,this.height/1150));
+    }
+
+    clampScroll() {
+        const max=Math.max(0,this.contentH-this.view.h);
+        this.scrollTo=Math.max(0,Math.min(max,this.scrollTo));
+    }
+
+    wheel(dy) {
+        if (!this.open) {
+            return;
+        }
+        this.scrollTo+=dy;
+        this.clampScroll();
+    }
+
+    hitCard(x,y) {
+        if (!inRect(this.view,x,y)) {
+            return null;
+        }
+        for (const q of this.hits) {
+            if (inRect(q,x,y)) {
+                return q.id;
+            }
+        }
+        return null;
+    }
+
+    hover(x,y) {
+        super.hover(x,y);
+        if (!this.drag) {
+            this.hoverId=this.hitCard(x,y);
+        }
+    }
+
+    down(x,y,type) {
+        if (!this.open) {
+            return false;
+        }
+        this.layout();
+        this.touch=type!=='mouse';
+        if (inRect(this.backBtn,x,y)) {
+            this.actions.back();
+            return true;
+        }
+        if (inRect(this.toggle,x,y)) {
+            this.upgraded=!this.upgraded;
+            if (this.actions.select) {
+                this.actions.select();
+            }
+            return true;
+        }
+        if (inRect(this.view,x,y)) {
+            this.drag={y0:y,x0:x,s0:this.scrollTo,moved:false};
+        }
+        else {
+            this.hoverId=null;
+        }
+        return true;
+    }
+
+    move(x,y) {
+        const d=this.drag;
+        if (!d) {
+            return;
+        }
+        if (Math.hypot(x-d.x0,y-d.y0)>8) {
+            d.moved=true;
+        }
+        if (d.moved) {
+            this.scrollTo=d.s0-(y-d.y0);
+            this.clampScroll();
+            this.scroll=this.scrollTo;
+        }
+    }
+
+    up(x,y) {
+        const d=this.drag;
+        this.drag=null;
+        if (!this.open||!d||d.moved||x===undefined) {
+            return;
+        }
+        const id=this.hitCard(x,y);
+        if (!id) {
+            this.hoverId=null;
+            return;
+        }
+        if (this.touch&&this.hoverId!==id) {
+            this.hoverId=id;
+            return;
+        }
+        this.actions.pick(id,this.upgraded);
+    }
+
+    update(dt) {
+        super.update(dt);
+        this.scroll+=(this.scrollTo-this.scroll)*(1-Math.exp(-TUNING.codex.follow*dt));
+        this.upAnim+=((this.upgraded?1:0)-this.upAnim)*(1-Math.exp(-TUNING.codex.toggleFollow*dt));
+    }
+
+    draw(ctx,art) {
+        if (!this.shown()) {
+            return;
+        }
+        this.layout();
+        const w=this.width;
+        const h=this.height;
+        const v=time.boilIndex;
+        const a=Math.min(1,this.t/0.3);
+        const V=this.view;
+        ctx.save();
+        ctx.globalAlpha=a;
+        ctx.fillStyle=rgba('paper',0.93);
+        ctx.fillRect(0,0,w,h);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(h<600?22:28)+'px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('training.pickTitle'),V.x,this.toggle.y+this.toggle.h/2);
+        ctx.font='13px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='right';
+        ctx.fillText(t(this.touch||device.mobile?'training.pickHintTouch':'training.pickHint'),this.toggle.x-16,this.toggle.y+this.toggle.h/2);
+        drawToggle(ctx,this.toggle,[t('codex.base'),t('codex.plus')],this.upAnim,v);
+        const sc=this.scale();
+        const cw=CARD_W*sc;
+        const ch=CARD_H*sc;
+        const gap=14;
+        const cols=Math.max(1,Math.floor((V.w+gap)/(cw+gap)));
+        const x0=V.x+(V.w-(cols*cw+(cols-1)*gap))/2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(V.x-10,V.y,V.w+20,V.h);
+        ctx.clip();
+        this.hits=[];
+        let y=V.y-this.scroll;
+        let hovered=null;
+        const lists=this.lists();
+        for (let li=0;li<2;li++) {
+            const list=lists[li];
+            if (list.length===0) {
+                continue;
+            }
+            ctx.fillStyle=li===1?PALETTE.red:PALETTE.ink;
+            ctx.font='bold 17px '+FONT;
+            ctx.textAlign='left';
+            ctx.textBaseline='top';
+            ctx.fillText(t(li===1?'training.rare':'training.normal',{n:list.length}),V.x,y+6);
+            y+=36;
+            for (let i=0;i<list.length;i++) {
+                const id=list[i];
+                const cx=x0+(i%cols)*(cw+gap);
+                const cy=y+Math.floor(i/cols)*(ch+gap+6);
+                const card=createCard(id,this.upgraded);
+                const hov=this.hoverId===id;
+                const r={x:cx,y:cy,w:cw,h:ch,id};
+                this.hits.push(r);
+                if (cy>V.y+V.h||cy+ch<V.y) {
+                    continue;
+                }
+                const p=Math.max(0,Math.min(1,(this.t-0.05-Math.min(i,12)*0.02)/0.3));
+                ctx.save();
+                ctx.globalAlpha=a*p;
+                ctx.translate(cx+cw/2,cy+ch/2-(hov?8:0)+(1-p)*20);
+                ctx.scale(sc*(hov?1.06:1),sc*(hov?1.06:1));
+                ctx.translate(-CARD_W/2,-CARD_H/2);
+                ctx.fillStyle=rgba('ink',hov?0.28:0.14);
+                ctx.fillRect(hov?7:4,hov?7:4,CARD_W,CARD_H);
+                ctx.drawImage(art.face(card,v),0,0,CARD_W,CARD_H);
+                drawCost(ctx,card,false,v);
+                if (hov) {
+                    ctx.strokeStyle=li===1?PALETTE.red:PALETTE.ink;
+                    ctx.lineWidth=4;
+                    ctx.strokeRect(-5,-5,CARD_W+10,CARD_H+10);
+                    hovered={card,x:cx+cw/2,y:cy};
+                }
+                ctx.restore();
+            }
+            y+=Math.ceil(list.length/cols)*(ch+gap+6)+14;
+        }
+        this.contentH=y+this.scroll-V.y;
+        ctx.restore();
+        this.clampScroll();
+        drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0);
+        this.buttons=[this.backBtn];
+        if (hovered&&!this.drag) {
+            const below=hovered.y<V.y+140;
+            drawCardTooltip(ctx,hovered.card,Math.max(150,Math.min(w-150,hovered.x)),below?hovered.y+ch+170:hovered.y-10);
+        }
+        ctx.restore();
+    }
+}
+
+export class LevelView extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.35;
+        this.scroll=0;
+        this.scrollTo=0;
+        this.drag=null;
+        this.contentH=0;
+        this.view={x:0,y:0,w:1,h:1};
+        this.backBtn={x:0,y:0,w:0,h:0};
+    }
+
+    show() {
+        super.show();
+        this.scrollTo=Math.max(0,(effectiveLevel()-2)*TUNING.levelView.rowH);
+        this.scroll=0;
+    }
+
+    layout() {
+        const w=this.width;
+        const h=this.height;
+        const pw=Math.min(680,w-32);
+        const py=Math.max(12,h*0.05);
+        this.P={x:w/2-pw/2,y:py,w:pw,h:h-py*2};
+        const head=h<600?112:150;
+        this.view={x:this.P.x+18,y:this.P.y+head,w:pw-36,h:this.P.h-head-(h<600?62:76)};
+        this.backBtn={x:w/2-90,y:this.P.y+this.P.h-(h<600?54:64),w:180,h:h<600?42:48};
+        this.buttons=[this.backBtn];
+    }
+
+    clampScroll() {
+        this.scrollTo=Math.max(0,Math.min(Math.max(0,this.contentH-this.view.h),this.scrollTo));
+    }
+
+    wheel(dy) {
+        if (!this.open) {
+            return;
+        }
+        this.scrollTo+=dy;
+        this.clampScroll();
+    }
+
+    down(x,y) {
+        if (!this.open) {
+            return false;
+        }
+        this.layout();
+        if (inRect(this.backBtn,x,y)) {
+            this.actions.back();
+            return true;
+        }
+        if (inRect(this.view,x,y)) {
+            this.drag={y0:y,s0:this.scrollTo};
+        }
+        return true;
+    }
+
+    move(x,y) {
+        if (!this.drag) {
+            return;
+        }
+        this.scrollTo=this.drag.s0-(y-this.drag.y0);
+        this.clampScroll();
+        this.scroll=this.scrollTo;
+    }
+
+    up() {
+        this.drag=null;
+    }
+
+    update(dt) {
+        super.update(dt);
+        this.scroll+=(this.scrollTo-this.scroll)*(1-Math.exp(-TUNING.codex.follow*dt));
+    }
+
+    chips(ctx,ids,x,y,maxW,v,dim) {
+        let cx=x;
+        let cy=y;
+        ctx.font='13px '+FONT;
+        ctx.textBaseline='middle';
+        ctx.textAlign='left';
+        for (const id of ids) {
+            const rare=CARDS[id].rarity==='rare';
+            const label=t(CARDS[id].nameKey);
+            const cw=ctx.measureText(label).width+16;
+            if (cx+cw>x+maxW&&cx>x) {
+                cx=x;
+                cy+=28;
+            }
+            ctx.fillStyle=dim?rgba('farGray',0.5):(rare?rgba('red',0.1):rgba('paper',0.95));
+            ctx.fillRect(cx,cy,cw,22);
+            drawShape(ctx,sketchRect(cx,cy,cw,22,{width:1.1,seed:1400+id.length*7}),dim?PALETTE.midGray:(rare?PALETTE.red:PALETTE.ink),v);
+            ctx.fillStyle=dim?PALETTE.midGray:(rare?PALETTE.red:PALETTE.ink);
+            ctx.fillText(label,cx+8,cy+12);
+            cx+=cw+8;
+        }
+        return cy+22-y;
+    }
+
+    draw(ctx) {
+        if (!this.shown()) {
+            return;
+        }
+        this.layout();
+        const w=this.width;
+        const h=this.height;
+        const v=time.boilIndex;
+        const P=this.P;
+        const V=this.view;
+        const a=Math.min(1,this.t/0.3);
+        const e=EASE.easeOutBack(Math.min(1,this.t/0.4));
+        ctx.save();
+        ctx.globalAlpha=a;
+        ctx.fillStyle=rgba('paper',0.8);
+        ctx.fillRect(0,0,w,h);
+        ctx.translate(w/2,h/2);
+        ctx.scale(0.9+0.1*e,0.9+0.1*e);
+        ctx.translate(-w/2,-h/2);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(P.x,P.y,P.w,P.h);
+        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:1410}),PALETTE.ink,v);
+        const lv=effectiveLevel();
+        const real=progress.level;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.textAlign='center';
+        ctx.textBaseline='top';
+        ctx.font='bold '+(h<600?22:28)+'px '+FONT;
+        ctx.fillText(t('levels.title'),w/2,P.y+(h<600?10:18));
+        const need=xpToNext(real);
+        const f=Math.min(1,progress.xp/need);
+        const by=P.y+(h<600?44:62);
+        const bx=P.x+24;
+        const bw=P.w-48;
+        ctx.font='bold 15px '+FONT;
+        ctx.textAlign='left';
+        ctx.fillText(t('levels.current',{level:real,xp:progress.xp,next:need}),bx,by);
+        if (godMode()) {
+            ctx.fillStyle=PALETTE.red;
+            ctx.textAlign='right';
+            ctx.fillText(t('menu.god'),bx+bw,by);
+            ctx.textAlign='left';
+        }
+        ctx.fillStyle=rgba('farGray',0.8);
+        ctx.fillRect(bx,by+24,bw,10);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(bx,by+24,bw*f,10);
+        drawShape(ctx,sketchRect(bx,by+24,bw,10,{width:1.2,seed:1411}),PALETTE.ink,v);
+        const L=TUNING.levels;
+        ctx.font='12px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        const src=wrapText(ctx,t('levels.sources',{kill:L.xpKill,room:L.xpRoom,boss:L.xpBoss,act:L.xpAct,win:L.xpVictory}),bw);
+        for (let i=0;i<src.length&&i<2;i++) {
+            ctx.fillText(src[i],bx,by+42+i*16);
+        }
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(V.x-6,V.y,V.w+12,V.h);
+        ctx.clip();
+        let y=V.y-this.scroll;
+        const R=TUNING.levelView;
+        let total=0;
+        for (let n=1;n<=MAX_LEVEL;n++) {
+            if (n>1) {
+                total+=xpToNext(n-1);
+            }
+            const reached=n<=lv;
+            const cur=n===real;
+            const ids=UNLOCKS[n]||[];
+            const tmpH=ids.length>0?R.rowH:48;
+            const rowTop=y;
+            ctx.fillStyle=cur?rgba('red',0.07):(reached?rgba('paper',0.9):rgba('farGray',0.35));
+            ctx.fillRect(V.x,rowTop,V.w,tmpH-8);
+            drawShape(ctx,sketchRect(V.x,rowTop,V.w,tmpH-8,{width:cur?2.2:1.2,seed:1420+n}),cur?PALETTE.red:(reached?PALETTE.ink:PALETTE.midGray),v);
+            ctx.fillStyle=reached?PALETTE.ink:PALETTE.midGray;
+            ctx.font='bold 18px '+FONT;
+            ctx.textAlign='left';
+            ctx.textBaseline='top';
+            ctx.fillText(t('menu.level',{level:n}),V.x+14,rowTop+10);
+            ctx.font='12px '+FONT;
+            ctx.fillStyle=cur?PALETTE.red:PALETTE.nearGray;
+            const tag=cur?t('levels.here'):(reached?t('levels.done'):t('levels.need',{xp:total}));
+            ctx.fillText(tag,V.x+14,rowTop+34);
+            const ch=this.chips(ctx,ids,V.x+120,rowTop+10,V.w-134,v,!reached);
+            y+=Math.max(tmpH,ch+26);
+        }
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font='13px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillText(t('levels.beyond',{level:MAX_LEVEL}),V.x+4,y+4);
+        y+=30;
+        this.contentH=y+this.scroll-V.y;
+        ctx.restore();
+        this.clampScroll();
+        drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0);
+        ctx.restore();
     }
 }

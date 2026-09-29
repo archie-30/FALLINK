@@ -29,7 +29,7 @@ export function loadProgress() {
     }
     const q=new URLSearchParams(location.search);
     if (q.get('seen')==='all') {
-        progress.seen=['doodle','blob','sprayer','bird','compass','eraserMonster','inkBottle','scissors','book'];
+        progress.seen=['doodle','blob','sprayer','inkCloud','bird','compass','eraserMonster','inkBottle','scissors','book'];
     }
     const lv=Number(q.get('level'));
     if (lv>0) {

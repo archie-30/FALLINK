@@ -45,7 +45,7 @@ export class RewardView {
 
     show(groups,title,counts,onPick,target) {
         this.open=true;
-        this.groups=groups.map((g,gi)=>({kind:g.kind,sel:-1,gi}));
+        this.groups=groups.map((g,gi)=>({kind:g.kind,sel:-1,gi,skip:false,skipA:0,rect:null}));
         this.items=[];
         for (let gi=0;gi<groups.length;gi++) {
             groups[gi].cards.forEach((c,i)=>this.items.push({card:c,g:gi,i,x:0,y:0,lift:0,selA:0}));
@@ -111,6 +111,18 @@ export class RewardView {
         if (this.picked||this.t<0.5) {
             return true;
         }
+        if (this.dual()) {
+            for (const g of this.groups) {
+                const q=g.rect;
+                if (q&&x>=q.x&&x<=q.x+q.w&&y>=q.y&&y<=q.y+q.h) {
+                    g.skip=!g.skip;
+                    if (g.skip) {
+                        g.sel=-1;
+                    }
+                    return true;
+                }
+            }
+        }
         const r=this.btnRect;
         if (x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h) {
             if (!this.dual()) {
@@ -134,6 +146,7 @@ export class RewardView {
             this.confirm();
             return true;
         }
+        g.skip=false;
         g.sel=g.sel===it.i?-1:it.i;
         return true;
     }
@@ -143,6 +156,9 @@ export class RewardView {
             return;
         }
         this.t+=dt;
+        for (const g of this.groups) {
+            g.skipA+=((g.skip?1:0)-g.skipA)*(1-Math.exp(-12*dt));
+        }
         for (const it of this.items) {
             const on=this.groups[it.g].sel===it.i?1:0;
             it.selA+=(on-it.selA)*(1-Math.exp(-14*dt));
@@ -198,11 +214,26 @@ export class RewardView {
                 ctx.fillStyle=gi===1?PALETTE.red:PALETTE.ink;
                 ctx.font='bold '+Math.round(17*Math.min(1.2,s))+'px '+FONT;
                 const gy=h*0.52-CARD_H*s*0.5-50*s;
-                ctx.fillText(t(gi===0?'reward.pickNormal':'reward.pickRare'),cx,gy);
                 const bw=gap*2+CARD_W*s*0.3;
+                ctx.textAlign='left';
+                ctx.fillText(t(gi===0?'reward.pickNormal':'reward.pickRare'),cx-bw/2+16,gy);
+                ctx.textAlign='center';
+                const g=this.groups[gi];
+                const col=gi===1?PALETTE.red:PALETTE.ink;
+                ctx.font='bold 13px '+FONT;
+                const lbl=t(g.skip?'reward.unskip':'reward.skipGroup');
+                const sw=ctx.measureText(lbl).width+18;
+                const sr={x:Math.round(cx+bw/2-sw-10),y:Math.round(gy-13),w:Math.round(sw),h:26};
+                g.rect=sr;
+                ctx.fillStyle=rgba(gi===1?'red':'ink',0.9*g.skipA);
+                ctx.fillRect(sr.x,sr.y,sr.w,sr.h);
+                drawShape(ctx,sketchRect(sr.x,sr.y,sr.w,sr.h,{width:1.4,seed:840+gi}),col,v);
+                ctx.fillStyle=g.skipA>0.5?PALETTE.paper:col;
+                ctx.fillText(lbl,sr.x+sr.w/2,sr.y+sr.h/2+1);
+                ctx.font='bold '+Math.round(17*Math.min(1.2,s))+'px '+FONT;
                 ctx.save();
                 ctx.translate(Math.round(cx-bw/2),Math.round(gy-18*s));
-                drawShape(ctx,sketchRect(0,0,Math.round(bw),Math.round(CARD_H*s+134*s),{width:1.4,seed:830+gi}),gi===1?rgba('red',0.5):rgba('ink',0.35),v);
+                drawShape(ctx,sketchRect(0,0,Math.round(bw),Math.round(CARD_H*s+116*s),{width:1.4,seed:830+gi}),gi===1?rgba('red',0.5):rgba('ink',0.35),v);
                 ctx.restore();
             }
             ctx.globalAlpha=1;
@@ -218,7 +249,8 @@ export class RewardView {
             let y=sl.y+(1-e)*h*0.7;
             let rot=sl.rot+(1-e)*(it.i-0.5)*0.8;
             let sc=s*(0.6+0.4*e);
-            let alpha=1;
+            const skipA=this.groups[it.g].skipA;
+            let alpha=1-skipA*0.65;
             const hov=this.hover===idx&&!this.picked;
             const lift=Math.max(hov?1:0,it.selA);
             it.lift+=(lift-it.lift)*0.25;
@@ -237,7 +269,7 @@ export class RewardView {
                 else {
                     y+=k*h*0.6;
                     rot+=k*(it.i===0?-0.8:0.8);
-                    alpha=1-k;
+                    alpha*=1-k;
                 }
             }
             it.x=x;
@@ -301,7 +333,7 @@ export class RewardView {
         const bw=(dual?190:150)*Math.min(1.2,s);
         const bh=42;
         const bx=w/2-bw/2;
-        const by=Math.min(h*0.52+CARD_H*s*0.5+(dual?60:44)*Math.min(1.2,s),h-bh-(dual?32:12));
+        const by=Math.min(h*0.52+CARD_H*s*0.5+(dual?48*s+14:44*Math.min(1.2,s)),h-bh-(dual?32:12));
         this.btnRect={x:bx,y:by,w:bw,h:bh};
         const ba=Math.min(1,Math.max(0,(this.t-0.6)/0.3))*fade;
         const label=dual?(this.selected().length>0?t('reward.confirm',{n:this.selected().length}):t('reward.skipAll')):t('reward.skip');
