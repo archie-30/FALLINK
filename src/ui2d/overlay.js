@@ -24,7 +24,7 @@ export class Overlay {
     resize(w,h) {
         this.width=w;
         this.height=h;
-        const cap=device.mobile?(settings.quality==='high'?2:1.5):2;
+        const cap=device.mobile?(settings.quality==='high'?2:(settings.quality==='mid'?1.25:1)):2;
         this.dpr=Math.min(window.devicePixelRatio||1,cap);
         this.canvas.width=Math.floor(w*this.dpr);
         this.canvas.height=Math.floor(h*this.dpr);
@@ -70,11 +70,16 @@ export class Overlay {
             }
             game.hand.draw(ctx,game.art);
             if (touchUi) {
-                this.drawSticks(input);
+                this.drawSticks(input,!!game.hand.targetView);
+                const ta=game.hand.tooltipAnchor();
+                if (ta) {
+                    drawCardTooltip(ctx,ta.card,ta.x,ta.y);
+                }
                 this.drawDash(input,player);
             }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
+            this.hud.drawToast(ctx,this.width,game.dt);
             this.hud.drawPause(ctx,this.width);
             game.deckView.draw(ctx,game.art,game.deck);
             game.reward.draw(ctx,game.art);
@@ -149,18 +154,29 @@ export class Overlay {
         ctx.stroke();
     }
 
-    drawSticks(input) {
-        const R=TUNING.input.stickRadius;
+    drawSticks(input,casting) {
+        const ctx=this.ctx;
         for (const s of [input.move,input.aim]) {
-            if (s.id<0) {
-                continue;
-            }
-            this.ring(s.ox,s.oy,R,2,rgba('ink',0.35),s===input.move?11:23);
-            const dx=s.x-s.ox;
-            const dy=s.y-s.oy;
-            const d=Math.hypot(dx,dy);
-            const k=d>R?R/d:1;
-            this.ring(s.ox+dx*k,s.oy+dy*k,R*0.38,3,rgba('ink',0.7),s===input.move?41:57);
+            const R=s.r;
+            const act=s.id>=0;
+            const card=s===input.aim&&casting;
+            ctx.fillStyle=rgba(card?'red':'paper',card?0.12:(act?0.5:0.32));
+            ctx.beginPath();
+            ctx.arc(s.cx,s.cy,R,0,Math.PI*2);
+            ctx.fill();
+            this.ring(s.cx,s.cy,R,act?2.4:1.6,card?PALETTE.red:rgba('ink',act?0.55:0.3),s===input.move?11:23);
+            const kx=act?s.x:s.cx;
+            const ky=act?s.y:s.cy;
+            ctx.fillStyle=card?rgba('red',0.35):rgba('ink',act?0.3:0.14);
+            ctx.beginPath();
+            ctx.arc(kx,ky,R*0.4,0,Math.PI*2);
+            ctx.fill();
+            this.ring(kx,ky,R*0.4,3,card?PALETTE.red:rgba('ink',act?0.8:0.45),s===input.move?41:57);
+            ctx.fillStyle=card?PALETTE.red:rgba('ink',0.55);
+            ctx.font='bold 13px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='top';
+            ctx.fillText(s===input.move?t('ui.move'):(card?t('ui.cast'):t('ui.fire')),s.cx,s.cy+R+6);
         }
     }
 

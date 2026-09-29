@@ -1,7 +1,7 @@
 import {TUNING} from '../data/tuning.js';
 
 function makeStick() {
-    return {id:-1,ox:0,oy:0,x:0,y:0,vx:0,vy:0,mag:0};
+    return {id:-1,cx:0,cy:0,r:70,ox:0,oy:0,x:0,y:0,vx:0,vy:0,mag:0,maxMag:0,t0:0};
 }
 
 export class Input {
@@ -29,6 +29,9 @@ export class Input {
         this.onEscape=null;
         this.onPauseKey=null;
         this.onWheel=null;
+        this.onAimRelease=null;
+        this.canStick=null;
+        this.aimForCard=false;
         this.ui=null;
         this.uiPointers=new Set();
         this.bind();
@@ -58,7 +61,11 @@ export class Input {
         window.addEventListener('keydown',e=>this.keyDown(e));
         window.addEventListener('keyup',e=>this.keys.delete(e.code));
         window.addEventListener('blur',()=>this.clear());
-        document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+        document.addEventListener('touchmove',e=>{
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+        },{passive:false});
         document.addEventListener('gesturestart',e=>e.preventDefault());
         document.addEventListener('dblclick',e=>e.preventDefault());
     }
@@ -66,9 +73,34 @@ export class Input {
     resize(w,h) {
         this.width=w;
         this.height=h;
-        const o=TUNING.input.dashButtonOffset;
-        this.dash.x=w-o[0];
-        this.dash.y=h-o[1];
+        const I=TUNING.input;
+        const r=Math.max(I.stickMin,Math.min(I.stickMax,h*I.stickScale));
+        const pad=Math.max(I.stickPad[0],r*0.35);
+        for (const s of [this.move,this.aim]) {
+            s.r=r;
+            s.cy=h-I.stickPad[1]-r;
+        }
+        this.move.cx=pad+r;
+        this.aim.cx=w-pad-r;
+        for (const s of [this.move,this.aim]) {
+            if (s.id<0) {
+                s.ox=s.cx;
+                s.oy=s.cy;
+            }
+        }
+        this.dash.r=r*I.dashScale;
+        const a=I.dashAngle;
+        this.dash.x=this.aim.cx+Math.cos(a)*(r+this.dash.r+I.dashGap);
+        this.dash.y=this.aim.cy+Math.sin(a)*(r+this.dash.r+I.dashGap);
+    }
+
+    stickAt(x,y) {
+        for (const s of [this.move,this.aim]) {
+            if (s.id<0&&Math.hypot(x-s.cx,y-s.cy)<=s.r*TUNING.input.stickGrab) {
+                return s;
+            }
+        }
+        return null;
     }
 
     clear() {
@@ -166,6 +198,23 @@ export class Input {
         else if (this.lastDevice!=='touch'&&this.onFirstTouch) {
             this.onFirstTouch();
         }
+        if (e.pointerType!=='mouse'&&this.canStick&&this.canStick()) {
+            const d=this.dash;
+            const st=this.stickAt(x,y);
+            const onDash=d.id<0&&Math.hypot(x-d.x,y-d.y)<=d.r*1.2;
+            if (st||onDash) {
+                this.lastDevice='touch';
+                this.touches.set(e.pointerId,{x,y,t:performance.now()});
+                if (onDash&&(!st||Math.hypot(x-d.x,y-d.y)<Math.hypot(x-st.cx,y-st.cy))) {
+                    d.id=e.pointerId;
+                    d.flash=1;
+                    this.dashQueued=true;
+                    return;
+                }
+                this.startStick(st,e.pointerId,x,y);
+                return;
+            }
+        }
         if (this.ui&&this.ui.down(x,y,e.pointerId,e.pointerType,e.button)) {
             this.uiPointers.add(e.pointerId);
             if (e.pointerType!=='mouse') {
@@ -201,13 +250,9 @@ export class Input {
             this.dashQueued=true;
             return;
         }
-        if (x<this.width*0.5) {
-            if (this.move.id<0) {
-                this.startStick(this.move,e.pointerId,x,y);
-            }
-        }
-        else if (this.aim.id<0) {
-            this.startStick(this.aim,e.pointerId,x,y);
+        const st=this.stickAt(x,y);
+        if (st) {
+            this.startStick(st,e.pointerId,x,y);
         }
     }
 
@@ -268,7 +313,11 @@ export class Input {
             this.releaseStick(this.move);
         }
         if (e.pointerId===this.aim.id) {
-            this.releaseStick(this.aim);
+            const a=this.aim;
+            if (this.onAimRelease) {
+                this.onAimRelease(a.vx,a.vy,a.mag,a.maxMag<=0&&performance.now()-a.t0<TUNING.input.tapTime);
+            }
+            this.releaseStick(a);
         }
         if (e.pointerId===this.dash.id) {
             this.dash.id=-1;
@@ -277,31 +326,29 @@ export class Input {
 
     startStick(s,id,x,y) {
         s.id=id;
-        s.ox=x;
-        s.oy=y;
-        s.x=x;
-        s.y=y;
-        s.vx=0;
-        s.vy=0;
-        s.mag=0;
+        s.ox=s.cx;
+        s.oy=s.cy;
+        s.maxMag=0;
+        s.t0=performance.now();
+        this.dragStick(s,x,y);
     }
 
     dragStick(s,x,y) {
-        const R=TUNING.input.stickRadius;
+        const R=s.r;
         let dx=x-s.ox;
         let dy=y-s.oy;
         let d=Math.hypot(dx,dy);
         if (d>R) {
-            s.ox+=dx*(1-R/d);
-            s.oy+=dy*(1-R/d);
-            dx=x-s.ox;
-            dy=y-s.oy;
+            dx*=R/d;
+            dy*=R/d;
             d=R;
         }
-        s.x=x;
+        s.x=s.ox+dx;
+        s.y=s.oy+dy;
         s.y=y;
         const m=d/R;
         s.mag=m<TUNING.input.deadZone?0:(m-TUNING.input.deadZone)/(1-TUNING.input.deadZone);
+        s.maxMag=Math.max(s.maxMag,s.mag);
         if (d>1e-4) {
             s.vx=dx/d*s.mag;
             s.vy=dy/d*s.mag;
@@ -314,6 +361,8 @@ export class Input {
 
     releaseStick(s) {
         s.id=-1;
+        s.x=s.cx;
+        s.y=s.cy;
         s.vx=0;
         s.vy=0;
         s.mag=0;
@@ -350,7 +399,7 @@ export class Input {
     }
 
     getAim(out) {
-        if (this.aim.id>=0&&this.aim.mag>0) {
+        if (this.aim.id>=0&&this.aim.mag>0&&!this.aimForCard) {
             out.mode='dir';
             const l=Math.hypot(this.aim.vx,this.aim.vy);
             out.dx=this.aim.vx/l;
@@ -369,7 +418,7 @@ export class Input {
 
     isFiring() {
         if (this.aim.id>=0&&this.aim.mag>0) {
-            return true;
+            return !this.aimForCard;
         }
         return this.lastDevice==='mouse'&&this.mouse.down;
     }

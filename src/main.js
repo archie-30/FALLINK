@@ -694,6 +694,11 @@ function boot() {
                 return mainMenu.down(x,y);
             }
             if (pauseMenu.open) {
+                const hc=type==='mouse'?null:hand.hitCard(x,y);
+                if (hc) {
+                    hand.hover=hand.hover===hc?null:hc;
+                    return true;
+                }
                 if (hand.inRect(hand.drawRect,x,y)||hand.inRect(hand.discardRect,x,y)) {
                     openDeck();
                     return true;
@@ -799,6 +804,12 @@ function boot() {
         openPause();
     };
     input.onWheel=dy=>codex.wheel(dy);
+    input.canStick=()=>game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!reward.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.onAimRelease=(vx,vy,mag,tap)=>{
+        if (hand.targetView&&run.state==='combat'&&input.canStick()) {
+            hand.stickCast(vx,vy,mag,tap);
+        }
+    };
     input.onPauseKey=()=>{
         if (pauseMenu.open) {
             closePause();
@@ -980,6 +991,22 @@ function boot() {
         }
         renderer.post.uniforms.uBleed.value=Math.max(bleed,low);
     }
+    let slowT=0;
+    function updatePerf(dt) {
+        const P=TUNING.perf;
+        if (!device.mobile||game.mode!=='play'||fx.paused||settings.quality==='low') {
+            return;
+        }
+        slowT=time.fps<P.lowFps?slowT+dt:Math.max(0,slowT-dt*0.5);
+        if (slowT>P.window) {
+            slowT=0;
+            settings.quality=settings.quality==='high'?'mid':'low';
+            saveSettings();
+            applyQuality();
+            resize();
+            overlay.hud.toast(t('perf.lowered'));
+        }
+    }
     function render(dt,alpha) {
         fx.update(dt);
         tweens.update(dt*time.timeScale,dt);
@@ -995,7 +1022,11 @@ function boot() {
         rings.update(dt*time.timeScale);
         dangerRings.update(dt*time.timeScale);
         preview.update(dt);
+        const touchCast=input.lastDevice==='touch'&&!!hand.targetView;
+        input.aimForCard=touchCast;
+        hand.stickAim(input.aim.vx,input.aim.vy,input.aim.mag,input.aim.id>=0,touchCast);
         hand.update(dt,pauseMenu.open||deckView.open);
+        updatePerf(dt);
         deckView.update(dt);
         for (const sh of allShards()) {
             sh.render();

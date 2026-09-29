@@ -110,6 +110,7 @@ export class Hand {
         this.lastDiscard=null;
         this.drawRect={x:0,y:0,w:0,h:0};
         this.discardRect={x:0,y:0,w:0,h:0};
+        this.stickT=null;
         this._tmp={x:0,y:0};
         this._g={x:0,y:0,z:0};
     }
@@ -477,6 +478,7 @@ export class Hand {
 
     cancelTargeting() {
         this.path=null;
+        this.stickT=null;
         if (this.targetView) {
             this.targetView=null;
         }
@@ -532,6 +534,9 @@ export class Hand {
                 this.press={id,v:this.targetView,x0:x,y0:y,type,moved:true,pathOnly:true};
                 return true;
             }
+            if (type!=='mouse') {
+                return false;
+            }
             if (y<this.fieldBottom()) {
                 const v=this.targetView;
                 const target=this.resolveTarget(v.card,x,y);
@@ -574,7 +579,7 @@ export class Hand {
             p.v.state='drag';
             this.hover=null;
         }
-        if (p.moved&&p.v.card.def.targeting==='drawPath'&&y<this.fieldBottom()) {
+        if (p.moved&&p.v.card.def.targeting==='drawPath'&&y<this.fieldBottom()&&(p.type==='mouse'||p.pathOnly)) {
             if (!this.path) {
                 this.path={card:p.v.card,pts:[],len:0};
             }
@@ -611,6 +616,18 @@ export class Hand {
         }
         this.press=null;
         const v=p.v;
+        if (p.type!=='mouse'&&!p.pathOnly) {
+            this.api.preview.hide();
+            if (p.moved) {
+                v.state='idle';
+                if (this.inRect(this.discardRect,x,y,20)) {
+                    this.discardView(v);
+                }
+                return;
+            }
+            this.enterTargeting(v);
+            return;
+        }
         if (v.card.def.targeting==='drawPath'&&p.moved) {
             this.api.preview.hide();
             const path=this.path;
@@ -652,8 +669,106 @@ export class Hand {
         this.tryPlay(v,this.resolveTarget(v.card));
     }
 
+    stickTarget(card,vx,vy,mag) {
+        const api=this.api;
+        const p=api.playerPos();
+        const tg=card.def.targeting;
+        const range=cardRange(card);
+        const l=Math.hypot(vx,vy);
+        let dx=0;
+        let dz=0;
+        let dist=0;
+        if (l>0.01) {
+            dx=vx/l;
+            dz=vy/l;
+            dist=Math.max(1.2,Math.min(1,mag)*range);
+        }
+        else {
+            const e=api.nearestEnemy(p.x,p.z,range*1.4);
+            if (e) {
+                const ex=e.x-p.x;
+                const ez=e.z-p.z;
+                const el=Math.hypot(ex,ez)||1;
+                dx=ex/el;
+                dz=ez/el;
+                dist=Math.min(range,el);
+            }
+            else {
+                const a=api.aimDir();
+                dx=a.x;
+                dz=a.z;
+                dist=Math.min(range,5);
+            }
+        }
+        const out={type:tg,x:p.x+dx*3,z:p.z+dz*3,dx,dz};
+        if (tg==='point') {
+            out.x=p.x+dx*dist;
+            out.z=p.z+dz*dist;
+        }
+        else if (tg==='drawPath') {
+            const d=l>0.01?Math.max(2.2,Math.min(1,mag)*6.5):2.8;
+            const cx=p.x+dx*d;
+            const cz=p.z+dz*d;
+            const half=Math.min(cardParams(card).length||8,7)/2;
+            out.points=[];
+            for (let i=0;i<=6;i++) {
+                const f=(i/6-0.5)*2*half;
+                out.points.push({x:cx-dz*f,z:cz+dx*f});
+            }
+            out.x=out.points[0].x;
+            out.z=out.points[0].z;
+        }
+        return out;
+    }
+
+    stickAim(vx,vy,mag,active,touch) {
+        const v=this.targetView;
+        if (!v||!touch||this.path) {
+            this.stickT=null;
+            return;
+        }
+        const on=active&&mag>0;
+        this.stickT=this.stickTarget(v.card,on?vx:0,on?vy:0,on?mag:0);
+    }
+
+    tooltipAnchor() {
+        const v=this.targetView;
+        if (!v) {
+            return null;
+        }
+        const y=this.height-CARD_H*this.s*C.restShow-18*this.s-C.targetLift*this.s-40*this.s;
+        return {card:v.card,x:v.x,y};
+    }
+
+    stickCast(vx,vy,mag,tap) {
+        const v=this.targetView;
+        this.stickT=null;
+        if (!v||v.state!=='idle') {
+            return false;
+        }
+        if (!tap&&mag<=0) {
+            return false;
+        }
+        const target=this.stickTarget(v.card,tap?0:vx,tap?0:vy,mag);
+        this.targetView=null;
+        this.path=null;
+        this.api.preview.hide();
+        this.tryPlay(v,target);
+        return true;
+    }
+
     updatePreview() {
         const api=this.api;
+        if (this.stickT&&this.targetView) {
+            const tg=this.stickT;
+            if (tg.points) {
+                api.preview.showPath(tg.points,this.targetView.card);
+            }
+            else {
+                api.preview.show(this.targetView.card,tg,api.playerPos());
+            }
+            return;
+        }
         if (this.path) {
             api.preview.showPath(this.path.pts,this.path.card);
             return;
@@ -1018,6 +1133,16 @@ export class Hand {
         else if (this.burnMsgT>0) {
             ctx.fillStyle=rgba('ink',Math.min(1,this.burnMsgT));
             ctx.fillText(t('deck.burn'),this.width/2,y);
+        }
+        else if (this.targetView&&!(this.api.showKeys&&this.api.showKeys())) {
+            const txt=t(this.targetView.card.def.targeting==='drawPath'?'hand.touchHintPath':'hand.touchHint');
+            ctx.font='bold '+Math.round(14*s)+'px '+FONT;
+            const hy=y-C.targetLift*s-8*s;
+            const w=ctx.measureText(txt).width+24*s;
+            ctx.fillStyle=rgba('paper',0.85);
+            ctx.fillRect(this.width/2-w/2,hy-22*s,w,26*s);
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillText(txt,this.width/2,hy);
         }
         else if (this.targetView&&this.api.showKeys&&this.api.showKeys()) {
             const v=this.targetView;

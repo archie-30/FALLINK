@@ -59,6 +59,11 @@ export class DeckView {
         if (!this.open) {
             return false;
         }
+        this.hx=x;
+        this.hy=y;
+        if (this.hovered()) {
+            return true;
+        }
         this.hide();
         return true;
     }

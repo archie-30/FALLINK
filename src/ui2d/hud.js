@@ -184,6 +184,33 @@ export class Hud {
         ctx.fillRect(r.x+26,r.y+13,5,20);
     }
 
+    toast(text) {
+        this.toastText=text;
+        this.toastT=TUNING.hud.toastTime;
+    }
+
+    drawToast(ctx,w,dt) {
+        if (!(this.toastT>0)) {
+            return;
+        }
+        this.toastT-=dt;
+        const a=Math.min(1,this.toastT/0.4,(TUNING.hud.toastTime-this.toastT)/0.2);
+        ctx.save();
+        ctx.globalAlpha=Math.max(0,a);
+        ctx.font='bold 14px '+FONT;
+        const tw=ctx.measureText(this.toastText).width+28;
+        ctx.fillStyle=rgba('paper',0.92);
+        ctx.fillRect(w/2-tw/2,58,tw,30);
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=1.5;
+        ctx.strokeRect(w/2-tw/2,58,tw,30);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(this.toastText,w/2,74);
+        ctx.restore();
+    }
+
     banner(text,sub,dur=2.2) {
         this.bannerText=text;
         this.bannerSub=sub||'';
