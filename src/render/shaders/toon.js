@@ -47,6 +47,7 @@ uniform float uFar;
 uniform float uFlash;
 uniform vec3 uFlashColor;
 uniform float uAlpha;
+uniform vec2 uHatch;
 uniform vec3 uInk;
 #ifdef USE_REVEAL
 uniform float uReveal;
@@ -130,13 +131,15 @@ void main() {
     else {
         vec3 h=hatchSample(vWorldPos,n);
         float ink=h.r;
-        if (l<uBands.z) {
-            ink=max(ink,h.g);
+        if (uHatch.x>0.999) {
+            if (l<uBands.z) {
+                ink=max(ink,h.g);
+            }
+            if (l<uBands.w) {
+                ink=max(ink,h.b);
+            }
         }
-        if (l<uBands.w) {
-            ink=max(ink,h.b);
-        }
-        col=mix(uColMid,uColDark,ink);
+        col=mix(mix(uColMid,uColDark,uHatch.y),uColDark,ink*uHatch.x);
     }
     #ifdef USE_GRID
     vec2 g=abs(fract(vWorldPos.xz/uGrid.x+0.5)-0.5)*uGrid.x;

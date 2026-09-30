@@ -74,6 +74,9 @@ async function requestFullscreen() {
     }
     try {
         await el.requestFullscreen({navigationUI:'hide'});
+        if (navigator.keyboard&&navigator.keyboard.lock) {
+            navigator.keyboard.lock(['Escape']).catch(()=>{});
+        }
         if (screen.orientation&&screen.orientation.lock) {
             await screen.orientation.lock('landscape');
         }
@@ -1202,7 +1205,12 @@ function boot() {
             gestureFull();
         }
     });
-    document.addEventListener('fullscreenchange',()=>setTimeout(resize,60));
+    document.addEventListener('fullscreenchange',()=>{
+        setTimeout(resize,60);
+        if (!document.fullscreenElement&&settings.fullscreen&&game.mode==='play'&&!pauseMenu.open&&!trainingMenu.open) {
+            openPause();
+        }
+    });
     overlay.showDebug=settings.showFps;
     window.addEventListener('resize',resize);
     window.addEventListener('orientationchange',()=>setTimeout(resize,150));
