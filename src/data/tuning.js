@@ -333,6 +333,9 @@ export const TUNING={
         hoverScale:0.06,
         pressScale:0.18
     },
+    tutorial:{
+        follow:9
+    },
     menu:{
         colFrac:0.34,
         colMax:420,
