@@ -5,6 +5,7 @@ import {addHull as addHullBase} from '../render/outline.js';
 import {resolveCircle,clampToBounds} from '../core/collision.js';
 import {time} from '../core/loop.js';
 import {SKIN_TONES,ACCENTS} from '../data/palette.js';
+import {WEAPONS} from '../data/weapons.js';
 import {DEFAULT_SKIN} from '../data/skins.js';
 
 const _mv={x:0,z:0};
@@ -57,7 +58,11 @@ export class Player {
         this.rapidMult=1;
         this.dualT=0;
         this.reflectT=0;
-        this.ammo=TUNING.weapon.magazine;
+        this.W={...TUNING.weapon,...WEAPONS.pen};
+        this.weaponId='pen';
+        this.burstLeft=0;
+        this.burstT=0;
+        this.ammo=this.W.magazine;
         this.reloadT=0;
         this.hp=TUNING.player.maxHp;
         this.invuln=0;
@@ -232,7 +237,61 @@ export class Player {
         cap.position.z=-0.27;
         const clip=new THREE.Mesh(new THREE.BoxGeometry(0.025,0.03,0.26),face);
         clip.position.set(0,0.09,-0.08);
-        this.gun.add(barrel,nib,band,cap,clip);
+        const penG=new THREE.Group();
+        penG.add(barrel,nib,band,cap,clip);
+        this.gun.add(penG);
+        const looks={pen:penG};
+        const mk=(geo,mat,x,y,z,rx=Math.PI/2,hl=true)=>{
+            const m=new THREE.Mesh(geo,mat);
+            m.position.set(x,y,z);
+            m.rotation.x=rx;
+            if (hl) {
+                addHull(m,hull);
+            }
+            return m;
+        };
+        const pencil=new THREE.Group();
+        pencil.add(mk(new THREE.CylinderGeometry(0.07,0.07,0.52,6),gear,0,0,-0.02));
+        pencil.add(mk(new THREE.ConeGeometry(0.07,0.18,6),face,0,0,0.33,Math.PI/2,false));
+        pencil.add(mk(new THREE.ConeGeometry(0.025,0.07,6),ink,0,0,0.43,Math.PI/2,false));
+        pencil.add(mk(new THREE.CylinderGeometry(0.075,0.075,0.07,6),face,0,0,-0.3,Math.PI/2,false));
+        pencil.add(mk(new THREE.CylinderGeometry(0.068,0.068,0.08,6),hat,0,0,-0.37,Math.PI/2,false));
+        looks.pencil=pencil;
+        const brush=new THREE.Group();
+        brush.add(mk(new THREE.CylinderGeometry(0.045,0.055,0.5,8),hat,0,0,-0.08));
+        brush.add(mk(new THREE.CylinderGeometry(0.06,0.05,0.08,8),face,0,0,0.19,Math.PI/2,false));
+        brush.add(mk(new THREE.ConeGeometry(0.075,0.26,8),ink,0,0,0.35,Math.PI/2));
+        looks.brush=brush;
+        const stapler=new THREE.Group();
+        stapler.add(mk(new THREE.BoxGeometry(0.16,0.09,0.52),gear,0,-0.04,0,0));
+        stapler.add(mk(new THREE.BoxGeometry(0.14,0.08,0.48),hat,0,0.06,0.01,-0.08));
+        stapler.add(mk(new THREE.BoxGeometry(0.12,0.04,0.06),ink,0,0.01,0.27,0,false));
+        looks.stapler=stapler;
+        const hi=new THREE.Group();
+        hi.add(mk(new THREE.CylinderGeometry(0.1,0.1,0.42,8),coat,0,0,0));
+        hi.add(mk(new THREE.CylinderGeometry(0.105,0.105,0.14,8),hat,0,0,-0.26,Math.PI/2));
+        hi.add(mk(new THREE.BoxGeometry(0.12,0.04,0.12),face,0,0,0.26,0.6,false));
+        looks.highlighter=hi;
+        const comp=new THREE.Group();
+        for (const sx of [-1,1]) {
+            const leg=mk(new THREE.CylinderGeometry(0.03,0.02,0.52,6),gear,sx*0.05,0,0.06);
+            leg.rotation.z=sx*0.12;
+            comp.add(leg);
+        }
+        comp.add(mk(new THREE.SphereGeometry(0.06,8,6),face,0,0,-0.22,0));
+        comp.add(mk(new THREE.ConeGeometry(0.02,0.08,6),ink,0.02,0,0.34,Math.PI/2,false));
+        looks.compass=comp;
+        for (const k in looks) {
+            if (k!=='pen') {
+                this.gun.add(looks[k]);
+            }
+        }
+        this.weaponLook=id=>{
+            for (const k in looks) {
+                looks[k].visible=k===id;
+            }
+        };
+        this.weaponLook('pen');
         this.body.add(this.gun);
         this.muzzle=new THREE.Object3D();
         this.muzzle.position.z=0.46;
@@ -325,7 +384,8 @@ export class Player {
         this.hasteMult=1;
         this.dualT=0;
         this.reflectT=0;
-        this.ammo=TUNING.weapon.magazine;
+        this.ammo=this.W.magazine;
+        this.burstLeft=0;
         this.reloadT=0;
         this.invuln=1.0;
         this.setShield(0);
@@ -346,8 +406,21 @@ export class Player {
         this.kick=1;
     }
 
+    setWeapon(id) {
+        const def=WEAPONS[id]||WEAPONS.pen;
+        this.weaponId=WEAPONS[id]?id:'pen';
+        this.W={...TUNING.weapon,...def};
+        this.ammo=this.W.magazine;
+        this.reloadT=0;
+        this.burstLeft=0;
+        if (this.weaponLook) {
+            this.weaponLook(this.weaponId);
+        }
+    }
+
     startReload() {
-        this.reloadT=TUNING.weapon.reloadTime;
+        this.burstLeft=0;
+        this.reloadT=this.W.reloadTime;
         if (this.events.onReload) {
             this.events.onReload(this);
         }
@@ -416,8 +489,18 @@ export class Player {
         this.aimYaw=Math.atan2(dx,dz);
     }
 
+    shoot(ctx,aim) {
+        this.fire(ctx,aim);
+        if (this.rapidT<=0) {
+            this.ammo--;
+            if (this.ammo<=0) {
+                this.startReload();
+            }
+        }
+    }
+
     fire(ctx,aim) {
-        const W=TUNING.weapon;
+        const W=this.W;
         const mp=this.muzzlePoint(this._mp||(this._mp={x:0,z:0}));
         const mx=mp.x;
         const mz=mp.z;
@@ -432,17 +515,34 @@ export class Player {
                 dz=az/al;
             }
         }
-        const a=Math.atan2(dz,dx)+(Math.random()*2-1)*W.spread;
-        dx=Math.cos(a);
-        dz=Math.sin(a);
-        if (this.dualT>0) {
-            const o=W.dualOffset;
-            ctx.playerBullets.spawn(mx-dz*o,mz+dx*o,dx,dz,W.bulletSpeed,W.damage,W.bulletLife);
-            ctx.playerBullets.spawn(mx+dz*o,mz-dx*o,dx,dz,W.bulletSpeed,W.damage,W.bulletLife);
+        const sys=W.sys==='staple'?ctx.stapleBullets:(W.sys==='compass'?ctx.compassBullets:ctx.playerBullets);
+        const base=Math.atan2(dz,dx);
+        const n=W.pellets||1;
+        const lanes=this.dualT>0?[-W.dualOffset,W.dualOffset]:[0];
+        for (let p=0;p<n;p++) {
+            const a=base+(n>1?(p/(n-1)-0.5)*W.fan:0)+(Math.random()*2-1)*W.spread;
+            const cx=Math.cos(a);
+            const cz=Math.sin(a);
+            for (const o of lanes) {
+                sys.spawn(mx-cz*o,mz+cx*o,cx,cz,W.bulletSpeed,W.damage,W.bulletLife);
+            }
         }
-        else {
-            ctx.playerBullets.spawn(mx,mz,dx,dz,W.bulletSpeed,W.damage,W.bulletLife);
+        if (W.erase) {
+            const E=W.erase;
+            const px=this.pos.x;
+            const pz=this.pos.z;
+            ctx.enemyBullets.killWhere((x,z)=>{
+                const ex=x-px;
+                const ez=z-pz;
+                const l=Math.hypot(ex,ez);
+                return l<E.radius&&(ex*Math.cos(base)+ez*Math.sin(base))/(l||1)>Math.cos(E.cone);
+            },(x,z)=>ctx.particles.burst(x,1,z,2,{color:'farGray',speed:[1,3],up:[1,2]}));
+            if (ctx.onBrush) {
+                ctx.onBrush(mx,mz,base,W.fan,E.radius);
+            }
         }
+        dx=Math.cos(base);
+        dz=Math.sin(base);
         this.recoil();
         this.stv-=0.6;
         if (this.events.onFire) {
@@ -543,7 +643,7 @@ export class Player {
         this.st=Math.max(-0.45,Math.min(0.8,this.st));
         this.kick*=Math.exp(-18*dt);
         this.fireCd-=dt;
-        const W=TUNING.weapon;
+        const W=this.W;
         if (this.reloadT>0) {
             this.reloadT-=dt;
             if (this.reloadT<=0) {
@@ -560,25 +660,27 @@ export class Player {
         this.rapidT=Math.max(0,this.rapidT-dt);
         this.dualT=Math.max(0,this.dualT-dt);
         this.reflectT=Math.max(0,this.reflectT-dt);
-        if (input.isFiring()&&this.fireCd<=0&&this.hp>0&&this.reloadT<=0&&this.ammo>0) {
-            this.fireCd+=TUNING.weapon.fireInterval/(this.rapidT>0?this.rapidMult:1);
+        if (this.burstLeft>0&&this.hp>0&&this.reloadT<=0) {
+            this.burstT-=dt;
+            if (this.burstT<=0) {
+                this.burstT+=W.burstGap;
+                this.burstLeft--;
+                this.shoot(ctx,aim);
+            }
+        }
+        if (input.isFiring()&&this.fireCd<=0&&this.hp>0&&this.reloadT<=0&&this.ammo>0&&this.burstLeft<=0) {
+            this.fireCd+=W.fireInterval/(this.rapidT>0?this.rapidMult:1);
             if (this.fireCd<0) {
                 this.fireCd=0;
-        this.rapidT=0;
-        this.rapidMult=1;
             }
-            this.fire(ctx,aim);
-            if (this.rapidT<=0) {
-                this.ammo--;
-                if (this.ammo<=0) {
-                    this.startReload();
-                }
+            if (W.burst>1) {
+                this.burstLeft=W.burst-1;
+                this.burstT=W.burstGap;
             }
+            this.shoot(ctx,aim);
         }
         else if (this.fireCd<0) {
             this.fireCd=0;
-        this.rapidT=0;
-        this.rapidMult=1;
         }
     }
 
@@ -610,7 +712,7 @@ export class Player {
         this.head.rotation.x=0;
         this.bottle.visible=false;
         if (this.reloadT>0) {
-            this.poseReload(1-this.reloadT/TUNING.weapon.reloadTime);
+            this.poseReload(1-this.reloadT/this.W.reloadTime);
         }
     }
 

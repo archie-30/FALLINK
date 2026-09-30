@@ -258,6 +258,7 @@ export const TUNING={
         deckOutMax:0.75
     },
     settingsUi:{
+        twoColMin:600,
         follow:14,
         pulseDecay:3
     },
@@ -333,6 +334,16 @@ export const TUNING={
         hoverScale:0.06,
         pressScale:0.18
     },
+    weaponFx:{
+        staple:{radius:0.13,size:0.15,trailWidth:0.1},
+        compass:{radius:0.45,size:0.42,trailWidth:0.26}
+    },
+    skinUi:{
+        pulseDecay:3.5,
+        spinTime:0.8,
+        follow:14,
+        sparkGrav:520
+    },
     skinHatch:{
         lines:0.28,
         shade:0.35
@@ -342,6 +353,7 @@ export const TUNING={
     },
     menu:{
         colFrac:0.34,
+        divider:{drawIn:0.8,freq:9,speed:1.6,amp:4,jitter:1.6,drops:2,dropSpeed:0.12,dropSize:4},
         skinY:0.72,
         skinYSmall:0.74,
         colMax:420,
@@ -447,6 +459,7 @@ export const TUNING={
         hpHeight:22,
         legendPad:14,
         trainBuffY:272,
+        ammoMaxTicks:24,
         lock:{base:18,perRadius:16,snapTime:0.18,snapGrow:1.2,pulse:6,spin:0.8},
         reloadRing:12
     },

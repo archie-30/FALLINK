@@ -2,6 +2,7 @@ import {PALETTE,rgba,SKIN_TONES,ACCENTS} from '../data/palette.js';
 import {SKIN_PARTS,SKIN_PRESETS,DEFAULT_SKIN} from '../data/skins.js';
 import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
+import {hash1} from '../core/rng.js';
 import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
@@ -12,7 +13,8 @@ import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
 import {ENEMIES} from '../data/enemies.js';
 import {ENDLESS,TRAINING_MAPS} from '../data/levels.js';
 import {fmtInk,DESKTOP_KEYS,TOUCH_KEYS} from './hud.js';
-import {CARD_ANIMS,ENEMY_ATTACKS,drawStage} from './codexAnim.js';
+import {CARD_ANIMS,ENEMY_ATTACKS,WEAPON_ANIMS,drawStage} from './codexAnim.js';
+import {WEAPONS,WEAPON_ORDER,weaponUnlocked} from '../data/weapons.js';
 import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip,cardBrief,cardChips} from './cardView.js';
 import {ENEMY_ICONS} from './enemyIcons.js';
 
@@ -168,7 +170,7 @@ function drawStarterTag(ctx,id,x,y,px,v) {
     ctx.restore();
 }
 
-const MENU_ACTS=['start','endless','training','tutorial','codex'];
+const MENU_ACTS=['start','endless','training','weapon','tutorial','codex'];
 
 const MENU_EXTRA=['settings','skin'];
 
@@ -414,18 +416,41 @@ export class MainMenu extends Panel {
         g.addColorStop(1,rgba('paper',0.86));
         ctx.fillStyle=g;
         ctx.fillRect(px0-60,0,w-px0+60,h);
+        const D=TUNING.menu.divider;
+        const tt=time.real;
+        const draw=Math.min(1,this.t/D.drawIn);
+        const n=32;
         const edge=[];
-        for (let i=0;i<=16;i++) {
-            edge.push([px0+10+Math.sin(i*1.7)*4,i*h/16]);
+        for (let i=0;i<=n;i++) {
+            const f=i/n;
+            const wave=Math.sin(f*D.freq+tt*D.speed)*D.amp+Math.sin(f*D.freq*2.3-tt*D.speed*0.7)*D.amp*0.45;
+            edge.push([px0+10+wave+(hash1(i*7+time.boilIndex*31)-0.5)*D.jitter,f*h*draw]);
         }
-        ctx.strokeStyle=rgba('ink',0.55);
-        ctx.lineWidth=2;
-        ctx.beginPath();
-        ctx.moveTo(edge[0][0],edge[0][1]);
-        for (const q of edge) {
-            ctx.lineTo(q[0],q[1]);
+        for (const [wd,al,off] of [[2.4,0.6,0],[1,0.3,5]]) {
+            ctx.strokeStyle=rgba('ink',al);
+            ctx.lineWidth=wd;
+            ctx.beginPath();
+            ctx.moveTo(edge[0][0]+off,edge[0][1]);
+            for (const q of edge) {
+                ctx.lineTo(q[0]+off,q[1]);
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
+        for (let d=0;d<D.drops;d++) {
+            const q=((tt*D.dropSpeed+d/D.drops)%1);
+            const idx=Math.min(n,Math.floor(q*n));
+            const p=edge[idx];
+            if (!p||q*h>h*draw) {
+                continue;
+            }
+            const r=D.dropSize*(0.6+0.4*Math.sin(q*Math.PI));
+            ctx.fillStyle=d===0?PALETTE.red:PALETTE.ink;
+            ctx.beginPath();
+            ctx.moveTo(p[0],p[1]-r*2.2);
+            ctx.quadraticCurveTo(p[0]+r,p[1]-r*0.3,p[0],p[1]+r);
+            ctx.quadraticCurveTo(p[0]-r,p[1]-r*0.3,p[0],p[1]-r*2.2);
+            ctx.fill();
+        }
         ctx.restore();
         const small=h<600;
         const a=EASE.easeOutBack(Math.min(1,this.t/0.6))*Math.min(small?0.62:1,cw/520);
@@ -603,7 +628,7 @@ export class SettingsMenu extends Panel {
         const h=this.height;
         const keys=SETTING_KEYS;
         const avail=h-190;
-        const cols=keys.length*58>avail&&w>=760?2:1;
+        const cols=w>=TUNING.settingsUi.twoColMin?2:1;
         const per=Math.ceil(keys.length/cols);
         const rh=Math.max(40,Math.min(60,avail/per));
         const colW=Math.min(560,(w-40)/cols);
@@ -2521,12 +2546,58 @@ export class SkinEditor extends Panel {
         this.hy=-1;
         this.dragYaw=0;
         this.drag=null;
+        this.pulse={};
+        this.spin=0;
+        this.sparks=[];
+        this.sel={};
     }
 
     show() {
         super.show();
         this.dragYaw=0;
         this.drag=null;
+        this.pulse={};
+        this.spin=0;
+        this.sparks=[];
+        this.sel={};
+    }
+
+    update(dt) {
+        super.update(dt);
+        const U=TUNING.skinUi;
+        for (const k in this.pulse) {
+            this.pulse[k]=Math.max(0,this.pulse[k]-dt*U.pulseDecay);
+        }
+        this.spin=Math.max(0,this.spin-dt/U.spinTime);
+        const cur=this.skin();
+        const kk=1-Math.exp(-U.follow*dt);
+        for (const part of SKIN_PARTS) {
+            const list=part.tones||part.accents;
+            const idx=list.indexOf(cur[part.key]);
+            this.sel[part.key]=(this.sel[part.key]??idx)+(idx-(this.sel[part.key]??idx))*kk;
+        }
+        for (let i=this.sparks.length-1;i>=0;i--) {
+            const q=this.sparks[i];
+            q.t+=dt;
+            q.x+=q.vx*dt;
+            q.y+=q.vy*dt;
+            q.vy+=U.sparkGrav*dt;
+            if (q.t>q.life) {
+                this.sparks.splice(i,1);
+            }
+        }
+    }
+
+    spinYaw() {
+        return Math.PI*2*EASE.easeInOutCubic(1-this.spin)*(this.spin>0?1:0);
+    }
+
+    burst(x,y,colors,n) {
+        for (let i=0;i<n;i++) {
+            const a=Math.random()*Math.PI*2;
+            const sp=80+Math.random()*220;
+            this.sparks.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-120,t:0,life:0.5+Math.random()*0.4,r:3+Math.random()*5,c:colors[i%colors.length]});
+        }
     }
 
     move(x) {
@@ -2561,9 +2632,12 @@ export class SkinEditor extends Panel {
         this.hy=y;
     }
 
-    set(skin) {
+    set(skin,big=false) {
         settings.skin={...skin};
-        this.actions.changed(this.skin());
+        if (big) {
+            this.spin=1;
+        }
+        this.actions.changed(this.skin(),big);
     }
 
     down(x,y) {
@@ -2576,7 +2650,8 @@ export class SkinEditor extends Panel {
             return true;
         }
         if (inRect(this.resetBtn,x,y)) {
-            this.set(DEFAULT_SKIN);
+            this.pulse.reset=1;
+            this.set(DEFAULT_SKIN,true);
             this.actions.select();
             return true;
         }
@@ -2586,12 +2661,16 @@ export class SkinEditor extends Panel {
         }
         for (const q of this.hits) {
             if (inRect(q,x,y)) {
+                this.pulse[q.key]=1;
                 if (q.preset) {
                     const {id,...rest}=q.preset;
-                    this.set(rest);
+                    this.set(rest,true);
+                    this.burst(q.x+q.w/2,q.y+q.h/2,[SKIN_TONES[rest.coat][1],SKIN_TONES[rest.hat][1],PALETTE.ink],14);
                 }
                 else {
                     this.set({...this.skin(),[q.part]:q.value});
+                    const tones=q.part==='accent'?[ACCENTS[q.value]]:SKIN_TONES[q.value];
+                    this.burst(q.x+q.w/2,q.y+q.h/2,[tones[1]||tones[0],tones[0]],8);
                 }
                 this.actions.select();
                 return true;
@@ -2611,6 +2690,8 @@ export class SkinEditor extends Panel {
         const a=EASE.easeOutCubic(Math.min(1,this.t/0.35));
         const small=h<760;
         const cur=this.skin();
+        let row=0;
+        const rowIn=()=>EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.12-(row++)*0.05)/0.3)));
         ctx.save();
         ctx.translate(-(1-a)*(P.w+40),0);
         ctx.fillStyle=rgba('paper',0.94);
@@ -2639,23 +2720,39 @@ export class SkinEditor extends Panel {
             const cy=y+Math.floor(i/cols)*(ch+8);
             const sel=SKIN_PARTS.every(q=>pr[q.key]===cur[q.key]);
             const hov=inRect({x:cx,y:cy,w:cw,h:ch},this.hx,this.hy);
+            const key='p'+i;
+            const pu=this.pulse[key]||0;
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.1-i*0.04)/0.3)));
+            ctx.save();
+            ctx.translate(cx+cw/2,cy+ch/2);
+            const sc=ap*(1+(hov?0.06:0)+Math.sin(pu*Math.PI)*0.18);
+            ctx.scale(sc,sc);
+            ctx.rotate((hov?Math.sin(time.real*8)*0.03:0)+(1-ap)*0.4);
+            ctx.translate(-cw/2,-ch/2);
             ctx.fillStyle=sel?rgba('red',0.08):(hov?rgba('farGray',0.6):rgba('paper',0.9));
-            ctx.fillRect(cx,cy,cw,ch);
-            drawShape(ctx,sketchRect(cx,cy,cw,ch,{width:sel?2.4:1.3,seed:1510+i}),sel?PALETTE.red:PALETTE.ink,v);
-            drawSkinFigure(ctx,cx+cw/2,cy+ch*0.44,small?0.6:0.85,pr,v,1520+i*3);
+            ctx.fillRect(0,0,cw,ch);
+            drawShape(ctx,sketchRect(0,0,cw,ch,{width:sel?2.4:1.3,seed:1510+i}),sel?PALETTE.red:PALETTE.ink,v);
+            const hop=(hov||sel?Math.abs(Math.sin(time.real*(sel?4:7)))*(sel?2:3):0)+pu*8;
+            drawSkinFigure(ctx,cw/2,ch*0.44-hop,small?0.6:0.85,pr,v,1520+i*3);
             ctx.fillStyle=sel?PALETTE.red:PALETTE.ink;
             ctx.font=(sel?'bold ':'')+'12px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='bottom';
-            ctx.fillText(t('skin.preset.'+pr.id),cx+cw/2,cy+ch-3);
+            ctx.fillText(t('skin.preset.'+pr.id),cw/2,ch-3);
+            ctx.restore();
             ctx.textAlign='left';
             ctx.textBaseline='top';
-            this.hits.push({x:cx,y:cy,w:cw,h:ch,preset:pr});
+            this.hits.push({x:cx,y:cy,w:cw,h:ch,preset:pr,key});
         }
         y+=Math.ceil(SKIN_PRESETS.length/cols)*(ch+8)+(small?4:10);
-        const r=small?9:13;
+        const tiny=h<450;
+        const r=tiny?8:(small?9:13);
         const lw=small?136:0;
         for (const part of SKIN_PARTS) {
+            const ra=rowIn();
+            ctx.save();
+            ctx.globalAlpha*=Math.min(1,ra);
+            ctx.translate(-(1-ra)*40,0);
             ctx.font='bold '+(small?13:14)+'px '+FONT;
             ctx.fillStyle=PALETTE.ink;
             ctx.fillText(t(part.label),P.x+18,small?y+r-7:y);
@@ -2663,17 +2760,54 @@ export class SkinEditor extends Panel {
                 y+=24;
             }
             const list=part.tones||part.accents;
-            const per=Math.max(1,Math.floor((P.w-36-lw)/(r*2+(small?10:12))));
+            const per=Math.max(1,Math.floor((P.w-36-lw)/(r*2+(tiny?6:(small?10:12)))));
             for (let i=0;i<list.length;i++) {
                 const key=list[i];
-                const sx=P.x+18+lw+r+(i%per)*(r*2+(small?10:12));
+                const sx=P.x+18+lw+r+(i%per)*(r*2+(tiny?6:(small?10:12)));
                 const sy=y+r+Math.floor(i/per)*(r*2+(small?6:10));
                 const tones=part.tones?SKIN_TONES[key]:[ACCENTS[key]];
-                drawTone(ctx,sx,sy,r,tones,cur[part.key]===key,v,1540+i+part.key.length*13);
-                this.hits.push({x:sx-r-4,y:sy-r-4,w:r*2+8,h:r*2+8,part:part.key,value:key});
+                const hk=part.key+key;
+                const hv=Math.hypot(this.hx-sx,this.hy-sy)<r+4;
+                const pu=this.pulse[hk]||0;
+                const sc=1+(hv?0.2:0)+Math.sin(pu*Math.PI)*0.45;
+                ctx.save();
+                ctx.translate(sx,sy);
+                ctx.scale(sc,sc);
+                drawTone(ctx,0,0,r,tones,false,v,1540+i+part.key.length*13);
+                ctx.restore();
+                this.hits.push({x:sx-r-4,y:sy-r-4,w:r*2+8,h:r*2+8,part:part.key,value:key,key:hk});
+            }
+            const si=this.sel[part.key]??0;
+            if (si>=0) {
+                const gap=r*2+(tiny?6:(small?10:12));
+                const fi=Math.round(si);
+                const col=Math.min(per-1,si-Math.floor(fi/per)*per);
+                const px=P.x+18+lw+r+col*gap;
+                const py=y+r+Math.floor(fi/per)*(r*2+(small?6:10));
+                ctx.save();
+                ctx.translate(px,py);
+                ctx.rotate(time.real*1.5);
+                ctx.strokeStyle=PALETTE.red;
+                ctx.lineWidth=2.4;
+                ctx.setLineDash([5,4]);
+                ctx.beginPath();
+                ctx.arc(0,0,r+5,0,Math.PI*2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
             }
             y+=Math.ceil(list.length/per)*(r*2+(small?6:10))+(small?4:10);
+            ctx.restore();
         }
+        for (const q of this.sparks) {
+            const f=q.t/q.life;
+            ctx.globalAlpha=1-f;
+            ctx.fillStyle=q.c;
+            ctx.beginPath();
+            ctx.arc(q.x,q.y,q.r*(1-f*0.5),0,Math.PI*2);
+            ctx.fill();
+        }
+        ctx.globalAlpha=1;
         ctx.restore();
         ctx.save();
         ctx.globalAlpha=a*(this.drag?0.4:0.85);
@@ -2685,7 +2819,14 @@ export class SkinEditor extends Panel {
         ctx.restore();
         ctx.save();
         ctx.translate(-(1-a)*(P.w+40),0);
+        const rp=this.pulse.reset||0;
+        ctx.save();
+        const rb=this.resetBtn;
+        ctx.translate(rb.x+rb.w/2,rb.y+rb.h/2);
+        ctx.rotate(Math.sin(rp*Math.PI*3)*0.06);
+        ctx.translate(-(rb.x+rb.w/2),-(rb.y+rb.h/2));
         drawButton(ctx,this.resetBtn,t('skin.reset'),v,(this.t-0.1)/0.3,this.hoverIdx===0,16);
+        ctx.restore();
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.15)/0.3,this.hoverIdx===1,18);
         ctx.restore();
     }
@@ -3501,4 +3642,403 @@ export class Tutorial extends Panel {
 
 function hasTouchText(key) {
     return key==='move'||key==='dash'||key==='cards'||key==='ult';
+}
+
+function drawWeaponIcon(ctx,id,x,y,s,v,locked) {
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(s,s);
+    ctx.rotate(-0.6);
+    const ink=locked?PALETTE.midGray:PALETTE.ink;
+    const fill=locked?PALETTE.farGray:PALETTE.paper;
+    const shape=(pts,f)=>{
+        ctx.fillStyle=f;
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0],pts[0][1]);
+        for (const p of pts) {
+            ctx.lineTo(p[0],p[1]);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle=ink;
+        ctx.lineWidth=2.4;
+        ctx.stroke();
+    };
+    if (id==='pen') {
+        shape([[-30,-6],[14,-6],[14,6],[-30,6]],locked?fill:PALETTE.midGray);
+        shape([[14,-6],[30,0],[14,6]],ink);
+        shape([[-36,-7],[-28,-7],[-28,7],[-36,7]],fill);
+    }
+    else if (id==='pencil') {
+        shape([[-30,-6],[14,-6],[14,6],[-30,6]],locked?fill:'#C49A52');
+        shape([[14,-6],[28,0],[14,6]],fill);
+        shape([[24,-2],[30,0],[24,2]],ink);
+        shape([[-38,-6],[-30,-6],[-30,6],[-38,6]],locked?fill:PALETTE.red);
+    }
+    else if (id==='brush') {
+        shape([[-34,-3],[8,-4],[8,4],[-34,3]],locked?fill:'#AC8E64');
+        shape([[8,-6],[14,-6],[14,6],[8,6]],fill);
+        shape([[14,-7],[34,0],[14,7]],ink);
+    }
+    else if (id==='stapler') {
+        shape([[-30,2],[28,2],[28,10],[-30,10]],locked?fill:PALETTE.nearGray);
+        shape([[-30,-10],[24,-6],[26,2],[-30,2]],locked?fill:PALETTE.midGray);
+        shape([[24,-2],[32,-2],[32,4],[24,4]],ink);
+    }
+    else if (id==='highlighter') {
+        shape([[-28,-9],[14,-9],[14,9],[-28,9]],locked?fill:'#EDD6A6');
+        shape([[-36,-10],[-26,-10],[-26,10],[-36,10]],locked?fill:PALETTE.red);
+        shape([[14,-7],[26,-3],[26,3],[14,7]],ink);
+    }
+    else {
+        shape([[-4,-30],[4,-30],[4,-20],[-4,-20]],fill);
+        shape([[-3,-20],[3,-20],[-16,26],[-20,24]],locked?fill:PALETTE.midGray);
+        shape([[-3,-20],[3,-20],[20,24],[16,26]],locked?fill:PALETTE.midGray);
+        shape([[16,24],[22,24],[19,32]],ink);
+    }
+    ctx.restore();
+}
+
+export class WeaponView extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.35;
+        this.sel='pen';
+        this.animT=0;
+        this.hits=[];
+        this.hx=-1;
+        this.hy=-1;
+        this.pop=0;
+        this.bars={};
+    }
+
+    show() {
+        super.show();
+        this.sel=settings.weapon||'pen';
+        this.animT=0;
+        this.pop=0;
+    }
+
+    hover(x,y) {
+        super.hover(x,y);
+        this.hx=x;
+        this.hy=y;
+    }
+
+    layout() {
+        const w=this.width;
+        const h=this.height;
+        const small=h<600;
+        const pw=Math.min(1060,w-20);
+        const ph=Math.min(h-16,small?h-16:640);
+        this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
+        const bh=small?40:48;
+        const by=this.P.y+ph-(small?48:64);
+        this.backBtn={x:this.P.x+24,y:by,w:small?130:160,h:bh};
+        this.equipBtn={x:this.P.x+pw-24-(small?170:200),y:by,w:small?170:200,h:bh};
+        this.buttons=[this.backBtn,this.equipBtn];
+    }
+
+    down(x,y) {
+        if (!this.open) {
+            return false;
+        }
+        this.layout();
+        if (inRect(this.backBtn,x,y)) {
+            this.actions.back();
+            return true;
+        }
+        if (inRect(this.equipBtn,x,y)) {
+            if (weaponUnlocked(this.sel,effectiveLevel())&&settings.weapon!==this.sel) {
+                this.pop=1;
+                this.actions.equip(this.sel);
+            }
+            return true;
+        }
+        for (const q of this.hits) {
+            if (inRect(q,x,y)) {
+                if (q.id!==this.sel) {
+                    this.sel=q.id;
+                    this.animT=0;
+                    this.actions.select();
+                }
+                return true;
+            }
+        }
+        return true;
+    }
+
+    update(dt) {
+        super.update(dt);
+        this.animT+=dt;
+        this.pop=Math.max(0,this.pop-dt*2.5);
+        const st=WEAPONS[this.sel].stats;
+        const k=1-Math.exp(-10*dt);
+        for (const key of WEAPON_STATS) {
+            this.bars[key]=(this.bars[key]??0)+(st[key]-(this.bars[key]??0))*k;
+        }
+    }
+
+    draw(ctx) {
+        if (!this.shown()) {
+            return;
+        }
+        this.layout();
+        const w=this.width;
+        const h=this.height;
+        const v=time.boilIndex;
+        const P=this.P;
+        const small=h<600;
+        const lv=effectiveLevel();
+        const a=EASE.easeOutBack(Math.min(1,this.t/0.4));
+        ctx.save();
+        ctx.fillStyle=rgba('paper',Math.min(0.85,this.t*4));
+        ctx.fillRect(0,0,w,h);
+        ctx.translate(w/2,h/2);
+        ctx.scale(0.9+0.1*a,0.9+0.1*a);
+        ctx.translate(-w/2,-h/2);
+        ctx.globalAlpha=Math.min(1,this.t*4);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(P.x,P.y,P.w,P.h);
+        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:2000}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(small?20:28)+'px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('weapon.title'),P.x+24,P.y+(small?22:34));
+        ctx.font='13px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='right';
+        ctx.fillText(t('weapon.hint'),P.x+P.w-24,P.y+(small?23:36));
+        const gx=P.x+24;
+        const gy=P.y+(small?46:70);
+        const gw=P.w*0.42;
+        const cols=2;
+        const cg=12;
+        const cw=(gw-cg)/cols;
+        const ch=Math.min(small?78:120,(this.backBtn.y-gy-16-(WEAPON_ORDER.length/cols-1)*cg)/(WEAPON_ORDER.length/cols));
+        this.hits=[];
+        for (let i=0;i<WEAPON_ORDER.length;i++) {
+            const id=WEAPON_ORDER[i];
+            const x=gx+(i%cols)*(cw+cg);
+            const y=gy+Math.floor(i/cols)*(ch+cg);
+            const r={x,y,w:cw,h:ch,id};
+            this.hits.push(r);
+            const locked=!weaponUnlocked(id,lv);
+            const sel=id===this.sel;
+            const eq=id===settings.weapon;
+            const hv=inRect(r,this.hx,this.hy);
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.08-i*0.05)/0.3)));
+            if (ap<=0) {
+                continue;
+            }
+            ctx.save();
+            ctx.translate(x+cw/2,y+ch/2);
+            ctx.scale(ap*(hv||sel?1.03:1),ap*(hv||sel?1.03:1));
+            ctx.translate(-cw/2,-ch/2);
+            ctx.fillStyle=sel?rgba('ink',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.95));
+            ctx.fillRect(0,0,cw,ch);
+            drawShape(ctx,sketchRect(0,0,cw,ch,{width:sel?2.8:1.5,seed:2010+i}),sel?PALETTE.ink:PALETTE.nearGray,v);
+            const bob=sel?Math.sin(this.animT*3)*3:0;
+            drawWeaponIcon(ctx,id,ch*0.5,ch*0.5+bob,ch/110,v,locked);
+            ctx.fillStyle=locked?PALETTE.midGray:PALETTE.ink;
+            ctx.font='bold '+(small?15:19)+'px '+FONT;
+            ctx.textAlign='left';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('weapon.'+id+'.name'),ch*0.98,ch*0.38);
+            ctx.font='12px '+FONT;
+            ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
+            ctx.fillText(locked?t('codex.locked',{level:WEAPONS[id].unlock}):t('weapon.'+id+'.short'),ch*0.98,ch*0.66);
+            if (eq) {
+                ctx.save();
+                ctx.translate(cw-10,10);
+                ctx.rotate(0.12);
+                const s=1+this.pop*0.4;
+                ctx.scale(s,s);
+                ctx.fillStyle=PALETTE.red;
+                ctx.fillRect(-40,-2,44,20);
+                ctx.fillStyle=PALETTE.paper;
+                ctx.font='bold 12px '+FONT;
+                ctx.textAlign='center';
+                ctx.fillText(t('weapon.equipped'),-18,8);
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+        const dx=gx+gw+24;
+        const dw=P.x+P.w-24-dx;
+        const locked=!weaponUnlocked(this.sel,lv);
+        const def=WEAPONS[this.sel];
+        const sh=Math.min(dw*9/16,small?(this.backBtn.y-gy)*0.46:230);
+        drawStage(ctx,dx,gy,dw,sh,WEAPON_ANIMS[this.sel],this.animT,v);
+        drawShape(ctx,sketchRect(dx,gy,dw,sh,{width:1.6,seed:2030}),PALETTE.ink,v);
+        if (locked) {
+            ctx.fillStyle=rgba('paper',0.55);
+            ctx.fillRect(dx,gy,dw,sh);
+        }
+        let y=gy+sh+(small?10:18);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(small?18:24)+'px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillText(t('weapon.'+this.sel+'.name'),dx,y);
+        y+=small?26:34;
+        ctx.font=(small?'12px ':'14px ')+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        const lines=wrapText(ctx,t('weapon.'+this.sel+'.desc'),dw);
+        for (let i=0;i<lines.length&&i<3;i++) {
+            ctx.fillText(lines[i],dx,y);
+            y+=small?16:20;
+        }
+        y+=small?6:10;
+        const bw=dw*0.46;
+        for (let i=0;i<WEAPON_STATS.length;i++) {
+            const key=WEAPON_STATS[i];
+            const bx=dx+(i%2)*(dw/2);
+            const byy=y+Math.floor(i/2)*(small?24:30);
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold 13px '+FONT;
+            ctx.textAlign='left';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('weapon.stat.'+key),bx,byy+8);
+            const lx=bx+46;
+            const lw=bw-52;
+            for (let s=0;s<5;s++) {
+                const f=Math.max(0,Math.min(1,(this.bars[key]||0)-s));
+                const sx=lx+s*(lw/5);
+                ctx.fillStyle=rgba('farGray',0.7);
+                ctx.fillRect(sx,byy+2,lw/5-4,12);
+                ctx.fillStyle=key==='dmg'?PALETTE.red:PALETTE.ink;
+                ctx.fillRect(sx,byy+2,(lw/5-4)*f,12);
+            }
+        }
+        y+=small?52:66;
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.font='12px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillText(t('weapon.numbers',{dmg:def.damage,n:def.pellets||1,rate:(1/def.fireInterval*(def.burst||1)).toFixed(1),mag:def.magazine,reload:def.reloadTime}),dx,y);
+        drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?15:17);
+        const eq=settings.weapon===this.sel;
+        const label=locked?t('codex.locked',{level:def.unlock}):(eq?t('weapon.equipped'):t('weapon.equip'));
+        const eb=this.equipBtn;
+        if (!locked&&!eq) {
+            ctx.save();
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillRect(eb.x,eb.y,eb.w,eb.h);
+            drawShape(ctx,sketchRect(eb.x,eb.y,eb.w,eb.h,{width:2,seed:2040}),PALETTE.ink,v);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.font='bold '+(small?15:18)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            const s=this.hoverIdx===1?1.05:1;
+            ctx.translate(eb.x+eb.w/2,eb.y+eb.h/2);
+            ctx.scale(s,s);
+            ctx.fillText(label,0,1);
+            ctx.restore();
+        }
+        else {
+            ctx.save();
+            drawShape(ctx,sketchRect(eb.x,eb.y,eb.w,eb.h,{width:1.6,seed:2041}),locked?PALETTE.midGray:PALETTE.red,v);
+            ctx.fillStyle=locked?PALETTE.midGray:PALETTE.red;
+            ctx.font='bold '+(small?14:16)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(label,eb.x+eb.w/2,eb.y+eb.h/2+1);
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+}
+
+const WEAPON_STATS=['dmg','rate','range','mag'];
+
+export class Notice extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.35;
+        this.key='touch';
+    }
+
+    layout() {
+        const w=this.width;
+        const h=this.height;
+        const pw=Math.min(520,w-32);
+        const ph=Math.min(h-24,h<600?250:300);
+        this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
+        const bw=Math.min(220,pw-60);
+        this.okBtn={x:w/2-bw/2,y:this.P.y+ph-(h<600?56:70),w:bw,h:h<600?42:50};
+        this.buttons=[this.okBtn];
+    }
+
+    down(x,y) {
+        if (!this.open) {
+            return false;
+        }
+        this.layout();
+        if (inRect(this.okBtn,x,y)) {
+            this.actions.close();
+        }
+        return true;
+    }
+
+    draw(ctx) {
+        if (!this.shown()) {
+            return;
+        }
+        this.layout();
+        const w=this.width;
+        const h=this.height;
+        const v=time.boilIndex;
+        const P=this.P;
+        const small=h<600;
+        const a=EASE.easeOutBack(Math.min(1,this.t/0.4));
+        ctx.save();
+        ctx.fillStyle=rgba('ink',Math.min(0.35,this.t*1.5));
+        ctx.fillRect(0,0,w,h);
+        ctx.translate(w/2,h/2);
+        ctx.scale(0.8+0.2*a,0.8+0.2*a);
+        ctx.rotate((1-a)*-0.05);
+        ctx.translate(-w/2,-h/2);
+        ctx.globalAlpha=Math.min(1,this.t*4);
+        ctx.fillStyle=rgba('ink',0.2);
+        ctx.fillRect(P.x+6,P.y+8,P.w,P.h);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(P.x,P.y,P.w,P.h);
+        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.4,seed:2100}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.red;
+        ctx.fillRect(P.x,P.y,P.w,6);
+        const ix=P.x+38;
+        const iy=P.y+(small?40:50);
+        const wob=Math.sin(time.real*4)*0.12;
+        ctx.save();
+        ctx.translate(ix,iy);
+        ctx.rotate(wob);
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=3;
+        ctx.strokeRect(-12,-18,24,36);
+        ctx.fillStyle=PALETTE.red;
+        ctx.beginPath();
+        ctx.arc(0,4,5+Math.abs(Math.sin(time.real*3))*3,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(small?19:23)+'px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('notice.'+this.key+'.title'),ix+30,iy);
+        ctx.font=(small?'14px ':'15px ')+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textBaseline='top';
+        const lines=wrapText(ctx,t('notice.'+this.key+'.body'),P.w-60);
+        let y=iy+(small?28:38);
+        for (const ln of lines) {
+            ctx.fillText(ln,P.x+30,y);
+            y+=small?20:24;
+        }
+        drawButton(ctx,this.okBtn,t('notice.ok'),v,(this.t-0.15)/0.3,this.hoverIdx===0,small?16:18);
+        ctx.restore();
+    }
 }

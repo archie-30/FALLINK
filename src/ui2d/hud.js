@@ -116,11 +116,11 @@ export class Hud {
     }
 
     drawAmmo(ctx,player,project,tmp) {
-        const W=TUNING.weapon;
+        const W=player.W;
         project(player.renderPos.x,0,player.renderPos.z,tmp);
         const cx=tmp.x;
         const cy=tmp.y+30;
-        const n=W.magazine;
+        const n=Math.min(W.magazine,TUNING.hud.ammoMaxTicks);
         const span=Math.PI*0.55;
         const r=46;
         if (player.reloadT>0) {
@@ -134,7 +134,7 @@ export class Hud {
             ctx.font='bold 12px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='top';
-            ctx.fillText(t('hud.reload'),cx,cy+6);
+            ctx.fillText(t(W.heat?'hud.cool':'hud.reload'),cx,cy+6);
             return;
         }
         if (player.rapidT>0) {
@@ -144,14 +144,15 @@ export class Hud {
             const a=Math.PI/2+span/2-span*(i+0.5)/n;
             const x=cx+Math.cos(a)*r;
             const y=cy-r+Math.sin(a)*r;
-            ctx.fillStyle=i<player.ammo?PALETTE.ink:rgba('midGray',0.5);
+            const lit=Math.ceil(player.ammo*n/W.magazine);
+            ctx.fillStyle=i<lit?(W.heat&&lit<=n*0.3?PALETTE.red:PALETTE.ink):rgba('midGray',0.5);
             ctx.save();
             ctx.translate(x,y);
             ctx.rotate(a-Math.PI/2);
             ctx.fillRect(-1.5,-4,3,8);
             ctx.restore();
         }
-        if (player.ammo<=3) {
+        if (player.ammo<=Math.max(3,W.magazine*0.2)&&!W.heat) {
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='11px '+FONT;
             ctx.textAlign='center';

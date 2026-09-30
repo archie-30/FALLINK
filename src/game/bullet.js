@@ -37,6 +37,9 @@ export class BulletSystem {
         this.homing=o.homing||0;
         this.hits=new Int32Array(cap*6);
         this.hitN=new Uint8Array(cap);
+        this.boomerang=!!o.boomerang;
+        this.ret=new Uint8Array(cap);
+        this.target=null;
         this.n=0;
         this.onWall=null;
         this.onHit=null;
@@ -97,6 +100,7 @@ export class BulletSystem {
         this.dmg[i]=dmg;
         this.age[i]=0;
         this.hitN[i]=0;
+        this.ret[i]=0;
         const K=this.K;
         for (let j=0;j<K;j++) {
             this.hist[(i*K+j)*2]=x;
@@ -120,6 +124,7 @@ export class BulletSystem {
         this.dmg[i]=this.dmg[j];
         this.age[i]=this.age[j];
         this.hitN[i]=this.hitN[j];
+        this.ret[i]=this.ret[j];
         this.hits.copyWithin(i*6,j*6,j*6+6);
         const K2=this.K*2;
         this.hist.copyWithin(i*K2,j*K2,j*K2+K2);
@@ -201,9 +206,27 @@ export class BulletSystem {
             if (this.homing&&this.onSeek) {
                 this.steer(i,dt);
             }
+            if (this.boomerang&&this.ret[i]&&this.target) {
+                const sp=Math.hypot(this.vx[i],this.vz[i]);
+                const tx=this.target.x-this.x[i];
+                const tz=this.target.z-this.z[i];
+                const tl=Math.hypot(tx,tz)||1;
+                if (tl<0.9) {
+                    this.kill(i);
+                    continue;
+                }
+                const k=Math.min(1,dt*9);
+                this.vx[i]+=(tx/tl*sp-this.vx[i])*k;
+                this.vz[i]+=(tz/tl*sp-this.vz[i])*k;
+            }
             this.x[i]+=this.vx[i]*dt;
             this.z[i]+=this.vz[i]*dt;
             this.life[i]-=dt;
+            if (this.boomerang&&!this.ret[i]&&this.life[i]<=0) {
+                this.ret[i]=1;
+                this.life[i]=3;
+                this.hitN[i]=0;
+            }
             if (this.age[i]<K) {
                 this.age[i]++;
             }
@@ -223,6 +246,17 @@ export class BulletSystem {
                     wall=col;
                     break;
                 }
+            }
+            if (wall&&this.boomerang&&!this.ret[i]) {
+                this.ret[i]=1;
+                this.life[i]=3;
+                this.hitN[i]=0;
+                this.vx[i]=-this.vx[i];
+                this.vz[i]=-this.vz[i];
+                continue;
+            }
+            if (wall&&this.boomerang) {
+                wall=null;
             }
             if (wall) {
                 if (this.onWall) {
