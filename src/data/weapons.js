@@ -1,0 +1,93 @@
+export const WEAPONS={
+    pen:{
+        unlock:1,
+        sys:'player',
+        fireInterval:0.11,
+        magazine:12,
+        reloadTime:1.1,
+        damage:10,
+        bulletSpeed:28,
+        bulletLife:0.8,
+        spread:0.035,
+        pellets:1,
+        stats:{dmg:3,rate:3,range:3,mag:2}
+    },
+    pencil:{
+        unlock:2,
+        sys:'player',
+        fireInterval:0.065,
+        magazine:30,
+        reloadTime:1.35,
+        damage:5.5,
+        bulletSpeed:32,
+        bulletLife:0.75,
+        spread:0.07,
+        pellets:1,
+        stats:{dmg:1,rate:5,range:3,mag:5}
+    },
+    brush:{
+        unlock:3,
+        sys:'player',
+        fireInterval:0.42,
+        magazine:6,
+        reloadTime:1.2,
+        damage:13,
+        bulletSpeed:24,
+        bulletLife:0.16,
+        spread:0,
+        pellets:5,
+        fan:0.9,
+        erase:{radius:3.4,cone:0.75},
+        stats:{dmg:5,rate:1,range:1,mag:1}
+    },
+    stapler:{
+        unlock:4,
+        sys:'staple',
+        fireInterval:0.5,
+        magazine:18,
+        reloadTime:1.3,
+        damage:11,
+        bulletSpeed:30,
+        bulletLife:0.75,
+        spread:0.03,
+        pellets:1,
+        burst:3,
+        burstGap:0.06,
+        slow:{time:0.8,mult:0.45},
+        stats:{dmg:3,rate:2,range:3,mag:3}
+    },
+    highlighter:{
+        unlock:5,
+        sys:'player',
+        fireInterval:0.04,
+        magazine:45,
+        reloadTime:1.8,
+        damage:3.2,
+        bulletSpeed:48,
+        bulletLife:0.38,
+        spread:0.012,
+        pellets:1,
+        heat:true,
+        stats:{dmg:2,rate:5,range:4,mag:4}
+    },
+    compass:{
+        unlock:6,
+        sys:'compass',
+        fireInterval:0.55,
+        magazine:4,
+        reloadTime:1.0,
+        damage:24,
+        bulletSpeed:16,
+        bulletLife:0.5,
+        spread:0,
+        pellets:1,
+        boomerang:true,
+        stats:{dmg:4,rate:1,range:4,mag:1}
+    }
+};
+
+export const WEAPON_ORDER=['pen','pencil','brush','stapler','highlighter','compass'];
+
+export function weaponUnlocked(id,level) {
+    return (WEAPONS[id]?.unlock??99)<=level;
+}

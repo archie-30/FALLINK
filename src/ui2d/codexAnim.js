@@ -1817,3 +1817,113 @@ export function drawStage(ctx,x,y,w,h,anim,t,v) {
     drawShape(ctx,sketchRect(0,0,Math.round(w),Math.round(h),{width:1.8,seed:2101}),PALETTE.ink,v);
     ctx.restore();
 }
+
+export const WEAPON_ANIMS={
+    pen:{
+        period:2.4,
+        draw(S,k) {
+            const shots=[0.1,0.22,0.34,0.46];
+            let kick=0;
+            for (const s of shots) {
+                kick=Math.max(kick,seg(k,s,s+0.03)*(1-seg(k,s+0.03,s+0.1)));
+                S.fly(PX+0.9,PY,11,PY,k,s,s+0.2);
+            }
+            S.player(PX,PY,0,{kick});
+            S.target('doodle',11.6,PY,k,0.62);
+        }
+    },
+    pencil:{
+        period:2.4,
+        draw(S,k) {
+            let kick=0;
+            for (let i=0;i<14;i++) {
+                const s=0.06+i*0.035;
+                const dy=(hash(i)-0.5)*1.2;
+                kick=Math.max(kick,seg(k,s,s+0.02)*(1-seg(k,s+0.02,s+0.05)));
+                S.fly(PX+0.9,PY,11,PY+dy,k,s,s+0.16);
+            }
+            S.player(PX,PY,0,{kick});
+            S.target('blob',11.6,PY,k,0.62);
+        }
+    },
+    brush:{
+        period:2.4,
+        draw(S,k) {
+            const ang=[-0.45,-0.22,0,0.22,0.45];
+            for (let w=0;w<2;w++) {
+                const s=0.15+w*0.35;
+                const f=seg(k,s,s+0.1);
+                if (f>0&&f<1) {
+                    for (const a of ang) {
+                        const r=0.9+f*3.4;
+                        S.line(PX+Math.cos(a)*0.9,PY+Math.sin(a)*0.9,PX+Math.cos(a)*r,PY+Math.sin(a)*r,PALETTE.ink,0.22*(1-f)+0.06,1-f*0.5);
+                    }
+                }
+            }
+            for (let i=0;i<4;i++) {
+                const y=PY+(i-1.5)*1.1;
+                const x=9-k*14;
+                if (k<0.15||x>PX+4.2) {
+                    S.bullet(Math.max(PX+4.2,x),y,'enemy',k<0.15?1:1-seg(k,0.15,0.2));
+                }
+            }
+            S.player(PX,PY,0,{kick:seg(k,0.15,0.2)*(1-seg(k,0.2,0.3))});
+            S.target('doodle',PX+3.6,PY,k,0.2);
+        }
+    },
+    stapler:{
+        period:2.6,
+        draw(S,k) {
+            let kick=0;
+            for (let b=0;b<2;b++) {
+                for (let i=0;i<3;i++) {
+                    const s=0.1+b*0.3+i*0.03;
+                    kick=Math.max(kick,seg(k,s,s+0.02)*(1-seg(k,s+0.02,s+0.05)));
+                    S.fly(PX+0.9,PY,10.5,PY,k,s,s+0.18);
+                }
+            }
+            S.player(PX,PY,0,{kick});
+            const slow=seg(k,0.28,0.3)*(1-seg(k,0.9,1));
+            const x=11.5-k*3*(1-slow*0.7);
+            if (slow>0) {
+                S.ring(x,PY,0.9,PALETTE.red,0.06,slow,[0.2,0.15]);
+            }
+            S.target('eraserMonster',x,PY,k,0.72);
+        }
+    },
+    highlighter:{
+        period:2.4,
+        draw(S,k) {
+            const on=seg(k,0.08,0.1)*(1-seg(k,0.7,0.72));
+            if (on>0) {
+                for (let i=0;i<24;i++) {
+                    const q=((k*6+i/24)%1);
+                    S.circle(PX+0.9+q*10,PY+(hash(i+k)-0.5)*0.12,0.1,PALETTE.ink,on);
+                }
+                S.line(PX+0.9,PY,11,PY,PALETTE.midGray,0.28,0.35*on);
+            }
+            const heat=seg(k,0.1,0.7);
+            S.rect(PX-0.8,PY+1.1,1.6,0.25,PALETTE.farGray,1);
+            S.rect(PX-0.8,PY+1.1,1.6*heat,0.25,heat>0.8?PALETTE.red:PALETTE.ink,1);
+            S.player(PX,PY,0,{kick:on*0.3});
+            S.target('compass',11.6,PY,k,0.55);
+        }
+    },
+    compass:{
+        period:2.8,
+        draw(S,k) {
+            const f=seg(k,0.1,0.8);
+            const out=f<0.5?f*2:2-f*2;
+            const x=PX+0.9+out*9;
+            const y=PY-Math.sin(f*Math.PI*2)*1.4;
+            if (f>0&&f<1) {
+                const a=k*40;
+                S.line(x-Math.cos(a)*0.45,y-Math.sin(a)*0.45,x+Math.cos(a)*0.45,y+Math.sin(a)*0.45,PALETTE.ink,0.14,1);
+                S.circle(x,y,0.12,PALETTE.nearGray,1);
+            }
+            S.player(PX,PY,0,{kick:seg(k,0.1,0.13)*(1-seg(k,0.13,0.2))});
+            S.target('doodle',PX+5.5,PY-1.2,k,0.28);
+            S.target('blob',PX+8.5,PY-0.6,k,0.38);
+        }
+    }
+};

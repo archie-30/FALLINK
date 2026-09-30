@@ -37,7 +37,8 @@ import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
-import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Tutorial} from './ui2d/menu.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Tutorial,WeaponView,Notice} from './ui2d/menu.js';
+import {weaponUnlocked} from './data/weapons.js';
 import {DEFAULT_SKIN} from './data/skins.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
@@ -103,6 +104,7 @@ function boot() {
     let menuAngle=0;
     const player=new Player(actors);
     player.applySkin({...DEFAULT_SKIN,...settings.skin});
+    const equipWeapon=()=>player.setWeapon(weaponUnlocked(settings.weapon,effectiveLevel())?settings.weapon:'pen');
     player.spawn(new THREE.Vector3(0,0,4));
     const rig=new CameraRig(1);
     rig.follow(player.pos,0,0);
@@ -134,6 +136,10 @@ function boot() {
     const E=TUNING.effects;
     const pierceBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:16,radius:E.pierceRadius,size:E.pierceSize,trailWidth:E.pierceTrail,pierce:true});
     const homingBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:48,radius:0.22,size:E.homingSize,trailWidth:0.2,homing:E.homingTurn});
+    const WB=TUNING.weaponFx;
+    const stapleBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:64,...WB.staple});
+    const compassBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:16,pierce:true,boomerang:true,...WB.compass});
+    compassBullets.target=player.renderPos;
     const lobs=new Lobs(actors);
     const rings=new Rings(fxScene);
     const dangerRings=new Rings(fxScene,12);
@@ -150,6 +156,16 @@ function boot() {
     ctx.enemyMgr=enemies;
     const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene},TUNING);
     ctx.dangerRings=dangerRings;
+    ctx.stapleBullets=stapleBullets;
+    ctx.compassBullets=compassBullets;
+    ctx.onBrush=(x,z,a,fan,r)=>{
+        for (let i=0;i<9;i++) {
+            const an=a+(i/8-0.5)*fan*1.3;
+            const d=r*(0.4+Math.random()*0.55);
+            particles.burst(x+Math.cos(an)*d,1,z+Math.sin(an)*d,1,{color:'ink',speed:[0.5,2],up:[0.5,2],size:[0.1,0.2],life:[0.2,0.4]});
+        }
+        fx.cameraShake(0.08);
+    };
     ctx.onInkDrop=(x,z,r,dur,slow)=>{
         game.room.zones.addPuddle(x,z,r,dur,slow);
         decals.spawn(x,z,r*1.7,'ink','nearGray');
@@ -373,6 +389,15 @@ function boot() {
     };
     const hitEnemies=(x,z,r,dmg,vx,vz,sys,i)=>enemies.hitBullet(x,z,r,dmg,vx,vz,sys,i);
     pierceBullets.onHit=hitEnemies;
+    compassBullets.onHit=hitEnemies;
+    stapleBullets.onHit=(x,z,r,dmg,vx,vz,sys,i)=>{
+        const e=hitEnemies(x,z,r,dmg,vx,vz,sys,i);
+        if (e&&player.W.slow) {
+            e.slowT=Math.max(e.slowT||0,player.W.slow.time);
+            e.slowMult=player.W.slow.mult;
+        }
+        return e;
+    };
     homingBullets.onHit=hitEnemies;
     let bleed=0;
     let heart=0;
@@ -385,6 +410,8 @@ function boot() {
         particles.burst(x,H,z,PT.wallPuff,{color:'nearGray',speed:[1,3.5],up:[1,3],size:[0.06,0.12],life:[0.2,0.4],dirX:-vx,dirZ:-vz,cone:1.3});
     };
     playerBullets.onWall=playerWall;
+    stapleBullets.onWall=playerWall;
+    compassBullets.onWall=playerWall;
     pierceBullets.onWall=playerWall;
     homingBullets.onWall=playerWall;
     enemyBullets.onWall=(x,z,vx,vz,col)=>{
@@ -557,6 +584,8 @@ function boot() {
         playerBullets.clear();
         enemyBullets.clear();
         pierceBullets.clear();
+        stapleBullets.clear();
+        compassBullets.clear();
         homingBullets.clear();
         lobs.clear();
         particles.clear();
@@ -755,6 +784,7 @@ function boot() {
         player.hp=TUNING.player.maxHp;
         ink.value=TUNING.ink.start;
         trainFixed=[];
+        equipWeapon();
         resetTrainStats();
         deck.provider=mode==='training'?trainProvider:null;
         run.start(startIds(),mode);
@@ -814,6 +844,10 @@ function boot() {
             codex.show();
         },
         training:()=>startGame('training'),
+        weapon:()=>{
+            audio.play('ui');
+            weaponView.show();
+        },
         tutorial:()=>{
             audio.play('ui');
             settings.tutorialSeen=true;
@@ -831,15 +865,58 @@ function boot() {
         }
     });
     const skinEditor=new SkinEditor({
-        changed:skin=>{
+        changed:(skin,big)=>{
             player.applySkin(skin);
             saveSettings();
+            player.sqv+=big?4:2.2;
+            player.stv=(player.stv||0)+(big?1.2:0.6);
+            particles.burst(player.pos.x,1.2,player.pos.z,big?22:10,{color:big?'red':'ink',speed:[2,5],up:[3,6],size:[0.08,0.18],life:[0.4,0.8]});
+            if (big) {
+                rings.spawn(player.pos.x,player.pos.z,1.6,'ink',0.5);
+            }
         },
         select:()=>audio.play('ui'),
         back:()=>{
             audio.play('ui');
             skinEditor.hide();
             mainMenu.show();
+        }
+    });
+    let noticePaused=false;
+    const notice=new Notice({
+        close:()=>{
+            audio.play('ui');
+            notice.hide();
+            if (noticePaused) {
+                noticePaused=false;
+                fx.paused=false;
+            }
+        }
+    });
+    let lastDev=null;
+    function checkDevice() {
+        const d=input.lastDevice;
+        if (d==='touch'&&lastDev!=='touch'&&!notice.open) {
+            noticePaused=game.mode==='play'&&!fx.paused;
+            if (noticePaused) {
+                hand.cancelTargeting();
+                fx.paused=true;
+            }
+            notice.show();
+        }
+        lastDev=d;
+    }
+    const weaponView=new WeaponView({
+        select:()=>audio.play('ui'),
+        equip:id=>{
+            settings.weapon=id;
+            saveSettings();
+            player.setWeapon(id);
+            audio.play('reload');
+        },
+        back:()=>{
+            audio.play('ui');
+            weaponView.hide();
         }
     });
     const tutorial=new Tutorial({
@@ -929,7 +1006,7 @@ function boot() {
             codex.hide();
         }
     });
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,tutorial];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,tutorial,weaponView,notice];
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
@@ -988,6 +1065,15 @@ function boot() {
     input.ui={
         down:(x,y,id,type,button)=>{
             audio.unlock();
+            if (type!=='mouse'&&lastDev!=='touch'&&!notice.open) {
+                input.lastDevice='touch';
+                checkDevice();
+                return true;
+            }
+            checkDevice();
+            if (notice.open) {
+                return notice.down(x,y);
+            }
             if (settingsMenu.open) {
                 return settingsMenu.down(x,y);
             }
@@ -999,6 +1085,9 @@ function boot() {
             }
             if (tutorial.open) {
                 return tutorial.down(x,y);
+            }
+            if (weaponView.open) {
+                return weaponView.down(x,y);
             }
             if (skinEditor.open) {
                 return skinEditor.down(x,y);
@@ -1112,6 +1201,10 @@ function boot() {
     };
     input.onEscape=()=>{
         audio.unlock();
+        if (notice.open) {
+            notice.actions.close();
+            return;
+        }
         if (settingsMenu.open) {
             if (!settingsMenu.closeKeys()) {
                 settingsMenu.hide();
@@ -1130,6 +1223,10 @@ function boot() {
         }
         if (tutorial.open) {
             tutorial.actions.back();
+            return;
+        }
+        if (weaponView.open) {
+            weaponView.actions.back();
             return;
         }
         if (skinEditor.open) {
@@ -1163,7 +1260,7 @@ function boot() {
         levelView.wheel(dy);
         trainingPicker.wheel(dy);
     };
-    input.canStick=()=>!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.canStick=()=>!notice.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     input.onAimRelease=(vx,vy,mag,tap)=>{
         if (hand.targetView&&run.state==='combat'&&input.canStick()) {
             hand.stickCast(vx,vy,mag,tap);
@@ -1221,7 +1318,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out);
-    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial};
+    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial,weaponView,notice};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -1335,7 +1432,7 @@ function boot() {
                 ink.value=TUNING.training.ink;
             }
             if (settings.training.ammo) {
-                player.ammo=TUNING.weapon.magazine;
+                player.ammo=player.W.magazine;
             }
             trainStats.lastT=Math.max(0,trainStats.lastT-dt*3);
             trainStats.hurtT=Math.max(0,trainStats.hurtT-dt*1.5);
@@ -1365,6 +1462,8 @@ function boot() {
         playerBullets.update(dt,room);
         enemyBullets.update(dt*hurry,room);
         pierceBullets.update(dt,room);
+        stapleBullets.update(dt,room);
+        compassBullets.update(dt,room);
         homingBullets.update(dt,room);
         lobs.update(dt);
         deck.update(dt);
@@ -1417,7 +1516,7 @@ function boot() {
         tweens.update(dt*time.timeScale,dt);
         setBoilSeed(time.boilIndex);
         if (game.mode==='menu') {
-            const a=menuAngle+(skinEditor.shown()?skinEditor.dragYaw:Math.sin(time.real*0.7)*TUNING.menu.sway);
+            const a=menuAngle+(skinEditor.shown()?skinEditor.dragYaw+skinEditor.spinYaw():Math.sin(time.real*0.7)*TUNING.menu.sway);
             player.faceDir(Math.sin(a),Math.cos(a));
             player.moveYaw=a;
         }
@@ -1426,6 +1525,8 @@ function boot() {
         playerBullets.render(alpha);
         enemyBullets.render(alpha);
         pierceBullets.render(alpha);
+        stapleBullets.render(alpha);
+        compassBullets.render(alpha);
         homingBullets.render(alpha);
         lobs.render(alpha);
         particles.render();
@@ -1450,6 +1551,7 @@ function boot() {
             m.update(dt);
         }
         ultCutin.update(fx.paused?0:dt);
+        checkDevice();
         gameUi.dt=dt;
         gameUi.frozen=fx.paused||fx.cutin;
         gameUi.mode=game.mode;
@@ -1547,8 +1649,9 @@ function boot() {
         },TUNING.ui.loaderMin*1000);
     }
     art.warm(deck.drawPile);
+    equipWeapon();
     enterMenu();
-    window.INKFALL={tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKFALL={notice,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

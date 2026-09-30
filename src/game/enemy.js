@@ -203,6 +203,8 @@ export class Enemy {
         this.stunT=0;
         this.vulnT=0;
         this.vulnMult=1;
+        this.slowT=0;
+        this.slowMult=1;
         this.root.visible=true;
         this.root.position.copy(this.pos);
         for (const l of this.lines) {
@@ -313,7 +315,8 @@ export class Enemy {
         else {
             this.think(dt,ctx);
         }
-        const slow=d.flying?1:ctx.room.zones.slowAt(this.pos.x,this.pos.z);
+        this.slowT=Math.max(0,(this.slowT||0)-dt);
+        const slow=(d.flying?1:ctx.room.zones.slowAt(this.pos.x,this.pos.z))*(this.slowT>0?this.slowMult:1);
         if (!this.manual) {
             if (!d.boss) {
                 for (const o of ctx.enemies) {
