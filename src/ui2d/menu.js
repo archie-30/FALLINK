@@ -168,7 +168,9 @@ function drawStarterTag(ctx,id,x,y,px,v) {
     ctx.restore();
 }
 
-const MENU_ACTS=['start','endless','training','tutorial','skin','settings','codex'];
+const MENU_ACTS=['start','endless','training','tutorial','codex'];
+
+const MENU_EXTRA=['settings','skin'];
 
 const MAX_LEVEL=Math.max(...Object.keys(UNLOCKS).map(Number));
 
@@ -198,6 +200,14 @@ export class MainMenu extends Panel {
         for (let i=0;i<MENU_ACTS.length;i++) {
             this.buttons.push({x:cx-bw/2,y:top+i*(bh+(small?6:10)),w:bw,h:bh});
         }
+        const M=TUNING.menu;
+        const w=this.width;
+        const sh=small?40:50;
+        this.settingsBtn={x:small?12:20,y:small?10:18,w:small?104:128,h:sh};
+        const kw=small?168:210;
+        const lx=w*(1-M.colFrac)/2;
+        this.skinBtn={x:lx-kw/2,y:h*(small?M.skinYSmall:M.skinY),w:kw,h:small?40:52};
+        this.buttons.push(this.settingsBtn,this.skinBtn);
     }
 
     hover(x,y) {
@@ -216,9 +226,116 @@ export class MainMenu extends Panel {
         }
         const i=this.hitButton(x,y);
         if (i>=0) {
-            this.actions[MENU_ACTS[i]]();
+            this.actions[MENU_ACTS.concat(MENU_EXTRA)[i]]();
         }
         return true;
+    }
+
+    drawSettingsBtn(ctx,v) {
+        const b=this.settingsBtn;
+        const hv=this.hoverIdx===MENU_ACTS.length;
+        const ap=Math.max(0,Math.min(1,(this.t-0.5)/0.4));
+        if (ap<=0) {
+            return;
+        }
+        const e=EASE.easeOutBack(ap);
+        ctx.save();
+        ctx.globalAlpha=Math.min(1,ap*2);
+        ctx.translate(b.x+b.w/2,b.y+b.h/2);
+        ctx.scale(e*(hv?1.05:1),e*(hv?1.05:1));
+        ctx.translate(-b.w/2,-b.h/2);
+        ctx.fillStyle=hv?rgba('farGray',0.95):rgba('paper',0.92);
+        ctx.fillRect(0,0,b.w,b.h);
+        drawShape(ctx,sketchRect(0,0,b.w,b.h,{width:hv?2.6:1.8,seed:1380}),PALETTE.ink,v);
+        const r=b.h*0.26;
+        const gx=b.h*0.52;
+        const gy=b.h/2;
+        this.gearA=(this.gearA||0)+(hv?0.06:0.004);
+        ctx.save();
+        ctx.translate(gx,gy);
+        ctx.rotate(this.gearA);
+        ctx.fillStyle=hv?PALETTE.red:PALETTE.ink;
+        for (let i=0;i<8;i++) {
+            ctx.save();
+            ctx.rotate(i*Math.PI/4);
+            ctx.fillRect(-r*0.2,-r*1.35,r*0.4,r*0.5);
+            ctx.restore();
+        }
+        ctx.beginPath();
+        ctx.arc(0,0,r,0,Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle=hv?rgba('farGray',1):PALETTE.paper;
+        ctx.beginPath();
+        ctx.arc(0,0,r*0.45,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+        drawShape(ctx,sketchLine(b.h*0.95,b.h*0.2,b.h*0.95,b.h*0.8,{width:1.2,seed:1381}),rgba('ink',0.4),v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(b.h<46?16:19)+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('menu.settings'),b.h*0.95+(b.w-b.h*0.95)/2,b.h/2+1);
+        ctx.restore();
+    }
+
+    drawSkinBtn(ctx,v) {
+        const b=this.skinBtn;
+        const hv=this.hoverIdx===MENU_ACTS.length+1;
+        const ap=Math.max(0,Math.min(1,(this.t-0.7)/0.4));
+        if (ap<=0) {
+            return;
+        }
+        const e=EASE.easeOutBack(ap);
+        const bob=Math.sin(time.real*2)*2;
+        const cx=b.x+b.w/2;
+        ctx.save();
+        ctx.globalAlpha=Math.min(1,ap*2);
+        ctx.strokeStyle=rgba('ink',0.35);
+        ctx.lineWidth=1.5;
+        ctx.setLineDash([4,5]);
+        ctx.beginPath();
+        ctx.moveTo(cx,b.y-6);
+        ctx.lineTo(cx,b.y-26+bob);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.beginPath();
+        ctx.moveTo(cx,b.y-30+bob);
+        ctx.lineTo(cx-6,b.y-20+bob);
+        ctx.lineTo(cx+6,b.y-20+bob);
+        ctx.closePath();
+        ctx.fill();
+        ctx.translate(cx,b.y+b.h/2+bob);
+        ctx.scale(e*(hv?1.06:1),e*(hv?1.06:1));
+        ctx.rotate(hv?-0.02:0.01);
+        ctx.translate(-b.w/2,-b.h/2);
+        ctx.fillStyle=hv?rgba('farGray',0.95):rgba('paper',0.94);
+        ctx.fillRect(0,0,b.w,b.h);
+        drawShape(ctx,sketchRect(0,0,b.w,b.h,{width:hv?2.8:2,seed:1390}),PALETTE.ink,v);
+        const px=b.h*0.55;
+        const py=b.h/2;
+        const pr=b.h*0.28;
+        ctx.fillStyle=PALETTE.paper;
+        ctx.beginPath();
+        ctx.ellipse(px,py,pr*1.15,pr,-0.3,0,Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=2;
+        ctx.stroke();
+        const cols=[PALETTE.red,'#5E7399','#C49A52','#7A8A5B'];
+        for (let i=0;i<4;i++) {
+            const an=-2.4+i*0.9+(hv?Math.sin(time.real*6+i)*0.1:0);
+            ctx.fillStyle=cols[i];
+            ctx.beginPath();
+            ctx.arc(px+Math.cos(an)*pr*0.6,py+Math.sin(an)*pr*0.55,pr*0.2,0,Math.PI*2);
+            ctx.fill();
+        }
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(b.h<46?16:20)+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('menu.skin'),b.h*0.55+pr+(b.w-b.h*0.55-pr)/2,b.h/2+1);
+        ctx.restore();
     }
 
     drawLevel(ctx,v) {
@@ -228,8 +345,8 @@ export class MainMenu extends Panel {
         const ph=140;
         const {cx}=this.column();
         const sc=small?0.72:1;
-        const x=small?16:cx-pw/2;
-        const y=small?14:h-ph-26;
+        const x=small?this.settingsBtn.x+this.settingsBtn.w+10:cx-pw/2;
+        const y=small?10:h-ph-26;
         this.levelRect={x,y,w:pw*sc,h:ph*sc};
         const a=Math.max(0,Math.min(1,(this.t-0.6)/0.4));
         ctx.save();
@@ -347,6 +464,8 @@ export class MainMenu extends Panel {
             ctx.restore();
         }
         this.drawLevel(ctx,v);
+        this.drawSettingsBtn(ctx,v);
+        this.drawSkinBtn(ctx,v);
     }
 }
 

@@ -103,6 +103,7 @@ export function toonMaterial(opts={}) {
         uFlash:{value:0},
         uFlashColor:{value:pal('ink').clone()},
         uAlpha:{value:opts.alpha??1},
+        uHatch:{value:new THREE.Vector2(1,0)},
         uInk:{value:pal('ink').clone()}
     };
     if (opts.reveal) {

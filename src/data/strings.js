@@ -385,7 +385,7 @@ export const STRINGS={
     'settings.resetSticks':'搖桿恢復預設',
     'settings.god':'上帝視角',
     'settings.full':'全螢幕',
-    'settingsInfo.full':'開啟後遊戲會以瀏覽器全螢幕顯示（第一次點擊或按鍵時自動進入）；按 Esc 可暫時離開全螢幕，再點一下畫面就會回來。關閉後維持一般視窗。',
+    'settingsInfo.full':'開啟後遊戲會以瀏覽器全螢幕顯示（第一次點擊或按鍵時自動進入）。在 Chrome／Edge 全螢幕中按 Esc 會打開暫停選單，長按 Esc 才會離開全螢幕；其他瀏覽器按 Esc 會離開全螢幕並自動暫停，再點一下畫面就會回到全螢幕。',
     'settingsInfo.god':'開啟後解鎖所有卡牌與圖鑑內容，方便試玩；這段期間不會獲得經驗、也不會更新最高分與圖鑑紀錄。關閉後就回到你原本的等級與紀錄。',
     'menu.god':'上帝視角中',
     'summary.god':'上帝視角：本局不記錄經驗與最高分',

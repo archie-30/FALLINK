@@ -333,11 +333,17 @@ export const TUNING={
         hoverScale:0.06,
         pressScale:0.18
     },
+    skinHatch:{
+        lines:0.28,
+        shade:0.35
+    },
     tutorial:{
         follow:9
     },
     menu:{
         colFrac:0.34,
+        skinY:0.72,
+        skinYSmall:0.74,
         colMax:420,
         colPad:20,
         camRadius:12.5,

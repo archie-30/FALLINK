@@ -5,6 +5,7 @@ import {addHull as addHullBase} from '../render/outline.js';
 import {resolveCircle,clampToBounds} from '../core/collision.js';
 import {time} from '../core/loop.js';
 import {SKIN_TONES,ACCENTS} from '../data/palette.js';
+import {DEFAULT_SKIN} from '../data/skins.js';
 
 const _mv={x:0,z:0};
 
@@ -240,7 +241,13 @@ export class Player {
     }
 
     applySkin(skin) {
+        const S=TUNING.skinHatch;
+        const plain=['coat','limbs','face','hat','gear'].every(k=>skin[k]===DEFAULT_SKIN[k]);
         for (const part of ['coat','limbs','face','hat','gear']) {
+            const m0=this.skinMats[part];
+            if (m0) {
+                m0.uniforms.uHatch.value.set(plain?1:S.lines,plain?0:S.shade);
+            }
             const tones=SKIN_TONES[skin[part]];
             const m=this.skinMats[part];
             if (!tones||!m) {
