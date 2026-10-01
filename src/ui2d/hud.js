@@ -152,7 +152,7 @@ export class Hud {
             ctx.fillRect(-1.5,-4,3,8);
             ctx.restore();
         }
-        if (player.ammo<=Math.max(3,W.magazine*0.2)&&!W.heat) {
+        if (player.ammo<=Math.max(3,W.magazine*0.2)&&!W.heat&&!W.returns) {
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='11px '+FONT;
             ctx.textAlign='center';

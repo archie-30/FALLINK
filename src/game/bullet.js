@@ -86,8 +86,9 @@ export class BulletSystem {
         this.spin=o.spin||0;
         this.hidden=!!o.hidden;
         this.returnAccel=o.returnAccel||0;
+        this.turnRate=o.turnRate||7;
         this.target=null;
-        this.onCatch=null;
+        this.onReturn=null;
         this.n=0;
         this.onWall=null;
         this.onHit=null;
@@ -166,7 +167,10 @@ export class BulletSystem {
         return i;
     }
 
-    kill(i) {
+    kill(i,caught=false) {
+        if (this.boomerang&&this.onReturn) {
+            this.onReturn(this.x[i],this.z[i],caught);
+        }
         const j=--this.n;
         if (i===j) {
             return;
@@ -283,16 +287,16 @@ export class BulletSystem {
                 const tz=this.target.z-this.z[i];
                 const tl=Math.hypot(tx,tz)||1;
                 if (tl<0.9) {
-                    if (this.onCatch) {
-                        this.onCatch(this.x[i],this.z[i]);
-                    }
-                    this.kill(i);
+                    this.kill(i,true);
                     continue;
                 }
-                const sp=Math.min(this.spd[i],Math.hypot(this.vx[i],this.vz[i])+this.returnAccel*dt);
-                const k=Math.min(1,dt*7);
+                const sp=this.returnAccel>0?Math.min(this.spd[i],Math.hypot(this.vx[i],this.vz[i])+this.returnAccel*dt):this.spd[i];
+                const k=Math.min(1,dt*this.turnRate);
                 this.vx[i]+=(tx/tl*sp-this.vx[i])*k;
                 this.vz[i]+=(tz/tl*sp-this.vz[i])*k;
+                const cl=Math.hypot(this.vx[i],this.vz[i])||1;
+                this.vx[i]*=sp/cl;
+                this.vz[i]*=sp/cl;
             }
             this.x[i]+=this.vx[i]*dt;
             this.z[i]+=this.vz[i]*dt;
@@ -317,6 +321,9 @@ export class BulletSystem {
                 if (own&&col.passPlayer) {
                     continue;
                 }
+                if (this.boomerang&&col.piece) {
+                    continue;
+                }
                 if (circleVs(x,z,r,col,hit)) {
                     wall=col;
                     break;
@@ -326,8 +333,8 @@ export class BulletSystem {
                 this.ret[i]=1;
                 this.life[i]=4;
                 this.hitN[i]=0;
-                this.vx[i]=-this.vx[i]*0.6;
-                this.vz[i]=-this.vz[i]*0.6;
+                this.vx[i]=-this.vx[i];
+                this.vz[i]=-this.vz[i];
                 if (this.onWall) {
                     this.onWall(x,z,-this.vx[i],-this.vz[i],wall);
                 }

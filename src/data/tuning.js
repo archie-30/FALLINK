@@ -364,7 +364,7 @@ export const TUNING={
         pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
         brush:{color:'ink',capacity:80,radius:0.3,size:0.3,trailWidth:0.42,drag:2.6,hidden:true},
         staple:{color:'midGray',capacity:64,radius:0.13,size:0.17,trailWidth:0.06},
-        compass:{color:'nearGray',capacity:16,radius:0.6,size:0.8,trailWidth:0.06,pierce:true,boomerang:true,model:'compass',spin:18,returnAccel:28}
+        compass:{color:'nearGray',capacity:16,radius:0.6,size:0.8,trailWidth:0.06,pierce:true,boomerang:true,model:'compass',spin:18,returnAccel:0,turnRate:12}
     },
     brushStroke:{count:10,height:1.0,fade:0.3,muzzle:0,thickMin:0.3,thickGrow:0.1,arc:1.0,lead:0.35,bow:0.05},
     beam:{height:1.1,fadeIn:30,fadeOut:14,pulse:40,pulseAmp:0.08,step:0.25,mergeTime:0.35,sparks:2},
