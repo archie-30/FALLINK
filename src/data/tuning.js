@@ -99,6 +99,7 @@ export const TUNING={
         maxHp:10,
         invulnTime:0.8,
         dashInvuln:true,
+        dashIframe:0.3,
         flickerFps:15,
         hurtKnockback:6,
         respawnInvuln:2.0,
@@ -254,6 +255,7 @@ export const TUNING={
     },
     ui:{
         scale:{refH:560,refW:900,min:0.72},
+        fit:{smallH:640,ratio:1.62,min:760},
         dangerHover:0.18,
         loaderMin:0.7,
         loaderFade:0.6,
@@ -273,10 +275,12 @@ export const TUNING={
             endless:{room:4,boss:6,hurt:1,win:0}
         }
     },
+    trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
     pauseUi:{compactH:700,top:0.2,titleY:0.1,colW:200,rowH:44,gap:10,hintGap:22},
     settingsUi:{
         twoColMin:600,
         touchSide:215,
+        colMax:420,
         resetR:13,
         resetDone:1.6,
         resetSpin:2.5,

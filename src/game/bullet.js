@@ -194,6 +194,21 @@ export class BulletSystem {
         this.hist.copyWithin(i*K2,j*K2,j*K2+K2);
     }
 
+    turnBack(i) {
+        this.ret[i]=1;
+        this.life[i]=4;
+        this.hitN[i]=0;
+        let dx=-this.vx[i];
+        let dz=-this.vz[i];
+        if (this.target) {
+            dx=this.target.x-this.x[i];
+            dz=this.target.z-this.z[i];
+        }
+        const l=Math.hypot(dx,dz)||1;
+        this.vx[i]=dx/l*this.spd[i];
+        this.vz[i]=dz/l*this.spd[i];
+    }
+
     clear() {
         this.n=0;
         this.frozen=0;
@@ -302,9 +317,7 @@ export class BulletSystem {
             this.z[i]+=this.vz[i]*dt;
             this.life[i]-=dt;
             if (this.boomerang&&!this.ret[i]&&this.life[i]<=0) {
-                this.ret[i]=1;
-                this.life[i]=4;
-                this.hitN[i]=0;
+                this.turnBack(i);
             }
             if (this.age[i]<K) {
                 this.age[i]++;
@@ -330,11 +343,9 @@ export class BulletSystem {
                 }
             }
             if (wall&&this.boomerang&&!this.ret[i]) {
-                this.ret[i]=1;
-                this.life[i]=4;
-                this.hitN[i]=0;
-                this.vx[i]=-this.vx[i];
-                this.vz[i]=-this.vz[i];
+                this.x[i]-=this.vx[i]*dt;
+                this.z[i]-=this.vz[i]*dt;
+                this.turnBack(i);
                 if (this.onWall) {
                     this.onWall(x,z,-this.vx[i],-this.vz[i],wall);
                 }

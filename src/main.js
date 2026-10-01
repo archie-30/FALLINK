@@ -1421,16 +1421,25 @@ function boot() {
     };
     input.canStick=()=>!notice.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     let skillToggle=false;
+    let skillQuick=false;
     input.onSkill=(type,slot,vx,vy,mag,moved)=>{
         if (run.state!=='combat'||!input.canStick()) {
             return;
         }
         const tv=hand.targetView;
         if (type==='down') {
+            skillQuick=hand.quickCast(slot);
+            if (skillQuick) {
+                return;
+            }
             skillToggle=!!(tv&&tv.slot===slot);
             if (!skillToggle) {
                 hand.selectSlot(slot);
             }
+            return;
+        }
+        if (skillQuick) {
+            skillQuick=false;
             return;
         }
         if (moved&&mag>0&&tv&&tv.slot===slot) {

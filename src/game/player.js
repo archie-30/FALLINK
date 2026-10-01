@@ -509,7 +509,7 @@ export class Player {
     }
 
     isInvulnerable() {
-        return this.invuln>0||(TUNING.player.dashInvuln&&this.dashT>0);
+        return this.invuln>0||(TUNING.player.dashInvuln&&(this.dashT>0||this.dashIT>0));
     }
 
     hurt(dmg,dx,dz) {
@@ -657,6 +657,7 @@ export class Player {
         const room=ctx.room;
         this.prev.copy(this.pos);
         this.invuln=Math.max(0,this.invuln-dt);
+        this.dashIT=Math.max(0,(this.dashIT||0)-dt);
         input.getMove(_mv);
         const moveLen=Math.hypot(_mv.x,_mv.z);
         if (aim.mode==='point') {
@@ -687,6 +688,7 @@ export class Player {
             }
             this.vel.set(dx*P.dashSpeed,0,dz*P.dashSpeed);
             this.dashT=P.dashTime;
+            this.dashIT=P.dashIframe;
             this.dashCd=P.dashCooldown;
             this.moveYaw=Math.atan2(dx,dz);
             this.stv+=P.dashStretch;

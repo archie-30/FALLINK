@@ -526,16 +526,6 @@ export class Hand {
                 this.cancelTargeting();
                 return true;
             }
-            const hit=type==='mouse'?null:this.hitCard(x,y);
-            if (hit) {
-                if (hit===this.targetView) {
-                    this.cancelTargeting();
-                }
-                else {
-                    this.enterTargeting(hit);
-                }
-                return true;
-            }
             if (y<this.fieldBottom()&&this.targetView.card.def.targeting==='drawPath') {
                 this.path={card:this.targetView.card,pts:[],len:0};
                 this.addPathPoint(x,y);
@@ -566,11 +556,16 @@ export class Hand {
             this.api.openDeck();
             return true;
         }
-        const v=this.hitCard(x,y);
-        if (!v||button===2) {
+        return false;
+    }
+
+    quickCast(slot) {
+        const v=this.views.find(o=>o.slot===slot);
+        if (!v||v.state!=='idle'||v.card.def.targeting!=='none') {
             return false;
         }
-        this.press={id,v,x0:x,y0:y,type,moved:false};
+        this.cancelTargeting();
+        this.tryPlay(v,this.resolveTarget(v.card));
         return true;
     }
 

@@ -116,16 +116,21 @@ export const STORY_INTRO=[0,2,4,5,7,9,11];
 export const ENEMY_COST={doodle:1,blob:2,sprayer:2,inkCloud:2,compass:2,bird:1,eraserMonster:2};
 
 export const ACTS=[
-    {rooms:4,budget:[6,8,9,11],waves:[2,2,3,3],pool:{doodle:4,blob:2,sprayer:2,bird:1,compass:1},hpMult:1,bossHp:1},
-    {rooms:4,budget:[10,12,13,15],waves:[2,3,3,3],pool:{doodle:2,blob:2,sprayer:2,inkCloud:2,compass:2,bird:2,eraserMonster:1},hpMult:1.3,bossHp:1},
-    {rooms:4,budget:[13,15,17,20],waves:[3,3,3,4],pool:{doodle:2,blob:2,sprayer:2,inkCloud:2,compass:2,bird:2,eraserMonster:2},hpMult:1.65,bossHp:1}
+    {rooms:4,budget:[5,6,7,8],waves:[2,2,2,3],pool:{doodle:4,blob:2,sprayer:2,bird:1,compass:1},hpMult:1,bossMult:1,bossHp:1,modChance:[0,0,0.3,0.3],elite:false},
+    {rooms:4,budget:[8,9,10,11],waves:[2,2,3,3],pool:{doodle:3,blob:2,sprayer:2,inkCloud:2,compass:1,bird:2,eraserMonster:1},hpMult:1.12,bossMult:1.3,bossHp:1,modChance:[0.3,0.4,0.4,0.5],elite:true},
+    {rooms:4,budget:[10,12,13,15],waves:[2,3,3,3],pool:{doodle:2,blob:2,sprayer:2,inkCloud:2,compass:2,bird:2,eraserMonster:2},hpMult:1.28,bossMult:1.65,bossHp:1,modChance:[0.4,0.5,0.5,0.6],elite:true}
 ];
 
 export const ENDLESS={
     bossEvery:5,
-    hpPerPage:0.09,
-    budgetBase:6,
-    budgetPerPage:1.3,
+    hpPerPage:0.05,
+    bossHpPerPage:0.09,
+    budgetBase:5,
+    budgetPerPage:0.85,
+    budgetMax:24,
+    modFrom:3,
+    modChance:0.4,
+    eliteFrom:10,
     scoreKill:100,
     scoreBoss:3000,
     scoreRoom:500,
