@@ -317,7 +317,10 @@ export const TUNING={
         executeShake:0.8,
         missRadius:1.6,
         missDamage:40,
-        eraserSweep:0.28,
+        eraserSweep:0.32,
+        eraserRide:0.8,
+        eraserScale:1.5,
+        eraserWidth:0.5,
         shieldPanels:4,
         bladeTime:1.1,
         bladeRadius:1.0,
@@ -373,9 +376,6 @@ export const TUNING={
     brushStroke:{count:10,height:1.0,fade:0.3,muzzle:0,thickMin:0.3,thickGrow:0.1,arc:1.0,lead:0.35,bow:0.05},
     beam:{height:1.1,fadeIn:30,fadeOut:14,pulse:40,pulseAmp:0.08,step:0.25,mergeTime:0.35,sparks:2},
     equip:{time:0.55,lift:0.35,spin:2,particles:10},
-    notice:{
-        wait:3
-    },
     skinUi:{
         pulseDecay:3.5,
         spinTime:0.8,
@@ -494,12 +494,13 @@ export const TUNING={
     },
     hud:{
         toastTime:3,
+        timer:{offset:42,cloneOffset:14,width:76,height:5},
+        timerSkip:['clone'],
         enemyHp:{minTicks:4,maxTicks:12,hpPerTick:8,radius:30,radiusScale:20,span:0.5,offset:26,follow:0.08,tickW:3.5,tickH:10},
         hpPos:[24,22],
         hpLength:220,
         hpHeight:22,
         legendPad:14,
-        trainBuffY:272,
         ammoMaxTicks:24,
         lock:{base:18,perRadius:16,snapTime:0.18,snapGrow:1.2,pulse:6,spin:0.8},
         reloadRing:12

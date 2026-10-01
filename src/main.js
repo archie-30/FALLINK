@@ -39,7 +39,7 @@ import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
-import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Tutorial,WeaponView,Notice} from './ui2d/menu.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Tutorial,WeaponView} from './ui2d/menu.js';
 import {weaponUnlocked} from './data/weapons.js';
 import {DEFAULT_SKIN} from './data/skins.js';
 import {EASE} from './core/easing.js';
@@ -136,7 +136,7 @@ function boot() {
     const playerBullets=new BulletSystem(actors,fxScene,{color:'ink',...TUNING.bullet.player});
     const enemyBullets=new BulletSystem(actors,fxScene,{color:'red',owner:'enemy',...TUNING.bullet.enemy});
     const E=TUNING.effects;
-    const pierceBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:16,radius:E.pierceRadius,size:E.pierceSize,trailWidth:E.pierceTrail,pierce:true});
+    const pierceBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:16,radius:E.pierceRadius,size:E.pierceSize,trailWidth:E.pierceTrail,pierce:true,thruWalls:true});
     const homingBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:48,radius:0.22,size:E.homingSize,trailWidth:0.2,homing:E.homingTurn});
     const WB=TUNING.weaponFx;
     const weaponSys={player:playerBullets};
@@ -1012,27 +1012,14 @@ function boot() {
             mainMenu.show();
         }
     });
-    let noticePaused=false;
-    const notice=new Notice({
-        close:()=>{
-            audio.play('ui');
-            notice.hide();
-            if (noticePaused) {
-                noticePaused=false;
-                fx.paused=false;
-            }
-        }
-    });
-    let lastDev=null;
+    let lastDev='mouse';
     function checkDevice() {
         const d=input.lastDevice;
-        if (d==='touch'&&lastDev!=='touch'&&!notice.open) {
-            noticePaused=game.mode==='play'&&!fx.paused;
-            if (noticePaused) {
+        if (d!==lastDev) {
+            overlay.hud.toast(t(d==='touch'?'device.touch':'device.mouse'));
+            if (d==='touch') {
                 hand.cancelTargeting();
-                fx.paused=true;
             }
-            notice.show();
         }
         lastDev=d;
     }
@@ -1153,7 +1140,7 @@ function boot() {
             codex.hide();
         }
     });
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,tutorial,weaponView,notice];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,tutorial,weaponView];
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
@@ -1217,15 +1204,10 @@ function boot() {
     input.ui={
         down:(x,y,id,type,button)=>{
             audio.unlock();
-            if (type!=='mouse'&&lastDev!=='touch'&&!notice.open) {
+            if (type!=='mouse') {
                 input.lastDevice='touch';
-                checkDevice();
-                return true;
             }
             checkDevice();
-            if (notice.open) {
-                return notice.down(x,y);
-            }
             if (settingsMenu.open) {
                 return settingsMenu.down(x,y);
             }
@@ -1356,12 +1338,6 @@ function boot() {
     };
     input.onEscape=()=>{
         audio.unlock();
-        if (notice.open) {
-            if (notice.ready()) {
-                notice.actions.close();
-            }
-            return;
-        }
         if (settingsMenu.open) {
             if (!settingsMenu.closeKeys()) {
                 settingsMenu.hide();
@@ -1419,7 +1395,7 @@ function boot() {
         levelView.wheel(dy);
         trainingPicker.wheel(dy);
     };
-    input.canStick=()=>!notice.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.canStick=()=>!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     let skillToggle=false;
     let skillQuick=false;
     input.onSkill=(type,slot,vx,vy,mag,moved)=>{
@@ -1518,7 +1494,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial,weaponView,notice};
+    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial,weaponView};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -1864,7 +1840,7 @@ function boot() {
     art.warm(deck.drawPile);
     equipWeapon();
     enterMenu();
-    window.INKRAGE={weaponSys,notice,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={weaponSys,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

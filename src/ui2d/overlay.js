@@ -76,6 +76,8 @@ export class Overlay {
             if (!training||!settings.training.ammo) {
                 this.hud.drawAmmo(ctx,player,game.project,this.tmp||(this.tmp={x:0,y:0}));
             }
+            this.hud.drawTimers(ctx,player,game.effects.timers,game.project,this.tmp||(this.tmp={x:0,y:0}));
+            this.hud.drawCloneTimers(ctx,game.clones,game.project,this.tmp);
             this.drawLock(ctx,game);
             if (training) {
                 this.hud.drawTrainingInfo(ctx,game.trainStats,game.enemies.aliveCount(),device.mobile||input.lastDevice==='touch',this.height);
@@ -84,7 +86,6 @@ export class Overlay {
                 this.hud.drawHp(ctx,player);
                 this.hud.drawInk(ctx,game.ink);
             }
-            this.hud.drawBuffs(ctx,player,training?TUNING.hud.trainBuffY*(this.height<600?0.74:1):null);
             game.hand.draw(ctx,game.art);
             if (input.lastDevice==='touch') {
                 this.screenSpace(true);
@@ -97,7 +98,6 @@ export class Overlay {
             }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
-            this.hud.drawToast(ctx,this.width,game.dt);
             game.ultCutin.draw(ctx,this.width,this.height,game.art);
             this.hud.drawPause(ctx,this.width);
             game.deckView.draw(ctx,game.art,game.deck);
@@ -141,7 +141,7 @@ export class Overlay {
             this.screenSpace(false);
         }
         game.codex.draw(ctx,game.art);
-        game.notice.draw(ctx);
+        this.hud.drawToast(ctx,this.width,game.dt);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             const play=game.mode==='play'&&game.run.state!=='dead';
             const lock=play&&!game.frozen&&!!game.aimTarget&&game.aimTarget.alive;

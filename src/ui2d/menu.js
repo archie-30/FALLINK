@@ -73,6 +73,15 @@ function drawButton(ctx,b,label,v,appear,hover,size=20,danger=false) {
     ctx.restore();
 }
 
+function fitText(ctx,text,x,y,maxW,size,weight) {
+    ctx.font=weight+size+'px '+FONT;
+    const w=ctx.measureText(text).width;
+    if (w>maxW) {
+        ctx.font=weight+Math.max(8,Math.floor(size*maxW/w))+'px '+FONT;
+    }
+    ctx.fillText(text,x,y);
+}
+
 function fitW(h) {
     const U=TUNING.ui.fit;
     return h<U.smallH?Math.max(U.min,h*U.ratio):9999;
@@ -2000,11 +2009,21 @@ export class RunSummary {
         this.quit=quit;
         this.stats=stats;
         this.onRestart=onRestart;
+        this.gradeOpen=false;
+        this.gradeRect=null;
     }
 
     down(x,y) {
         if (!this.open) {
             return false;
+        }
+        if (this.gradeRect&&inRect(this.gradeRect,x,y)) {
+            this.gradeOpen=!this.gradeOpen;
+            return true;
+        }
+        if (this.gradeOpen) {
+            this.gradeOpen=false;
+            return true;
         }
         const b=this.button;
         if (this.t>(this.victory||this.quit?1.6:2.4)) {
@@ -2044,11 +2063,61 @@ export class RunSummary {
         this.drawBody(ctx);
     }
 
-    grade() {
+    gradePts() {
         const G=TUNING.summaryUi.grade;
         const st=this.stats;
         const W=st.mode==='endless'?G.endless:G.story;
-        const pts=st.rooms*W.room+st.bosses*W.boss-st.damage*W.hurt+(this.victory?W.win:0);
+        return Math.round(st.rooms*W.room+st.bosses*W.boss-st.damage*W.hurt+(this.victory?W.win:0));
+    }
+
+    drawGradeInfo(ctx,x,y,v) {
+        const G=TUNING.summaryUi.grade;
+        const st=this.stats;
+        const W=st.mode==='endless'?G.endless:G.story;
+        const pts=this.gradePts();
+        const cur=this.grade();
+        const lines=[t('grade.points',{n:pts}),t(st.mode==='endless'?'grade.ruleEndless':'grade.rule',W)];
+        const rows=G.marks.slice(0,-1).map(m=>[m[0],t('grade.at',{n:m[1]})]).concat([[G.marks[G.marks.length-1][0],t('grade.below',{n:G.marks[G.marks.length-2][1]})]]);
+        const pad=12;
+        const bw=280;
+        const bh=pad*2+lines.length*20+rows.length*20+6;
+        const bx=Math.max(8,Math.min(this.width-bw-8,x-bw/2));
+        const by=Math.max(8,Math.min(this.height-bh-8,y));
+        ctx.save();
+        ctx.fillStyle=rgba('paper',0.98);
+        ctx.fillRect(bx,by,bw,bh);
+        drawShape(ctx,sketchRect(bx,by,bw,bh,{width:1.8,seed:971}),PALETTE.red,v);
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        let yy=by+pad;
+        ctx.font='bold 14px '+FONT;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillText(lines[0],bx+pad,yy);
+        yy+=20;
+        ctx.font='11px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillText(lines[1],bx+pad,yy,bw-pad*2);
+        yy+=26;
+        for (const [g,label] of rows) {
+            const on=g===cur;
+            if (on) {
+                ctx.fillStyle=rgba('red',0.12);
+                ctx.fillRect(bx+6,yy-2,bw-12,20);
+            }
+            ctx.font='italic 900 15px Georgia,serif';
+            ctx.fillStyle=PALETTE.red;
+            ctx.fillText(g,bx+pad,yy);
+            ctx.font=(on?'bold ':'')+'13px '+FONT;
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillText(label,bx+pad+26,yy+1);
+            yy+=20;
+        }
+        ctx.restore();
+    }
+
+    grade() {
+        const G=TUNING.summaryUi.grade;
+        const pts=this.gradePts();
         for (let i=0;i<G.marks.length;i++) {
             if (pts>=G.marks[i][1]) {
                 return G.marks[i][0];
@@ -2277,6 +2346,13 @@ export class RunSummary {
                 ctx.fillText(this.grade(),0,3);
             }
             ctx.restore();
+            this.gradeRect={x:gx-R*1.2,y:gy-R*1.1,w:R*2.4,h:R*2.2};
+            if (lk>=1&&(this.gradeOpen||inRect(this.gradeRect,this.hx??-1,this.hy??-1))) {
+                this.gradeInfo={x:gx,y:gy+R*1.1};
+            }
+            else {
+                this.gradeInfo=null;
+            }
         }
         const mm=Math.floor(s.time/60);
         const ss=Math.floor(s.time%60);
@@ -2398,6 +2474,9 @@ export class RunSummary {
         const ba=(T-1.3)/0.35;
         drawButton(ctx,this.button,t('summary.restart'),v,ba,inRect(this.button,this.hx??-1,this.hy??-1),small?17:20);
         drawButton(ctx,this.menuButton,t('summary.menu'),v,ba-0.15,inRect(this.menuButton,this.hx??-1,this.hy??-1),small?17:20,true);
+        if (this.gradeInfo) {
+            this.drawGradeInfo(ctx,this.gradeInfo.x,this.gradeInfo.y,v);
+        }
     }
 }
 
@@ -4525,13 +4604,12 @@ export class WeaponView extends Panel {
                 drawWeaponIcon(ctx,id,ch*0.5,ch*0.5+bob,ch/110,v,locked);
             }
             ctx.fillStyle=locked?PALETTE.midGray:PALETTE.ink;
-            ctx.font='bold '+(small?15:19)+'px '+FONT;
             ctx.textAlign='left';
             ctx.textBaseline='middle';
-            ctx.fillText(t('weapon.'+id+'.name'),ch*0.98,ch*0.38);
-            ctx.font='12px '+FONT;
+            const tw=cw-ch*0.98-8;
+            fitText(ctx,t('weapon.'+id+'.name'),ch*0.98,ch*0.38,tw,small?15:19,'bold ');
             ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
-            ctx.fillText(locked?t('codex.locked',{level:WEAPONS[id].unlock}):t('weapon.'+id+'.short'),ch*0.98,ch*0.66);
+            fitText(ctx,locked?t('codex.locked',{level:WEAPONS[id].unlock}):t('weapon.'+id+'.short'),ch*0.98,ch*0.66,tw,12,'');
             if (eqOn) {
                 const k=et/Q.time;
                 for (let d=0;d<Q.drops;d++) {
@@ -4649,124 +4727,3 @@ export class WeaponView extends Panel {
 
 const WEAPON_STATS=['dmg','rate','range','mag'];
 
-export class Notice extends Panel {
-    constructor(actions) {
-        super();
-        this.actions=actions;
-        this.outFrom=0.35;
-        this.key='touch';
-        this.wait=0;
-    }
-
-    show() {
-        super.show();
-        this.wait=godMode()?0:TUNING.notice.wait;
-    }
-
-    ready() {
-        return this.wait<=0;
-    }
-
-    update(dt) {
-        super.update(dt);
-        if (this.open) {
-            this.wait=Math.max(0,this.wait-dt);
-        }
-    }
-
-    layout() {
-        const w=this.width;
-        const h=this.height;
-        const pw=Math.min(520,w-32);
-        const ph=Math.min(h-24,h<600?250:300);
-        this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
-        const bw=Math.min(220,pw-60);
-        this.okBtn={x:w/2-bw/2,y:this.P.y+ph-(h<600?56:70),w:bw,h:h<600?42:50};
-        this.buttons=[this.okBtn];
-    }
-
-    down(x,y) {
-        if (!this.open) {
-            return false;
-        }
-        this.layout();
-        if (inRect(this.okBtn,x,y)&&this.ready()) {
-            this.actions.close();
-        }
-        return true;
-    }
-
-    draw(ctx) {
-        if (!this.shown()) {
-            return;
-        }
-        this.layout();
-        const w=this.width;
-        const h=this.height;
-        const v=time.boilIndex;
-        const P=this.P;
-        const small=h<600;
-        const a=EASE.easeOutBack(Math.min(1,this.t/0.4));
-        ctx.save();
-        ctx.fillStyle=rgba('ink',Math.min(0.35,this.t*1.5));
-        ctx.fillRect(0,0,w,h);
-        ctx.translate(w/2,h/2);
-        ctx.scale(0.8+0.2*a,0.8+0.2*a);
-        ctx.rotate((1-a)*-0.05);
-        ctx.translate(-w/2,-h/2);
-        ctx.globalAlpha=Math.min(1,this.t*4);
-        ctx.fillStyle=rgba('ink',0.2);
-        ctx.fillRect(P.x+6,P.y+8,P.w,P.h);
-        ctx.fillStyle=PALETTE.paper;
-        ctx.fillRect(P.x,P.y,P.w,P.h);
-        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.4,seed:2100}),PALETTE.ink,v);
-        ctx.fillStyle=PALETTE.red;
-        ctx.fillRect(P.x,P.y,P.w,6);
-        const ix=P.x+38;
-        const iy=P.y+(small?40:50);
-        const wob=Math.sin(time.real*4)*0.12;
-        ctx.save();
-        ctx.translate(ix,iy);
-        ctx.rotate(wob);
-        ctx.strokeStyle=PALETTE.ink;
-        ctx.lineWidth=3;
-        ctx.strokeRect(-12,-18,24,36);
-        ctx.fillStyle=PALETTE.red;
-        ctx.beginPath();
-        ctx.arc(0,4,5+Math.abs(Math.sin(time.real*3))*3,0,Math.PI*2);
-        ctx.fill();
-        ctx.restore();
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?19:23)+'px '+FONT;
-        ctx.textAlign='left';
-        ctx.textBaseline='middle';
-        ctx.fillText(t('notice.'+this.key+'.title'),ix+30,iy);
-        ctx.font=(small?'14px ':'15px ')+FONT;
-        ctx.fillStyle=PALETTE.nearGray;
-        ctx.textBaseline='top';
-        const lines=wrapText(ctx,t('notice.'+this.key+'.body'),P.w-60);
-        let y=iy+(small?28:38);
-        for (const ln of lines) {
-            ctx.fillText(ln,P.x+30,y);
-            y+=small?20:24;
-        }
-        if (this.ready()) {
-            drawButton(ctx,this.okBtn,t('notice.ok'),v,(this.t-0.15)/0.3,this.hoverIdx===0,small?16:18);
-        }
-        else {
-            const ob=this.okBtn;
-            const f=1-this.wait/TUNING.notice.wait;
-            ctx.fillStyle=rgba('farGray',0.6);
-            ctx.fillRect(ob.x,ob.y,ob.w,ob.h);
-            ctx.fillStyle=rgba('ink',0.15);
-            ctx.fillRect(ob.x,ob.y,ob.w*f,ob.h);
-            drawShape(ctx,sketchRect(ob.x,ob.y,ob.w,ob.h,{width:1.6,seed:2101}),PALETTE.midGray,v);
-            ctx.fillStyle=PALETTE.nearGray;
-            ctx.font='bold '+(small?15:17)+'px '+FONT;
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            ctx.fillText(t('notice.wait',{n:Math.ceil(this.wait)}),ob.x+ob.w/2,ob.y+ob.h/2+1);
-        }
-        ctx.restore();
-    }
-}

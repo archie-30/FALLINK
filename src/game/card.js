@@ -1,5 +1,6 @@
 import*as THREE from 'three';
 import {CARDS} from '../data/cards.js';
+import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
 import {toonMaterial,lineMaterial,unlitMaterial} from '../render/materials.js';
 
@@ -47,6 +48,7 @@ export function cardKey(card) {
 
 export class CardEffects {
     constructor(g,tuning) {
+        this.timers=[];
         this.g=g;
         this.E=tuning.effects;
         this.T=tuning;
@@ -85,6 +87,7 @@ export class CardEffects {
         }
         this.waveLine=mk();
         this.beamLine=mk();
+        this.eraserLine=mk();
         this.bladeMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.62,0.06,3),toonMaterial({light:'paper',mid:'farGray',dark:'midGray'}));
         this.bladeMesh.visible=false;
         this.g.scene.add(this.bladeMesh);
@@ -105,10 +108,12 @@ export class CardEffects {
     }
 
     clear() {
+        this.timers.length=0;
         this.sweeps.length=0;
         this.bladeMesh.visible=false;
         this.lastPlay=null;
         this.eraserMesh.visible=false;
+        this.eraserLine.visible=false;
         this.redrawLine.visible=false;
         this.waveLine.visible=false;
         this.beamLine.visible=false;
@@ -178,6 +183,12 @@ export class CardEffects {
     update(dt) {
         const g=this.g;
         this.updateExtras(dt);
+        for (let i=this.timers.length-1;i>=0;i--) {
+            this.timers[i].left-=dt;
+            if (this.timers[i].left<=0) {
+                this.timers.splice(i,1);
+            }
+        }
         for (let i=this.sweeps.length-1;i>=0;i--) {
             const s=this.sweeps[i];
             s.t+=dt;
@@ -209,16 +220,20 @@ export class CardEffects {
                     }
                     return ang>=lo-0.05&&ang<=hi+0.05;
                 },(x,z)=>g.particles.burst(x,1.0,z,2,{color:'farGray',speed:[0.5,2],up:[1,2],size:[0.06,0.1],life:[0.2,0.35]}));
-                const r=R*0.55;
+                const r=R*this.E.eraserRide;
                 const m=this.eraserMesh;
                 m.visible=true;
                 m.position.set(cx+Math.cos(a)*r,1.0+Math.sin(k*Math.PI)*0.3,cz+Math.sin(a)*r);
                 m.rotation.set(0,-a+Math.PI/2,Math.sin(k*20)*0.1);
-                if (Math.random()<0.7) {
-                    g.particles.burst(m.position.x,0.8,m.position.z,1,{color:'farGray',speed:[1,3],up:[1,3],size:[0.06,0.12],life:[0.3,0.5]});
+                m.scale.setScalar(this.E.eraserScale);
+                this.setLine(this.eraserLine,cx,cz,cx+Math.cos(a)*R,cz+Math.sin(a)*R,this.E.eraserWidth*(1-k*0.5),0.07);
+                for (let q=0;q<2;q++) {
+                    const rr=R*(0.25+Math.random()*0.75);
+                    g.particles.burst(cx+Math.cos(a)*rr,0.6,cz+Math.sin(a)*rr,1,{color:'farGray',speed:[1,3],up:[1,3],size:[0.06,0.12],life:[0.3,0.5]});
                 }
                 if (k>=1) {
                     m.visible=false;
+                    this.eraserLine.visible=false;
                     this.sweeps.splice(i,1);
                 }
             }
@@ -247,7 +262,23 @@ export class CardEffects {
     run(card,target) {
         const g=this.g;
         g.particles.burst(target.x,1.0,target.z,8,{color:card.def.rarity==='rare'?'red':'ink',speed:[1,4],up:[1,4],size:[0.08,0.16],life:[0.25,0.5]});
-        card.def.effect(this,target,cardParams(card));
+        const params=cardParams(card);
+        const p=g.player;
+        const keep=target.ox!==undefined;
+        const sx=p.pos.x;
+        const sz=p.pos.z;
+        if (keep) {
+            p.pos.x=target.ox;
+            p.pos.z=target.oz;
+        }
+        card.def.effect(this,target,params);
+        if (keep) {
+            p.pos.x=sx;
+            p.pos.z=sz;
+        }
+        if (params.duration&&!TUNING.hud.timerSkip.includes(card.def.id)) {
+            this.timers.push({id:card.def.id,left:params.duration,full:params.duration});
+        }
         if (card.id!=='echo') {
             this.lastPlay={card,target};
         }
@@ -274,9 +305,10 @@ export class CardEffects {
         g.particles.burst(m.x,this.T.weapon.height,m.z,8,{dirX:dx,dirZ:dz,cone:0.6,speed:[3,7]});
     }
 
-    pierceShot(dx,dz,damage,speed) {
+    pierceShot(dx,dz,damage,speed,ramp) {
         const g=this.g;
         const m=this.muzzle(dx,dz);
+        g.pierceBullets.ramp=ramp||0;
         g.pierceBullets.spawn(m.x,m.z,dx,dz,speed,damage,1.2);
         g.muzzle.show(m.x,this.T.weapon.height,m.z,'ink',2.0);
         g.fx.cameraShake(this.E.pierceShake);

@@ -859,7 +859,7 @@ export class Player {
             this.applyPose();
         }
         this.aimFrame.rotation.y=this.aimYaw-this.poseMoveYaw;
-        if (this.invuln>0&&this.shield===0) {
+        if (this.invuln>0&&this.shield===0&&time.timeScale>0) {
             this.moveFrame.visible=Math.floor(time.real*TUNING.player.flickerFps)%2===0;
         }
         else {
