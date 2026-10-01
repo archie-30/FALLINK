@@ -575,7 +575,7 @@ export class Player {
         this.fire(ctx,aim);
         if (this.rapidT<=0) {
             this.ammo--;
-            if (this.ammo<=0) {
+            if (this.ammo<=0&&!this.W.returns) {
                 this.startReload();
             }
         }
@@ -756,7 +756,7 @@ export class Player {
                 }
             }
         }
-        else if (input.consumeReload&&input.consumeReload()&&this.ammo<W.magazine&&!W.heat) {
+        else if (input.consumeReload&&input.consumeReload()&&this.ammo<W.magazine&&!W.heat&&!W.returns) {
             this.startReload();
         }
         this.updateHeat(dt,input.isFiring()&&this.reloadT<=0&&this.ammo>0);

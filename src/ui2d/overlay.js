@@ -24,7 +24,13 @@ export class Overlay {
         this.hud=new Hud();
     }
 
+    refresh() {
+        this.resize(this.cssW,this.cssH,this.us);
+    }
+
     resize(w,h,us=1) {
+        this.cssW=w;
+        this.cssH=h;
         this.us=us;
         this.width=w/us;
         this.height=h/us;
