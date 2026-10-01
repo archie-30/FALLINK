@@ -5,7 +5,8 @@ export const PALETTE={
     nearGray:'#4A4946',
     ink:'#1A1A1A',
     red:'#D62828',
-    darkRed:'#8C1C1C'
+    darkRed:'#8C1C1C',
+    marker:'#E0B43C'
 };
 
 export const SKIN_TONES={

@@ -137,9 +137,12 @@ function boot() {
     const pierceBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:16,radius:E.pierceRadius,size:E.pierceSize,trailWidth:E.pierceTrail,pierce:true});
     const homingBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:48,radius:0.22,size:E.homingSize,trailWidth:0.2,homing:E.homingTurn});
     const WB=TUNING.weaponFx;
-    const stapleBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:64,...WB.staple});
-    const compassBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:16,pierce:true,boomerang:true,...WB.compass});
-    compassBullets.target=player.renderPos;
+    const weaponSys={player:playerBullets};
+    for (const k in WB) {
+        weaponSys[k]=new BulletSystem(actors,fxScene,WB[k]);
+    }
+    const extraSys=Object.keys(WB).map(k=>weaponSys[k]);
+    weaponSys.compass.target=player.renderPos;
     const lobs=new Lobs(actors);
     const rings=new Rings(fxScene);
     const dangerRings=new Rings(fxScene,12);
@@ -156,8 +159,7 @@ function boot() {
     ctx.enemyMgr=enemies;
     const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene},TUNING);
     ctx.dangerRings=dangerRings;
-    ctx.stapleBullets=stapleBullets;
-    ctx.compassBullets=compassBullets;
+    ctx.weaponSys=weaponSys;
     ctx.onBrush=(x,z,a,fan,r)=>{
         for (let i=0;i<9;i++) {
             const an=a+(i/8-0.5)*fan*1.3;
@@ -183,9 +185,9 @@ function boot() {
     const ultCutin=new UltCutin();
     let pickerReturn=null;
     let trainFixed=[];
-    const trainStats={total:0,max:0,last:0,lastT:0,kills:0,cards:0,hurt:0,hurtT:0,log:[],start:0};
+    const trainStats={total:0,max:0,last:0,lastT:0,kills:0,cards:0,hurt:0,hurtT:0,log:[],start:0,clock:0};
     function resetTrainStats() {
-        Object.assign(trainStats,{total:0,max:0,last:0,lastT:0,kills:0,cards:0,hurt:0,hurtT:0,log:[],start:time.real});
+        Object.assign(trainStats,{total:0,max:0,last:0,lastT:0,kills:0,cards:0,hurt:0,hurtT:0,log:[],start:trainStats.clock});
     }
     function trainPool(rare) {
         return unlockedCards(effectiveLevel()).filter(id=>isUlt(id)===rare);
@@ -225,7 +227,11 @@ function boot() {
         return null;
     }
     function trainRandomPick() {
-        trainPick(pickRandom(trainPool(false),TUNING.deck.handSize).concat(pickRandom(trainPool(true),1)),false);
+        if (trainingPicker.startMode) {
+            settings.training.refill='random';
+            saveSettings();
+        }
+        trainPick(pickRandom(trainPool(false),TUNING.deck.handSize).concat(pickRandom(trainPool(true),1)),false,true);
     }
     function openPicker(start=false) {
         hand.cancelTargeting();
@@ -254,7 +260,11 @@ function boot() {
         fx.paused=false;
         input.mouse.down=false;
     }
-    function trainPick(ids,upgraded) {
+    function trainPick(ids,upgraded,rnd=false) {
+        if (trainingPicker.startMode&&!rnd) {
+            settings.training.refill='fixed';
+            saveSettings();
+        }
         const normals=ids.filter(id=>!isUlt(id));
         const ult=ids.find(id=>isUlt(id));
         trainFixed=ids.map(id=>({id,upgraded}));
@@ -389,8 +399,10 @@ function boot() {
     };
     const hitEnemies=(x,z,r,dmg,vx,vz,sys,i)=>enemies.hitBullet(x,z,r,dmg,vx,vz,sys,i);
     pierceBullets.onHit=hitEnemies;
-    compassBullets.onHit=hitEnemies;
-    stapleBullets.onHit=(x,z,r,dmg,vx,vz,sys,i)=>{
+    for (const s of extraSys) {
+        s.onHit=hitEnemies;
+    }
+    weaponSys.staple.onHit=(x,z,r,dmg,vx,vz,sys,i)=>{
         const e=hitEnemies(x,z,r,dmg,vx,vz,sys,i);
         if (e&&player.W.slow) {
             e.slowT=Math.max(e.slowT||0,player.W.slow.time);
@@ -410,8 +422,9 @@ function boot() {
         particles.burst(x,H,z,PT.wallPuff,{color:'nearGray',speed:[1,3.5],up:[1,3],size:[0.06,0.12],life:[0.2,0.4],dirX:-vx,dirZ:-vz,cone:1.3});
     };
     playerBullets.onWall=playerWall;
-    stapleBullets.onWall=playerWall;
-    compassBullets.onWall=playerWall;
+    for (const s of extraSys) {
+        s.onWall=playerWall;
+    }
     pierceBullets.onWall=playerWall;
     homingBullets.onWall=playerWall;
     enemyBullets.onWall=(x,z,vx,vz,col)=>{
@@ -428,7 +441,7 @@ function boot() {
             trainStats.max=Math.max(trainStats.max,dmg);
             trainStats.last=dmg;
             trainStats.lastT=1;
-            trainStats.log.push({t:time.real,dmg});
+            trainStats.log.push({t:trainStats.clock,dmg});
         }
     };
     enemies.onHit=(e,x,z,dx,dz,dead,quiet,crit)=>{
@@ -503,10 +516,11 @@ function boot() {
         fx.cameraShake(TUNING.player.dashTrauma);
     };
     player.events.onFire=(p,mx,mz)=>{
-        audio.play('shoot',0.85+Math.random()*0.3);
-        muzzle.show(mx,H,mz,'ink',W.flashScale);
-        fx.cameraShake(W.recoilTrauma);
-        fx.fovPunch(W.recoilFov);
+        const PW=p.W;
+        audio.play(PW.sound||'shoot',0.85+Math.random()*0.3);
+        muzzle.show(mx,H,mz,PW.flashColor||'ink',W.flashScale*(PW.flashMul||1));
+        fx.cameraShake(W.recoilTrauma*(PW.kick||1));
+        fx.fovPunch(W.recoilFov*(PW.kick||1));
     };
     player.events.onHurt=p=>{
         if (run.mode==='training') {
@@ -584,8 +598,9 @@ function boot() {
         playerBullets.clear();
         enemyBullets.clear();
         pierceBullets.clear();
-        stapleBullets.clear();
-        compassBullets.clear();
+        for (const s of extraSys) {
+            s.clear();
+        }
         homingBullets.clear();
         lobs.clear();
         particles.clear();
@@ -785,6 +800,9 @@ function boot() {
         ink.value=TUNING.ink.start;
         trainFixed=[];
         equipWeapon();
+        if (mode==='training') {
+            settings.training.weapon=player.weaponId;
+        }
         resetTrainStats();
         deck.provider=mode==='training'?trainProvider:null;
         run.start(startIds(),mode);
@@ -950,6 +968,9 @@ function boot() {
             }
             else if (kind==='refill') {
                 deck.requestDraw(0.2);
+            }
+            else if (kind==='weapon') {
+                player.setWeapon(settings.training.weapon);
             }
         },
         resume:closeTrainingMenu,
@@ -1202,7 +1223,9 @@ function boot() {
     input.onEscape=()=>{
         audio.unlock();
         if (notice.open) {
-            notice.actions.close();
+            if (notice.ready()) {
+                notice.actions.close();
+            }
             return;
         }
         if (settingsMenu.open) {
@@ -1436,7 +1459,8 @@ function boot() {
             }
             trainStats.lastT=Math.max(0,trainStats.lastT-dt*3);
             trainStats.hurtT=Math.max(0,trainStats.hurtT-dt*1.5);
-            const cut=time.real-TUNING.training.dpsWindow;
+            trainStats.clock+=dt;
+            const cut=trainStats.clock-TUNING.training.dpsWindow;
             while (trainStats.log.length>0&&trainStats.log[0].t<cut) {
                 trainStats.log.shift();
             }
@@ -1462,8 +1486,9 @@ function boot() {
         playerBullets.update(dt,room);
         enemyBullets.update(dt*hurry,room);
         pierceBullets.update(dt,room);
-        stapleBullets.update(dt,room);
-        compassBullets.update(dt,room);
+        for (const s of extraSys) {
+            s.update(dt,room);
+        }
         homingBullets.update(dt,room);
         lobs.update(dt);
         deck.update(dt);
@@ -1525,8 +1550,9 @@ function boot() {
         playerBullets.render(alpha);
         enemyBullets.render(alpha);
         pierceBullets.render(alpha);
-        stapleBullets.render(alpha);
-        compassBullets.render(alpha);
+        for (const s of extraSys) {
+            s.render(alpha);
+        }
         homingBullets.render(alpha);
         lobs.render(alpha);
         particles.render();

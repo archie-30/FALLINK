@@ -1,11 +1,10 @@
 import*as THREE from 'three';
 import {TUNING} from '../data/tuning.js';
-import {toonMaterial,unlitMaterial,registerShadow} from '../render/materials.js';
-import {addHull as addHullBase} from '../render/outline.js';
+import {toonMaterial,unlitMaterial,registerShadow,hullMaterial,pal} from '../render/materials.js';
 import {resolveCircle,clampToBounds} from '../core/collision.js';
 import {time} from '../core/loop.js';
 import {SKIN_TONES,ACCENTS} from '../data/palette.js';
-import {WEAPONS} from '../data/weapons.js';
+import {WEAPONS,WEAPON_LIMITS} from '../data/weapons.js';
 import {DEFAULT_SKIN} from '../data/skins.js';
 
 const _mv={x:0,z:0};
@@ -84,7 +83,14 @@ export class Player {
         this.skinMats={coat,limbs:dark,face,hat,gear,accent:g?null:ink};
         this.ghostMats=g?[dark,coat,face,hat,gear]:[];
         const hull={jitter:J};
-        const addHull=g?()=>null:addHullBase;
+        this.hullMat=g?null:hullMaterial({jitter:J,unique:true});
+        const addHull=g?()=>null:(mesh=>{
+            const h=new THREE.Mesh(mesh.geometry,this.hullMat);
+            h.name='hull';
+            h.renderOrder=mesh.renderOrder;
+            mesh.add(h);
+            return h;
+        });
         this.root=new THREE.Group();
         this.root.name=g?'clone':'player';
         if (!g) {
@@ -302,6 +308,10 @@ export class Player {
     applySkin(skin) {
         const S=TUNING.skinHatch;
         const plain=['coat','limbs','face','hat','gear'].every(k=>skin[k]===DEFAULT_SKIN[k]);
+        if (this.hullMat) {
+            this.hullMat.uniforms.uWidth.value=plain?S.hullPlain:S.hullColor;
+            this.hullMat.uniforms.uColor.value.copy(pal(plain?'ink':S.hullTone));
+        }
         for (const part of ['coat','limbs','face','hat','gear']) {
             const m0=this.skinMats[part];
             if (m0) {
@@ -515,7 +525,7 @@ export class Player {
                 dz=az/al;
             }
         }
-        const sys=W.sys==='staple'?ctx.stapleBullets:(W.sys==='compass'?ctx.compassBullets:ctx.playerBullets);
+        const sys=ctx.weaponSys[W.sys]||ctx.playerBullets;
         const base=Math.atan2(dz,dx);
         const n=W.pellets||1;
         const lanes=this.dualT>0?[-W.dualOffset,W.dualOffset]:[0];
@@ -654,7 +664,7 @@ export class Player {
                 }
             }
         }
-        else if (input.consumeReload&&input.consumeReload()&&this.ammo<W.magazine) {
+        else if (input.consumeReload&&input.consumeReload()&&this.ammo<W.magazine&&!W.heat) {
             this.startReload();
         }
         this.rapidT=Math.max(0,this.rapidT-dt);
@@ -669,7 +679,7 @@ export class Player {
             }
         }
         if (input.isFiring()&&this.fireCd<=0&&this.hp>0&&this.reloadT<=0&&this.ammo>0&&this.burstLeft<=0) {
-            this.fireCd+=W.fireInterval/(this.rapidT>0?this.rapidMult:1);
+            this.fireCd+=Math.max(Math.min(W.fireInterval,WEAPON_LIMITS.minInterval),W.fireInterval/(this.rapidT>0?this.rapidMult:1));
             if (this.fireCd<0) {
                 this.fireCd=0;
             }

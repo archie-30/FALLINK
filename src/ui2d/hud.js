@@ -507,7 +507,7 @@ export class Hud {
 
     drawTrainingInfo(ctx,st,foes,touch,height) {
         const T=TUNING.training;
-        const now=time.real;
+        const now=st.clock;
         let win=0;
         for (const q of st.log) {
             if (now-q.t<=T.dpsWindow) {

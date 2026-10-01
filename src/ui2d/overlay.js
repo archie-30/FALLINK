@@ -208,6 +208,30 @@ export class Overlay {
             ctx.arc(s.cx,s.cy,R,0,Math.PI*2);
             ctx.fill();
             this.ring(s.cx,s.cy,R,act?2.4:1.6,card?PALETTE.red:rgba('ink',act?0.55:0.3),s===input.move?11:23);
+            if (s===input.aim&&!card) {
+                const fr=R*TUNING.input.fireRing;
+                const firing=act&&(s.raw||0)>=TUNING.input.fireRing;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(s.cx,s.cy,R,0,Math.PI*2);
+                ctx.arc(s.cx,s.cy,fr,0,Math.PI*2,true);
+                ctx.fillStyle=rgba('red',firing?0.22:0.07);
+                ctx.fill();
+                ctx.setLineDash([6,5]);
+                ctx.strokeStyle=rgba('ink',act?0.6:0.35);
+                ctx.lineWidth=1.6;
+                ctx.beginPath();
+                ctx.arc(s.cx,s.cy,fr,0,Math.PI*2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle=firing?PALETTE.red:rgba('ink',0.45);
+                ctx.font='bold 11px '+FONT;
+                ctx.textAlign='center';
+                ctx.textBaseline='middle';
+                ctx.fillText(t('ui.aimOnly'),s.cx,s.cy-fr*0.62);
+                ctx.fillText(t('ui.fireZone'),s.cx,s.cy-(fr+R)/2);
+                ctx.restore();
+            }
             const kx=act?s.x:s.cx;
             const ky=act?s.y:s.cy;
             ctx.fillStyle=card?rgba('red',0.35):rgba('ink',act?0.3:0.14);
@@ -219,7 +243,7 @@ export class Overlay {
             ctx.font='bold 13px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='top';
-            ctx.fillText(s===input.move?t('ui.move'):(card?t('ui.cast'):t('ui.fire')),s.cx,s.cy+R+6);
+            ctx.fillText(s===input.move?t('ui.move'):(card?t('ui.cast'):t('ui.fireDual')),s.cx,s.cy+R+6);
         }
     }
 

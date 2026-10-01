@@ -192,9 +192,6 @@ export class TrainingDirector {
             if (s.e&&s.e.alive&&s.e.uid===s.uid) {
                 continue;
             }
-            if (s.e&&!this.cfg.respawn) {
-                continue;
-            }
             s.t-=dt;
             if (s.t<=0) {
                 const c=this.cfg;

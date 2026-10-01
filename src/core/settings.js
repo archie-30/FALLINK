@@ -22,7 +22,7 @@ export const settings={
     tutorialSeen:false,
     weapon:'pen',
     skin:{coat:'gray',limbs:'charcoal',hat:'charcoal',gear:'graphite',face:'paper',accent:'ink'},
-    training:{map:'training',foes:{doodle:3},elites:{},attack:false,refill:'fixed',ammo:true,props:true,respawn:true,immortal:false,random:false,randCount:5,randElite:20,bosses:{}}
+    training:{map:'training',foes:{doodle:3},elites:{},attack:false,refill:'fixed',ammo:true,props:true,immortal:false,weapon:'pen',random:false,randCount:5,randElite:20,bosses:{}}
 };
 
 export const TRAINING_DEFAULTS=JSON.parse(JSON.stringify(settings.training));

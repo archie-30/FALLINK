@@ -11,10 +11,11 @@ import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel,STARTING_DECK,unlockedCards} from '.
 import {progress,xpToNext,hasSeen,effectiveLevel,godMode,trainable} from '../core/progress.js';
 import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
 import {ENEMIES} from '../data/enemies.js';
-import {ENDLESS,TRAINING_MAPS} from '../data/levels.js';
+import {ENDLESS,TRAINING_MAPS,TRAINING,LAYOUTS} from '../data/levels.js';
 import {fmtInk,DESKTOP_KEYS,TOUCH_KEYS} from './hud.js';
 import {CARD_ANIMS,ENEMY_ATTACKS,WEAPON_ANIMS,drawStage} from './codexAnim.js';
 import {WEAPONS,WEAPON_ORDER,weaponUnlocked} from '../data/weapons.js';
+import {VERSION} from '../data/version.js';
 import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip,cardBrief,cardChips} from './cardView.js';
 import {ENEMY_ICONS} from './enemyIcons.js';
 
@@ -491,6 +492,14 @@ export class MainMenu extends Panel {
         this.drawLevel(ctx,v);
         this.drawSettingsBtn(ctx,v);
         this.drawSkinBtn(ctx,v);
+        ctx.save();
+        ctx.globalAlpha=Math.max(0,Math.min(1,(this.t-0.8)/0.4));
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.font='12px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='bottom';
+        ctx.fillText(VERSION.stage+' '+VERSION.number,14,h-10);
+        ctx.restore();
     }
 }
 
@@ -2832,6 +2841,59 @@ export class SkinEditor extends Panel {
     }
 }
 
+function drawMapPreview(ctx,key,props,r,v) {
+    const L=key==='training'?TRAINING.layout:LAYOUTS[key];
+    ctx.save();
+    ctx.fillStyle=PALETTE.paper;
+    ctx.fillRect(r.x,r.y,r.w,r.h);
+    const [sw,sd]=L.size;
+    const k=Math.min((r.w-12)/sw,(r.h-12)/sd);
+    const ox=r.x+r.w/2;
+    const oy=r.y+r.h/2;
+    ctx.strokeStyle=rgba('farGray',0.9);
+    ctx.lineWidth=0.6;
+    ctx.beginPath();
+    for (let gx=-sw/2;gx<=sw/2;gx+=2) {
+        ctx.moveTo(ox+gx*k,oy-sd/2*k);
+        ctx.lineTo(ox+gx*k,oy+sd/2*k);
+    }
+    for (let gz=-sd/2;gz<=sd/2;gz+=2) {
+        ctx.moveTo(ox-sw/2*k,oy+gz*k);
+        ctx.lineTo(ox+sw/2*k,oy+gz*k);
+    }
+    ctx.stroke();
+    ctx.strokeStyle=PALETTE.ink;
+    ctx.lineWidth=2;
+    ctx.strokeRect(ox-sw/2*k,oy-sd/2*k,sw*k,sd*k);
+    if (props) {
+        for (const q of L.props) {
+            if (Math.abs(q.x)>sw/2||Math.abs(q.z)>sd/2) {
+                continue;
+            }
+            ctx.save();
+            ctx.translate(ox+q.x*k,oy+q.z*k);
+            ctx.fillStyle=q.type==='box'?PALETTE.midGray:PALETTE.nearGray;
+            if (q.type==='pillar') {
+                ctx.beginPath();
+                ctx.arc(0,0,Math.max(1.5,q.r*k),0,Math.PI*2);
+                ctx.fill();
+            }
+            else if (q.type==='wall'||q.type==='box') {
+                ctx.rotate(-(q.rot||0));
+                ctx.fillRect(-q.w/2*k,-q.d/2*k,q.w*k,q.d*k);
+            }
+            ctx.restore();
+        }
+    }
+    const sp=L.spawn||[0,4];
+    ctx.fillStyle=PALETTE.red;
+    ctx.beginPath();
+    ctx.arc(ox+sp[0]*k,oy+sp[1]*k,3,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+    drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:1.4,seed:1690}),PALETTE.ink,v);
+}
+
 export class TrainingMenu extends Panel {
     constructor(actions) {
         super();
@@ -2899,7 +2961,7 @@ export class TrainingMenu extends Panel {
             this.pop[key]=Math.max(0,this.pop[key]-dt*TUNING.trainUi.popDecay);
         }
         const c=settings.training;
-        for (const key of ['props','attack','respawn','immortal','ammo','random']) {
+        for (const key of ['props','attack','immortal','ammo','random']) {
             this.anim[key]=(this.anim[key]??(c[key]?1:0))+(((c[key]?1:0))-(this.anim[key]??0))*k;
         }
         this.anim.refill=(this.anim.refill??(c.refill==='fixed'?0:1))+((c.refill==='fixed'?0:1)-(this.anim.refill??0))*k;
@@ -3037,7 +3099,7 @@ export class TrainingMenu extends Panel {
         ctx.fillText(t('trainMenu.title'),w/2,py+(small?20:34));
         const tw=ctx.measureText(t('trainMenu.title')).width;
         drawShape(ctx,sketchLine(w/2-tw/2,py+(small?34:54),w/2-tw/2+tw*Math.min(1,this.t/0.4),py+(small?34:54),{width:2.4,seed:1601}),PALETTE.red,v);
-        const rh=small?(ph-110)/8:52;
+        const rh=small?(ph-110)/9.2:50;
         const colW=pw*0.46;
         const lx=px+22;
         const cx=px+colW*0.5;
@@ -3051,20 +3113,26 @@ export class TrainingMenu extends Panel {
             ctx.translate(-(1-k)*30,0);
         };
         rowStart();
+        const mh=rh*2;
+        const my=y-rh*0.45;
         this.rowLabel(ctx,t('trainMenu.map'),lx,y);
         const maps=TRAINING_MAPS;
         const mi=Math.max(0,maps.indexOf(c.map));
         const mp=this.pop.map||0;
+        const pv={x:cx+34,y:my,w:cw-68,h:mh-18};
         ctx.save();
-        ctx.translate(cx+cw/2,y);
-        ctx.scale(1+mp*0.25,1+mp*0.25);
-        ctx.fillStyle=mp>0.1?PALETTE.red:PALETTE.ink;
-        ctx.font='bold 14px '+FONT;
-        ctx.textAlign='center';
-        ctx.fillText(t('map.'+maps[mi]),0,0);
+        ctx.translate(pv.x+pv.w/2,pv.y+pv.h/2);
+        ctx.scale(1+mp*0.08,1+mp*0.08);
+        ctx.translate(-(pv.x+pv.w/2),-(pv.y+pv.h/2));
+        drawMapPreview(ctx,maps[mi],c.props,pv,v);
         ctx.restore();
+        ctx.fillStyle=mp>0.1?PALETTE.red:PALETTE.ink;
+        ctx.font='bold 13px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('map.'+maps[mi]),pv.x+pv.w/2,pv.y+pv.h+9);
         for (const [dx,dir,ch] of [[0,-1,'‹'],[cw-28,1,'›']]) {
-            const r={x:cx+dx,y:y-14,w:28,h:28};
+            const r={x:cx+dx,y:my+mh/2-23,w:28,h:28};
             this.smallBtn(ctx,'map'+dir,r,ch,true,v,1610+dir);
             add(r,()=>{
                 c.map=maps[(mi+dir+maps.length)%maps.length];
@@ -3072,8 +3140,36 @@ export class TrainingMenu extends Panel {
             },'map'+dir,'map');
         }
         ctx.restore();
+        y+=mh;
+        rowStart();
+        this.rowLabel(ctx,t('trainMenu.weapon'),lx,y);
+        const wl=WEAPON_ORDER.filter(id=>weaponUnlocked(id,effectiveLevel()));
+        const wi=Math.max(0,wl.indexOf(c.weapon||'pen'));
+        const wp=this.pop.weapon||0;
+        ctx.save();
+        ctx.translate(cx+cw/2,y);
+        ctx.scale(1+wp*0.25,1+wp*0.25);
+        drawWeaponIcon(ctx,wl[wi],-38,0,0.32,v,false);
+        ctx.fillStyle=wp>0.1?PALETTE.red:PALETTE.ink;
+        ctx.font='bold 14px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('weapon.'+wl[wi]+'.name'),-18,0);
+        ctx.restore();
+        for (const [dx,dir,ch] of [[0,-1,'‹'],[cw-28,1,'›']]) {
+            const r={x:cx+dx,y:y-14,w:28,h:28};
+            const ok=wl.length>1;
+            this.smallBtn(ctx,'wp'+dir,r,ch,ok,v,1615+dir);
+            if (ok) {
+                add(r,()=>{
+                    c.weapon=wl[(wi+dir+wl.length)%wl.length];
+                    this.change('weapon');
+                },'wp'+dir,'weapon');
+            }
+        }
+        ctx.restore();
         y+=rh;
-        const toggles=[['props','room'],['attack','attack'],['respawn','foes'],['immortal','immortal'],['ammo','ammo']];
+        const toggles=[['props','room'],['attack','attack'],['immortal','immortal'],['ammo','ammo']];
         for (let i=0;i<toggles.length;i++) {
             const [key,kind]=toggles[i];
             rowStart();
@@ -3960,6 +4056,23 @@ export class Notice extends Panel {
         this.actions=actions;
         this.outFrom=0.35;
         this.key='touch';
+        this.wait=0;
+    }
+
+    show() {
+        super.show();
+        this.wait=TUNING.notice.wait;
+    }
+
+    ready() {
+        return this.wait<=0;
+    }
+
+    update(dt) {
+        super.update(dt);
+        if (this.open) {
+            this.wait=Math.max(0,this.wait-dt);
+        }
     }
 
     layout() {
@@ -3978,7 +4091,7 @@ export class Notice extends Panel {
             return false;
         }
         this.layout();
-        if (inRect(this.okBtn,x,y)) {
+        if (inRect(this.okBtn,x,y)&&this.ready()) {
             this.actions.close();
         }
         return true;
@@ -4038,7 +4151,23 @@ export class Notice extends Panel {
             ctx.fillText(ln,P.x+30,y);
             y+=small?20:24;
         }
-        drawButton(ctx,this.okBtn,t('notice.ok'),v,(this.t-0.15)/0.3,this.hoverIdx===0,small?16:18);
+        if (this.ready()) {
+            drawButton(ctx,this.okBtn,t('notice.ok'),v,(this.t-0.15)/0.3,this.hoverIdx===0,small?16:18);
+        }
+        else {
+            const ob=this.okBtn;
+            const f=1-this.wait/TUNING.notice.wait;
+            ctx.fillStyle=rgba('farGray',0.6);
+            ctx.fillRect(ob.x,ob.y,ob.w,ob.h);
+            ctx.fillStyle=rgba('ink',0.15);
+            ctx.fillRect(ob.x,ob.y,ob.w*f,ob.h);
+            drawShape(ctx,sketchRect(ob.x,ob.y,ob.w,ob.h,{width:1.6,seed:2101}),PALETTE.midGray,v);
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font='bold '+(small?15:17)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('notice.wait',{n:Math.ceil(this.wait)}),ob.x+ob.w/2,ob.y+ob.h/2+1);
+        }
         ctx.restore();
     }
 }
