@@ -320,7 +320,7 @@ export class Hud {
         if (p.training) {
             return;
         }
-        const title=run.mode==='endless'?t('run.endlessInfo',{page:p.index+1,score:run.stats.score}):t('run.info',{act:p.act+1,page:p.index+1,pages:run.totalRooms(),score:run.stats.score});
+        const title=p.overtime?t('run.overtimeInfo',{page:p.otPage+1,score:run.stats.score}):run.mode==='endless'?t('run.endlessInfo',{page:p.index+1,score:run.stats.score}):t('run.info',{act:p.act+1,page:p.index+1,pages:run.totalRooms(),score:run.stats.score});
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 15px '+FONT;
         ctx.textAlign='center';

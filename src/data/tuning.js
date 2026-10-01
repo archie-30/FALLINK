@@ -276,6 +276,8 @@ export const TUNING={
     },
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
     pauseUi:{compactH:700,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
+    choiceUi:{maxW:900,gap:16,cardH:180,head:100,iconY:44,iconR:26,pickTime:0.35},
+    deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:70},
     settingsUi:{
         twoColMin:600,
         touchSide:215,
