@@ -879,7 +879,7 @@ function boot() {
         ctx.room=r;
         effects.g.room=r;
         player.enterRoom(new THREE.Vector3(0,0,1.5));
-        player.invuln=0;
+        player.resetPose();
         player.aimYaw=0.6;
         enemies.hpMult=1;
         for (const [type,x,z,yaw] of M.enemies) {

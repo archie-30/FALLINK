@@ -275,7 +275,7 @@ export const TUNING={
         }
     },
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
-    pauseUi:{compactH:700,top:0.2,titleY:0.1,colW:200,rowH:44,gap:10,hintGap:22},
+    pauseUi:{compactH:700,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
     settingsUi:{
         twoColMin:600,
         touchSide:215,
@@ -398,6 +398,7 @@ export const TUNING={
         skinYSmall:0.74,
         colMax:420,
         colPad:20,
+        versionSize:16,
         camRadius:12.5,
         camHeight:7,
         sway:0.35,

@@ -509,10 +509,10 @@ export class MainMenu extends Panel {
         ctx.save();
         ctx.globalAlpha=Math.max(0,Math.min(1,(this.t-0.8)/0.4));
         ctx.fillStyle=PALETTE.midGray;
-        ctx.font='12px '+FONT;
+        ctx.font='bold '+TUNING.menu.versionSize+'px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='bottom';
-        ctx.fillText(VERSION.stage+' '+VERSION.number,14,h-10);
+        ctx.fillText(VERSION.stage+' '+VERSION.number,16,h-12);
         ctx.restore();
     }
 }
@@ -535,7 +535,7 @@ export class PauseMenu extends Panel {
             const P=TUNING.pauseUi;
             const bw=P.colW;
             const bh=P.rowH;
-            const y0=h*P.top;
+            const y0=h*P.center-(bh*3+P.gap*2)/2+P.titleGap/2;
             this.buttons.push({x:w/2-bw-P.gap/2,y:y0,w:bw*2+P.gap,h:bh});
             for (let i=1;i<5;i++) {
                 const c=(i-1)%2;
@@ -583,7 +583,7 @@ export class PauseMenu extends Panel {
         const a=EASE.easeOutBack(Math.min(1,this.t/0.35));
         const cp=this.compact();
         ctx.save();
-        ctx.translate(w/2,cp?h*TUNING.pauseUi.titleY:h*0.24);
+        ctx.translate(w/2,cp?this.buttons[0].y-TUNING.pauseUi.titleGap:h*0.24);
         ctx.scale(a,a);
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold '+(cp?34:44)+'px '+FONT;
