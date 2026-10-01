@@ -135,6 +135,24 @@ export class Preview {
         u.uColor.value.copy(pal(color));
     }
 
+    showSector(x,z,base,angle,R,color) {
+        const a0=base-angle/2;
+        const a1=base+angle/2;
+        this.setLine(this.lines[0],x,z,Math.cos(a0),Math.sin(a0),R,color);
+        this.setLine(this.lines[1],x,z,Math.cos(a1),Math.sin(a1),R,color);
+        const n=this.lines.length-2;
+        for (let i=0;i<n;i++) {
+            const b0=a0+(a1-a0)*i/n;
+            const b1=a0+(a1-a0)*(i+1)/n;
+            const sx=x+Math.cos(b0)*R;
+            const sz=z+Math.sin(b0)*R;
+            const ex=x+Math.cos(b1)*R;
+            const ez=z+Math.sin(b1)*R;
+            const L=Math.hypot(ex-sx,ez-sz)||0.01;
+            this.setLine(this.lines[2+i],sx,sz,(ex-sx)/L,(ez-sz)/L,L,color);
+        }
+    }
+
     show(card,target,p) {
         this.hide();
         const tg=card.def.targeting;
@@ -147,12 +165,12 @@ export class Preview {
                 count=params.count;
                 spread=params.spread;
             }
-            else if (card.id==='eraser') {
-                count=3;
-                spread=params.angle;
-            }
             const base=Math.atan2(target.dz,target.dx);
             const len=cardRange(card);
+            if (card.id==='eraser') {
+                this.showSector(p.x,p.z,base,params.angle,params.range,color);
+                return;
+            }
             for (let i=0;i<count&&i<this.lines.length;i++) {
                 const a=count>1?base+(i/(count-1)-0.5)*spread:base;
                 this.setLine(this.lines[i],p.x,p.z,Math.cos(a),Math.sin(a),len,color);

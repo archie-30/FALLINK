@@ -87,6 +87,8 @@ export class BulletSystem {
         this.hidden=!!o.hidden;
         this.returnAccel=o.returnAccel||0;
         this.turnRate=o.turnRate||7;
+        this.thruWalls=!!o.thruWalls;
+        this.ramp=0;
         this.target=null;
         this.onReturn=null;
         this.n=0;
@@ -329,7 +331,7 @@ export class BulletSystem {
                 continue;
             }
             let wall=null;
-            for (let c=0;c<cols.length;c++) {
+            for (let c=0;c<cols.length&&!this.thruWalls;c++) {
                 const col=cols[c];
                 if (own&&col.passPlayer) {
                     continue;
@@ -367,6 +369,7 @@ export class BulletSystem {
                     if (this.pierce&&this.hitN[i]<6) {
                         this.hits[i*6+this.hitN[i]]=e.uid;
                         this.hitN[i]++;
+                        this.dmg[i]*=1+this.ramp;
                     }
                     else {
                         this.kill(i);

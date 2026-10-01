@@ -5,6 +5,7 @@ import {time} from '../core/loop.js';
 import {sketchRect,sketchLine,sketchPath,hatchFill,rectPoly,drawShape} from './sketch.js';
 import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
+import {CARDS} from '../data/cards.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -158,6 +159,57 @@ export class Hud {
             ctx.textBaseline='top';
             ctx.fillText(t('hud.reloadHint'),cx,cy+6);
         }
+    }
+
+    drawCloneTimers(ctx,clones,project,tmp) {
+        const T=TUNING.hud.timer;
+        for (const c of clones) {
+            if (!c.active||!(c.life>0)) {
+                continue;
+            }
+            const f=c.fig;
+            project(f.renderPos.x,0,f.renderPos.z,tmp);
+            const left=Math.max(0,c.life-c.t);
+            const k=Math.min(1,left/c.life);
+            const y=tmp.y+T.cloneOffset;
+            ctx.fillStyle=rgba('farGray',0.85);
+            ctx.fillRect(tmp.x-T.width/2,y,T.width,T.height);
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.fillRect(tmp.x-T.width/2,y,T.width*k,T.height);
+            ctx.font='10px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='top';
+            ctx.fillText(t(CARDS.clone.nameKey)+' '+left.toFixed(1)+t('hud.seconds'),tmp.x,y+T.height+2);
+        }
+    }
+
+    drawTimers(ctx,player,timers,project,tmp) {
+        if (!timers||timers.length===0) {
+            return;
+        }
+        let best=timers[0];
+        for (const q of timers) {
+            if (q.left<best.left) {
+                best=q;
+            }
+        }
+        const T=TUNING.hud.timer;
+        project(player.renderPos.x,0,player.renderPos.z,tmp);
+        const cx=tmp.x;
+        const y=tmp.y+T.offset;
+        const k=Math.max(0,Math.min(1,best.left/best.full));
+        ctx.save();
+        ctx.fillStyle=rgba('farGray',0.85);
+        ctx.fillRect(cx-T.width/2,y,T.width,T.height);
+        ctx.fillStyle=best.left<1.5&&Math.floor(time.real*8)%2===0?PALETTE.red:PALETTE.ink;
+        ctx.fillRect(cx-T.width/2,y,T.width*k,T.height);
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font='10px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='top';
+        const more=timers.length>1?' +'+(timers.length-1):'';
+        ctx.fillText(t(CARDS[best.id].nameKey)+' '+best.left.toFixed(1)+t('hud.seconds')+more,cx,y+T.height+2);
+        ctx.restore();
     }
 
     pauseRect(w) {
@@ -416,31 +468,6 @@ export class Hud {
             ctx.restore();
         }
         ctx.restore();
-    }
-
-    drawBuffs(ctx,player,top=null) {
-        const x=TUNING.hud.hpPos[0];
-        let y=top??TUNING.hud.hpPos[1]+TUNING.hud.hpHeight+130;
-        const rows=[];
-        if (player.rapidT>0) {
-            rows.push([t('hud.rapid')+' ×'+player.rapidMult,player.rapidT,4,640]);
-        }
-        if (player.hasteT>0) {
-            rows.push([t('hud.haste')+' ×'+player.hasteMult,player.hasteT,5,641]);
-        }
-        if (player.dualT>0) {
-            rows.push([t('hud.dual'),player.dualT,6,642]);
-        }
-        ctx.font='bold 13px '+FONT;
-        ctx.textAlign='left';
-        ctx.textBaseline='top';
-        for (const [label,left,full,seed] of rows) {
-            ctx.fillStyle=PALETTE.ink;
-            ctx.fillText(label+'  '+left.toFixed(1)+t('hud.seconds'),x,y);
-            const w=120*Math.min(1,left/full);
-            drawShape(ctx,sketchLine(x,y+20,x+Math.max(2,Math.round(w)),y+20,{width:3,seed,overshoot:0}),PALETTE.ink);
-            y+=32;
-        }
     }
 
     drawHp(ctx,player) {

@@ -805,7 +805,7 @@ export function rareBorderPath() {
     return {path:p,length:(W-12+H-12)*2};
 }
 
-const FACT_KEYS=['dps','radius','range','width','duration','heal','ink','hits','jumps','mult','hp','length','push'];
+const FACT_KEYS=['dps','radius','range','width','duration','heal','ink','hits','jumps','mult','hp','length','push','ramp'];
 
 export function cardBrief(card) {
     const d=cardDesc(card);

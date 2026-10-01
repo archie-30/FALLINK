@@ -23,9 +23,9 @@ export const CARDS={
         mode:'shoot',
         targeting:'direction',
         range:16,
-        params:{damage:45,speed:34},
-        upgraded:{cost:2,params:{damage:60,speed:36}},
-        effect:(g,t,p)=>g.pierceShot(t.dx,t.dz,p.damage,p.speed)
+        params:{damage:45,speed:34,ramp:25},
+        upgraded:{cost:2,params:{damage:60,speed:36,ramp:35}},
+        effect:(g,t,p)=>g.pierceShot(t.dx,t.dz,p.damage,p.speed,p.ramp/100)
     },
     homing:{
         id:'homing',
@@ -391,8 +391,8 @@ export const CARDS={
         mode:'beam',
         targeting:'direction',
         range:22,
-        params:{damage:150,width:1.6},
-        upgraded:{cost:3,params:{damage:200,width:1.9}},
+        params:{damage:210,width:2.8},
+        upgraded:{cost:3,params:{damage:280,width:3.3}},
         effect:(g,t,p)=>g.giantPen(t.dx,t.dz,p.damage,p.width)
     },
     freezeAll:{

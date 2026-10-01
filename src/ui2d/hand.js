@@ -391,6 +391,11 @@ export class Hand {
         }
         api.ink.spend(cost);
         api.deck.play(card);
+        if (target) {
+            const pp=api.playerPos();
+            target.ox=pp.x;
+            target.oz=pp.z;
+        }
         this.removeView(v);
         v.state='tear';
         v.t=0;
