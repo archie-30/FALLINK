@@ -422,6 +422,27 @@ export class Player {
         this.kick=1;
     }
 
+    resetPose() {
+        this.speedFrac=0;
+        this.moving=false;
+        this.phase=0;
+        this.sq=0;
+        this.st=0;
+        this.sqv=0;
+        this.stv=0;
+        this.kick=0;
+        this.dashT=0;
+        this.dashIT=0;
+        this.reloadT=0;
+        this.beamT=0;
+        this.moveYaw=0;
+        this.poseMoveYaw=0;
+        this.invuln=0;
+        this.moveFrame.visible=true;
+        this.poseStep=-1;
+        this.applyPose();
+    }
+
     setWeapon(id) {
         const def=WEAPONS[id]||WEAPONS.pen;
         this.weaponId=WEAPONS[id]?id:'pen';

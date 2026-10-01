@@ -509,10 +509,10 @@ export class MainMenu extends Panel {
         ctx.save();
         ctx.globalAlpha=Math.max(0,Math.min(1,(this.t-0.8)/0.4));
         ctx.fillStyle=PALETTE.midGray;
-        ctx.font='12px '+FONT;
+        ctx.font='bold '+TUNING.menu.versionSize+'px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='bottom';
-        ctx.fillText(VERSION.stage+' '+VERSION.number,14,h-10);
+        ctx.fillText(VERSION.stage+' '+VERSION.number,16,h-12);
         ctx.restore();
     }
 }
@@ -535,7 +535,7 @@ export class PauseMenu extends Panel {
             const P=TUNING.pauseUi;
             const bw=P.colW;
             const bh=P.rowH;
-            const y0=h*P.top;
+            const y0=h*P.center-(bh*3+P.gap*2)/2+P.titleGap/2;
             this.buttons.push({x:w/2-bw-P.gap/2,y:y0,w:bw*2+P.gap,h:bh});
             for (let i=1;i<5;i++) {
                 const c=(i-1)%2;
@@ -583,7 +583,7 @@ export class PauseMenu extends Panel {
         const a=EASE.easeOutBack(Math.min(1,this.t/0.35));
         const cp=this.compact();
         ctx.save();
-        ctx.translate(w/2,cp?h*TUNING.pauseUi.titleY:h*0.24);
+        ctx.translate(w/2,cp?this.buttons[0].y-TUNING.pauseUi.titleGap:h*0.24);
         ctx.scale(a,a);
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold '+(cp?34:44)+'px '+FONT;
@@ -4803,5 +4803,439 @@ export class InfoPopup extends Panel {
         }
         ctx.restore();
         drawButton(ctx,this.okBtn,t('notice.ok'),v,(this.t-0.15)/0.3,this.hoverIdx===0,18);
+    }
+}
+
+const CHOICE_ICONS={battle:'battle',elite:'elite',shop:'shop',event:'event',rest:'rest',heal:'heal',upgrade:'upgrade',buy:'card',remove:'remove',leave:'leave',finish:'flag',continue:'pen'};
+
+function drawChoiceIcon(ctx,kind,x,y,r,v,red) {
+    const col=red?PALETTE.red:PALETTE.ink;
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.fillStyle=red?rgba('red',0.1):rgba('ink',0.06);
+    ctx.beginPath();
+    ctx.arc(0,0,r,0,Math.PI*2);
+    ctx.fill();
+    drawShape(ctx,sketchCircle(0,0,r,{width:1.8,seed:2200+kind.length}),col,v);
+    ctx.strokeStyle=col;
+    ctx.fillStyle=col;
+    ctx.lineWidth=3;
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+    const k=r*0.5;
+    ctx.beginPath();
+    if (kind==='battle') {
+        ctx.moveTo(-k,-k);
+        ctx.lineTo(k,k);
+        ctx.moveTo(k,-k);
+        ctx.lineTo(-k,k);
+        ctx.stroke();
+    }
+    else if (kind==='elite') {
+        ctx.moveTo(-k,k*0.6);
+        ctx.lineTo(-k,-k*0.5);
+        ctx.lineTo(-k*0.4,0);
+        ctx.lineTo(0,-k);
+        ctx.lineTo(k*0.4,0);
+        ctx.lineTo(k,-k*0.5);
+        ctx.lineTo(k,k*0.6);
+        ctx.closePath();
+        ctx.fill();
+    }
+    else if (kind==='shop'||kind==='pen') {
+        ctx.save();
+        ctx.rotate(-0.7);
+        ctx.strokeRect(-k*1.1,-k*0.25,k*1.6,k*0.5);
+        ctx.moveTo(k*0.5,-k*0.25);
+        ctx.lineTo(k*1.1,0);
+        ctx.lineTo(k*0.5,k*0.25);
+        ctx.stroke();
+        ctx.restore();
+    }
+    else if (kind==='rest') {
+        ctx.strokeRect(-k*0.45,-k*0.4,k*0.9,k*1.3);
+        ctx.fillRect(-k*0.25,-k*0.85,k*0.5,k*0.45);
+    }
+    else if (kind==='heal') {
+        ctx.fillRect(-k*0.2,-k*0.8,k*0.4,k*1.6);
+        ctx.fillRect(-k*0.8,-k*0.2,k*1.6,k*0.4);
+    }
+    else if (kind==='card'||kind==='upgrade'||kind==='remove') {
+        ctx.strokeRect(-k*0.6,-k*0.85,k*1.2,k*1.7);
+        ctx.beginPath();
+        if (kind==='card') {
+            ctx.moveTo(0,-k*0.4);
+            ctx.lineTo(0,k*0.4);
+            ctx.moveTo(-k*0.35,0);
+            ctx.lineTo(k*0.35,0);
+        }
+        else if (kind==='upgrade') {
+            ctx.moveTo(0,k*0.45);
+            ctx.lineTo(0,-k*0.45);
+            ctx.moveTo(-k*0.3,-k*0.15);
+            ctx.lineTo(0,-k*0.45);
+            ctx.lineTo(k*0.3,-k*0.15);
+        }
+        else {
+            ctx.moveTo(-k*0.35,-k*0.35);
+            ctx.lineTo(k*0.35,k*0.35);
+            ctx.moveTo(k*0.35,-k*0.35);
+            ctx.lineTo(-k*0.35,k*0.35);
+        }
+        ctx.stroke();
+    }
+    else if (kind==='flag') {
+        ctx.moveTo(-k*0.6,k);
+        ctx.lineTo(-k*0.6,-k);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-k*0.6,-k);
+        ctx.lineTo(k*0.8,-k*0.55);
+        ctx.lineTo(-k*0.6,-k*0.1);
+        ctx.closePath();
+        ctx.fill();
+    }
+    else if (kind==='leave') {
+        ctx.moveTo(-k,0);
+        ctx.lineTo(k,0);
+        ctx.moveTo(k*0.4,-k*0.5);
+        ctx.lineTo(k,0);
+        ctx.lineTo(k*0.4,k*0.5);
+        ctx.stroke();
+    }
+    else {
+        ctx.font='bold '+Math.round(r*1.1)+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText('?',0,2);
+    }
+    ctx.restore();
+}
+
+export class ChoicePanel extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.35;
+        this.spec=null;
+        this.onPick=null;
+        this.picked=-1;
+        this.pickT=0;
+        this.cards=[];
+        this.hx=-1;
+        this.hy=-1;
+    }
+
+    open2(spec,onPick) {
+        this.spec=spec;
+        this.onPick=onPick;
+        this.picked=-1;
+        this.pickT=0;
+        this.show();
+    }
+
+    hover(x,y) {
+        this.hx=x;
+        this.hy=y;
+    }
+
+    keys(o) {
+        const s=this.spec;
+        const base=s.kind==='event'?'event.'+s.id+'.'+o.id:(s.kind==='route'?'node.'+o.id:s.kind+'.'+o.id);
+        return [base,base+'.desc'];
+    }
+
+    title() {
+        const s=this.spec;
+        return t(s.kind==='event'?'event.'+s.id+'.title':s.kind+'.title');
+    }
+
+    body() {
+        const s=this.spec;
+        if (s.kind==='route') {
+            const h=s.header;
+            return h.kind==='overtime'?t('route.overtime',h):t('route.act',h);
+        }
+        return t(s.kind==='event'?'event.'+s.id+'.body':s.kind+'.body');
+    }
+
+    layout() {
+        const w=this.width;
+        const h=this.height;
+        const C=TUNING.choiceUi;
+        const n=this.spec.options.length;
+        const pw=Math.min(C.maxW,w-32,fitW(h));
+        const gap=C.gap;
+        const cw=(pw-48-gap*(n-1))/n;
+        const ch=Math.min(C.cardH,h*0.42);
+        const ph=ch+C.head+40;
+        const px=w/2-pw/2;
+        const py=h/2-ph/2;
+        this.P={x:px,y:py,w:pw,h:ph};
+        this.cards=[];
+        for (let i=0;i<n;i++) {
+            this.cards.push({x:px+24+i*(cw+gap),y:py+C.head,w:cw,h:ch});
+        }
+    }
+
+    down(x,y) {
+        if (!this.open||this.picked>=0) {
+            return this.open;
+        }
+        this.layout();
+        for (let i=0;i<this.cards.length;i++) {
+            if (inRect(this.cards[i],x,y)&&!this.spec.options[i].disabled) {
+                this.picked=i;
+                this.pickT=0;
+                if (this.actions.select) {
+                    this.actions.select();
+                }
+                return true;
+            }
+        }
+        return true;
+    }
+
+    update(dt) {
+        super.update(dt);
+        if (this.picked>=0&&this.open) {
+            this.pickT+=dt;
+            if (this.pickT>=TUNING.choiceUi.pickTime) {
+                const i=this.picked;
+                const cb=this.onPick;
+                this.hide();
+                cb(i);
+            }
+        }
+    }
+
+    draw(ctx) {
+        if (!this.shown()||!this.spec) {
+            return;
+        }
+        this.layout();
+        const v=time.boilIndex;
+        const P=this.P;
+        const C=TUNING.choiceUi;
+        const w=this.width;
+        const h=this.height;
+        const a=EASE.easeOutBack(Math.min(1,this.t/0.35));
+        ctx.save();
+        ctx.fillStyle=rgba('paper',Math.min(0.7,this.t*3));
+        ctx.fillRect(0,0,w,h);
+        ctx.globalAlpha=Math.min(1,this.t*4);
+        ctx.translate(w/2,h/2);
+        ctx.scale(0.9+0.1*a,0.9+0.1*a);
+        ctx.translate(-w/2,-h/2);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(P.x,P.y,P.w,P.h);
+        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:2210}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 26px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(this.title(),w/2,P.y+34);
+        ctx.font='14px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        const bl=wrapText(ctx,this.body(),P.w-60);
+        for (let i=0;i<bl.length&&i<2;i++) {
+            ctx.fillText(bl[i],w/2,P.y+64+i*19);
+        }
+        for (let i=0;i<this.cards.length;i++) {
+            const o=this.spec.options[i];
+            const r=this.cards[i];
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.1-i*0.08)/0.3)));
+            if (ap<=0) {
+                continue;
+            }
+            const hv=!o.disabled&&this.picked<0&&inRect(r,this.hx,this.hy);
+            const sel=this.picked===i;
+            const fade=this.picked>=0&&!sel?Math.max(0.25,1-this.pickT*4):1;
+            const red=o.id==='elite'||o.id==='finish';
+            const [lk,dk]=this.keys(o);
+            ctx.save();
+            ctx.globalAlpha*=(o.disabled?0.4:1)*fade;
+            ctx.translate(r.x+r.w/2,r.y+r.h/2+(1-ap)*30-(hv?6:0));
+            const s=ap*(sel?1+Math.sin(Math.min(1,this.pickT/C.pickTime)*Math.PI)*0.08:(hv?1.04:1));
+            ctx.scale(s,s);
+            ctx.rotate(hv?-0.015:0);
+            ctx.translate(-r.w/2,-r.h/2);
+            ctx.fillStyle=sel?rgba('red',0.12):(hv?rgba('farGray',0.7):rgba('paper',0.95));
+            ctx.fillRect(0,0,r.w,r.h);
+            drawShape(ctx,sketchRect(0,0,r.w,r.h,{width:hv||sel?2.6:1.6,seed:2220+i}),red||sel?PALETTE.red:PALETTE.ink,v);
+            drawChoiceIcon(ctx,CHOICE_ICONS[o.id]||'event',r.w/2,C.iconY,C.iconR,v,red);
+            ctx.fillStyle=red?PALETTE.red:PALETTE.ink;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            fitText(ctx,t(lk,o),r.w/2,C.iconY+C.iconR+22,r.w-16,18,'bold ');
+            ctx.font='13px '+FONT;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.textBaseline='top';
+            const dl=wrapText(ctx,t(dk,o),r.w-20);
+            for (let k=0;k<dl.length&&k<4;k++) {
+                ctx.fillText(dl[k],r.w/2,C.iconY+C.iconR+40+k*18);
+            }
+            if (o.disabled) {
+                ctx.fillStyle=PALETTE.red;
+                ctx.font='bold 12px '+FONT;
+                ctx.fillText(t('choice.disabled'),r.w/2,r.h-22);
+            }
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+}
+
+export class DeckPicker extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.35;
+        this.mode='upgrade';
+        this.list=[];
+        this.onPick=null;
+        this.sel=-1;
+        this.slots=[];
+        this.hx=-1;
+        this.hy=-1;
+    }
+
+    open2(mode,list,onPick) {
+        this.mode=mode;
+        this.list=list.map((c,i)=>({i,card:createCard(c.id,c.upgraded),ok:mode!=='upgrade'||!c.upgraded}));
+        this.list.sort((a,b)=>a.card.id<b.card.id?-1:(a.card.id>b.card.id?1:0));
+        this.onPick=onPick;
+        this.sel=-1;
+        this.show();
+    }
+
+    hover(x,y) {
+        this.hx=x;
+        this.hy=y;
+    }
+
+    layout() {
+        const w=this.width;
+        const h=this.height;
+        const D=TUNING.deckPick;
+        const pw=Math.min(D.maxW,w-24);
+        let sc=D.scale;
+        let cw=CARD_W*sc;
+        let ch=CARD_H*sc;
+        let cols=Math.max(1,Math.floor((pw-40+D.gap)/(cw+D.gap)));
+        let rows=Math.ceil(this.list.length/cols);
+        while (sc>D.minScale&&rows*(CARD_H*sc+D.gap)+D.head+D.foot>h-16) {
+            sc-=0.05;
+            cw=CARD_W*sc;
+            ch=CARD_H*sc;
+            cols=Math.max(1,Math.floor((pw-40+D.gap)/(cw+D.gap)));
+            rows=Math.ceil(this.list.length/cols);
+        }
+        const gh=rows*(ch+D.gap);
+        const ph=Math.min(h-16,gh+D.head+D.foot);
+        const px=w/2-pw/2;
+        const py=h/2-ph/2;
+        this.P={x:px,y:py,w:pw,h:ph};
+        const x0=w/2-(Math.min(cols,this.list.length)*(cw+D.gap)-D.gap)/2;
+        this.slots=this.list.map((q,k)=>({x:x0+(k%cols)*(cw+D.gap),y:py+D.head+Math.floor(k/cols)*(ch+D.gap),w:cw,h:ch}));
+        const bw=Math.min(220,pw-40);
+        this.okBtn={x:w/2-bw/2,y:py+ph-D.foot+12,w:bw,h:44};
+        this.sc=sc;
+    }
+
+    down(x,y) {
+        if (!this.open) {
+            return false;
+        }
+        this.layout();
+        if (this.sel>=0&&inRect(this.okBtn,x,y)) {
+            const idx=this.list[this.sel].i;
+            const cb=this.onPick;
+            this.hide();
+            if (this.actions.confirm) {
+                this.actions.confirm(this.mode);
+            }
+            cb(idx);
+            return true;
+        }
+        for (let k=0;k<this.slots.length;k++) {
+            if (inRect(this.slots[k],x,y)&&this.list[k].ok) {
+                this.sel=k;
+                if (this.actions.select) {
+                    this.actions.select();
+                }
+                return true;
+            }
+        }
+        return true;
+    }
+
+    draw(ctx,art) {
+        if (!this.shown()) {
+            return;
+        }
+        this.layout();
+        const v=time.boilIndex;
+        const P=this.P;
+        const w=this.width;
+        const h=this.height;
+        const D=TUNING.deckPick;
+        ctx.save();
+        ctx.fillStyle=rgba('paper',Math.min(0.75,this.t*3));
+        ctx.fillRect(0,0,w,h);
+        ctx.globalAlpha=Math.min(1,this.t*4);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(P.x,P.y,P.w,P.h);
+        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:2240}),this.mode==='remove'?PALETTE.red:PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 24px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('pick.'+this.mode+'.title'),w/2,P.y+30);
+        ctx.font='13px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillText(t('pick.'+this.mode+'.hint'),w/2,P.y+56);
+        for (let k=0;k<this.slots.length;k++) {
+            const q=this.list[k];
+            const r=this.slots[k];
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.05-k*0.02)/0.3)));
+            if (ap<=0) {
+                continue;
+            }
+            const hv=q.ok&&inRect(r,this.hx,this.hy);
+            const sel=this.sel===k;
+            ctx.save();
+            ctx.globalAlpha*=q.ok?1:0.35;
+            ctx.translate(r.x+r.w/2,r.y+r.h/2-(sel?8:(hv?4:0)));
+            ctx.scale(ap*this.sc*(sel?1.08:1),ap*this.sc*(sel?1.08:1));
+            ctx.translate(-CARD_W/2,-CARD_H/2);
+            ctx.drawImage(art.face(q.card,v),0,0,CARD_W,CARD_H);
+            drawCost(ctx,q.card,false,v);
+            if (sel) {
+                ctx.strokeStyle=this.mode==='remove'?PALETTE.red:PALETTE.ink;
+                ctx.lineWidth=5;
+                ctx.strokeRect(-5,-5,CARD_W+10,CARD_H+10);
+            }
+            ctx.restore();
+        }
+        if (this.sel>=0) {
+            const q=this.list[this.sel];
+            const shown=this.mode==='upgrade'?createCard(q.card.id,true):q.card;
+            ctx.font='13px '+FONT;
+            ctx.fillStyle=this.mode==='remove'?PALETTE.red:PALETTE.ink;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            const line=(this.mode==='upgrade'?t('pick.upgrade.preview'):'')+cardName(shown)+'：'+cardDesc(shown);
+            ctx.fillText(line,w/2,this.okBtn.y-14,P.w-40);
+            drawButton(ctx,this.okBtn,t('pick.'+this.mode+'.ok'),v,1,inRect(this.okBtn,this.hx,this.hy),17,this.mode==='remove');
+        }
+        else {
+            ctx.font='13px '+FONT;
+            ctx.fillStyle=PALETTE.midGray;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('pick.choose'),w/2,this.okBtn.y+22);
+        }
+        ctx.restore();
     }
 }
