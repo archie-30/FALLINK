@@ -11,12 +11,13 @@ export const settings={
     quality:'high',
     reducedMotion:false,
     showFps:false,
-    shake:1,
     aimAssist:true,
     volume:0.8,
     stickSize:0.45,
     stickX:0.45,
     stickY:0.4,
+    aimRing:0.7,
+    skillSize:0.5,
     godMode:false,
     fullscreen:true,
     tutorialSeen:false,
@@ -27,7 +28,7 @@ export const settings={
 
 export const TRAINING_DEFAULTS=JSON.parse(JSON.stringify(settings.training));
 
-export const STICK_DEFAULTS={stickSize:0.45,stickX:0.45,stickY:0.4};
+export const STICK_DEFAULTS={stickSize:0.45,stickX:0.45,stickY:0.4,aimRing:0.7,skillSize:0.5};
 
 export function detectDevice() {
     const coarse=window.matchMedia&&window.matchMedia('(pointer:coarse)').matches;
@@ -49,6 +50,7 @@ export function loadSettings() {
             Object.assign(settings,JSON.parse(raw));
         }
         settings.training={...TRAINING_DEFAULTS,...settings.training};
+        delete settings.shake;
     }
     catch (e) {
     }
@@ -81,5 +83,5 @@ export function boilScale() {
 }
 
 export function shakeScale() {
-    return (settings.reducedMotion?TUNING.reducedMotion.shake:1)*settings.shake;
+    return (settings.reducedMotion?TUNING.reducedMotion.shake:1);
 }

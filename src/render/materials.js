@@ -2,7 +2,7 @@ import*as THREE from 'three';
 import {PALETTE} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {TOON_VERT,TOON_FRAG,HULL_VERT,HULL_FRAG,UNLIT_VERT,UNLIT_FRAG,SHADOW_VERT,SHADOW_FRAG} from './shaders/toon.js';
-import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG} from './shaders/fx.js';
+import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG} from './shaders/fx.js';
 
 const colorCache={};
 
@@ -406,6 +406,30 @@ export function inkMaterial(color) {
         vertexShader:LINE_VERT,
         fragmentShader:INK_FRAG,
         uniforms:fxUniforms(extra),
+        transparent:true,
+        depthTest:false,
+        depthWrite:false,
+        side:THREE.DoubleSide
+    });
+}
+
+export function brushMaterial(color) {
+    return new THREE.ShaderMaterial({
+        vertexShader:TRAIL_VERT,
+        fragmentShader:BRUSH_FRAG,
+        uniforms:fxUniforms({uColor:{value:pal(color).clone()},uSeed:{value:0}}),
+        transparent:true,
+        depthTest:false,
+        depthWrite:false,
+        side:THREE.DoubleSide
+    });
+}
+
+export function beamMaterial(color,core) {
+    return new THREE.ShaderMaterial({
+        vertexShader:LINE_VERT,
+        fragmentShader:BEAM_FRAG,
+        uniforms:fxUniforms({uColor:{value:pal(color).clone()},uCore:{value:pal(core).clone()},uAlpha:{value:0},uLength:{value:1},uTime:{value:0}}),
         transparent:true,
         depthTest:false,
         depthWrite:false,

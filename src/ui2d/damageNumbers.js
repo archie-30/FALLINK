@@ -29,11 +29,13 @@ export class DamageNumbers {
         it.rot=0;
     }
 
-    spawn(x,y,z,value,crit) {
+    spawn(x,y,z,value,crit,merge) {
         const D=TUNING.damageNumbers;
+        const mt=merge||D.mergeTime;
         for (const it of this.items) {
-            if (it.active&&!it.text&&it.t<D.mergeTime&&Math.abs(it.x-x)<0.9&&Math.abs(it.z-z)<0.9&&it.crit===crit) {
+            if (it.active&&!it.text&&it.age<mt&&Math.abs(it.x-x)<0.9&&Math.abs(it.z-z)<0.9&&it.crit===crit) {
                 it.v+=value;
+                it.age=0;
                 it.t=Math.min(it.t,0.05);
                 it.bump=1;
                 return;
@@ -47,6 +49,7 @@ export class DamageNumbers {
         it.z=z;
         it.v=value;
         it.t=0;
+        it.age=0;
         it.crit=crit;
         it.text=null;
         it.ox=(Math.random()-0.5)*D.drift;
@@ -65,6 +68,7 @@ export class DamageNumbers {
         for (const it of this.items) {
             if (it.active) {
                 it.t+=dt;
+                it.age=(it.age||0)+dt;
                 it.bump=Math.max(0,it.bump-dt*6);
                 if (it.t>=D.life) {
                     it.active=false;

@@ -598,6 +598,21 @@ function drawUpgradeFrame(ctx,v,seed,color) {
     ctx.restore();
 }
 
+function renderIcon(card,v,scale) {
+    const c=document.createElement('canvas');
+    c.width=Math.ceil(64*scale);
+    c.height=Math.ceil(64*scale);
+    const ctx=c.getContext('2d');
+    ctx.scale(scale,scale);
+    ctx.translate(32,36);
+    ctx.scale(0.62,0.62);
+    const icon=ICONS[card.id];
+    if (icon) {
+        icon(ctx,v,0,0);
+    }
+    return c;
+}
+
 function renderFace(card,v,scale) {
     const W=CARD_W;
     const H=CARD_H;
@@ -732,6 +747,10 @@ export class CardArt {
 
     back(v) {
         return this.get('b|'+v,()=>renderBack(v,this.scale));
+    }
+
+    icon(card,v) {
+        return this.get('i|'+cardKey(card)+'|'+v,()=>renderIcon(card,v,this.scale));
     }
 
     ball(v) {

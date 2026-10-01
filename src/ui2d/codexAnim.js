@@ -1849,14 +1849,23 @@ export const WEAPON_ANIMS={
     brush:{
         period:2.4,
         draw(S,k) {
-            const ang=[-0.45,-0.22,0,0.22,0.45];
             for (let w=0;w<2;w++) {
-                const s=0.15+w*0.35;
-                const f=seg(k,s,s+0.1);
+                const s=0.12+w*0.4;
+                const f=seg(k,s,s+0.28);
                 if (f>0&&f<1) {
-                    for (const a of ang) {
-                        const r=0.9+f*3.4;
-                        S.line(PX+Math.cos(a)*0.9,PY+Math.sin(a)*0.9,PX+Math.cos(a)*r,PY+Math.sin(a)*r,PALETTE.ink,0.22*(1-f)+0.06,1-f*0.5);
+                    const e=1-Math.pow(1-f,2.4);
+                    const r=0.9+e*4.6;
+                    const th=0.45+e*1.4;
+                    const fade=f<0.7?1:1-(f-0.7)/0.3;
+                    const n=12;
+                    for (let i=0;i<n;i++) {
+                        const u0=i/n;
+                        const u1=(i+1)/n;
+                        const a0=(w?0.5-u0:u0-0.5)*0.95;
+                        const a1=(w?0.5-u1:u1-0.5)*0.95;
+                        const rr=r-th*0.5+Math.sin(u0*Math.PI)*th*0.3;
+                        const wd=th*Math.min(1,u0*10)*(1-u0*0.8);
+                        S.line(PX+Math.cos(a0)*rr,PY+Math.sin(a0)*rr,PX+Math.cos(a1)*rr,PY+Math.sin(a1)*rr,PALETTE.ink,wd,fade*(0.95-u0*0.3));
                     }
                 }
             }
@@ -1867,8 +1876,8 @@ export const WEAPON_ANIMS={
                     S.bullet(Math.max(PX+4.2,x),y,'enemy',k<0.15?1:1-seg(k,0.15,0.2));
                 }
             }
-            S.player(PX,PY,0,{kick:seg(k,0.15,0.2)*(1-seg(k,0.2,0.3))});
-            S.target('doodle',PX+3.6,PY,k,0.2);
+            S.player(PX,PY,0,{kick:seg(k,0.12,0.18)*(1-seg(k,0.18,0.32))});
+            S.target('doodle',PX+4.8,PY,k,0.24);
         }
     },
     stapler:{
@@ -1896,11 +1905,13 @@ export const WEAPON_ANIMS={
         draw(S,k) {
             const on=seg(k,0.08,0.1)*(1-seg(k,0.7,0.72));
             if (on>0) {
-                for (let i=0;i<24;i++) {
-                    const q=((k*6+i/24)%1);
-                    S.circle(PX+0.9+q*10,PY+(hash(i+k)-0.5)*0.12,0.1,PALETTE.ink,on);
+                const wob=1+Math.sin(k*120)*0.08;
+                S.line(PX+0.9,PY,11.2,PY,PALETTE.marker,0.6*wob,0.7*on);
+                S.line(PX+0.9,PY,11.2,PY,PALETTE.paper,0.18*wob,0.85*on);
+                for (let i=0;i<3;i++) {
+                    const q=hash(i+Math.floor(k*30));
+                    S.circle(11.2-q*0.6,PY+(q-0.5)*0.9,0.08,PALETTE.marker,on);
                 }
-                S.line(PX+0.9,PY,11,PY,PALETTE.midGray,0.28,0.35*on);
             }
             const heat=seg(k,0.1,0.7);
             S.rect(PX-0.8,PY+1.1,1.6,0.25,PALETTE.farGray,1);
@@ -1918,8 +1929,12 @@ export const WEAPON_ANIMS={
             const y=PY-Math.sin(f*Math.PI*2)*1.4;
             if (f>0&&f<1) {
                 const a=k*40;
-                S.line(x-Math.cos(a)*0.45,y-Math.sin(a)*0.45,x+Math.cos(a)*0.45,y+Math.sin(a)*0.45,PALETTE.ink,0.14,1);
-                S.circle(x,y,0.12,PALETTE.nearGray,1);
+                for (const sp of [-0.32,0.32]) {
+                    const b=a+sp;
+                    S.line(x,y,x+Math.cos(b)*0.75,y+Math.sin(b)*0.75,PALETTE.nearGray,0.1,1);
+                }
+                S.line(x+Math.cos(a+0.32)*0.75,y+Math.sin(a+0.32)*0.75,x+Math.cos(a+0.32)*0.9,y+Math.sin(a+0.32)*0.9,PALETTE.ink,0.06,1);
+                S.circle(x,y,0.14,PALETTE.ink,1);
             }
             S.player(PX,PY,0,{kick:seg(k,0.1,0.13)*(1-seg(k,0.13,0.2))});
             S.target('doodle',PX+5.5,PY-1.2,k,0.28);

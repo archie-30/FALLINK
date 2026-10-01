@@ -337,3 +337,62 @@ void main() {
     gl_FragColor=vec4(uColor,0.92);
 }
 `;
+
+export const BRUSH_FRAG=`
+${OCCLUDE}
+uniform vec3 uColor;
+uniform float uSeed;
+uniform sampler2D tNoise;
+varying vec2 vUv;
+varying float vAlpha;
+varying float vDepth;
+void main() {
+    if (vAlpha<=0.001||occluded(vDepth)) {
+        discard;
+    }
+    float u=vUv.x;
+    float v=vUv.y*2.0-1.0;
+    float body=smoothstep(0.0,0.07,u)*mix(1.0,0.18,pow(u,1.6));
+    float edge=texture2D(tNoise,vec2(u*1.7+uSeed,0.31)).r*0.35;
+    if (abs(v)>body*(0.8+edge)) {
+        discard;
+    }
+    float streak=texture2D(tNoise,vec2(v*3.1+uSeed*0.7,u*0.12+uSeed)).g;
+    float dry=smoothstep(0.35,1.0,u)*(1.15-vAlpha*0.6);
+    if (streak<dry*0.75) {
+        discard;
+    }
+    float a=vAlpha*mix(0.96,0.75,smoothstep(0.5,1.0,u));
+    gl_FragColor=vec4(uColor,a);
+}
+`;
+
+export const BEAM_FRAG=`
+${OCCLUDE}
+uniform vec3 uColor;
+uniform vec3 uCore;
+uniform float uAlpha;
+uniform float uLength;
+uniform float uTime;
+uniform sampler2D tNoise;
+varying vec2 vUv;
+varying float vDepth;
+varying vec3 vWorldPos;
+void main() {
+    if (uAlpha<=0.001||occluded(vDepth)) {
+        discard;
+    }
+    float across=abs(vUv.y*2.0-1.0);
+    float n=texture2D(tNoise,vec2(vUv.x*uLength*0.18-uTime*1.7,0.37)).r;
+    float w=0.72+n*0.28;
+    w*=mix(0.7,1.0,smoothstep(0.0,0.06,vUv.x))*mix(1.0,0.55,smoothstep(0.9,1.0,vUv.x));
+    if (across>w) {
+        discard;
+    }
+    float flow=texture2D(tNoise,vec2(vUv.x*uLength*0.45-uTime*4.0,vUv.y*0.6)).g;
+    float core=1.0-smoothstep(0.08,0.32+flow*0.12,across);
+    vec3 col=mix(uColor,uCore,core*0.85);
+    float a=uAlpha*mix(0.62,0.95,core)*(0.85+flow*0.3);
+    gl_FragColor=vec4(col,min(1.0,a));
+}
+`;

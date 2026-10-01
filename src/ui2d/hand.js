@@ -475,6 +475,15 @@ export class Hand {
         pts.push(q);
     }
 
+    selectSlot(slot) {
+        const v=this.views.find(o=>o.slot===slot);
+        if (!v||v.state!=='idle') {
+            return false;
+        }
+        this.cancelTargeting();
+        return this.enterTargeting(v);
+    }
+
     cancelTargeting() {
         this.path=null;
         this.stickT=null;
