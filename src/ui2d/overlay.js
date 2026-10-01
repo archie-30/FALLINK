@@ -90,10 +90,6 @@ export class Overlay {
                 this.screenSpace(true);
                 this.drawSticks(input,!!game.hand.targetView);
                 this.screenSpace(false);
-                const ta=game.hand.tooltipAnchor();
-                if (ta) {
-                    drawCardTooltip(ctx,ta.card,ta.x,ta.y);
-                }
                 this.screenSpace(true);
                 this.drawDash(input,player);
                 this.drawSkills(input,game.hand,game.ink,game.art);

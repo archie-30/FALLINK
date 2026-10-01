@@ -32,7 +32,6 @@ export const TOUCH_KEYS=[
     ['legend.touch.card.key','legend.touch.card'],
     ['legend.touch.drag.key','legend.touch.drag'],
     ['legend.touch.draw.key','legend.touch.draw'],
-    ['legend.touch.discard.key','legend.touch.discard'],
     ['legend.touch.deck.key','legend.touch.deck'],
     ['legend.touch.pause.key','legend.touch.pause'],
     ['legend.touch.debug.key','legend.touch.debug']

@@ -79,7 +79,7 @@ export function planRoom(act,index,rng,lastLayout) {
     const A=ACTS[act];
     if (index>=A.rooms) {
         const type=BOSSES[act%BOSSES.length];
-        return {act,index,boss:true,bossType:type,layoutKey:'bossArena',layout:LAYOUTS.bossArena,hpMult:A.hpMult,bossHp:A.bossHp,waves:[[{type,boss:true}]]};
+        return {act,index,boss:true,bossType:type,layoutKey:'bossArena',layout:LAYOUTS.bossArena,hpMult:A.bossMult,bossHp:A.bossHp,waves:[[{type,boss:true}]]};
     }
     let key=NORMAL_LAYOUTS[Math.floor(rng.next()*NORMAL_LAYOUTS.length)];
     if (key===lastLayout) {
@@ -89,9 +89,9 @@ export function planRoom(act,index,rng,lastLayout) {
     const fresh=count>1&&(index>0||act>0)&&count>storyTypes(act,index-1)?ENEMY_ORDER[count-1]:null;
     const waves=buildWaves(limitPool(A.pool,count),A.budget[index],A.waves[index],rng,fresh);
     let mod=null;
-    const chance=act===0?(index<2?0:0.4):0.6;
-    if (rng.next()<chance) {
-        mod=MODS[Math.floor(rng.next()*MODS.length)];
+    if (rng.next()<A.modChance[index]) {
+        const mods=A.elite?MODS:MODS.filter(m=>m!=='elite');
+        mod=mods[Math.floor(rng.next()*mods.length)];
     }
     return {act,index,boss:false,layoutKey:key,layout:LAYOUTS[key],hpMult:A.hpMult,waves,mod,fresh,barrels:1+Math.floor(rng.next()*2),crates:1+Math.floor(rng.next()*2)};
 }
@@ -104,13 +104,13 @@ export function planEndless(page,rng,lastLayout) {
     const hpMult=1+page*E.hpPerPage;
     if (page%E.bossEvery===E.bossEvery-1) {
         const type=BOSSES[tier%BOSSES.length];
-        return {act,index:page,endless:true,boss:true,bossType:type,layoutKey:'bossArena',layout:LAYOUTS.bossArena,hpMult,bossHp:0.75,waves:[[{type,boss:true}]]};
+        return {act,index:page,endless:true,boss:true,bossType:type,layoutKey:'bossArena',layout:LAYOUTS.bossArena,hpMult:1+page*E.bossHpPerPage,bossHp:0.75,waves:[[{type,boss:true}]]};
     }
     let key=NORMAL_LAYOUTS[Math.floor(rng.next()*NORMAL_LAYOUTS.length)];
     if (key===lastLayout) {
         key=NORMAL_LAYOUTS[(NORMAL_LAYOUTS.indexOf(key)+1)%NORMAL_LAYOUTS.length];
     }
-    const budget=Math.round(E.budgetBase+page*E.budgetPerPage);
+    const budget=Math.min(E.budgetMax,Math.round(E.budgetBase+page*E.budgetPerPage));
     const nw=Math.min(4,2+Math.floor(page/4));
     const count=endlessTypes(page);
     let q=page-1;
@@ -120,8 +120,9 @@ export function planEndless(page,rng,lastLayout) {
     const fresh=q>=0&&count>endlessTypes(q)?ENEMY_ORDER[count-1]:null;
     const waves=buildWaves(limitPool(A.pool,count),budget,nw,rng,fresh);
     let mod=null;
-    if (page>=2&&rng.next()<0.5) {
-        mod=MODS[Math.floor(rng.next()*MODS.length)];
+    if (page>=E.modFrom&&rng.next()<E.modChance) {
+        const mods=page>=E.eliteFrom?MODS:MODS.filter(m=>m!=='elite');
+        mod=mods[Math.floor(rng.next()*mods.length)];
     }
     return {act,index:page,endless:true,boss:false,layoutKey:key,layout:LAYOUTS[key],hpMult,waves,mod,fresh,barrels:1+Math.floor(rng.next()*2),crates:1+Math.floor(rng.next()*2)};
 }

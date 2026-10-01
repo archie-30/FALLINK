@@ -73,6 +73,11 @@ function drawButton(ctx,b,label,v,appear,hover,size=20,danger=false) {
     ctx.restore();
 }
 
+function fitW(h) {
+    const U=TUNING.ui.fit;
+    return h<U.smallH?Math.max(U.min,h*U.ratio):9999;
+}
+
 class Panel {
     constructor() {
         this.open=false;
@@ -701,7 +706,7 @@ export class SettingsMenu extends Panel {
         const cols=w>=TUNING.settingsUi.twoColMin?2:1;
         const per=Math.ceil(keys.length/cols);
         const rh=Math.max(40,Math.min(60,avail/per));
-        const colW=Math.min(560,(w-40)/cols);
+        const colW=Math.min(TUNING.settingsUi.colMax,(w-40)/cols);
         const pw=colW*cols;
         const px=w/2-pw/2;
         const ph=per*rh+160;
@@ -2458,7 +2463,8 @@ export class TrainingPicker extends Panel {
     }
 
     scale() {
-        return Math.max(0.5,Math.min(0.78,this.height/1150));
+        const P=TUNING.trainPicker;
+        return Math.max(P.minScale,Math.min(P.maxScale,this.height/P.refH));
     }
 
     clampScroll() {
@@ -4030,7 +4036,7 @@ export class Tutorial extends Panel {
         const w=this.width;
         const h=this.height;
         const small=h<600;
-        const pw=Math.min(980,w-24);
+        const pw=Math.min(980,w-24,fitW(h));
         const ph=Math.min(h-20,small?h-20:620);
         this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
         const by=this.P.y+ph-(small?48:66);
@@ -4383,7 +4389,7 @@ export class WeaponView extends Panel {
         const w=this.width;
         const h=this.height;
         const small=h<600;
-        const pw=Math.min(1060,w-20);
+        const pw=Math.min(1060,w-20,fitW(h));
         const ph=Math.min(h-16,small?h-16:640);
         this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
         const bh=small?40:48;
