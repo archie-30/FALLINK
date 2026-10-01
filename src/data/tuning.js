@@ -270,9 +270,8 @@ export const TUNING={
         countTime:0.9,
         xpTime:1.2,
         grade:{
-            marks:[['S',100],['A',75],['B',50],['C',25],['D',-9999]],
-            story:{room:6,boss:5,hurt:1.5,win:20},
-            endless:{room:4,boss:6,hurt:1,win:0}
+            story:[['S',35000],['A',20000],['B',10000],['C',4000],['D',-1]],
+            endless:[['S',60000],['A',30000],['B',15000],['C',5000],['D',-1]]
         }
     },
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},

@@ -869,6 +869,10 @@ export class SettingsMenu extends Panel {
                     settings.godMode=!settings.godMode;
                 }
                 else if (r.key==='full') {
+                    if (!device.fullscreen) {
+                        this.pulse[r.key]=1;
+                        continue;
+                    }
                     settings.fullscreen=!settings.fullscreen;
                 }
                 else {
@@ -985,6 +989,11 @@ export class SettingsMenu extends Panel {
             else {
                 const on=this.target(r.key)>0.5;
                 const f=Math.max(0,Math.min(1,an));
+                const off=r.key==='full'&&!device.fullscreen;
+                ctx.save();
+                if (off) {
+                    ctx.globalAlpha*=0.4;
+                }
                 ctx.fillStyle=PALETTE.paper;
                 ctx.fillRect(r.cx,r.y-15,64,30);
                 ctx.fillStyle=rgba('ink',f);
@@ -996,10 +1005,11 @@ export class SettingsMenu extends Panel {
                 ctx.beginPath();
                 ctx.ellipse(kx,r.y,9*squash,9/squash,0,0,Math.PI*2);
                 ctx.fill();
-                ctx.fillStyle=PALETTE.nearGray;
+                ctx.restore();
+                ctx.fillStyle=off?PALETTE.red:PALETTE.nearGray;
                 ctx.font=(pu>0.3?'bold ':'')+'14px '+FONT;
                 ctx.textAlign='left';
-                ctx.fillText(on?t('settings.on'):t('settings.off'),r.cx+80,r.y);
+                ctx.fillText(off?t('settings.unsupported'):(on?t('settings.on'):t('settings.off')),r.cx+80,r.y);
             }
         }
         ctx.restore();
@@ -2063,21 +2073,16 @@ export class RunSummary {
         this.drawBody(ctx);
     }
 
-    gradePts() {
+    marks() {
         const G=TUNING.summaryUi.grade;
-        const st=this.stats;
-        const W=st.mode==='endless'?G.endless:G.story;
-        return Math.round(st.rooms*W.room+st.bosses*W.boss-st.damage*W.hurt+(this.victory?W.win:0));
+        return this.stats.mode==='endless'?G.endless:G.story;
     }
 
     drawGradeInfo(ctx,x,y,v) {
-        const G=TUNING.summaryUi.grade;
-        const st=this.stats;
-        const W=st.mode==='endless'?G.endless:G.story;
-        const pts=this.gradePts();
+        const M=this.marks();
         const cur=this.grade();
-        const lines=[t('grade.points',{n:pts}),t(st.mode==='endless'?'grade.ruleEndless':'grade.rule',W)];
-        const rows=G.marks.slice(0,-1).map(m=>[m[0],t('grade.at',{n:m[1]})]).concat([[G.marks[G.marks.length-1][0],t('grade.below',{n:G.marks[G.marks.length-2][1]})]]);
+        const lines=[t('grade.points',{n:this.stats.score}),t(this.stats.mode==='endless'?'grade.ruleEndless':'grade.rule')];
+        const rows=M.slice(0,-1).map(m=>[m[0],t('grade.at',{n:m[1]})]).concat([[M[M.length-1][0],t('grade.below',{n:M[M.length-2][1]})]]);
         const pad=12;
         const bw=280;
         const bh=pad*2+lines.length*20+rows.length*20+6;
@@ -2116,14 +2121,13 @@ export class RunSummary {
     }
 
     grade() {
-        const G=TUNING.summaryUi.grade;
-        const pts=this.gradePts();
-        for (let i=0;i<G.marks.length;i++) {
-            if (pts>=G.marks[i][1]) {
-                return G.marks[i][0];
+        const M=this.marks();
+        for (const [g,min] of M) {
+            if (this.stats.score>=min) {
+                return g;
             }
         }
-        return G.marks[G.marks.length-1][0];
+        return M[M.length-1][0];
     }
 
     hover(x,y) {
@@ -4727,3 +4731,77 @@ export class WeaponView extends Panel {
 
 const WEAPON_STATS=['dmg','rate','range','mag'];
 
+export class InfoPopup extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.35;
+        this.title='';
+        this.body='';
+    }
+
+    open2(title,body) {
+        this.title=title;
+        this.body=body;
+        this.show();
+    }
+
+    layout() {
+        const w=this.width;
+        const h=this.height;
+        const pw=Math.min(500,w-32);
+        const ph=Math.min(h-24,260);
+        this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
+        const bw=Math.min(200,pw-60);
+        this.okBtn={x:w/2-bw/2,y:this.P.y+ph-66,w:bw,h:48};
+        this.buttons=[this.okBtn];
+    }
+
+    down(x,y) {
+        if (!this.open) {
+            return false;
+        }
+        this.layout();
+        if (inRect(this.okBtn,x,y)) {
+            this.actions.close();
+        }
+        return true;
+    }
+
+    draw(ctx) {
+        if (!this.shown()) {
+            return;
+        }
+        this.layout();
+        const w=this.width;
+        const h=this.height;
+        const v=time.boilIndex;
+        const P=this.P;
+        const a=EASE.easeOutBack(Math.min(1,this.t/0.4));
+        ctx.save();
+        ctx.fillStyle=rgba('ink',Math.min(0.35,this.t*1.5));
+        ctx.fillRect(0,0,w,h);
+        ctx.translate(w/2,h/2);
+        ctx.scale(a,a);
+        ctx.translate(-w/2,-h/2);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(P.x,P.y,P.w,P.h);
+        ctx.fillStyle=PALETTE.red;
+        ctx.fillRect(P.x,P.y,P.w,6);
+        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:2101}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 22px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(this.title,P.x+28,P.y+44);
+        ctx.font='15px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textBaseline='top';
+        const lines=wrapText(ctx,this.body,P.w-56);
+        for (let i=0;i<lines.length;i++) {
+            ctx.fillText(lines[i],P.x+28,P.y+74+i*22);
+        }
+        ctx.restore();
+        drawButton(ctx,this.okBtn,t('notice.ok'),v,(this.t-0.15)/0.3,this.hoverIdx===0,18);
+    }
+}
