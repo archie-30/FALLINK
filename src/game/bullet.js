@@ -289,7 +289,7 @@ export class BulletSystem {
                     this.kill(i);
                     continue;
                 }
-                const sp=Math.min(this.spd[i]*1.25,Math.hypot(this.vx[i],this.vz[i])+this.returnAccel*dt);
+                const sp=Math.min(this.spd[i],Math.hypot(this.vx[i],this.vz[i])+this.returnAccel*dt);
                 const k=Math.min(1,dt*7);
                 this.vx[i]+=(tx/tl*sp-this.vx[i])*k;
                 this.vz[i]+=(tz/tl*sp-this.vz[i])*k;

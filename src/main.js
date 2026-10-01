@@ -1358,7 +1358,9 @@ function boot() {
             return;
         }
         if (trainingMenu.open) {
-            closeTrainingMenu();
+            if (!trainingMenu.closeDropdown()) {
+                closeTrainingMenu();
+            }
             return;
         }
         if (pauseMenu.open) {
@@ -1443,6 +1445,17 @@ function boot() {
             gestureFull();
         }
     });
+    const autoPause=()=>{
+        if (game.mode==='play'&&!pauseMenu.open&&!trainingMenu.open&&!trainingPicker.open&&!fx.cutin) {
+            openPause();
+        }
+    };
+    document.addEventListener('visibilitychange',()=>{
+        if (document.hidden) {
+            autoPause();
+        }
+    });
+    window.addEventListener('blur',autoPause);
     document.addEventListener('fullscreenchange',()=>{
         setTimeout(resize,60);
         if (!document.fullscreenElement&&settings.fullscreen&&game.mode==='play'&&!pauseMenu.open&&!trainingMenu.open) {

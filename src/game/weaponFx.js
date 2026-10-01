@@ -89,8 +89,9 @@ export class BrushStrokes {
             const tt=Math.min(t,it.life);
             const reach=it.v0/it.drag*(1-Math.exp(-it.drag*tt));
             const outer=B.muzzle+reach;
-            const thick=Math.min(outer-B.muzzle*0.5,B.thickMin+reach*B.thickGrow);
-            const inner=outer-thick;
+            const thick=B.thickMin+reach*B.thickGrow;
+            const inner=Math.max(0,outer-thick*(1-B.lead));
+            const front=outer+thick*B.lead;
             const fade=t<it.life?1:Math.max(0,1-(t-it.life)/B.fade);
             const a=fade*(1-0.3*tt/it.life);
             const p=it.pos.array;
@@ -100,14 +101,14 @@ export class BrushStrokes {
                 const an=it.ang+(it.dir>0?u-0.5:0.5-u)*it.fan*B.arc;
                 const c=Math.cos(an);
                 const s=Math.sin(an);
-                const bow=Math.sin(u*Math.PI)*thick*0.3;
+                const bow=Math.sin(u*Math.PI)*thick*B.bow;
                 const k=j*6;
                 p[k]=it.x+c*(inner+bow);
                 p[k+1]=B.height;
                 p[k+2]=it.z+s*(inner+bow);
-                p[k+3]=it.x+c*(outer+bow);
+                p[k+3]=it.x+c*(front+bow);
                 p[k+4]=B.height;
-                p[k+5]=it.z+s*(outer+bow);
+                p[k+5]=it.z+s*(front+bow);
                 al[j*2]=a;
                 al[j*2+1]=a;
             }

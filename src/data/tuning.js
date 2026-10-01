@@ -248,6 +248,7 @@ export const TUNING={
         autoClose:7
     },
     ui:{
+        dangerHover:0.18,
         loaderMin:0.7,
         loaderFade:0.6,
         skinDrag:0.012,
@@ -269,11 +270,13 @@ export const TUNING={
     settingsUi:{
         twoColMin:600,
         touchSide:215,
-        dragFade:0.25,
+        resetR:13,
+        resetSpin:2.5,
         follow:14,
         pulseDecay:3
     },
     codex:{
+        enemyAnim:{slide:16,spin:0.5,bob:2.5,bobFreq:2.6,sway:0.05,squash:0.03,hoverFreq:9,hoverTilt:0.04},
         toggleFollow:10,
         cardPanelH:640,
         cardScale:0.95,
@@ -339,11 +342,15 @@ export const TUNING={
         bandY:0.7,
         motifY:0.4
     },
+    weaponUi:{
+        equip:{time:0.9,jolt:0.25,joltScale:0.08,shake:0.05,spinTime:0.6,spins:1,lift:0.18,grow:0.35,drops:12,dropTime:0.45,stampDelay:0.35,stampTime:0.3,stampFrom:2.6}
+    },
     trainUi:{
         pulseDecay:3.2,
         popDecay:4,
         hoverScale:0.06,
-        pressScale:0.18
+        pressScale:0.18,
+        dropdown:{openTime:0.22,closeTime:0.15,pickDecay:3,itemH:34,stagger:0.08}
     },
     weaponFx:{
         pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
@@ -351,7 +358,7 @@ export const TUNING={
         staple:{color:'midGray',capacity:64,radius:0.13,size:0.17,trailWidth:0.06},
         compass:{color:'nearGray',capacity:16,radius:0.6,size:0.8,trailWidth:0.06,pierce:true,boomerang:true,model:'compass',spin:18,returnAccel:28}
     },
-    brushStroke:{count:10,height:1.0,fade:0.45,muzzle:0.6,thickMin:0.45,thickGrow:0.4,arc:1.15},
+    brushStroke:{count:10,height:1.0,fade:0.3,muzzle:0,thickMin:0.3,thickGrow:0.1,arc:1.0,lead:0.35,bow:0.05},
     beam:{height:1.1,fadeIn:30,fadeOut:14,pulse:40,pulseAmp:0.08,step:0.25,mergeTime:0.35,sparks:2},
     equip:{time:0.55,lift:0.35,spin:2,particles:10},
     notice:{
