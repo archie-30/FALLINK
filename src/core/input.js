@@ -336,8 +336,8 @@ export class Input {
         }
         s.x=s.ox+dx;
         s.y=s.oy+dy;
-        s.y=y;
         const m=d/R;
+        s.raw=m;
         s.mag=m<TUNING.input.deadZone?0:(m-TUNING.input.deadZone)/(1-TUNING.input.deadZone);
         s.maxMag=Math.max(s.maxMag,s.mag);
         if (d>1e-4) {
@@ -409,7 +409,7 @@ export class Input {
 
     isFiring() {
         if (this.aim.id>=0&&this.aim.mag>0) {
-            return !this.aimForCard;
+            return !this.aimForCard&&(this.aim.raw||0)>=TUNING.input.fireRing;
         }
         return this.lastDevice==='mouse'&&this.mouse.down;
     }

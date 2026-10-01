@@ -429,8 +429,17 @@ export class Hand {
     }
 
     enterTargeting(v) {
+        const cost=cardCost(v.card);
+        if (!this.api.ink.can(cost)) {
+            this.shake(v,true);
+            this.api.ink.spend(cost);
+            this.targetView=null;
+            this.api.preview.hide();
+            return false;
+        }
         this.targetView=v;
         this.hover=null;
+        return true;
     }
 
     addPathPoint(sx,sy) {

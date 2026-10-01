@@ -149,6 +149,50 @@ export const SOUNDS={
             {kind:'noise',dur:0.2,attack:0.04,gain:0.35,filter:{type:'bandpass',f0:700,f1:2800,q:0.8}}
         ]
     },
+    wPencil:{
+        gap:0.05,
+        gain:0.4,
+        vary:0.2,
+        layers:[
+            {kind:'noise',dur:0.03,gain:0.3,filter:{type:'highpass',f0:5200,q:0.8}},
+            {kind:'tone',wave:'square',f0:2400,f1:1800,dur:0.02,gain:0.05}
+        ]
+    },
+    wBrush:{
+        gap:0.1,
+        gain:0.55,
+        vary:0.1,
+        layers:[
+            {kind:'noise',dur:0.22,attack:0.03,gain:0.45,filter:{type:'bandpass',f0:600,f1:2600,q:0.7}},
+            {kind:'tone',wave:'sine',f0:180,f1:90,dur:0.15,gain:0.2}
+        ]
+    },
+    wStaple:{
+        gap:0.04,
+        gain:0.5,
+        vary:0.08,
+        layers:[
+            {kind:'noise',dur:0.02,gain:0.45,filter:{type:'highpass',f0:2800}},
+            {kind:'tone',wave:'triangle',f0:900,f1:400,dur:0.05,gain:0.18},
+            {kind:'tone',wave:'sine',f0:2600,dur:0.06,gain:0.05,delay:0.01}
+        ]
+    },
+    wMarker:{
+        gap:0.08,
+        gain:0.32,
+        vary:0.06,
+        layers:[
+            {kind:'noise',dur:0.09,attack:0.02,gain:0.3,filter:{type:'bandpass',f0:1400,q:2.5}}
+        ]
+    },
+    wCompass:{
+        gap:0.2,
+        gain:0.5,
+        layers:[
+            {kind:'noise',dur:0.35,attack:0.05,gain:0.3,filter:{type:'bandpass',f0:900,f1:2200,q:1.2},trem:{rate:22,depth:0.8}},
+            {kind:'tone',wave:'triangle',f0:520,f1:780,dur:0.12,gain:0.12}
+        ]
+    },
     reload:{
         gap:0.2,
         gain:0.4,

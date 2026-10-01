@@ -183,6 +183,7 @@ export const TUNING={
     },
     input:{
         deadZone:0.14,
+        fireRing:0.62,
         stickMin:50,
         stickMax:76,
         stickScale:0.1,
@@ -335,8 +336,14 @@ export const TUNING={
         pressScale:0.18
     },
     weaponFx:{
-        staple:{radius:0.13,size:0.15,trailWidth:0.1},
-        compass:{radius:0.45,size:0.42,trailWidth:0.26}
+        pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
+        brush:{color:'ink',capacity:80,radius:0.22,size:0.3,trailWidth:0.42},
+        staple:{color:'midGray',capacity:64,radius:0.13,size:0.17,trailWidth:0.06},
+        marker:{color:'marker',capacity:200,radius:0.16,size:0.16,trailWidth:0.34,pierce:true},
+        compass:{color:'ink',capacity:16,radius:0.45,size:0.42,trailWidth:0.26,pierce:true,boomerang:true}
+    },
+    notice:{
+        wait:3
     },
     skinUi:{
         pulseDecay:3.5,
@@ -345,8 +352,11 @@ export const TUNING={
         sparkGrav:520
     },
     skinHatch:{
-        lines:0.28,
-        shade:0.35
+        lines:0.12,
+        shade:0.18,
+        hullPlain:0.035,
+        hullColor:0.018,
+        hullTone:'nearGray'
     },
     tutorial:{
         follow:9
