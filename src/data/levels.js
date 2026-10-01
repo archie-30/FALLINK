@@ -91,6 +91,89 @@ export const LAYOUTS={
     ],{size:[32,22],spawn:[0,5],bossSpawn:[0,-3]})
 };
 
+const PEACE_SPAWNS=[[-9,-5],[9,-5],[-10,1],[10,1],[0,-5.5],[-5,-6],[5,-6],[-7,3],[7,3]];
+
+function peace(props,npcs) {
+    return {
+        size:[24,16],
+        spawn:[0,4],
+        wallHeight:0.7,
+        wallThickness:0.6,
+        spawnPoints:PEACE_SPAWNS,
+        props:props.concat(DECOR),
+        npcs
+    };
+}
+
+export const PEACE_LAYOUTS={
+    shop:[
+        peace([
+            {type:'box',x:-8,z:-3,w:2.6,h:1.6,d:1.1,rot:0.1},
+            {type:'box',x:8,z:-3,w:2.6,h:1.6,d:1.1,rot:-0.1},
+            {type:'books',x:-9,z:3,w:1.4,d:2,rot:0.3,count:3},
+            {type:'notes',x:8.5,z:3,s:1.2,count:3,rot:0.2},
+            {type:'pin',x:-4,z:-6,r:0.3},
+            {type:'crumple',x:4,z:4.5,r:0.6}
+        ],[[0,-1]]),
+        peace([
+            {type:'pillar',x:-9,z:-5,r:0.5,h:2.2},
+            {type:'pillar',x:9,z:-5,r:0.5,h:2.2},
+            {type:'box',x:-6,z:2,w:1.4,h:1.1,d:1.4,rot:0.4},
+            {type:'box',x:7,z:2.5,w:1.6,h:1.2,d:1.2,rot:-0.3},
+            {type:'sheet',x:-3,z:4,w:2.4,d:3,rot:0.2},
+            {type:'shavings',x:3,z:-5.5,count:7}
+        ],[[0,-0.5]])
+    ],
+    event:[
+        peace([
+            {type:'pillar',x:-8,z:-4,r:0.6,h:2.4},
+            {type:'pillar',x:8,z:-4,r:0.6,h:2.4},
+            {type:'crumple',x:-5,z:4,r:0.7},
+            {type:'shavings',x:5,z:3.5,count:8}
+        ],[[0,-1.5]]),
+        peace([
+            {type:'wall',x:-7,z:0,w:3,h:1,d:0.7,rot:0.5},
+            {type:'wall',x:7,z:0,w:3,h:1,d:0.7,rot:-0.5},
+            {type:'notes',x:-8,z:4,s:1.2,count:4,rot:-0.3},
+            {type:'clip',x:7,z:4.5,r:0.4,len:2,rot:0.6}
+        ],[[0,-2]]),
+        peace([
+            {type:'box',x:-9,z:-5,w:1.6,h:2.2,d:1.6,rot:0.2},
+            {type:'box',x:9,z:-5,w:1.6,h:2.2,d:1.6,rot:-0.2},
+            {type:'books',x:-5,z:3,w:1.4,d:2,rot:-0.2,count:5},
+            {type:'books',x:6,z:3,w:1.4,d:2,rot:0.4,count:3}
+        ],[[0,-1]])
+    ],
+    rest:[
+        peace([
+            {type:'sheet',x:-6,z:1,w:3,d:3.6,rot:0.3},
+            {type:'sheet',x:6,z:-1,w:2.6,d:3.2,rot:-0.4},
+            {type:'pin',x:-8,z:-5,r:0.3},
+            {type:'crumple',x:8,z:4,r:0.6}
+        ],[[0,-1.5]]),
+        peace([
+            {type:'pillar',x:-7,z:-3,r:0.5,h:2},
+            {type:'pillar',x:7,z:-3,r:0.5,h:2},
+            {type:'shavings',x:-5,z:4,count:6},
+            {type:'notes',x:6,z:4,s:1,count:3,rot:0.5}
+        ],[[0,-1]])
+    ],
+    treasure:[
+        peace([
+            {type:'pillar',x:-9.5,z:-5,r:0.6,h:2.6},
+            {type:'pillar',x:9.5,z:-5,r:0.6,h:2.6},
+            {type:'crumple',x:-7,z:4,r:0.6},
+            {type:'crumple',x:7,z:4,r:0.5}
+        ],[[-5,-2],[0,-3],[5,-2]]),
+        peace([
+            {type:'wall',x:-3,z:2,w:2.4,h:1,d:0.7,rot:0.3},
+            {type:'wall',x:3,z:2,w:2.4,h:1,d:0.7,rot:-0.3},
+            {type:'books',x:-9,z:3,w:1.4,d:2,rot:0.3,count:4},
+            {type:'shavings',x:9,z:-5,count:6}
+        ],[[-6,-3],[0,-1.5],[6,-3]])
+    ]
+};
+
 export const TRAINING={
     layout:room([
         {type:'pillar',x:-12,z:-6.5,r:0.7,h:2.8},
@@ -111,14 +194,14 @@ export const NORMAL_LAYOUTS=['crossroads','colonnade','trenches','crates','circl
 
 export const ENEMY_ORDER=['doodle','blob','sprayer','inkCloud','bird','compass','eraserMonster'];
 
-export const STORY_INTRO=[0,2,4,5,7,9,11];
+export const STORY_INTRO=[0,3,6,8,11,14,16];
 
 export const ENEMY_COST={doodle:1,blob:2,sprayer:2,inkCloud:2,compass:2,bird:1,eraserMonster:2};
 
 export const ACTS=[
-    {rooms:4,budget:[5,6,7,8],waves:[2,2,2,3],pool:{doodle:4,blob:2,sprayer:2,bird:1,compass:1},hpMult:1,bossMult:1,bossHp:1,modChance:[0,0,0.3,0.3],elite:false},
-    {rooms:4,budget:[8,9,10,11],waves:[2,2,3,3],pool:{doodle:3,blob:2,sprayer:2,inkCloud:2,compass:1,bird:2,eraserMonster:1},hpMult:1.12,bossMult:1.3,bossHp:1,modChance:[0.3,0.4,0.4,0.5],elite:true},
-    {rooms:4,budget:[10,12,13,15],waves:[2,3,3,3],pool:{doodle:2,blob:2,sprayer:2,inkCloud:2,compass:2,bird:2,eraserMonster:2},hpMult:1.28,bossMult:1.65,bossHp:1,modChance:[0.4,0.5,0.5,0.6],elite:true}
+    {rooms:6,budget:[5,5,6,7,7,8],waves:[2,2,2,2,3,3],pool:{doodle:4,blob:2,sprayer:2,bird:1,compass:1},hpMult:1,bossMult:1,bossHp:1,modChance:[0,0,0.2,0.3,0.3,0.3],elite:false},
+    {rooms:6,budget:[8,8,9,10,10,11],waves:[2,2,3,3,3,3],pool:{doodle:3,blob:2,sprayer:2,inkCloud:2,compass:1,bird:2,eraserMonster:1},hpMult:1.12,bossMult:1.3,bossHp:1,modChance:[0.3,0.3,0.4,0.4,0.5,0.5],elite:true},
+    {rooms:6,budget:[10,11,12,13,14,15],waves:[2,3,3,3,3,3],pool:{doodle:2,blob:2,sprayer:2,inkCloud:2,compass:2,bird:2,eraserMonster:2},hpMult:1.28,bossMult:1.65,bossHp:1,modChance:[0.4,0.4,0.5,0.5,0.6,0.6],elite:true}
 ];
 
 export const ENDLESS={

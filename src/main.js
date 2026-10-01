@@ -49,6 +49,9 @@ import {ENDLESS,MENU_SCENE} from './data/levels.js';
 import {renderFlags} from './render/materials.js';
 import {Transition} from './ui2d/transition.js';
 import {DamageNumbers} from './ui2d/damageNumbers.js';
+import {Doors} from './game/doors.js';
+import {Npcs} from './game/npc.js';
+import {WorldMarks} from './ui2d/worldMarks.js';
 
 const QUALITY_ORDER=['low','mid','high'];
 
@@ -130,6 +133,14 @@ function boot() {
         return sh;
     }
     const decals=new Decals(world);
+    const doors=new Doors(fxScene,particles);
+    const npcs=new Npcs();
+    const marks=new WorldMarks();
+    doors.onSlam=()=>{
+        fx.cameraShake(0.15);
+        audio.play('page',0.6);
+    };
+    doors.onOpen=()=>audio.play('clear',1.3);
     const terrainShards=new Shards(world,toonMaterial({light:'farGray',mid:'midGray',dark:'nearGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),48);
     const paperShards=new Shards(world,toonMaterial({light:'paper',mid:'farGray',dark:'midGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),24);
     const clones=[new Clone(fxScene),new Clone(fxScene)];
@@ -735,10 +746,13 @@ function boot() {
         if (game.room) {
             game.room.destroy();
         }
-        const r=buildRoom(plan.layout,world,fxScene,{rng:new RNG(plan.act*100+plan.index*7+Math.floor(Math.random()*1000)),barrels:plan.barrels||0,crates:plan.crates||0});
+        const def=plan.training?plan.layout:{...plan.layout,spawn:[0,plan.layout.size[1]/2-TUNING.doors.spawnIn]};
+        const r=buildRoom(def,world,fxScene,{rng:new RNG(plan.act*100+plan.index*7+Math.floor(Math.random()*1000)),barrels:plan.barrels||0,crates:plan.crates||0});
         r.shards=terrainShards;
         r.onBreak=onBreak;
         r.onPropBreak=onPropBreak;
+        doors.build(r,plan.exits||[],!plan.training);
+        npcs.build(r,plan.npcs||[]);
         game.mod=plan.mod||null;
         const M=TUNING.fog.mist;
         shared.uFog.value.set(TUNING.fog.near,TUNING.fog.far,TUNING.fog.max);
@@ -769,6 +783,14 @@ function boot() {
             if (kind==='training') {
                 overlay.hud.banner(t('training.title'),t('training.sub'),2.2);
             }
+            else if (kind==='peace') {
+                const sub=p.event?t('event.'+p.event+'.title')+'　｜　'+t(p.block?'peace.block':'peace.sub'):t('peace.'+p.node);
+                overlay.hud.banner(t('node.'+p.node),sub,2.4);
+            }
+            else if (kind==='ambush') {
+                fx.cameraShake(0.4);
+                overlay.hud.banner(t('run.ambush'),t('run.ambushSub'),1.8);
+            }
             else if (kind==='boss') {
                 overlay.hud.banner(t('run.bossTitle',{name:t('enemy.'+p.bossType)}),p.endless?t('run.endlessBossSub'):t('run.bossSub',{act:p.act+1}),2.6);
             }
@@ -780,6 +802,9 @@ function boot() {
                 }
                 if (p.mod) {
                     parts.push(t('mod.'+p.mod));
+                }
+                if (p.challenge) {
+                    parts.push(t('challenge.'+p.challenge.id,p.challenge));
                 }
                 overlay.hud.banner(title,parts.length>0?parts.join('　｜　'):t('run.roomSub'),parts.length>0?2.2+parts.length*0.6:2.0);
             }
@@ -814,11 +839,23 @@ function boot() {
             const d=hand.drawRect;
             reward.show(groups,run.plan.boss?t('reward.bossTitle'):t('reward.title'),counts,cb,{x:d.x+d.w/2,y:d.y+d.h/2});
         },
-        openRoute:(opts,header,cb)=>{
-            fx.paused=true;
-            hand.cancelTargeting();
-            choice.open2({kind:'route',header,options:opts.map(id=>({id}))},i=>cb(opts[i]));
+        openDoors:()=>{
+            doors.openAll();
+            resumePlay();
         },
+        closeDoors:()=>{
+            doors.closeAll();
+            audio.play('page',0.6);
+        },
+        npcUsed:(i,sealed)=>npcs.markUsed(i,sealed),
+        dealDeck:list=>{
+            resumePlay();
+            hand.reset();
+            deck.reset(list);
+            deck.start();
+        },
+        toast:(key,params)=>overlay.hud.toast(t(key,params)),
+        resume:()=>resumePlay(),
         openChoice:(spec,cb)=>{
             fx.paused=true;
             hand.cancelTargeting();
@@ -892,8 +929,25 @@ function boot() {
             });
         }
     },seedParam||(Date.now()&0xffff));
+    function resumePlay() {
+        if (!pauseMenu.open) {
+            fx.paused=false;
+        }
+        input.mouse.down=false;
+        input.dashQueued=false;
+    }
+    function tryInteract() {
+        if (game.mode!=='play'||fx.paused||npcs.focus<0||!run.canInteract(npcs.focus)) {
+            return false;
+        }
+        audio.play('ui');
+        hand.cancelTargeting();
+        return run.interact(npcs.focus);
+    }
     function enterMenu() {
         clearWorld();
+        doors.clear();
+        npcs.clear();
         renderer.post.resetDeath();
         if (game.room) {
             game.room.destroy();
@@ -1323,6 +1377,9 @@ function boot() {
                 openPause();
                 return true;
             }
+            if (type!=='mouse'&&marks.hitPrompt(x,y)&&tryInteract()) {
+                return true;
+            }
             return hand.down(x,y,id,type,button);
         },
         move:(x,y,id,type)=>{
@@ -1352,7 +1409,7 @@ function boot() {
             settingsMenu.up();
             codex.up(x,y);
             levelView.up();
-            skinEditor.up();
+            skinEditor.up(x,y);
             trainingPicker.up(x,y);
             hand.up(x,y,id,type,button);
         },
@@ -1455,6 +1512,7 @@ function boot() {
         codex.wheel(dy);
         levelView.wheel(dy);
         trainingPicker.wheel(dy);
+        skinEditor.wheel(dy);
     };
     input.canStick=()=>!popup.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     let skillToggle=false;
@@ -1492,6 +1550,7 @@ function boot() {
             hand.stickCast(vx,vy,mag,tap);
         }
     };
+    input.onInteract=()=>tryInteract();
     input.onPauseKey=()=>{
         if (pauseMenu.open) {
             closePause();
@@ -1555,7 +1614,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial,weaponView,popup,choice,deckPick};
+    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial,weaponView,popup,choice,deckPick,doors,npcs,marks};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -1720,6 +1779,11 @@ function boot() {
         decals.update(dt);
         if (game.mode==='play') {
             run.update(dt,player);
+            npcs.update(dt,player,i=>run.canInteract(i));
+            const ei=doors.update(dt,player,run.canExit());
+            if (ei>=0) {
+                run.useExit(ei);
+            }
         }
     }
     function updateDamageFx(dt) {
@@ -1904,7 +1968,7 @@ function boot() {
     if (!device.fullscreen) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={choice,deckPick,popup,device,weaponSys,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={doors,npcs,marks,choice,deckPick,popup,device,weaponSys,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

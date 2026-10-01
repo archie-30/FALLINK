@@ -1,44 +1,97 @@
 export const NOTEBOOK={
     nodes:{
-        battle:{weight:4,minAct:0},
-        elite:{weight:2,minAct:1},
-        shop:{weight:1.5,minAct:0},
-        event:{weight:2,minAct:0},
-        rest:{weight:1.5,minAct:0}
+        battle:{weight:3.5,minAct:0,combat:true},
+        elite:{weight:1.6,minAct:1,combat:true},
+        challenge:{weight:1.4,minAct:0,combat:true},
+        treasure:{weight:1.0,minAct:0},
+        shop:{weight:1.2,minAct:0},
+        event:{weight:2.0,minAct:0},
+        rest:{weight:1.1,minAct:0}
     },
-    routeChoices:3,
+    doors:3,
     minDeck:5,
     restHeal:4,
     eliteScore:500,
     eliteUpChance:0.6,
     overtimeStart:15,
+    challenges:[
+        {id:'nohit'},
+        {id:'timed',time:45},
+        {id:'nocard'}
+    ],
+    challengeScore:800,
+    shop:{buy:600,upgrade:700,remove:500,upChance:0.3},
+    supply:[['heal',2],['ink',3],['score',300]],
+    chests:['rare','supply','mimic'],
     events:[
         {
             id:'spill',
+            model:'bottle',
             options:[
-                {id:'dip',effects:[['ink',4],['hurt',1]]},
-                {id:'wipe',effects:[['heal',1]]}
+                {id:'dip',effects:[['ink',5],['hurt',2]]},
+                {id:'mop',effects:[['score',-300],['upgradeRandom',1]]},
+                {id:'leave',effects:[]}
             ]
         },
         {
             id:'eraser',
+            model:'eraser',
             options:[
-                {id:'erase',effects:[['remove']]},
-                {id:'keep',effects:[['upgradeRandom']]}
+                {id:'let',effects:[['remove'],['hurt',1]]},
+                {id:'fight',effects:[['ambush',false],['reward','rare']]},
+                {id:'leave',effects:[]}
             ]
         },
         {
             id:'wall',
+            model:'board',
             options:[
-                {id:'draw',effects:[['hurt',2],['card','rare']]},
-                {id:'look',effects:[['heal',2]]}
+                {id:'copy',effects:[['hurt',3],['card','rare']]},
+                {id:'sign',effects:[['score',800],['eliteNext']]},
+                {id:'leave',effects:[]}
             ]
         },
         {
             id:'notes',
+            model:'notebook',
             options:[
-                {id:'copy',effects:[['card','common']]},
-                {id:'return',effects:[['heal',3]]}
+                {id:'copy',effects:[['cardUp','common'],['score',-400]]},
+                {id:'return',effects:[['heal',2]]}
+            ]
+        },
+        {
+            id:'gacha',
+            model:'gacha',
+            options:[
+                {id:'hp',effects:[['hurt',2],['chance',0.5,[['card','rare']],[['card','common']]]]},
+                {id:'score',effects:[['score',-600],['chance',0.5,[['upgradeRandom',2]],[['ink',3]]]]},
+                {id:'leave',effects:[]}
+            ]
+        },
+        {
+            id:'sharpener',
+            model:'sharpener',
+            options:[
+                {id:'sharp',effects:[['upgradeRandom',2],['hurt',3]]},
+                {id:'short',effects:[['removeRandom'],['heal',2]]},
+                {id:'leave',effects:[]}
+            ]
+        },
+        {
+            id:'coffee',
+            model:'mug',
+            options:[
+                {id:'drink',effects:[['heal',4],['downgrade']]},
+                {id:'leave',effects:[]}
+            ]
+        },
+        {
+            id:'ghost',
+            model:'ghost',
+            block:true,
+            options:[
+                {id:'fight',effects:[['ambush',true],['score',1000],['reward','rare']]},
+                {id:'let',effects:[['removeRandom']]}
             ]
         }
     ]

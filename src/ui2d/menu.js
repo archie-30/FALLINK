@@ -3085,6 +3085,11 @@ export class SkinEditor extends Panel {
         this.spin=0;
         this.sparks=[];
         this.sel={};
+        this.scroll=0;
+        this.scrollTo=0;
+        this.contentH=0;
+        this.V={x:0,y:0,w:0,h:0};
+        this.press=null;
     }
 
     show() {
@@ -3095,6 +3100,22 @@ export class SkinEditor extends Panel {
         this.spin=0;
         this.sparks=[];
         this.sel={};
+        this.scroll=0;
+        this.scrollTo=0;
+        this.press=null;
+    }
+
+    clampScroll() {
+        const max=Math.max(0,this.contentH-this.V.h);
+        this.scrollTo=Math.max(0,Math.min(max,this.scrollTo));
+    }
+
+    wheel(dy) {
+        if (!this.open) {
+            return;
+        }
+        this.scrollTo+=dy;
+        this.clampScroll();
     }
 
     update(dt) {
@@ -3104,6 +3125,8 @@ export class SkinEditor extends Panel {
             this.pulse[k]=Math.max(0,this.pulse[k]-dt*U.pulseDecay);
         }
         this.spin=Math.max(0,this.spin-dt/U.spinTime);
+        this.clampScroll();
+        this.scroll+=(this.scrollTo-this.scroll)*Math.min(1,dt*TUNING.skinUi.scrollFollow);
         const cur=this.skin();
         const kk=1-Math.exp(-U.follow*dt);
         for (const part of SKIN_PARTS) {
@@ -3135,14 +3158,31 @@ export class SkinEditor extends Panel {
         }
     }
 
-    move(x) {
+    move(x,y) {
         if (this.drag) {
             this.dragYaw=this.drag.y0+(x-this.drag.x0)*TUNING.ui.skinDrag;
         }
+        const p=this.press;
+        if (p) {
+            if (Math.hypot(x-p.x0,y-p.y0)>TUNING.skinUi.dragSlop) {
+                p.moved=true;
+            }
+            if (p.moved) {
+                this.scrollTo=p.s0-(y-p.y0);
+                this.clampScroll();
+                this.scroll=this.scrollTo;
+            }
+        }
     }
 
-    up() {
+    up(x,y) {
         this.drag=null;
+        const p=this.press;
+        this.press=null;
+        if (!this.open||!p||p.moved||x===undefined) {
+            return;
+        }
+        this.pick(x,y);
     }
 
     skin() {
@@ -3194,6 +3234,16 @@ export class SkinEditor extends Panel {
             this.drag={x0:x,y0:this.dragYaw};
             return true;
         }
+        if (inRect(this.V,x,y)) {
+            this.press={x0:x,y0:y,s0:this.scrollTo,moved:false};
+        }
+        return true;
+    }
+
+    pick(x,y) {
+        if (!inRect(this.V,x,y)) {
+            return;
+        }
         for (const q of this.hits) {
             if (inRect(q,x,y)) {
                 this.pulse[q.key]=1;
@@ -3208,10 +3258,9 @@ export class SkinEditor extends Panel {
                     this.burst(q.x+q.w/2,q.y+q.h/2,[tones[1]||tones[0],tones[0]],8);
                 }
                 this.actions.select();
-                return true;
+                return;
             }
         }
-        return true;
     }
 
     draw(ctx) {
@@ -3242,6 +3291,14 @@ export class SkinEditor extends Panel {
         ctx.fillText(t('skin.hint'),P.x+18,P.y+(small?36:50));
         this.hits=[];
         let y=P.y+(small?56:78);
+        this.V={x:P.x,y:y-6,w:P.w,h:this.resetBtn.y-8-(y-6)};
+        const V=this.V;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(V.x,V.y,V.w,V.h);
+        ctx.clip();
+        y-=this.scroll;
+        const y0=y;
         ctx.font='bold 14px '+FONT;
         ctx.fillStyle=PALETTE.ink;
         ctx.fillText(t('skin.presets'),P.x+18,y);
@@ -3333,6 +3390,32 @@ export class SkinEditor extends Panel {
             }
             y+=Math.ceil(list.length/per)*(r*2+(small?6:10))+(small?4:10);
             ctx.restore();
+        }
+        this.contentH=y-y0+6;
+        ctx.restore();
+        const max=Math.max(0,this.contentH-V.h);
+        if (max>0) {
+            const th=Math.max(30,V.h*V.h/this.contentH);
+            const ty=V.y+(V.h-th)*(this.scroll/max);
+            ctx.fillStyle=rgba('farGray',0.6);
+            ctx.fillRect(V.x+V.w-9,V.y,4,V.h);
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillRect(V.x+V.w-10,ty,6,th);
+            const fade=18;
+            if (this.scroll<max-2) {
+                const g=ctx.createLinearGradient(0,V.y+V.h-fade,0,V.y+V.h);
+                g.addColorStop(0,rgba('paper',0));
+                g.addColorStop(1,rgba('paper',0.95));
+                ctx.fillStyle=g;
+                ctx.fillRect(V.x+2,V.y+V.h-fade,V.w-14,fade);
+            }
+            if (this.scroll>2) {
+                const g=ctx.createLinearGradient(0,V.y,0,V.y+fade);
+                g.addColorStop(0,rgba('paper',0.95));
+                g.addColorStop(1,rgba('paper',0));
+                ctx.fillStyle=g;
+                ctx.fillRect(V.x+2,V.y,V.w-14,fade);
+            }
         }
         for (const q of this.sparks) {
             const f=q.t/q.life;
@@ -4172,8 +4255,8 @@ export class Tutorial extends Panel {
             drawStage(ctx,x,y,w,h,src,this.animT,v);
         }
         else if (page.draw==='goal') {
-            const n=5;
-            const bw=Math.min(90,(w-40)/n-12);
+            const n=7;
+            const bw=Math.min(80,(w-40)/n-10);
             const bx=x+w/2-(n*(bw+12)-12)/2;
             const cy=y+h*0.5;
             for (let i=0;i<n;i++) {
@@ -4194,7 +4277,7 @@ export class Tutorial extends Panel {
                 ctx.textAlign='center';
                 ctx.textBaseline='top';
                 ctx.fillText(t(boss?'tut.bossPage':'tut.page',{n:i+1}),rx+bw/2,cy+bw*0.75);
-                if (i===0||i===2||i===4) {
+                if (!boss) {
                     ctx.fillStyle=PALETTE.red;
                     ctx.fillText('★',rx+bw/2,cy-bw*0.7-18);
                 }
@@ -4806,9 +4889,9 @@ export class InfoPopup extends Panel {
     }
 }
 
-const CHOICE_ICONS={battle:'battle',elite:'elite',shop:'shop',event:'event',rest:'rest',heal:'heal',upgrade:'upgrade',buy:'card',remove:'remove',leave:'leave',finish:'flag',continue:'pen'};
+export const CHOICE_ICONS={battle:'battle',elite:'elite',challenge:'challenge',treasure:'treasure',shop:'shop',event:'event',rest:'rest',heal:'heal',upgrade:'upgrade',buy:'card',remove:'remove',leave:'leave',finish:'flag',continue:'pen',boss:'boss',next:'next',act:'book'};
 
-function drawChoiceIcon(ctx,kind,x,y,r,v,red) {
+export function drawChoiceIcon(ctx,kind,x,y,r,v,red) {
     const col=red?PALETTE.red:PALETTE.ink;
     ctx.save();
     ctx.translate(x,y);
@@ -4903,6 +4986,48 @@ function drawChoiceIcon(ctx,kind,x,y,r,v,red) {
         ctx.lineTo(k*0.4,k*0.5);
         ctx.stroke();
     }
+    else if (kind==='next') {
+        ctx.moveTo(0,k);
+        ctx.lineTo(0,-k);
+        ctx.moveTo(-k*0.5,-k*0.4);
+        ctx.lineTo(0,-k);
+        ctx.lineTo(k*0.5,-k*0.4);
+        ctx.stroke();
+    }
+    else if (kind==='challenge') {
+        ctx.arc(0,0,k*0.95,0,Math.PI*2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0,0,k*0.45,0,Math.PI*2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0,0,k*0.12,0,Math.PI*2);
+        ctx.fill();
+    }
+    else if (kind==='treasure') {
+        ctx.strokeRect(-k,-k*0.2,k*2,k*1.1);
+        ctx.moveTo(-k,-k*0.2);
+        ctx.quadraticCurveTo(0,-k*1.2,k,-k*0.2);
+        ctx.stroke();
+        ctx.fillRect(-k*0.15,-k*0.05,k*0.3,k*0.45);
+    }
+    else if (kind==='boss') {
+        ctx.arc(0,-k*0.15,k*0.85,Math.PI*0.85,Math.PI*2.15);
+        ctx.lineTo(k*0.5,k*0.9);
+        ctx.lineTo(-k*0.5,k*0.9);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(-k*0.35,-k*0.15,k*0.2,0,Math.PI*2);
+        ctx.arc(k*0.35,-k*0.15,k*0.2,0,Math.PI*2);
+        ctx.fill();
+    }
+    else if (kind==='book') {
+        ctx.strokeRect(-k*0.8,-k*0.9,k*1.6,k*1.8);
+        ctx.moveTo(-k*0.45,-k*0.9);
+        ctx.lineTo(-k*0.45,k*0.9);
+        ctx.stroke();
+    }
     else {
         ctx.font='bold '+Math.round(r*1.1)+'px '+FONT;
         ctx.textAlign='center';
@@ -4941,7 +5066,7 @@ export class ChoicePanel extends Panel {
 
     keys(o) {
         const s=this.spec;
-        const base=s.kind==='event'?'event.'+s.id+'.'+o.id:(s.kind==='route'?'node.'+o.id:s.kind+'.'+o.id);
+        const base=s.kind==='event'?'event.'+s.id+'.'+o.id:s.kind+'.'+o.id;
         return [base,base+'.desc'];
     }
 
@@ -4952,11 +5077,7 @@ export class ChoicePanel extends Panel {
 
     body() {
         const s=this.spec;
-        if (s.kind==='route') {
-            const h=s.header;
-            return h.kind==='overtime'?t('route.overtime',h):t('route.act',h);
-        }
-        return t(s.kind==='event'?'event.'+s.id+'.body':s.kind+'.body');
+        return t(s.kind==='event'?'event.'+s.id+'.body':s.kind+'.body',s);
     }
 
     layout() {
@@ -5078,7 +5199,7 @@ export class ChoicePanel extends Panel {
             if (o.disabled) {
                 ctx.fillStyle=PALETTE.red;
                 ctx.font='bold 12px '+FONT;
-                ctx.fillText(t('choice.disabled'),r.w/2,r.h-22);
+                ctx.fillText(t(o.reason?'choice.'+o.reason:'choice.disabled'),r.w/2,r.h-22);
             }
             ctx.restore();
         }
