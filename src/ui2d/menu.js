@@ -462,8 +462,8 @@ export class MainMenu extends Panel {
         ctx.font='bold 84px '+FONT;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        ctx.fillText('INKFALL',0,-8);
-        const tw=ctx.measureText('INKFALL').width;
+        ctx.fillText(t('game.title'),0,-8);
+        const tw=ctx.measureText(t('game.title')).width;
         drawShape(ctx,sketchLine(-tw/2,40,-tw/2+tw*Math.min(1,this.t/1.0),40,{width:3.2,seed:1301}),PALETTE.ink,v);
         drawShape(ctx,sketchLine(tw/2-40,40,tw/2-40+40*Math.min(1,Math.max(0,this.t-0.9)/0.3),40,{width:3.2,seed:1302}),PALETTE.red,v);
         ctx.font='18px '+FONT;
@@ -560,9 +560,11 @@ export class PauseMenu extends Panel {
     }
 }
 
-const SETTING_KEYS=['volume','quality','shake','assist','reduced','full','fps','god','stickSize','stickX','stickY'];
+const SETTING_KEYS=['volume','quality','assist','reduced','full','fps','god'];
 
-const SLIDERS={volume:'volume',shake:'shake',stickSize:'stickSize',stickX:'stickX',stickY:'stickY'};
+const TOUCH_SETTING_KEYS=['stickSize','stickX','stickY','aimRing','skillSize'];
+
+const SLIDERS={volume:'volume',stickSize:'stickSize',stickX:'stickX',stickY:'stickY',aimRing:'aimRing',skillSize:'skillSize'};
 
 export class SettingsMenu extends Panel {
     constructor(actions) {
@@ -574,6 +576,24 @@ export class SettingsMenu extends Panel {
         this.anim={};
         this.pulse={};
         this.info=null;
+        this.page='main';
+        this.pageT=0;
+    }
+
+    keys() {
+        return this.page==='touch'?TOUCH_SETTING_KEYS:SETTING_KEYS;
+    }
+
+    closePage() {
+        if (this.page!=='touch') {
+            return false;
+        }
+        this.page='main';
+        this.pageT=0;
+        if (this.actions.select) {
+            this.actions.select();
+        }
+        return true;
     }
 
     target(key) {
@@ -599,6 +619,9 @@ export class SettingsMenu extends Panel {
     }
 
     closeKeys() {
+        if (this.closePage()) {
+            return true;
+        }
         if (!this.keysOpen) {
             return false;
         }
@@ -610,7 +633,9 @@ export class SettingsMenu extends Panel {
         super.show();
         this.keysOpen=false;
         this.keysT=0;
-        for (const k of SETTING_KEYS) {
+        this.page='main';
+        this.pageT=0;
+        for (const k of [...SETTING_KEYS,...TOUCH_SETTING_KEYS]) {
             this.anim[k]=this.target(k);
             this.pulse[k]=0;
         }
@@ -618,6 +643,7 @@ export class SettingsMenu extends Panel {
 
     update(dt) {
         super.update(dt);
+        this.pageT+=dt;
         this.keysT=Math.max(0,Math.min(1,(this.keysT||0)+(this.keysOpen?dt:-dt)/TUNING.ui.closeTime));
         const k=1-Math.exp(-TUNING.settingsUi.follow*dt);
         this.resetFlash=Math.max(0,(this.resetFlash||0)-dt*2);
@@ -633,6 +659,10 @@ export class SettingsMenu extends Panel {
     }
 
     layout() {
+        if (this.page==='touch') {
+            this.layoutTouch();
+            return;
+        }
         const w=this.width;
         const h=this.height;
         const keys=SETTING_KEYS;
@@ -655,9 +685,36 @@ export class SettingsMenu extends Panel {
         const by=top+per*rh+4;
         const bw=Math.min(180,(pw-60)/3);
         this.keysBtn={x:w/2-bw*1.5-14,y:by,w:bw,h:48};
-        this.resetBtn={x:w/2-bw/2,y:by,w:bw,h:48};
+        this.touchBtn={x:w/2-bw/2,y:by,w:bw,h:48};
         this.back={x:w/2+bw/2+14,y:by,w:bw,h:48};
-        this.buttons=[this.back,this.resetBtn,this.keysBtn];
+        this.resetBtn=null;
+        this.buttons=[this.back,this.touchBtn,this.keysBtn];
+    }
+
+    layoutTouch() {
+        const w=this.width;
+        const h=this.height;
+        const keys=TOUCH_SETTING_KEYS;
+        const small=h<600;
+        const pw=Math.min(520,Math.max(380,w-TUNING.settingsUi.touchSide*2));
+        const rh=small?Math.max(34,(h-180)/keys.length):52;
+        const ph=keys.length*rh+(small?130:166);
+        const px=w/2-pw/2;
+        const py=small?8:Math.max(20,h*0.08);
+        this.panel={x:px,y:py,w:pw,h:ph};
+        const top=py+(small?72:98);
+        this.rows=[];
+        for (let i=0;i<keys.length;i++) {
+            this.rows.push({key:keys[i],y:top+i*rh,lx:px+18,cx:px+pw*0.44,cw:pw*0.38});
+        }
+        const by=top+keys.length*rh-(small?10:4);
+        const bw=Math.min(180,(pw-50)/2);
+        const bh=small?40:48;
+        this.resetBtn={x:w/2-bw-8,y:by,w:bw,h:bh};
+        this.back={x:w/2+8,y:by,w:bw,h:bh};
+        this.keysBtn=null;
+        this.touchBtn=null;
+        this.buttons=[this.back,this.resetBtn];
     }
 
     sliderSet(row,x) {
@@ -680,7 +737,19 @@ export class SettingsMenu extends Panel {
             }
             return true;
         }
-        if (inRect(this.keysBtn,x,y)) {
+        if (this.page==='touch'&&inRect(this.back,x,y)) {
+            this.closePage();
+            return true;
+        }
+        if (this.touchBtn&&inRect(this.touchBtn,x,y)) {
+            this.page='touch';
+            this.pageT=0;
+            if (this.actions.select) {
+                this.actions.select();
+            }
+            return true;
+        }
+        if (this.keysBtn&&inRect(this.keysBtn,x,y)) {
             this.keysOpen=true;
             if (this.actions.select) {
                 this.actions.select();
@@ -691,7 +760,7 @@ export class SettingsMenu extends Panel {
             this.actions.back();
             return true;
         }
-        if (inRect(this.resetBtn,x,y)) {
+        if (this.resetBtn&&inRect(this.resetBtn,x,y)) {
             for (const k in STICK_DEFAULTS) {
                 settings[k]=STICK_DEFAULTS[k];
                 this.bump(k);
@@ -757,22 +826,30 @@ export class SettingsMenu extends Panel {
         const v=time.boilIndex;
         const w=this.width;
         const h=this.height;
-        ctx.fillStyle=rgba('paper',Math.min(0.9,this.t*4));
+        const touch=this.page==='touch';
+        const fade=touch&&this.drag?TUNING.settingsUi.dragFade:1;
+        ctx.fillStyle=rgba('paper',Math.min(touch?0.55:0.9,this.t*4));
         ctx.fillRect(0,0,w,h);
         const P=this.panel;
-        const a=EASE.easeOutBack(Math.min(1,this.t/0.35));
+        const a=EASE.easeOutBack(Math.min(1,Math.min(this.t,this.pageT)/0.35));
         ctx.save();
+        ctx.globalAlpha=fade;
         ctx.translate(w/2,P.y+P.h/2);
         ctx.scale(a,a);
         ctx.translate(-w/2,-(P.y+P.h/2));
         ctx.fillStyle=PALETTE.paper;
         ctx.fillRect(P.x,P.y,P.w,P.h);
-        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:1401}),PALETTE.ink,v);
+        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:touch?1402:1401}),PALETTE.ink,v);
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold 30px '+FONT;
+        ctx.font='bold '+(touch&&h<600?22:30)+'px '+FONT;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        ctx.fillText(t('menu.settings'),w/2,P.y+42);
+        ctx.fillText(touch?t('settings.touchTitle'):t('menu.settings'),w/2,P.y+(touch&&h<600?28:42));
+        if (touch) {
+            ctx.font=(h<600?'11px ':'13px ')+FONT;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.fillText(t('settings.touchHint'),w/2,P.y+(h<600?48:70));
+        }
         this.info=null;
         for (let i=0;i<this.rows.length;i++) {
             const r=this.rows[i];
@@ -853,9 +930,20 @@ export class SettingsMenu extends Panel {
             }
         }
         ctx.restore();
-        drawButton(ctx,this.back,t('menu.back'),v,(this.t-0.1)/0.3,inRect(this.back,this.hx??-1,this.hy??-1));
-        drawButton(ctx,this.resetBtn,t('settings.resetSticks'),v,(this.t-0.15)/0.3,inRect(this.resetBtn,this.hx??-1,this.hy??-1)||this.resetFlash>0,16);
-        drawButton(ctx,this.keysBtn,t('settings.keys'),v,(this.t-0.2)/0.3,inRect(this.keysBtn,this.hx??-1,this.hy??-1),16);
+        const bt=Math.min(this.t,this.pageT);
+        ctx.save();
+        ctx.globalAlpha=fade;
+        drawButton(ctx,this.back,t('menu.back'),v,(bt-0.1)/0.3,inRect(this.back,this.hx??-1,this.hy??-1));
+        if (this.resetBtn) {
+            drawButton(ctx,this.resetBtn,t('settings.resetSticks'),v,(bt-0.15)/0.3,inRect(this.resetBtn,this.hx??-1,this.hy??-1)||this.resetFlash>0,16);
+        }
+        if (this.keysBtn) {
+            drawButton(ctx,this.keysBtn,t('settings.keys'),v,(bt-0.2)/0.3,inRect(this.keysBtn,this.hx??-1,this.hy??-1),16);
+        }
+        if (this.touchBtn) {
+            drawButton(ctx,this.touchBtn,t('settings.touch'),v,(bt-0.15)/0.3,inRect(this.touchBtn,this.hx??-1,this.hy??-1),16);
+        }
+        ctx.restore();
         if (this.info&&this.t>0.35&&!this.keysOpen) {
             this.drawInfo(ctx,this.info,v);
         }
@@ -1801,7 +1889,7 @@ export class RunSummary {
             return false;
         }
         const b=this.button;
-        if (this.t>(this.victory||this.quit?1.0:2.0)) {
+        if (this.t>(this.victory||this.quit?1.6:2.4)) {
             if (x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h) {
                 this.close(false);
                 return true;
@@ -1838,124 +1926,360 @@ export class RunSummary {
         this.drawBody(ctx);
     }
 
+    grade() {
+        const G=TUNING.summaryUi.grade;
+        const st=this.stats;
+        const W=st.mode==='endless'?G.endless:G.story;
+        const pts=st.rooms*W.room+st.bosses*W.boss-st.damage*W.hurt+(this.victory?W.win:0);
+        for (let i=0;i<G.marks.length;i++) {
+            if (pts>=G.marks[i][1]) {
+                return G.marks[i][0];
+            }
+        }
+        return G.marks[G.marks.length-1][0];
+    }
+
+    hover(x,y) {
+        this.hx=x;
+        this.hy=y;
+    }
+
+    drawSplat(ctx,x,y,r,seed,color,k) {
+        if (k<=0) {
+            return;
+        }
+        ctx.fillStyle=color;
+        ctx.beginPath();
+        const n=14;
+        for (let i=0;i<=n;i++) {
+            const a=i/n*Math.PI*2;
+            const rr=r*k*(0.75+hash1(seed+(i%n)*5)*0.5);
+            if (i===0) {
+                ctx.moveTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);
+            }
+            else {
+                const am=(i-0.5)/n*Math.PI*2;
+                const rm=r*k*(0.6+hash1(seed+i*9)*0.35);
+                ctx.quadraticCurveTo(x+Math.cos(am)*rm,y+Math.sin(am)*rm,x+Math.cos(a)*rr,y+Math.sin(a)*rr);
+            }
+        }
+        ctx.fill();
+        for (let i=0;i<10;i++) {
+            const a=hash1(seed+i*13)*Math.PI*2;
+            const d=r*(1.1+hash1(seed+i*7)*1.3)*k;
+            const rr=r*(0.05+hash1(seed+i*3)*0.16)*k;
+            ctx.beginPath();
+            ctx.ellipse(x+Math.cos(a)*d,y+Math.sin(a)*d,rr*1.5,rr,a,0,Math.PI*2);
+            ctx.fill();
+        }
+    }
+
+    drawBackdrop(ctx,v) {
+        const w=this.width;
+        const h=this.height;
+        const T=this.t;
+        const win=this.victory;
+        ctx.fillStyle=win?rgba('paper',Math.min(0.95,T*2)):rgba('paper',Math.min(0.85,T*0.9));
+        ctx.fillRect(0,0,w,h);
+        ctx.strokeStyle=rgba('farGray',Math.min(0.5,T));
+        ctx.lineWidth=1;
+        for (let y=60;y<h;y+=28) {
+            ctx.beginPath();
+            ctx.moveTo(0,y);
+            ctx.lineTo(w,y);
+            ctx.stroke();
+        }
+        ctx.strokeStyle=rgba('red',Math.min(0.35,T*0.5));
+        ctx.beginPath();
+        ctx.moveTo(Math.min(90,w*0.08),0);
+        ctx.lineTo(Math.min(90,w*0.08),h);
+        ctx.stroke();
+        const spots=[[0.08,0.14,1],[0.93,0.12,0.8],[0.05,0.86,0.9],[0.95,0.9,1.1],[0.82,0.5,0.5],[0.16,0.48,0.45]];
+        for (let i=0;i<spots.length;i++) {
+            const [sx,sy,sz]=spots[i];
+            const k=EASE.easeOutBack(Math.max(0,Math.min(1,(T-0.1-i*0.09)/0.35)));
+            const col=i%3===1&&(win||!this.quit)?rgba('red',0.75):rgba('ink',0.82);
+            this.drawSplat(ctx,sx*w,sy*h,Math.min(w,h)*0.045*sz,4100+i*31,col,k);
+        }
+        if (win) {
+            for (let i=0;i<46;i++) {
+                const sp=40+hash1(i*5)*70;
+                const x=hash1(i*11)*w+Math.sin(T*1.6+i)*18;
+                const y=((T*sp+hash1(i*17)*h*1.2)%(h+40))-20;
+                ctx.save();
+                ctx.translate(x,y);
+                ctx.rotate(T*(1+hash1(i))*3+i);
+                ctx.fillStyle=i%4===0?PALETTE.red:(i%4===1?PALETTE.ink:(i%4===2?PALETTE.marker:PALETTE.midGray));
+                ctx.globalAlpha=Math.min(1,T*1.5);
+                ctx.fillRect(-5,-3,10,6);
+                ctx.restore();
+            }
+        }
+        else if (!this.quit) {
+            for (let i=0;i<14;i++) {
+                const x=hash1(i*23+5)*w;
+                const len=Math.min(1,Math.max(0,(T-0.2-hash1(i*3)*0.8)/1.4))*(40+hash1(i*9)*h*0.32);
+                if (len<=0) {
+                    continue;
+                }
+                ctx.strokeStyle=rgba('red',0.55);
+                ctx.lineWidth=3+hash1(i*13)*5;
+                ctx.beginPath();
+                ctx.moveTo(x,0);
+                ctx.lineTo(x,len);
+                ctx.stroke();
+                ctx.fillStyle=rgba('red',0.6);
+                ctx.beginPath();
+                ctx.arc(x,len,ctx.lineWidth*0.9,0,Math.PI*2);
+                ctx.fill();
+            }
+        }
+    }
+
     drawBody(ctx) {
         const w=this.width;
         const h=this.height;
         const v=time.boilIndex;
-        ctx.fillStyle=this.victory?rgba('paper',Math.min(0.94,this.t*2)):rgba('paper',Math.min(0.75,this.t*0.8));
-        ctx.fillRect(0,0,w,h);
+        const U=TUNING.summaryUi;
+        const sc=Math.max(0.55,Math.min(1,Math.min(w/900,h/760)));
+        const small=h<600;
+        this.drawBackdrop(ctx,v);
+        const d0=this.victory||this.quit?0.25:1.0;
+        const T=this.t-d0;
         const title=this.victory?t('summary.victory'):(this.quit?t('summary.quit'):t('summary.dead'));
-        ctx.save();
-        ctx.translate(w/2,h*0.24);
-        ctx.font='bold 56px '+FONT;
+        const ty=(small?14:30)+44*sc;
+        const st=Math.max(0,Math.min(1,T/U.stampTime));
+        if (st>0) {
+            const e=st<1?2.4-1.4*EASE.easeOutBack(st):1;
+            ctx.save();
+            ctx.translate(w/2,ty);
+            ctx.rotate(-0.04*(1-st)+(this.victory?-0.03:0.02));
+            ctx.scale(e*sc,e*sc);
+            ctx.globalAlpha=Math.min(1,st*2);
+            ctx.font='bold 60px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            const tw=ctx.measureText(title).width;
+            const col=this.victory?PALETTE.red:(this.quit?PALETTE.ink:PALETTE.darkRed);
+            drawShape(ctx,sketchRect(-tw/2-26,-44,tw+52,88,{width:4,seed:931}),col,v);
+            drawShape(ctx,sketchRect(-tw/2-18,-36,tw+36,72,{width:1.6,seed:932}),col,v);
+            ctx.fillStyle=col;
+            ctx.fillText(title,0,2);
+            ctx.restore();
+            if (st>=1&&T<U.stampTime+0.25) {
+                const k=(T-U.stampTime)/0.25;
+                ctx.save();
+                ctx.strokeStyle=rgba('ink',1-k);
+                ctx.lineWidth=3;
+                for (let i=0;i<14;i++) {
+                    const a=i/14*Math.PI*2;
+                    const r0=160*sc+k*60*sc;
+                    ctx.beginPath();
+                    ctx.moveTo(w/2+Math.cos(a)*r0,ty+Math.sin(a)*r0*0.45);
+                    ctx.lineTo(w/2+Math.cos(a)*(r0+30*sc),ty+Math.sin(a)*(r0+30*sc)*0.45);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+        const s=this.stats;
+        const sub=(s.mode==='endless'?t('mode.endless'):t('mode.story'))+(s.mode==='endless'?'':' · '+t('summary.actN',{n:s.act+(this.victory?0:1)}));
+        ctx.globalAlpha=Math.max(0,Math.min(1,(T-0.3)/0.3));
+        ctx.font=(small?'13px ':'16px ')+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        const tw=ctx.measureText(title).width;
-        const reveal=Math.min(1,this.t/1.1);
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(-tw/2-10,-50,(tw+20)*reveal,100);
-        ctx.clip();
-        ctx.fillStyle=PALETTE.ink;
-        const jx=Math.sin(time.boilIndex*2.1)*0.8;
-        ctx.fillText(title,jx,0);
-        ctx.restore();
-        if (reveal<1) {
-            const px=-tw/2+tw*reveal;
+        const subY=ty+44*sc+(small?12:16);
+        ctx.fillText(sub,w/2,subY);
+        ctx.globalAlpha=1;
+        const sy=subY+(small?14:20)+52*sc;
+        const sp=Math.max(0,Math.min(1,(T-0.45)/U.countTime));
+        if (T>0.45) {
+            const shown=Math.round(s.score*EASE.easeOutCubic(sp));
+            const bump=sp<1?0:Math.max(0,1-(T-0.45-U.countTime)*4);
+            ctx.save();
+            ctx.translate(w/2,sy);
+            ctx.scale(sc*(1+bump*0.15),sc*(1+bump*0.15));
+            ctx.font='bold 13px '+FONT;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.fillText(t('summary.score'),0,-48);
+            ctx.font='900 '+(small?58:72)+'px '+FONT;
+            ctx.fillStyle=rgba('ink',0.2);
+            ctx.fillText(String(shown),4,6);
+            ctx.lineWidth=8;
+            ctx.lineJoin='round';
+            ctx.strokeStyle=PALETTE.paper;
+            ctx.strokeText(String(shown),0,2);
             ctx.fillStyle=PALETTE.ink;
-            ctx.beginPath();
-            ctx.moveTo(px,-6+Math.sin(this.t*40)*10);
-            ctx.lineTo(px+30,-46);
-            ctx.lineTo(px+36,-40);
-            ctx.lineTo(px+6,0+Math.sin(this.t*40)*10);
-            ctx.closePath();
-            ctx.fill();
+            ctx.fillText(String(shown),0,2);
+            ctx.font='14px '+FONT;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.fillText(t('summary.best')+' '+s.best,0,46);
+            ctx.restore();
+            if (s.newBest&&sp>=1) {
+                const k=Math.min(1,(T-0.45-U.countTime)/0.3);
+                const e=k<1?2-EASE.easeOutBack(k):1;
+                ctx.save();
+                ctx.translate(w/2+150*sc,sy-34*sc);
+                ctx.rotate(0.22);
+                ctx.scale(e*sc,e*sc);
+                ctx.globalAlpha=Math.min(1,k*2);
+                ctx.font='bold 20px '+FONT;
+                const nw=ctx.measureText(t('summary.newBest')).width+24;
+                ctx.fillStyle=PALETTE.red;
+                ctx.fillRect(-nw/2,-17,nw,34);
+                ctx.fillStyle=PALETTE.paper;
+                ctx.fillText(t('summary.newBest'),0,1);
+                ctx.restore();
+            }
         }
-        drawShape(ctx,sketchLine(-tw/2,40,-tw/2+tw*Math.max(0,Math.min(1,(this.t-0.9)/0.5)),40,{width:3.4,seed:901}),this.victory||this.quit?PALETTE.ink:PALETTE.red,v);
-        ctx.restore();
-        const s=this.stats;
+        const gk=Math.max(0,Math.min(1,(T-0.45-U.countTime-0.2)/0.5));
+        if (gk>0) {
+            const gx=w/2-170*sc;
+            const gy=sy;
+            const R=44*sc;
+            ctx.save();
+            ctx.strokeStyle=PALETTE.red;
+            ctx.lineWidth=4*sc;
+            ctx.lineCap='round';
+            ctx.beginPath();
+            ctx.ellipse(gx,gy,R*1.08,R*0.92,-0.2,-1.2,-1.2+Math.PI*2.15*Math.min(1,gk*1.4));
+            ctx.stroke();
+            const lk=Math.max(0,(gk-0.35)/0.65);
+            if (lk>0) {
+                const e=2.2-1.2*EASE.easeOutBack(Math.min(1,lk));
+                ctx.translate(gx,gy);
+                ctx.rotate(-0.12);
+                ctx.scale(e*sc,e*sc);
+                ctx.globalAlpha=Math.min(1,lk*2);
+                ctx.font='italic 900 62px Georgia,serif';
+                ctx.fillStyle=PALETTE.red;
+                ctx.textAlign='center';
+                ctx.textBaseline='middle';
+                ctx.fillText(this.grade(),0,3);
+            }
+            ctx.restore();
+        }
         const mm=Math.floor(s.time/60);
         const ss=Math.floor(s.time%60);
-        const rows=s.mode==='endless'?[
-            [t('summary.score'),String(s.score)],
-            [t('summary.best'),String(s.best)+(s.newBest?'  '+t('summary.newBest'):'')],
-            [t('summary.rooms'),String(s.rooms)],
-            [t('summary.kills'),String(s.kills)],
-            [t('summary.cards'),String(s.cards)],
-            [t('summary.bosses'),String(s.bosses)],
-            [t('summary.time'),mm+':'+(ss<10?'0':'')+ss]
-        ]:[
-            [t('summary.score'),String(s.score)],
-            [t('summary.best'),String(s.best)+(s.newBest?'  '+t('summary.newBest'):'')],
-            [t('summary.act'),String(s.act+(this.victory?0:1))],
-            [t('summary.rooms'),String(s.rooms)],
-            [t('summary.kills'),String(s.kills)],
-            [t('summary.cards'),String(s.cards)],
-            [t('summary.damage'),String(s.damage)],
-            [t('summary.bosses'),String(s.bosses)],
-            [t('summary.time'),mm+':'+(ss<10?'0':'')+ss]
+        const tiles=[
+            ['rooms',s.rooms],
+            ['kills',s.kills],
+            ['cards',s.cards],
+            ['bosses',s.bosses],
+            ['damage',s.damage],
+            ['time',mm+':'+(ss<10?'0':'')+ss]
         ];
-        ctx.font='20px '+FONT;
-        ctx.textBaseline='middle';
-        const top=h*0.36;
-        const d0=this.victory||this.quit?0.3:1.3;
-        for (let i=0;i<rows.length;i++) {
-            const p=Math.max(0,Math.min(1,(this.t-d0-i*0.08)/0.35));
-            if (p<=0) {
+        const cols=w<520?3:6;
+        const rowsN=Math.ceil(tiles.length/cols);
+        const gap=10*sc;
+        const tw=Math.min(150,(Math.min(w-40,900)-gap*(cols-1))/cols);
+        const th=small?52:68*Math.max(0.8,sc);
+        const gx0=w/2-(tw*cols+gap*(cols-1))/2;
+        const gy0=sy+56*sc+(small?10:14);
+        for (let i=0;i<tiles.length;i++) {
+            const c=i%cols;
+            const r=Math.floor(i/cols);
+            const k=Math.max(0,Math.min(1,(T-0.7-i*0.07)/0.35));
+            if (k<=0) {
                 continue;
             }
-            const y=top+i*34;
-            ctx.globalAlpha=p;
+            const x=gx0+c*(tw+gap);
+            const y=gy0+r*(th+gap);
+            const flip=EASE.easeOutBack(k);
+            ctx.save();
+            ctx.translate(x+tw/2,y+th/2);
+            ctx.rotate((hash1(i*29)-0.5)*0.06);
+            ctx.scale(1,flip);
+            ctx.fillStyle=rgba('paper',0.96);
+            ctx.fillRect(-tw/2,-th/2,tw,th);
+            ctx.fillStyle=rgba('ink',0.08);
+            ctx.fillRect(-tw/2+3,th/2,tw,3);
+            drawShape(ctx,sketchRect(-tw/2,-th/2,tw,th,{width:1.6,seed:940+i}),PALETTE.ink,v);
+            ctx.fillStyle=rgba('farGray',0.9);
+            ctx.fillRect(-14,-th/2-4,28,8);
+            ctx.font=(small?'11px ':'13px ')+FONT;
             ctx.fillStyle=PALETTE.nearGray;
-            ctx.textAlign='right';
-            ctx.fillText(rows[i][0],w/2-20+(1-p)*-30,y);
-            ctx.fillStyle=PALETTE.ink;
-            ctx.textAlign='left';
-            ctx.font='bold 20px '+FONT;
-            ctx.fillText(rows[i][1],w/2+20+(1-p)*30,y);
-            ctx.font='20px '+FONT;
-            drawShape(ctx,sketchLine(w/2-160,y+16,w/2+160,y+16,{width:0.8,seed:910+i,overshoot:0}),PALETTE.farGray,v);
-        }
-        ctx.globalAlpha=1;
-        const pr=this.progress;
-        let extra=0;
-        if (pr) {
-            const p2=Math.max(0,Math.min(1,(this.t-d0-0.65)/0.35));
-            ctx.globalAlpha=p2;
             ctx.textAlign='center';
-            ctx.font='bold 18px '+FONT;
-            ctx.fillStyle=PALETTE.ink;
-            let line=pr.god?t('summary.god'):t('summary.xp',{xp:pr.xp});
-            if (pr.after>pr.before) {
-                line+='　'+t('summary.levelUp',{level:pr.after});
+            ctx.textBaseline='middle';
+            ctx.fillText(t('summary.'+tiles[i][0]),0,-th*0.22);
+            const val=tiles[i][1];
+            const nk=Math.max(0,Math.min(1,(T-0.8-i*0.07)/0.5));
+            const txt=typeof val==='number'?String(Math.round(val*EASE.easeOutCubic(nk))):val;
+            ctx.font='bold '+(small?18:24)+'px '+FONT;
+            ctx.fillStyle=tiles[i][0]==='damage'&&val>0?PALETTE.red:PALETTE.ink;
+            ctx.fillText(txt,0,th*0.18);
+            ctx.restore();
+        }
+        let y=gy0+rowsN*(th+gap)+(small?6:16);
+        const pr=this.progress;
+        if (pr) {
+            const k=Math.max(0,Math.min(1,(T-1.2)/0.3));
+            ctx.globalAlpha=k;
+            const bw=Math.min(460,w-60);
+            const bx=w/2-bw/2;
+            const bh=small?10:14;
+            const fk=Math.max(0,Math.min(1,(T-1.4)/U.xpTime));
+            const lvUp=pr.after>pr.before;
+            let frac;
+            let lv;
+            if (!lvUp) {
+                frac=pr.xpFrom+(pr.xpTo-pr.xpFrom)*EASE.easeOutCubic(fk);
+                lv=pr.before;
             }
-            ctx.fillText(line,w/2,top+rows.length*34+8);
-            extra=26;
-            if (pr.unlocked.length>0) {
-                ctx.font='15px '+FONT;
+            else if (fk<0.5) {
+                frac=pr.xpFrom+(1-pr.xpFrom)*EASE.easeInCubic(fk*2);
+                lv=pr.before;
+            }
+            else {
+                frac=pr.xpTo*EASE.easeOutCubic((fk-0.5)*2);
+                lv=pr.after;
+            }
+            ctx.font='bold '+(small?13:15)+'px '+FONT;
+            ctx.textAlign='left';
+            ctx.textBaseline='middle';
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillText(t('menu.level',{level:lv}),bx,y);
+            ctx.textAlign='right';
+            ctx.fillStyle=pr.god?PALETTE.nearGray:PALETTE.ink;
+            ctx.fillText(pr.god?t('summary.god'):t('summary.xp',{xp:pr.xp}),bx+bw,y);
+            const yb=y+(small?14:18);
+            ctx.fillStyle=rgba('farGray',0.8);
+            ctx.fillRect(bx,yb,bw,bh);
+            ctx.fillStyle=lvUp&&fk>=0.5?PALETTE.red:PALETTE.ink;
+            ctx.fillRect(bx,yb,bw*Math.max(0,Math.min(1,frac)),bh);
+            drawShape(ctx,sketchRect(bx,yb,bw,bh,{width:1.4,seed:960}),PALETTE.ink,v);
+            y=yb+bh+(small?14:20);
+            if (lvUp&&fk>=0.5) {
+                const lk=Math.min(1,(fk-0.5)*4);
+                ctx.save();
+                ctx.translate(w/2,yb-(small?14:18));
+                const e=2-EASE.easeOutBack(lk);
+                ctx.scale(e,e);
+                ctx.globalAlpha=k*Math.min(1,lk*2);
+                ctx.font='bold '+(small?16:20)+'px '+FONT;
+                ctx.fillStyle=PALETTE.red;
+                ctx.textAlign='center';
+                ctx.fillText(t('summary.levelUp',{level:pr.after}),0,0);
+                ctx.restore();
+            }
+            if (pr.unlocked.length>0&&fk>=1) {
+                ctx.font=(small?'12px ':'14px ')+FONT;
                 ctx.fillStyle=PALETTE.nearGray;
-                ctx.fillText(t('summary.unlocked',{cards:pr.unlocked.join('、')}),w/2,top+rows.length*34+34);
-                extra=52;
+                ctx.textAlign='center';
+                ctx.fillText(t('summary.unlocked',{cards:pr.unlocked.join('、')}),w/2,y);
+                y+=small?18:24;
             }
             ctx.globalAlpha=1;
         }
-        const bw=190;
-        const bh=48;
-        const bx=w/2-bw-10;
-        const by=top+rows.length*34+30+extra;
-        this.button={x:bx,y:by,w:bw,h:bh};
+        const bw=small?160:200;
+        const bh=small?42:52;
+        const by=Math.min(h-bh-10,y+(small?2:8));
+        this.button={x:w/2-bw-10,y:by,w:bw,h:bh};
         this.menuButton={x:w/2+10,y:by,w:bw,h:bh};
-        const ba=Math.max(0,Math.min(1,(this.t-d0-0.7)/0.3));
-        ctx.globalAlpha=ba;
-        drawShape(ctx,sketchRect(bx,by,bw,bh,{width:2.2,seed:920}),PALETTE.ink,v);
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold 20px '+FONT;
-        ctx.textAlign='center';
-        ctx.fillText(t('summary.restart'),bx+bw/2,by+bh/2+1);
-        const m=this.menuButton;
-        drawShape(ctx,sketchRect(m.x,m.y,m.w,m.h,{width:2.2,seed:921}),PALETTE.ink,v);
-        ctx.fillText(t('summary.menu'),m.x+m.w/2,m.y+bh/2+1);
-        ctx.globalAlpha=1;
+        const ba=(T-1.3)/0.35;
+        drawButton(ctx,this.button,t('summary.restart'),v,ba,inRect(this.button,this.hx??-1,this.hy??-1),small?17:20);
+        drawButton(ctx,this.menuButton,t('summary.menu'),v,ba-0.15,inRect(this.menuButton,this.hx??-1,this.hy??-1),small?17:20);
     }
 }
 
@@ -4061,7 +4385,7 @@ export class Notice extends Panel {
 
     show() {
         super.show();
-        this.wait=TUNING.notice.wait;
+        this.wait=godMode()?0:TUNING.notice.wait;
     }
 
     ready() {

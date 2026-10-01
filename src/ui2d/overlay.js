@@ -8,6 +8,8 @@ import {hash1} from '../core/rng.js';
 import {Hud} from './hud.js';
 import {sketchCircle,drawShape} from './sketch.js';
 import {drawCardTooltip} from './cardView.js';
+import {fireRing} from '../core/input.js';
+import {cardCost} from '../game/card.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -78,6 +80,7 @@ export class Overlay {
                     drawCardTooltip(ctx,ta.card,ta.x,ta.y);
                 }
                 this.drawDash(input,player);
+                this.drawSkills(input,game.hand,game.ink,game.art);
             }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
@@ -117,8 +120,10 @@ export class Overlay {
         game.weaponView.draw(ctx);
         game.skinEditor.draw(ctx);
         game.settingsMenu.draw(ctx);
-        if (game.settingsMenu.open&&((game.settingsMenu.drag&&/^stick/.test(game.settingsMenu.drag.key))||game.settingsMenu.resetFlash>0)) {
+        if (game.settingsMenu.open&&game.settingsMenu.page==='touch') {
             this.drawSticks(input,false);
+            this.drawDash(input,player);
+            this.drawSkills(input,null,null,game.art);
         }
         game.codex.draw(ctx,game.art);
         game.notice.draw(ctx);
@@ -209,8 +214,9 @@ export class Overlay {
             ctx.fill();
             this.ring(s.cx,s.cy,R,act?2.4:1.6,card?PALETTE.red:rgba('ink',act?0.55:0.3),s===input.move?11:23);
             if (s===input.aim&&!card) {
-                const fr=R*TUNING.input.fireRing;
-                const firing=act&&(s.raw||0)>=TUNING.input.fireRing;
+                const fk=fireRing();
+                const fr=R*fk;
+                const firing=act&&(s.raw||0)>=fk;
                 ctx.save();
                 ctx.beginPath();
                 ctx.arc(s.cx,s.cy,R,0,Math.PI*2);
@@ -244,6 +250,67 @@ export class Overlay {
             ctx.textAlign='center';
             ctx.textBaseline='top';
             ctx.fillText(s===input.move?t('ui.move'):(card?t('ui.cast'):t('ui.fireDual')),s.cx,s.cy+R+6);
+        }
+    }
+
+    drawSkills(input,hand,ink,art) {
+        const ctx=this.ctx;
+        const v=time.boilIndex;
+        for (const k of input.skills) {
+            const view=hand?hand.views.find(o=>o.slot===k.slot):null;
+            const card=view&&view.state==='idle'?view.card:null;
+            const ult=k.slot===2;
+            const sel=!!(hand&&view&&hand.targetView===view);
+            const cost=card?cardCost(card):0;
+            const poor=!!(card&&ink&&!ink.can(cost));
+            const shake=view&&view.shakeT>0?Math.sin(view.shakeT*70)*5*view.shakeT/0.35:0;
+            const pressed=k.id>=0;
+            const r=k.r*(pressed?0.92:1)*(sel?1.06+Math.sin(time.real*8)*0.03:1);
+            const x=k.x+shake;
+            const y=k.y;
+            ctx.save();
+            ctx.globalAlpha=card||!hand?(poor?0.5:1):0.45;
+            ctx.fillStyle=sel?rgba('red',0.18):rgba('paper',0.72);
+            ctx.beginPath();
+            ctx.arc(x,y,r,0,Math.PI*2);
+            ctx.fill();
+            if (card&&art) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(x,y,r-3,0,Math.PI*2);
+                ctx.clip();
+                const img=art.icon(card,v);
+                ctx.drawImage(img,x-r*0.95,y-r*0.95,r*1.9,r*1.9);
+                ctx.restore();
+            }
+            this.ring(x,y,r,sel?3.4:(ult?2.8:2.2),sel||ult?PALETTE.red:rgba('ink',0.75),91+k.slot*7);
+            if (pressed&&k.moved&&sel) {
+                ctx.strokeStyle=rgba('red',0.5);
+                ctx.lineWidth=3;
+                ctx.setLineDash([5,4]);
+                ctx.beginPath();
+                ctx.moveTo(x,y);
+                ctx.lineTo(x+k.vx*r*1.8,y+k.vy*r*1.8);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            const bx=x-r*0.72;
+            const by=y-r*0.72;
+            ctx.fillStyle=card?(poor?PALETTE.red:PALETTE.ink):PALETTE.midGray;
+            ctx.beginPath();
+            ctx.arc(bx,by,10,0,Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle=PALETTE.paper;
+            ctx.font='bold 12px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(card?String(cost):String(k.slot+1),bx,by+1);
+            if (ult) {
+                ctx.fillStyle=PALETTE.red;
+                ctx.font='bold 11px '+FONT;
+                ctx.fillText(t('type.ult'),x,y-r-9);
+            }
+            ctx.restore();
         }
     }
 

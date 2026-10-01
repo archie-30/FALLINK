@@ -178,11 +178,12 @@ export const SOUNDS={
         ]
     },
     wMarker:{
-        gap:0.08,
-        gain:0.32,
-        vary:0.06,
+        gap:0.09,
+        gain:0.26,
+        vary:0.04,
         layers:[
-            {kind:'noise',dur:0.09,attack:0.02,gain:0.3,filter:{type:'bandpass',f0:1400,q:2.5}}
+            {kind:'noise',dur:0.12,attack:0.03,gain:0.3,filter:{type:'bandpass',f0:2200,q:3},trem:{rate:60,depth:0.5}},
+            {kind:'tone',wave:'sawtooth',f0:180,dur:0.12,attack:0.03,gain:0.04,filter:{type:'lowpass',f0:900}}
         ]
     },
     wCompass:{
@@ -191,6 +192,16 @@ export const SOUNDS={
         layers:[
             {kind:'noise',dur:0.35,attack:0.05,gain:0.3,filter:{type:'bandpass',f0:900,f1:2200,q:1.2},trem:{rate:22,depth:0.8}},
             {kind:'tone',wave:'triangle',f0:520,f1:780,dur:0.12,gain:0.12}
+        ]
+    },
+    equip:{
+        gap:0.15,
+        gain:0.5,
+        rev:0.12,
+        layers:[
+            {kind:'noise',dur:0.18,attack:0.02,gain:0.3,filter:{type:'bandpass',f0:1200,f1:4200,q:0.9}},
+            {kind:'tone',wave:'triangle',f0:660,f1:990,dur:0.1,gain:0.14,delay:0.04},
+            {kind:'tone',wave:'sine',f0:1320,dur:0.14,gain:0.08,delay:0.12}
         ]
     },
     reload:{

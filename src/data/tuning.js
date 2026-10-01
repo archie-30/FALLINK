@@ -183,7 +183,8 @@ export const TUNING={
     },
     input:{
         deadZone:0.14,
-        fireRing:0.62,
+        fireRingRange:[0.55,0.9],
+        skill:{scale:0.46,sizeRange:[0.75,1.3],gap:14,angles:[2.9,3.55,4.2,4.88],ultMul:1.15,dashMul:0.92,grab:1.15,dragRadius:1.3,moveSlop:12},
         stickMin:50,
         stickMax:76,
         stickScale:0.1,
@@ -191,9 +192,6 @@ export const TUNING={
         stickSizeRange:[0.75,1.45],
         stickXRange:[14,0.2],
         stickYRange:[14,0.36],
-        dashScale:0.56,
-        dashAngle:-2.25,
-        dashGap:16,
         dashButtonRadius:44,
         tapTime:260,
         cancelScale:0.36
@@ -258,8 +256,20 @@ export const TUNING={
         deckCloseTime:0.32,
         deckOutMax:0.75
     },
+    summaryUi:{
+        stampTime:0.35,
+        countTime:0.9,
+        xpTime:1.2,
+        grade:{
+            marks:[['S',100],['A',75],['B',50],['C',25],['D',-9999]],
+            story:{room:6,boss:5,hurt:1.5,win:20},
+            endless:{room:4,boss:6,hurt:1,win:0}
+        }
+    },
     settingsUi:{
         twoColMin:600,
+        touchSide:215,
+        dragFade:0.25,
         follow:14,
         pulseDecay:3
     },
@@ -337,11 +347,13 @@ export const TUNING={
     },
     weaponFx:{
         pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
-        brush:{color:'ink',capacity:80,radius:0.22,size:0.3,trailWidth:0.42},
+        brush:{color:'ink',capacity:80,radius:0.3,size:0.3,trailWidth:0.42,drag:2.6,hidden:true},
         staple:{color:'midGray',capacity:64,radius:0.13,size:0.17,trailWidth:0.06},
-        marker:{color:'marker',capacity:200,radius:0.16,size:0.16,trailWidth:0.34,pierce:true},
-        compass:{color:'ink',capacity:16,radius:0.45,size:0.42,trailWidth:0.26,pierce:true,boomerang:true}
+        compass:{color:'nearGray',capacity:16,radius:0.6,size:0.8,trailWidth:0.06,pierce:true,boomerang:true,model:'compass',spin:18,returnAccel:28}
     },
+    brushStroke:{count:10,height:1.0,fade:0.45,muzzle:0.6,thickMin:0.45,thickGrow:0.4,arc:1.15},
+    beam:{height:1.1,fadeIn:30,fadeOut:14,pulse:40,pulseAmp:0.08,step:0.25,mergeTime:0.35,sparks:2},
+    equip:{time:0.55,lift:0.35,spin:2,particles:10},
     notice:{
         wait:3
     },
@@ -403,7 +415,7 @@ export const TUNING={
         fall:30,
         size:20,
         critSize:30,
-        mergeTime:0.12,
+        mergeTime:0.03,
         drift:40,
         punch:0.9,
         punchDecay:14,

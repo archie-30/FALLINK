@@ -1,6 +1,15 @@
 import {TUNING} from '../data/tuning.js';
 import {settings} from './settings.js';
 
+function makeSkill(slot) {
+    return {slot,x:0,y:0,r:30,id:-1,ox:0,oy:0,vx:0,vy:0,mag:0,moved:false,flash:0};
+}
+
+export function fireRing() {
+    const F=TUNING.input.fireRingRange;
+    return F[0]+(F[1]-F[0])*settings.aimRing;
+}
+
 function makeStick() {
     return {id:-1,cx:0,cy:0,r:70,ox:0,oy:0,x:0,y:0,vx:0,vy:0,mag:0,maxMag:0,t0:0};
 }
@@ -16,6 +25,8 @@ export class Input {
         this.move=makeStick();
         this.aim=makeStick();
         this.dash={x:0,y:0,r:TUNING.input.dashButtonRadius,id:-1,flash:0};
+        this.skills=[makeSkill(0),makeSkill(1),makeSkill(2)];
+        this.onSkill=null;
         this.dashQueued=false;
         this.reloadQueued=false;
         this.touches=new Map();
@@ -89,10 +100,19 @@ export class Input {
                 s.oy=s.cy;
             }
         }
-        this.dash.r=r*I.dashScale;
-        const a=I.dashAngle;
-        this.dash.x=this.aim.cx+Math.cos(a)*(r+this.dash.r+I.dashGap);
-        this.dash.y=this.aim.cy+Math.sin(a)*(r+this.dash.r+I.dashGap);
+        const K=I.skill;
+        const sr=r*K.scale*(K.sizeRange[0]+(K.sizeRange[1]-K.sizeRange[0])*S.skillSize);
+        const ring=r+K.gap+sr;
+        this.dash.r=sr*K.dashMul;
+        this.dash.x=this.aim.cx+Math.cos(K.angles[0])*ring;
+        this.dash.y=this.aim.cy+Math.sin(K.angles[0])*ring;
+        for (const k of this.skills) {
+            const big=k.slot===2?K.ultMul:1;
+            k.r=sr*big;
+            const rr=r+K.gap+k.r;
+            k.x=this.aim.cx+Math.cos(K.angles[k.slot+1])*rr;
+            k.y=this.aim.cy+Math.sin(K.angles[k.slot+1])*rr;
+        }
     }
 
     stickAt(x,y) {
@@ -111,6 +131,9 @@ export class Input {
         this.releaseStick(this.move);
         this.releaseStick(this.aim);
         this.dash.id=-1;
+        for (const k of this.skills) {
+            this.releaseSkill(k);
+        }
         this.touches.clear();
     }
 
@@ -190,6 +213,20 @@ export class Input {
             this.onFirstTouch();
         }
         if (e.pointerType!=='mouse'&&this.canStick&&this.canStick()) {
+            const sk=this.skillAt(x,y);
+            if (sk) {
+                this.lastDevice='touch';
+                this.touches.set(e.pointerId,{x,y,t:performance.now()});
+                sk.id=e.pointerId;
+                sk.ox=x;
+                sk.oy=y;
+                sk.moved=false;
+                sk.flash=1;
+                if (this.onSkill) {
+                    this.onSkill('down',sk.slot);
+                }
+                return;
+            }
             const d=this.dash;
             const st=this.stickAt(x,y);
             const onDash=d.id<0&&Math.hypot(x-d.x,y-d.y)<=d.r*1.2;
@@ -281,6 +318,54 @@ export class Input {
         else if (e.pointerId===this.aim.id) {
             this.dragStick(this.aim,x,y);
         }
+        for (const k of this.skills) {
+            if (k.id===e.pointerId) {
+                this.dragSkill(k,x,y);
+            }
+        }
+    }
+
+    skillAt(x,y) {
+        for (const k of this.skills) {
+            if (k.id<0&&Math.hypot(x-k.x,y-k.y)<=k.r*TUNING.input.skill.grab) {
+                return k;
+            }
+        }
+        return null;
+    }
+
+    dragSkill(k,x,y) {
+        const K=TUNING.input.skill;
+        const R=this.aim.r*K.dragRadius;
+        let dx=x-k.ox;
+        let dy=y-k.oy;
+        const d=Math.hypot(dx,dy);
+        if (d>K.moveSlop) {
+            k.moved=true;
+        }
+        const m=Math.min(1,d/R);
+        k.mag=k.moved?Math.max(0.05,m):0;
+        if (d>1e-4) {
+            k.vx=dx/d*k.mag;
+            k.vy=dy/d*k.mag;
+        }
+    }
+
+    releaseSkill(k) {
+        k.id=-1;
+        k.vx=0;
+        k.vy=0;
+        k.mag=0;
+        k.moved=false;
+    }
+
+    skillDrag() {
+        for (const k of this.skills) {
+            if (k.id>=0&&k.moved) {
+                return k;
+            }
+        }
+        return null;
     }
 
     pointerUp(e) {
@@ -312,6 +397,14 @@ export class Input {
         }
         if (e.pointerId===this.dash.id) {
             this.dash.id=-1;
+        }
+        for (const k of this.skills) {
+            if (k.id===e.pointerId) {
+                if (this.onSkill) {
+                    this.onSkill('up',k.slot,k.vx,k.vy,k.mag,k.moved);
+                }
+                this.releaseSkill(k);
+            }
         }
     }
 
@@ -409,7 +502,7 @@ export class Input {
 
     isFiring() {
         if (this.aim.id>=0&&this.aim.mag>0) {
-            return !this.aimForCard&&(this.aim.raw||0)>=TUNING.input.fireRing;
+            return !this.aimForCard&&(this.aim.raw||0)>=fireRing();
         }
         return this.lastDevice==='mouse'&&this.mouse.down;
     }

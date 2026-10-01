@@ -23,11 +23,13 @@ import {Overlay} from './ui2d/overlay.js';
 import {buildRoom} from './game/terrain.js';
 import {Player,Clone} from './game/player.js';
 import {BulletSystem,Lobs} from './game/bullet.js';
+import {BrushStrokes,Beam} from './game/weaponFx.js';
+import {circleVs} from './core/collision.js';
 import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects,createCard,cardParams} from './game/card.js';
 import {STARTING_DECK,ALL_CARDS,CARDS,isUlt,unlockedCards} from './data/cards.js';
-import {progress,loadProgress,addXp,markSeen,godMode,effectiveLevel} from './core/progress.js';
+import {progress,loadProgress,addXp,markSeen,godMode,effectiveLevel,xpToNext} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -143,6 +145,28 @@ function boot() {
     }
     const extraSys=Object.keys(WB).map(k=>weaponSys[k]);
     weaponSys.compass.target=player.renderPos;
+    const strokes=new BrushStrokes(fxScene,'ink');
+    const beam=new Beam(fxScene,'marker','paper');
+    const beamHit={x:0,z:0,depth:0};
+    let beamMerge=false;
+    function beamReach(x,z,dx,dz,max) {
+        const C=TUNING.beam;
+        const room=game.room;
+        const b=room.bounds;
+        for (let d=C.step;d<=max;d+=C.step) {
+            const px=x+dx*d;
+            const pz=z+dz*d;
+            if (px<b.minX||px>b.maxX||pz<b.minZ||pz>b.maxZ) {
+                return {len:d,col:null};
+            }
+            for (const col of room.colliders) {
+                if (!col.passPlayer&&circleVs(px,pz,0.12,col,beamHit)) {
+                    return {len:d,col};
+                }
+            }
+        }
+        return {len:max,col:null};
+    }
     const lobs=new Lobs(actors);
     const rings=new Rings(fxScene);
     const dangerRings=new Rings(fxScene,12);
@@ -160,13 +184,44 @@ function boot() {
     const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene},TUNING);
     ctx.dangerRings=dangerRings;
     ctx.weaponSys=weaponSys;
-    ctx.onBrush=(x,z,a,fan,r)=>{
-        for (let i=0;i<9;i++) {
-            const an=a+(i/8-0.5)*fan*1.3;
-            const d=r*(0.4+Math.random()*0.55);
-            particles.burst(x+Math.cos(an)*d,1,z+Math.sin(an)*d,1,{color:'ink',speed:[0.5,2],up:[0.5,2],size:[0.1,0.2],life:[0.2,0.4]});
+    ctx.onBrush=(x,z,a,fan)=>{
+        const PW=player.W;
+        strokes.spawn(x,z,a,fan,PW.bulletSpeed,WB.brush.drag,PW.bulletLife);
+        for (let i=0;i<5;i++) {
+            const an=a+(Math.random()-0.5)*fan;
+            particles.burst(x+Math.cos(an)*0.8,1,z+Math.sin(an)*0.8,1,{color:'ink',dirX:Math.cos(an),dirZ:Math.sin(an),cone:0.4,speed:[3,7],up:[0.5,2],size:[0.08,0.16],life:[0.3,0.5]});
         }
-        fx.cameraShake(0.08);
+        fx.cameraShake(0.05);
+    };
+    ctx.onBeam=(x,z,dx,dz,PW)=>{
+        const B=PW.beam;
+        const r=beamReach(x,z,dx,dz,B.range);
+        const hw=B.width*0.5;
+        beamMerge=true;
+        for (const e of enemies.list.slice()) {
+            if (e.state==='spawn') {
+                continue;
+            }
+            const ex=e.pos.x-x;
+            const ez=e.pos.z-z;
+            const t=ex*dx+ez*dz;
+            if (t<0||t>r.len+e.def.radius) {
+                continue;
+            }
+            const px=ex-dx*t;
+            const pz=ez-dz*t;
+            if (px*px+pz*pz<(e.def.radius+hw)*(e.def.radius+hw)) {
+                const m=e.damageMult(x+dx*t,z+dz*t);
+                enemies.damage(e,PW.damage*m,dx,dz,true,m>1);
+            }
+        }
+        beamMerge=false;
+        const hx=x+dx*r.len;
+        const hz=z+dz*r.len;
+        if (r.col) {
+            playerWall(hx,hz,dx,dz,r.col);
+        }
+        particles.burst(hx,H,hz,TUNING.beam.sparks,{color:'marker',dirX:-dx,dirZ:-dz,cone:1.4,speed:[2,5],up:[1,3],size:[0.08,0.16],life:[0.15,0.3]});
     };
     ctx.onInkDrop=(x,z,r,dur,slow)=>{
         game.room.zones.addPuddle(x,z,r,dur,slow);
@@ -435,7 +490,7 @@ function boot() {
     };
     const dmgNums=new DamageNumbers();
     enemies.onDamage=(e,dmg,crit)=>{
-        dmgNums.spawn(e.pos.x,e.def.height*0.9,e.pos.z,dmg,crit);
+        dmgNums.spawn(e.pos.x,e.def.height*0.9,e.pos.z,dmg,crit,beamMerge?TUNING.beam.mergeTime:0);
         if (run.mode==='training') {
             trainStats.total+=dmg;
             trainStats.max=Math.max(trainStats.max,dmg);
@@ -510,6 +565,27 @@ function boot() {
         particles.burst(x,1.0,z,PT.redKill,{color:'red',dirX:dx,dirZ:dz,cone:0.8,speed:[4,10],up:[1,5],size:[0.08,0.18]});
     };
     player.events.onReload=()=>audio.play('reload');
+    player.events.onRefund=p=>{
+        dmgNums.spawnText(p.pos.x,2.4,p.pos.z,t('hud.refund'));
+        audio.play('draw',1.4);
+    };
+    player.events.onEquip=p=>{
+        audio.play('equip');
+        if (game.mode==='play') {
+            particles.burst(p.pos.x,1.2,p.pos.z,TUNING.equip.particles,{color:'ink',speed:[2,5],up:[2,5],size:[0.08,0.16]});
+        }
+    };
+    weaponSys.brush.onHit=(x,z,r,dmg,vx,vz,sys,i)=>{
+        const e=hitEnemies(x,z,r,dmg,vx,vz,sys,i);
+        if (e) {
+            player.shotHit(sys.tag[i]);
+        }
+        return e;
+    };
+    weaponSys.compass.onCatch=(x,z)=>{
+        particles.burst(x,H,z,4,{color:'nearGray',speed:[1,3],up:[1,3],size:[0.06,0.12]});
+        audio.play('draw',1.7);
+    };
     player.events.onDash=()=>{
         audio.play('dash');
         fx.fovPunch(TUNING.player.dashFovPunch);
@@ -593,6 +669,21 @@ function boot() {
     function allShards() {
         return [...enemyShards.values(),terrainShards,paperShards];
     }
+    const beamMp={x:0,z:0};
+    function updateBeam(dt) {
+        const PW=player.W;
+        if (PW.beam&&player.beamT>0&&player.hp>0) {
+            player.muzzlePoint(beamMp);
+            const a=player.fireAngle(beamMp.x,beamMp.z);
+            const r=beamReach(beamMp.x,beamMp.z,Math.cos(a),Math.sin(a),PW.beam.range);
+            beam.set(true,beamMp.x,beamMp.z,Math.cos(a),Math.sin(a),r.len,PW.beam.width);
+        }
+        else {
+            beam.set(false);
+        }
+        beam.update(dt);
+    }
+
     function clearWorld() {
         enemies.clear();
         playerBullets.clear();
@@ -601,6 +692,8 @@ function boot() {
         for (const s of extraSys) {
             s.clear();
         }
+        strokes.clear();
+        beam.clear();
         homingBullets.clear();
         lobs.clear();
         particles.clear();
@@ -719,6 +812,7 @@ function boot() {
             fx.paused=true;
             hand.cancelTargeting();
             const lvBefore=progress.level;
+            const xpFrom=progress.xp/xpToNext(lvBefore);
             const bestKey=run.mode==='endless'?'bestScore':'bestStory';
             if (run.mode==='endless') {
                 stats.xp+=stats.score*TUNING.levels.xpScore;
@@ -727,14 +821,14 @@ function boot() {
             if (godMode()) {
                 stats.newBest=false;
                 stats.best=progress[bestKey];
-                summary.progress={god:true,xp:0,before:lvBefore,after:lvBefore,unlocked:[]};
+                summary.progress={god:true,xp:0,before:lvBefore,after:lvBefore,unlocked:[],xpFrom,xpTo:xpFrom};
             }
             else {
                 stats.newBest=stats.score>progress[bestKey];
                 progress[bestKey]=Math.max(progress[bestKey],stats.score);
                 stats.best=progress[bestKey];
                 const res=addXp(stats.xp);
-                summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey))};
+                summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey)),xpFrom,xpTo:progress.xp/xpToNext(progress.level)};
             }
             summary.show(victory,stats,quit,toMenu=>{
                 audio.play('ui');
@@ -1195,6 +1289,9 @@ function boot() {
                     m.hover(x,y);
                 }
             }
+            if (summary.open) {
+                summary.hover(x,y);
+            }
             reward.hoverAt(x,y);
             deckView.hover(x,y);
             hand.hoverAt(x,y,pauseMenu.open);
@@ -1284,6 +1381,27 @@ function boot() {
         trainingPicker.wheel(dy);
     };
     input.canStick=()=>!notice.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    let skillToggle=false;
+    input.onSkill=(type,slot,vx,vy,mag,moved)=>{
+        if (run.state!=='combat'||!input.canStick()) {
+            return;
+        }
+        const tv=hand.targetView;
+        if (type==='down') {
+            skillToggle=!!(tv&&tv.slot===slot);
+            if (!skillToggle) {
+                hand.selectSlot(slot);
+            }
+            return;
+        }
+        if (moved&&mag>0&&tv&&tv.slot===slot) {
+            hand.stickCast(vx,vy,mag,false);
+            return;
+        }
+        if (!moved&&skillToggle) {
+            hand.cancelTargeting();
+        }
+    };
     input.onAimRelease=(vx,vy,mag,tap)=>{
         if (hand.targetView&&run.state==='combat'&&input.canStick()) {
             hand.stickCast(vx,vy,mag,tap);
@@ -1489,6 +1607,8 @@ function boot() {
         for (const s of extraSys) {
             s.update(dt,room);
         }
+        strokes.update(dt);
+        updateBeam(dt);
         homingBullets.update(dt,room);
         lobs.update(dt);
         deck.update(dt);
@@ -1553,6 +1673,8 @@ function boot() {
         for (const s of extraSys) {
             s.render(alpha);
         }
+        strokes.render(alpha);
+        beam.render();
         homingBullets.render(alpha);
         lobs.render(alpha);
         particles.render();
@@ -1561,7 +1683,13 @@ function boot() {
         preview.update(dt);
         const touchCast=input.lastDevice==='touch'&&!!hand.targetView;
         input.aimForCard=touchCast;
-        hand.stickAim(input.aim.vx,input.aim.vy,input.aim.mag,input.aim.id>=0,touchCast);
+        const sd=input.skillDrag();
+        if (sd&&touchCast) {
+            hand.stickAim(sd.vx,sd.vy,sd.mag,true,true);
+        }
+        else {
+            hand.stickAim(input.aim.vx,input.aim.vy,input.aim.mag,input.aim.id>=0,touchCast);
+        }
         hand.update(dt,pauseMenu.open||deckView.open);
         updatePerf(dt);
         deckView.update(dt);
@@ -1677,7 +1805,7 @@ function boot() {
     art.warm(deck.drawPile);
     equipWeapon();
     enterMenu();
-    window.INKFALL={notice,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={weaponSys,notice,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

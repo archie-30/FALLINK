@@ -10,6 +10,46 @@ const _s=new THREE.Vector3();
 const _up=new THREE.Vector3(0,1,0);
 const hit={x:0,z:0,depth:0};
 
+function mergeGeos(list) {
+    const pos=[];
+    for (const g of list) {
+        const a=g.toNonIndexed().getAttribute('position').array;
+        for (let i=0;i<a.length;i++) {
+            pos.push(a[i]);
+        }
+    }
+    const out=new THREE.BufferGeometry();
+    out.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    out.computeVertexNormals();
+    return out;
+}
+
+function compassGeo() {
+    const parts=[];
+    for (const sx of [-1,1]) {
+        const leg=new THREE.CylinderGeometry(0.07,0.03,1.3,6);
+        leg.rotateZ(Math.PI/2);
+        leg.translate(0.65,0,0);
+        leg.rotateY(sx*0.32);
+        parts.push(leg);
+    }
+    const tip=new THREE.ConeGeometry(0.06,0.2,6);
+    tip.rotateZ(-Math.PI/2);
+    tip.translate(1.38,0,0);
+    tip.rotateY(0.32);
+    parts.push(tip);
+    const hinge=new THREE.CylinderGeometry(0.16,0.16,0.14,10);
+    parts.push(hinge);
+    const knob=new THREE.CylinderGeometry(0.05,0.05,0.34,6);
+    knob.translate(0,0.22,0);
+    parts.push(knob);
+    const g=mergeGeos(parts);
+    g.translate(-0.6,0,0);
+    return g;
+}
+
+const MODELS={compass:compassGeo};
+
 export class BulletSystem {
     constructor(scene,fxScene,o) {
         const cap=o.capacity||TUNING.bullet.capacity;
@@ -39,13 +79,27 @@ export class BulletSystem {
         this.hitN=new Uint8Array(cap);
         this.boomerang=!!o.boomerang;
         this.ret=new Uint8Array(cap);
+        this.tag=new Int32Array(cap);
+        this.el=new Float32Array(cap);
+        this.spd=new Float32Array(cap);
+        this.drag=o.drag||0;
+        this.spin=o.spin||0;
+        this.hidden=!!o.hidden;
+        this.returnAccel=o.returnAccel||0;
         this.target=null;
+        this.onCatch=null;
         this.n=0;
         this.onWall=null;
         this.onHit=null;
         this.onSeek=null;
-        const geo=new THREE.OctahedronGeometry(1,0);
-        geo.scale(0.6,0.6,1.5);
+        let geo;
+        if (o.model&&MODELS[o.model]) {
+            geo=MODELS[o.model]();
+        }
+        else {
+            geo=new THREE.OctahedronGeometry(1,0);
+            geo.scale(0.6,0.6,1.5);
+        }
         this.heads=new THREE.InstancedMesh(geo,unlitMaterial({color:o.color}),cap);
         this.heads.frustumCulled=false;
         this.heads.count=0;
@@ -101,6 +155,9 @@ export class BulletSystem {
         this.age[i]=0;
         this.hitN[i]=0;
         this.ret[i]=0;
+        this.tag[i]=0;
+        this.el[i]=0;
+        this.spd[i]=speed;
         const K=this.K;
         for (let j=0;j<K;j++) {
             this.hist[(i*K+j)*2]=x;
@@ -125,6 +182,9 @@ export class BulletSystem {
         this.age[i]=this.age[j];
         this.hitN[i]=this.hitN[j];
         this.ret[i]=this.ret[j];
+        this.tag[i]=this.tag[j];
+        this.el[i]=this.el[j];
+        this.spd[i]=this.spd[j];
         this.hits.copyWithin(i*6,j*6,j*6+6);
         const K2=this.K*2;
         this.hist.copyWithin(i*K2,j*K2,j*K2+K2);
@@ -206,16 +266,31 @@ export class BulletSystem {
             if (this.homing&&this.onSeek) {
                 this.steer(i,dt);
             }
+            this.el[i]+=dt;
+            if (this.drag) {
+                const f=Math.exp(-this.drag*dt);
+                this.vx[i]*=f;
+                this.vz[i]*=f;
+            }
+            if (this.boomerang&&!this.ret[i]) {
+                const sp=Math.hypot(this.vx[i],this.vz[i])||1;
+                const ns=Math.max(this.spd[i]*0.12,sp-this.returnAccel*dt);
+                this.vx[i]*=ns/sp;
+                this.vz[i]*=ns/sp;
+            }
             if (this.boomerang&&this.ret[i]&&this.target) {
-                const sp=Math.hypot(this.vx[i],this.vz[i]);
                 const tx=this.target.x-this.x[i];
                 const tz=this.target.z-this.z[i];
                 const tl=Math.hypot(tx,tz)||1;
                 if (tl<0.9) {
+                    if (this.onCatch) {
+                        this.onCatch(this.x[i],this.z[i]);
+                    }
                     this.kill(i);
                     continue;
                 }
-                const k=Math.min(1,dt*9);
+                const sp=Math.min(this.spd[i]*1.25,Math.hypot(this.vx[i],this.vz[i])+this.returnAccel*dt);
+                const k=Math.min(1,dt*7);
                 this.vx[i]+=(tx/tl*sp-this.vx[i])*k;
                 this.vz[i]+=(tz/tl*sp-this.vz[i])*k;
             }
@@ -224,7 +299,7 @@ export class BulletSystem {
             this.life[i]-=dt;
             if (this.boomerang&&!this.ret[i]&&this.life[i]<=0) {
                 this.ret[i]=1;
-                this.life[i]=3;
+                this.life[i]=4;
                 this.hitN[i]=0;
             }
             if (this.age[i]<K) {
@@ -249,10 +324,13 @@ export class BulletSystem {
             }
             if (wall&&this.boomerang&&!this.ret[i]) {
                 this.ret[i]=1;
-                this.life[i]=3;
+                this.life[i]=4;
                 this.hitN[i]=0;
-                this.vx[i]=-this.vx[i];
-                this.vz[i]=-this.vz[i];
+                this.vx[i]=-this.vx[i]*0.6;
+                this.vz[i]=-this.vz[i]*0.6;
+                if (this.onWall) {
+                    this.onWall(x,z,-this.vx[i],-this.vz[i],wall);
+                }
                 continue;
             }
             if (wall&&this.boomerang) {
@@ -281,6 +359,11 @@ export class BulletSystem {
     }
 
     render(alpha) {
+        if (this.hidden) {
+            this.heads.count=0;
+            this.trails.geometry.setDrawRange(0,0);
+            return;
+        }
         const K=this.K;
         const y=this.height;
         const pos=this.tPos.array;
@@ -290,7 +373,7 @@ export class BulletSystem {
             const x=this.ox[i]+(this.x[i]-this.ox[i])*alpha;
             const z=this.oz[i]+(this.z[i]-this.oz[i])*alpha;
             _p.set(x,y,z);
-            _q.setFromAxisAngle(_up,Math.atan2(this.vx[i],this.vz[i]));
+            _q.setFromAxisAngle(_up,this.spin?-this.el[i]*this.spin:Math.atan2(this.vx[i],this.vz[i]));
             _s.setScalar(this.size);
             _m.compose(_p,_q,_s);
             this.heads.setMatrixAt(i,_m);

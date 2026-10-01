@@ -61,6 +61,12 @@ export class Player {
         this.weaponId='pen';
         this.burstLeft=0;
         this.burstT=0;
+        this.beamT=0;
+        this.coolT=0;
+        this.shotSeq=0;
+        this.pending=[];
+        this.resolved=[];
+        this.equipAt=-9;
         this.ammo=this.W.magazine;
         this.reloadT=0;
         this.hp=TUNING.player.maxHp;
@@ -423,8 +429,74 @@ export class Player {
         this.ammo=this.W.magazine;
         this.reloadT=0;
         this.burstLeft=0;
+        this.beamT=0;
+        this.pending.length=0;
+        this.resolved.length=0;
+        this.equipAt=time.real;
         if (this.weaponLook) {
             this.weaponLook(this.weaponId);
+        }
+        if (this.events&&this.events.onEquip) {
+            this.events.onEquip(this);
+        }
+    }
+
+    shotHit(tag) {
+        for (const p of this.pending) {
+            if (p.id===tag) {
+                p.hits++;
+                return;
+            }
+        }
+    }
+
+    updateRefund(dt) {
+        const F=this.W.refund;
+        if (!F) {
+            return;
+        }
+        for (let i=this.pending.length-1;i>=0;i--) {
+            const p=this.pending[i];
+            p.t-=dt;
+            if (p.t>0) {
+                continue;
+            }
+            this.pending.splice(i,1);
+            this.resolved.push(p.hits);
+            if (this.resolved.length<F.shots) {
+                continue;
+            }
+            const sum=this.resolved.reduce((a,b)=>a+b,0);
+            this.resolved.length=0;
+            if (sum>F.maxHits) {
+                continue;
+            }
+            if (this.reloadT>0) {
+                this.reloadT=0;
+                this.ammo=1;
+            }
+            else {
+                this.ammo=Math.min(this.W.magazine,this.ammo+1);
+            }
+            if (this.events.onRefund) {
+                this.events.onRefund(this);
+            }
+        }
+    }
+
+    updateHeat(dt,firing) {
+        const B=this.W.beam;
+        this.beamT=Math.max(0,this.beamT-dt);
+        if (!B) {
+            return;
+        }
+        if (firing) {
+            this.coolT=B.cool.delay;
+            return;
+        }
+        this.coolT-=dt;
+        if (this.coolT<=0&&this.reloadT<=0&&this.ammo<this.W.magazine) {
+            this.ammo=Math.min(this.W.magazine,this.ammo+B.cool.rate*dt);
         }
     }
 
@@ -509,32 +581,51 @@ export class Player {
         }
     }
 
+    fireAngle(mx,mz) {
+        const aim=this.lastAim;
+        if (aim&&aim.mode==='point') {
+            const ax=aim.point.x-mx;
+            const az=aim.point.z-mz;
+            if (Math.hypot(ax,az)>1.2) {
+                return Math.atan2(az,ax);
+            }
+        }
+        return Math.atan2(this.aimDirZ,this.aimDirX);
+    }
+
     fire(ctx,aim) {
         const W=this.W;
         const mp=this.muzzlePoint(this._mp||(this._mp={x:0,z:0}));
         const mx=mp.x;
         const mz=mp.z;
-        let dx=this.aimDirX;
-        let dz=this.aimDirZ;
-        if (aim.mode==='point') {
-            const ax=aim.point.x-mx;
-            const az=aim.point.z-mz;
-            const al=Math.hypot(ax,az);
-            if (al>1.2) {
-                dx=ax/al;
-                dz=az/al;
+        this.lastAim=aim;
+        const base=this.fireAngle(mx,mz);
+        let dx;
+        let dz;
+        if (W.beam) {
+            this.beamT=W.fireInterval*1.8;
+            if (ctx.onBeam) {
+                ctx.onBeam(mx,mz,Math.cos(base),Math.sin(base),W);
             }
         }
-        const sys=ctx.weaponSys[W.sys]||ctx.playerBullets;
-        const base=Math.atan2(dz,dx);
-        const n=W.pellets||1;
-        const lanes=this.dualT>0?[-W.dualOffset,W.dualOffset]:[0];
-        for (let p=0;p<n;p++) {
-            const a=base+(n>1?(p/(n-1)-0.5)*W.fan:0)+(Math.random()*2-1)*W.spread;
-            const cx=Math.cos(a);
-            const cz=Math.sin(a);
-            for (const o of lanes) {
-                sys.spawn(mx-cz*o,mz+cx*o,cx,cz,W.bulletSpeed,W.damage,W.bulletLife);
+        else {
+            const sys=ctx.weaponSys[W.sys]||ctx.playerBullets;
+            const n=W.pellets||1;
+            const lanes=this.dualT>0?[-W.dualOffset,W.dualOffset]:[0];
+            const tag=W.refund?++this.shotSeq:0;
+            if (tag) {
+                this.pending.push({id:tag,hits:0,t:W.bulletLife+0.08});
+            }
+            for (let p=0;p<n;p++) {
+                const a=base+(n>1?(p/(n-1)-0.5)*W.fan:0)+(Math.random()*2-1)*W.spread;
+                const cx=Math.cos(a);
+                const cz=Math.sin(a);
+                for (const o of lanes) {
+                    const bi=sys.spawn(mx-cz*o,mz+cx*o,cx,cz,W.bulletSpeed,W.damage,W.bulletLife);
+                    if (bi>=0) {
+                        sys.tag[bi]=tag;
+                    }
+                }
             }
         }
         if (W.erase) {
@@ -562,6 +653,7 @@ export class Player {
 
     update(dt,input,ctx,aim) {
         const P=TUNING.player;
+        this.lastAim=aim;
         const room=ctx.room;
         this.prev.copy(this.pos);
         this.invuln=Math.max(0,this.invuln-dt);
@@ -667,6 +759,8 @@ export class Player {
         else if (input.consumeReload&&input.consumeReload()&&this.ammo<W.magazine&&!W.heat) {
             this.startReload();
         }
+        this.updateHeat(dt,input.isFiring()&&this.reloadT<=0&&this.ammo>0);
+        this.updateRefund(dt);
         this.rapidT=Math.max(0,this.rapidT-dt);
         this.dualT=Math.max(0,this.dualT-dt);
         this.reflectT=Math.max(0,this.reflectT-dt);
@@ -723,6 +817,18 @@ export class Player {
         this.bottle.visible=false;
         if (this.reloadT>0) {
             this.poseReload(1-this.reloadT/this.W.reloadTime);
+        }
+        const Q=TUNING.equip;
+        const e=(time.real-this.equipAt)/Q.time;
+        if (e>=0&&e<1) {
+            const pop=e<0.6?Math.sin(e/0.6*Math.PI*0.5):1+Math.sin((e-0.6)/0.4*Math.PI)*0.12;
+            this.gun.scale.setScalar(Math.max(0.01,pop));
+            this.gun.rotation.z=(1-e)*(1-e)*Math.PI*2*Q.spin;
+            this.gun.position.y=1.0+Math.sin(e*Math.PI)*Q.lift;
+            this.arms[1].rotation.x=-1.35-Math.sin(e*Math.PI)*0.6;
+        }
+        else {
+            this.gun.scale.setScalar(1);
         }
     }
 
