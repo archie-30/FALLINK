@@ -43,6 +43,7 @@ export class Input {
         this.canStick=null;
         this.aimForCard=false;
         this.ui=null;
+        this.uiScale=1;
         this.uiPointers=new Set();
         this.bind();
     }
@@ -243,7 +244,7 @@ export class Input {
                 return;
             }
         }
-        if (this.ui&&this.ui.down(x,y,e.pointerId,e.pointerType,e.button)) {
+        if (this.ui&&this.ui.down(x/this.uiScale,y/this.uiScale,e.pointerId,e.pointerType,e.button)) {
             this.uiPointers.add(e.pointerId);
             if (e.pointerType!=='mouse') {
                 this.lastDevice='touch';
@@ -291,11 +292,11 @@ export class Input {
                 this.mouse.x=x;
                 this.mouse.y=y;
             }
-            this.ui.move(x,y,e.pointerId,e.pointerType);
+            this.ui.move(x/this.uiScale,y/this.uiScale,e.pointerId,e.pointerType);
             return;
         }
         if (e.pointerType==='mouse'&&this.ui) {
-            this.ui.hover(x,y);
+            this.ui.hover(x/this.uiScale,y/this.uiScale);
         }
         if (e.pointerType==='mouse') {
             if (this.lastDevice!=='mouse'&&Math.hypot(x-this.mouse.x,y-this.mouse.y)<2) {
@@ -372,7 +373,7 @@ export class Input {
         if (this.uiPointers.has(e.pointerId)) {
             this.uiPointers.delete(e.pointerId);
             const [x,y]=this.local(e);
-            this.ui.up(x,y,e.pointerId,e.pointerType,e.button);
+            this.ui.up(x/this.uiScale,y/this.uiScale,e.pointerId,e.pointerType,e.button);
             return;
         }
         if (e.pointerType==='mouse') {

@@ -29,7 +29,7 @@ import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects,createCard,cardParams} from './game/card.js';
 import {STARTING_DECK,ALL_CARDS,CARDS,isUlt,unlockedCards} from './data/cards.js';
-import {progress,loadProgress,addXp,markSeen,godMode,effectiveLevel,xpToNext} from './core/progress.js';
+import {progress,loadProgress,addXp,markSeen,godMode,effectiveLevel,xpToNext,resetLevel} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -237,6 +237,19 @@ function boot() {
     };
     const tmpV=new THREE.Vector3();
     const tmpG=new THREE.Vector3();
+    let uiS=1;
+    const toUi=out=>{
+        out.x/=uiS;
+        out.y/=uiS;
+        return out;
+    };
+    const uiMp={x:0,y:0,down:false,inside:true};
+    const uiMouse=()=>{
+        uiMp.x=input.mouse.x/uiS;
+        uiMp.y=input.mouse.y/uiS;
+        uiMp.down=input.mouse.down;
+        return uiMp;
+    };
     const ultCutin=new UltCutin();
     let pickerReturn=null;
     let trainFixed=[];
@@ -398,19 +411,19 @@ function boot() {
         playerPos:()=>player.pos,
         aimDir:()=>({x:player.aimDirX,z:player.aimDirZ}),
         screenToGround:(sx,sy,out)=>{
-            if (!rig.screenToGround(sx,sy,renderer.width,renderer.height,0,tmpG)) {
+            if (!rig.screenToGround(sx*uiS,sy*uiS,renderer.width,renderer.height,0,tmpG)) {
                 return false;
             }
             out.x=tmpG.x;
             out.z=tmpG.z;
             return true;
         },
-        worldToScreen:(x,y,z,out)=>rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out),
+        worldToScreen:(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out)),
         nearestEnemy:(x,z,r)=>{
             const e=enemies.nearest(x,z,r);
             return e?e.pos:null;
         },
-        mouseScreen:()=>input.lastDevice==='mouse'&&input.mouse.inside?input.mouse:null,
+        mouseScreen:()=>input.lastDevice==='mouse'&&input.mouse.inside?uiMouse():null,
         execute:(card,target)=>{
             if (card.def.rarity==='rare') {
                 fx.cutin=true;
@@ -1108,6 +1121,20 @@ function boot() {
     });
     const settingsMenu=new SettingsMenu({
         changed:settingsChanged,
+        resetLevel:()=>{
+            resetLevel();
+            if (!weaponUnlocked(settings.weapon,effectiveLevel())) {
+                settings.weapon='pen';
+            }
+            if (!weaponUnlocked(settings.training.weapon,effectiveLevel())) {
+                settings.training.weapon='pen';
+            }
+            saveSettings();
+            if (game.mode!=='play') {
+                player.setWeapon(settings.weapon);
+            }
+            audio.play('erase');
+        },
         select:()=>audio.play('ui'),
         back:()=>{
             audio.play('ui');
@@ -1152,18 +1179,23 @@ function boot() {
     function resize() {
         const w=Math.max(1,window.innerWidth);
         const h=Math.max(1,window.innerHeight);
+        const U=TUNING.ui.scale;
+        uiS=Math.max(U.min,Math.min(1,h/U.refH,w/U.refW));
+        const vw=w/uiS;
+        const vh=h/uiS;
         renderer.resize(w,h);
-        overlay.resize(w,h);
+        overlay.resize(w,h,uiS);
+        input.uiScale=uiS;
         input.resize(w,h);
-        hand.resize(w,h);
-        deckView.resize(w,h);
-        reward.resize(w,h);
-        upgradeView.resize(w,h);
-        summary.resize(w,h);
+        hand.resize(vw,vh);
+        deckView.resize(vw,vh);
+        reward.resize(vw,vh);
+        upgradeView.resize(vw,vh);
+        summary.resize(vw,vh);
         for (const m of menus) {
-            m.resize(w,h);
+            m.resize(vw,vh);
         }
-        art.setScale(overlay.dpr*hand.s*1.2);
+        art.setScale(overlay.dpr*hand.s*uiS*1.2);
         rig.setAspect(w/h);
     }
     input.onToggleDebug=()=>{
@@ -1471,7 +1503,7 @@ function boot() {
     resize();
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
-    const projectFn=(x,y,z,out)=>rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out);
+    const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
     const gameUi={dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial,weaponView,notice};
     let aimTarget=null;
     function applyAimAssist() {

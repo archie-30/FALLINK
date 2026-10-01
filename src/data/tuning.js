@@ -22,6 +22,10 @@ export const TUNING={
         depthHi:0.14,
         normalLo:0.45,
         normalHi:0.9,
+        refHeight:720,
+        smallMaxBoost:1.9,
+        depthBoost:0.4,
+        smallMinWidth:0.7,
         hullWidth:0.035
     },
     toon:{
@@ -211,6 +215,7 @@ export const TUNING={
         startStagger:0.14
     },
     cards:{
+        minScale:0.66,
         width:118,
         height:164,
         spacing:0.9,
@@ -248,6 +253,7 @@ export const TUNING={
         autoClose:7
     },
     ui:{
+        scale:{refH:560,refW:900,min:0.72},
         dangerHover:0.18,
         loaderMin:0.7,
         loaderFade:0.6,
@@ -267,10 +273,12 @@ export const TUNING={
             endless:{room:4,boss:6,hurt:1,win:0}
         }
     },
+    pauseUi:{compactH:700,top:0.2,titleY:0.1,colW:200,rowH:44,gap:10,hintGap:22},
     settingsUi:{
         twoColMin:600,
         touchSide:215,
         resetR:13,
+        resetDone:1.6,
         resetSpin:2.5,
         follow:14,
         pulseDecay:3
