@@ -509,15 +509,38 @@ export class PauseMenu extends Panel {
         this.actions=actions;
     }
 
+    compact() {
+        return this.height<TUNING.pauseUi.compactH;
+    }
+
     layout() {
         const w=this.width;
         const h=this.height;
+        this.buttons=[];
+        if (this.compact()) {
+            const P=TUNING.pauseUi;
+            const bw=P.colW;
+            const bh=P.rowH;
+            const y0=h*P.top;
+            this.buttons.push({x:w/2-bw-P.gap/2,y:y0,w:bw*2+P.gap,h:bh});
+            for (let i=1;i<5;i++) {
+                const c=(i-1)%2;
+                const r=1+Math.floor((i-1)/2);
+                this.buttons.push({x:w/2-bw-P.gap/2+c*(bw+P.gap),y:y0+r*(bh+P.gap),w:bw,h:bh});
+            }
+            return;
+        }
         const bw=240;
         const bh=52;
-        this.buttons=[];
         for (let i=0;i<5;i++) {
             this.buttons.push({x:w/2-bw/2,y:h*0.34+i*(bh+12),w:bw,h:bh});
         }
+    }
+
+    hintY() {
+        this.layout();
+        const b=this.buttons[4];
+        return b.y+b.h+TUNING.pauseUi.hintGap;
     }
 
     down(x,y) {
@@ -544,18 +567,19 @@ export class PauseMenu extends Panel {
         ctx.fillStyle=rgba('paper',Math.min(0.85,this.t*4));
         ctx.fillRect(0,0,w,h);
         const a=EASE.easeOutBack(Math.min(1,this.t/0.35));
+        const cp=this.compact();
         ctx.save();
-        ctx.translate(w/2,h*0.24);
+        ctx.translate(w/2,cp?h*TUNING.pauseUi.titleY:h*0.24);
         ctx.scale(a,a);
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold 44px '+FONT;
+        ctx.font='bold '+(cp?34:44)+'px '+FONT;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('pause.title'),0,0);
         ctx.restore();
         const labels=[t('pause.resume'),t(this.training?'pause.pickCard':'pause.deck'),t('menu.codex'),t('menu.settings'),t(this.training?'pause.leaveTraining':'pause.quit')];
         for (let i=0;i<5;i++) {
-            drawButton(ctx,this.buttons[i],labels[i],v,(this.t-0.08-i*0.07)/0.35,this.hoverIdx===i,20,i===4);
+            drawButton(ctx,this.buttons[i],labels[i],v,(this.t-0.08-i*0.07)/0.35,this.hoverIdx===i,cp?17:20,i===4);
         }
     }
 }
@@ -635,6 +659,8 @@ export class SettingsMenu extends Panel {
         this.keysT=0;
         this.page='main';
         this.pageT=0;
+        this.lvStage=0;
+        this.lvDone=0;
         for (const k of [...SETTING_KEYS,...TOUCH_SETTING_KEYS]) {
             this.anim[k]=this.target(k);
             this.pulse[k]=0;
@@ -644,6 +670,8 @@ export class SettingsMenu extends Panel {
     update(dt) {
         super.update(dt);
         this.pageT+=dt;
+        this.lvDone=Math.max(0,(this.lvDone||0)-dt);
+        this.lvPulse=Math.max(0,(this.lvPulse||0)-dt*4);
         this.keysT=Math.max(0,Math.min(1,(this.keysT||0)+(this.keysOpen?dt:-dt)/TUNING.ui.closeTime));
         const k=1-Math.exp(-TUNING.settingsUi.follow*dt);
         this.resetFlash=Math.max(0,(this.resetFlash||0)-dt*2);
@@ -686,12 +714,15 @@ export class SettingsMenu extends Panel {
             this.rows.push({key:keys[i],y:top+(i%per)*rh,lx:x0+28,cx:x0+colW*0.44,cw:colW*0.38});
         }
         const by=top+per*rh+4;
-        const bw=Math.min(180,(pw-60)/3);
-        this.keysBtn={x:w/2-bw*1.5-14,y:by,w:bw,h:48};
-        this.touchBtn={x:w/2-bw/2,y:by,w:bw,h:48};
-        this.back={x:w/2+bw/2+14,y:by,w:bw,h:48};
+        const gap=12;
+        const bw=Math.min(180,(pw-40-gap*3)/4);
+        const bx=w/2-(bw*4+gap*3)/2;
+        this.keysBtn={x:bx,y:by,w:bw,h:48};
+        this.touchBtn={x:bx+(bw+gap),y:by,w:bw,h:48};
+        this.lvBtn={x:bx+(bw+gap)*2,y:by,w:bw,h:48};
+        this.back={x:bx+(bw+gap)*3,y:by,w:bw,h:48};
         this.resetBtn=null;
-        this.buttons=[this.back,this.touchBtn,this.keysBtn];
+        this.buttons=[this.back,this.touchBtn,this.keysBtn,this.lvBtn];
     }
 
     layoutTouch() {
@@ -717,6 +748,7 @@ export class SettingsMenu extends Panel {
         this.back={x:w/2+8,y:by,w:bw,h:bh};
         this.keysBtn=null;
         this.touchBtn=null;
+        this.lvBtn=null;
         this.buttons=[this.back,this.resetBtn];
     }
 
@@ -740,6 +772,22 @@ export class SettingsMenu extends Panel {
             }
             return true;
         }
+        if (this.lvBtn&&inRect(this.lvBtn,x,y)) {
+            this.lvPulse=1;
+            if (this.lvStage<2) {
+                this.lvStage++;
+                if (this.actions.select) {
+                    this.actions.select();
+                }
+            }
+            else {
+                this.lvStage=0;
+                this.lvDone=TUNING.settingsUi.resetDone;
+                this.actions.resetLevel();
+            }
+            return true;
+        }
+        this.lvStage=0;
         if (this.page==='touch'&&inRect(this.back,x,y)) {
             this.closePage();
             return true;
@@ -952,6 +1000,18 @@ export class SettingsMenu extends Panel {
         }
         if (this.touchBtn) {
             drawButton(ctx,this.touchBtn,t('settings.touch'),v,(bt-0.15)/0.3,inRect(this.touchBtn,this.hx??-1,this.hy??-1),16);
+        }
+        if (this.lvBtn) {
+            const lb=this.lvBtn;
+            const label=this.lvDone>0?t('settings.resetDone'):t(['settings.resetLevel','settings.resetConfirm','settings.resetAgain'][this.lvStage]);
+            const p=this.lvPulse||0;
+            const shake=this.lvStage===2?Math.sin(time.real*30)*1.5:0;
+            ctx.save();
+            ctx.translate(lb.x+lb.w/2+shake,lb.y+lb.h/2);
+            ctx.scale(1-Math.sin(p*Math.PI)*0.08,1-Math.sin(p*Math.PI)*0.08);
+            ctx.translate(-(lb.x+lb.w/2),-(lb.y+lb.h/2));
+            drawButton(ctx,lb,label,v,(bt-0.25)/0.3,this.lvStage>0||inRect(lb,this.hx??-1,this.hy??-1),this.lvStage>0?14:16,true);
+            ctx.restore();
         }
         ctx.restore();
         if (this.info&&this.t>0.35&&!this.keysOpen) {

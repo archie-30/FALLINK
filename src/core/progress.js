@@ -38,6 +38,12 @@ export function loadProgress() {
     }
 }
 
+export function resetLevel() {
+    progress.level=1;
+    progress.xp=0;
+    saveProgress();
+}
+
 export function saveProgress() {
     try {
         localStorage.setItem(KEY,JSON.stringify(progress));

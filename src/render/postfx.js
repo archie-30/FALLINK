@@ -44,6 +44,7 @@ export class PostFX {
             uLine:{value:new THREE.Vector3(O.nearWidth,O.farWidth,O.farAlpha)},
             uLineFade:{value:new THREE.Vector2(O.fadeNear,O.fadeFar)},
             uEdge:{value:new THREE.Vector4(O.depthLo,O.depthHi,O.normalLo,O.normalHi)},
+            uLineScale:{value:1},
             uInk:{value:pal('ink').clone()},
             uPaperOff:{value:new THREE.Vector2(0,0)},
             uGrain:{value:new THREE.Vector2(P.grain,1)},
@@ -122,6 +123,10 @@ export class PostFX {
         this.uniforms.uRes.value.set(pw,ph);
         this.uniforms.uPx.value=pr;
         this.uniforms.uGrain.value.y=1;
+        const O=TUNING.outline;
+        const k=Math.max(1,Math.min(O.smallMaxBoost,O.refHeight/Math.max(1,h)));
+        this.uniforms.uEdge.value.set(O.depthLo*(1+(k-1)*O.depthBoost),O.depthHi*(1+(k-1)*O.depthBoost),O.normalLo*k,O.normalHi*k);
+        this.uniforms.uLineScale.value=Math.max(O.smallMinWidth,Math.min(1,h/O.refHeight));
     }
 
     drawIn(duration=1.2,delay=0) {

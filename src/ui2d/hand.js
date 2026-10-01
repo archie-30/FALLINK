@@ -133,7 +133,7 @@ export class Hand {
     resize(w,h) {
         this.width=w;
         this.height=h;
-        this.s=Math.max(0.8,Math.min(1.2,h/900));
+        this.s=Math.max(TUNING.cards.minScale,Math.min(1.2,h/900));
         const W=CARD_W*this.s;
         const H=CARD_H*this.s;
         const py=h-H*0.5-18;

@@ -24,13 +24,19 @@ export class Overlay {
         this.hud=new Hud();
     }
 
-    resize(w,h) {
-        this.width=w;
-        this.height=h;
+    resize(w,h,us=1) {
+        this.us=us;
+        this.width=w/us;
+        this.height=h/us;
         const cap=device.mobile?(settings.quality==='high'?2:(settings.quality==='mid'?1.25:1)):2;
         this.dpr=Math.min(window.devicePixelRatio||1,cap);
         this.canvas.width=Math.floor(w*this.dpr);
         this.canvas.height=Math.floor(h*this.dpr);
+    }
+
+    screenSpace(on) {
+        const d=this.dpr*(on?1:this.us);
+        this.ctx.setTransform(d,0,0,d,0,0);
     }
 
     wobble(i,amp) {
@@ -48,7 +54,8 @@ export class Overlay {
     draw(input,player,debug,game) {
         const ctx=this.ctx;
         ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
-        ctx.clearRect(0,0,this.width,this.height);
+        ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+        ctx.setTransform(this.dpr*this.us,0,0,this.dpr*this.us,0,0);
         ctx.lineCap='round';
         ctx.lineJoin='round';
         game.transition.draw(ctx,this.width,this.height);
@@ -74,13 +81,17 @@ export class Overlay {
             this.hud.drawBuffs(ctx,player,training?TUNING.hud.trainBuffY*(this.height<600?0.74:1):null);
             game.hand.draw(ctx,game.art);
             if (input.lastDevice==='touch') {
+                this.screenSpace(true);
                 this.drawSticks(input,!!game.hand.targetView);
+                this.screenSpace(false);
                 const ta=game.hand.tooltipAnchor();
                 if (ta) {
                     drawCardTooltip(ctx,ta.card,ta.x,ta.y);
                 }
+                this.screenSpace(true);
                 this.drawDash(input,player);
                 this.drawSkills(input,game.hand,game.ink,game.art);
+                this.screenSpace(false);
             }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
@@ -105,7 +116,7 @@ export class Overlay {
                     ctx.fillStyle=PALETTE.nearGray;
                     ctx.textAlign='center';
                     ctx.textBaseline='middle';
-                    ctx.fillText(t('pause.hint'),this.width/2,this.height-game.hand.s*164*0.8-100*game.hand.s);
+                    ctx.fillText(t(input.lastDevice==='touch'?'pause.hintTouch':'pause.hint'),this.width/2,game.pause.compact()?game.pause.hintY():this.height-game.hand.s*164*0.8-100*game.hand.s);
                 }
             }
         }
@@ -121,9 +132,11 @@ export class Overlay {
         game.skinEditor.draw(ctx);
         game.settingsMenu.draw(ctx);
         if (game.settingsMenu.open&&game.settingsMenu.page==='touch') {
+            this.screenSpace(true);
             this.drawSticks(input,false);
             this.drawDash(input,player);
             this.drawSkills(input,null,null,game.art);
+            this.screenSpace(false);
         }
         game.codex.draw(ctx,game.art);
         game.notice.draw(ctx);
@@ -131,7 +144,7 @@ export class Overlay {
             const play=game.mode==='play'&&game.run.state!=='dead';
             const lock=play&&!game.frozen&&!!game.aimTarget&&game.aimTarget.alive;
             const reload=play&&!game.frozen&&player.reloadT>0?1-player.reloadT/player.W.reloadTime:0;
-            this.drawCrosshair(input.mouse.x,input.mouse.y,input.mouse.down,lock,reload);
+            this.drawCrosshair(input.mouse.x/this.us,input.mouse.y/this.us,input.mouse.down,lock,reload);
         }
         if (this.showDebug&&debug) {
             this.drawDebug(debug);
