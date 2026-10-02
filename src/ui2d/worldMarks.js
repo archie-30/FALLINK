@@ -35,18 +35,28 @@ export class WorldMarks {
         return !!r&&x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h;
     }
 
-    drawPrompt(ctx,p,label,v,seed) {
+    drawPrompt(ctx,p,label,v,seed,sub=null) {
         const W=TUNING.worldMarks;
         ctx.font='bold 15px '+FONT;
-        const bw=ctx.measureText(label).width+30;
-        const bh=W.promptH;
+        let bw=ctx.measureText(label).width+30;
+        if (sub) {
+            ctx.font='13px '+FONT;
+            bw=Math.max(bw,Math.min(W.subMaxW,ctx.measureText(sub).width+30));
+        }
+        const bh=W.promptH+(sub?W.subH:0);
         const x=p.x-bw/2;
         const y=p.y-bh+Math.sin(time.real*W.bobRate)*W.bob;
         ctx.fillStyle=rgba('paper',0.96);
         ctx.fillRect(x,y,bw,bh);
         drawShape(ctx,sketchRect(x,y,bw,bh,{width:2,seed}),PALETTE.ink,v);
         ctx.fillStyle=PALETTE.ink;
-        ctx.fillText(label,p.x,y+bh/2+1);
+        ctx.font='bold 15px '+FONT;
+        ctx.fillText(label,p.x,y+W.promptH/2+1);
+        if (sub) {
+            ctx.font='13px '+FONT;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.fillText(sub,p.x,y+W.promptH+W.subH/2-4,bw-20);
+        }
         this.prompt={x:x-W.touchPad,y:y-W.touchPad,w:bw+W.touchPad*2,h:bh+W.touchPad*2};
     }
 
@@ -98,11 +108,19 @@ export class WorldMarks {
         if (doors.focus>=0&&game.run.canExit()) {
             const d=doors.list[doors.focus];
             game.project(d.x,D.height+W.enterLift,d.z-d.t-D.alcove*0.5,p);
-            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t('door.enter',{name:exitLabel(d.exit)}),v,2340);
+            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t('door.enter',{name:exitLabel(d.exit)}),v,2340,t('intro.'+(d.exit.kind==='node'?d.exit.node:d.exit.kind)));
         }
         const npcs=game.npcs;
         for (let i=0;i<npcs.list.length;i++) {
             const n=npcs.list[i];
+            if (n.lit>0) {
+                game.project(n.x,n.h+W.npcLift,n.z,p);
+                ctx.globalAlpha=Math.min(1,n.lit*2);
+                ctx.fillStyle=PALETTE.ink;
+                ctx.font='bold 30px '+FONT;
+                ctx.fillText('♪',p.x,p.y-W.bangH-(1-n.lit)*20);
+                ctx.globalAlpha=1;
+            }
             if (n.used||!game.run.canInteract(i)) {
                 continue;
             }
@@ -110,7 +128,7 @@ export class WorldMarks {
             if (npcs.focus===i&&doors.focus<0) {
                 this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t('npc.'+n.model),v,2320+i);
             }
-            else {
+            else if (n.model!=='bell') {
                 const y=p.y-W.bangH+Math.abs(Math.sin(time.real*W.bobRate*0.8+i))*-W.bob*2;
                 ctx.fillStyle=PALETTE.red;
                 ctx.font='bold 26px '+FONT;
