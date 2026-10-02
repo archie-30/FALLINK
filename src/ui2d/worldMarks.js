@@ -63,12 +63,12 @@ export class WorldMarks {
         for (const d of doors.list) {
             game.project(d.x,W.doorLift,d.z+W.doorIn,p);
             const open=d.open>0.5;
-            const off=p.y<W.edgeTop;
-            if (off&&!open) {
+            if (!open) {
                 continue;
             }
+            const off=p.y<W.edgeTop;
             p.y=Math.max(W.edgeTop,Math.min(h-W.edgeBottom,p.y));
-            const bob=open?Math.sin(time.real*W.bobRate+d.index)*W.bob:0;
+            const bob=Math.sin(time.real*W.bobRate+d.index)*W.bob;
             const red=d.exit.kind==='boss'||d.exit.node==='elite'||d.exit.kind==='finish';
             const label=exitLabel(d.exit);
             ctx.font='bold 15px '+FONT;
@@ -77,10 +77,9 @@ export class WorldMarks {
             const bh=W.iconR*2+10;
             const x=p.x-bw/2;
             const y=p.y-bh/2+bob;
-            ctx.globalAlpha=open?1:W.closedAlpha;
-            ctx.fillStyle=open?rgba('paper',0.95):rgba('paper',0.8);
+            ctx.fillStyle=rgba('paper',0.95);
             ctx.fillRect(x,y,bw,bh);
-            drawShape(ctx,sketchRect(x,y,bw,bh,{width:open?2.2:1.4,seed:2300+d.index}),red?PALETTE.red:PALETTE.ink,v);
+            drawShape(ctx,sketchRect(x,y,bw,bh,{width:2.2,seed:2300+d.index}),red?PALETTE.red:PALETTE.ink,v);
             drawChoiceIcon(ctx,exitIcon(d.exit),x+W.iconR+6,y+bh/2,W.iconR,v,red);
             ctx.fillStyle=red?PALETTE.red:PALETTE.ink;
             ctx.textAlign='left';

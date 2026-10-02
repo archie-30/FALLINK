@@ -107,6 +107,7 @@ export class Overlay {
             game.reward.draw(ctx,game.art);
             game.choice.draw(ctx);
             game.deckPick.draw(ctx,game.art);
+            game.report.draw(ctx,game.art);
             game.upgradeView.draw(ctx,game.art);
             game.summary.draw(ctx);
             game.pause.draw(ctx);

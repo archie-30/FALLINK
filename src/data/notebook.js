@@ -12,7 +12,7 @@ export const NOTEBOOK={
     doorsMax:3,
     threeChance:0.6,
     minDeck:5,
-    restHeal:4,
+    rest:{lowHp:4,low:2,min:1,max:2},
     eliteScore:500,
     eliteRareChance:0.5,
     overtimeStart:15,
@@ -22,9 +22,10 @@ export const NOTEBOOK={
         {id:'nocard'}
     ],
     challengeScore:800,
-    shop:{buy:600,upgrade:700,remove:500},
-    supply:[['heal',2],['ink',3],['score',300]],
+    shop:{buy:600,upgrade:700,patch:400,patchHeal:2},
+    supply:[['heal',1],['ink',3],['score',300]],
     chests:['rare','supply','mimic'],
+    badNotes:['note.hurt','note.removed','note.scoreLoss','note.downgraded','note.eliteNext','gacha.broken','chest.mimic','challenge.failed'],
     events:[
         {
             id:'spill',
@@ -39,7 +40,7 @@ export const NOTEBOOK={
             id:'eraser',
             model:'eraser',
             options:[
-                {id:'let',effects:[['remove'],['hurt',1]]},
+                {id:'let',effects:[['removeRandom'],['upgradeRandom',2]]},
                 {id:'fight',effects:[['ambush',false],['reward','rare']]},
                 {id:'leave',effects:[]}
             ]
@@ -58,15 +59,15 @@ export const NOTEBOOK={
             model:'notebook',
             options:[
                 {id:'copy',effects:[['card','common'],['score',-300]]},
-                {id:'return',effects:[['heal',2]]}
+                {id:'return',effects:[['heal',1]]}
             ]
         },
         {
             id:'gacha',
             model:'gacha',
             options:[
-                {id:'hp',effects:[['hurt',2],['chance',0.5,[['card','rare']],[['card','common']]]]},
-                {id:'score',effects:[['score',-600],['chance',0.5,[['upgradeRandom',2]],[['ink',3]]]]},
+                {id:'hp',effects:[['hurt',2],['roll',[[0.35,'gacha.rare',[['card','rare']]],[0.45,'gacha.common',[['card','common']]],[0.2,'gacha.broken',[['removeRandom']]]]]]},
+                {id:'score',effects:[['score',-600],['roll',[[0.4,'gacha.shine',[['upgradeRandom',2]]],[0.45,'gacha.ink',[['ink',3]]],[0.15,'gacha.broken',[['removeRandom']]]]]]},
                 {id:'leave',effects:[]}
             ]
         },
@@ -83,7 +84,7 @@ export const NOTEBOOK={
             id:'coffee',
             model:'mug',
             options:[
-                {id:'drink',effects:[['heal',4],['downgrade']]},
+                {id:'drink',effects:[['heal',2],['downgrade']]},
                 {id:'leave',effects:[]}
             ]
         },
