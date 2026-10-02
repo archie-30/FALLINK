@@ -4363,7 +4363,6 @@ export class Tutorial extends Panel {
 
     drawPage(ctx,i,x,y,w,h,art,v,small) {
         const page=TUTORIAL[i];
-        const touch=device.mobile;
         const iw=w*0.5;
         const ih=Math.min(h-20,iw*9/16);
         this.drawIllus(ctx,page,x,y+(h-ih)/2,iw,ih,art,v);
@@ -4380,7 +4379,7 @@ export class Tutorial extends Panel {
         ctx.font='bold '+(small?20:26)+'px '+FONT;
         ctx.fillText(t('tut.'+page.key+'.title'),tx,ty);
         ty+=small?32:44;
-        const body=t((touch&&hasTouchText(page.key)?'tut.'+page.key+'.touch':'tut.'+page.key+'.body'));
+        const body=t('tut.'+page.key+'.body');
         ctx.font=(small?'13px ':'15px ')+FONT;
         const lh=small?19:24;
         for (const para of body.split('|')) {
@@ -4471,10 +4470,6 @@ export class Tutorial extends Panel {
     }
 }
 
-function hasTouchText(key) {
-    return key==='move'||key==='dash'||key==='cards'||key==='ult';
-}
-
 function drawWeaponIcon(ctx,id,x,y,s,v,locked) {
     ctx.save();
     ctx.translate(x,y);
@@ -4528,6 +4523,27 @@ function drawWeaponIcon(ctx,id,x,y,s,v,locked) {
         shape([[16,24],[22,24],[19,32]],ink);
     }
     ctx.restore();
+}
+
+function weaponValue(def,key) {
+    if (key==='dmg') {
+        if (def.tiers) {
+            return t('weapon.val.dmgRange',{a:def.damage,b:Math.max(...def.tiers.map(q=>q[1]))});
+        }
+        return (def.pellets||1)>1?t('weapon.val.dmgN',{d:def.damage,n:def.pellets}):String(def.damage);
+    }
+    if (key==='rate') {
+        return def.cooldown?t('weapon.val.cd',{s:def.cooldown}):t('weapon.val.rate',{n:(1/def.fireInterval*(def.burst||1)).toFixed(1)});
+    }
+    if (key==='range') {
+        if (def.beam) {
+            return t('weapon.val.range',{n:def.beam.range});
+        }
+        const fx=TUNING.weaponFx[def.sys]||{};
+        const r=fx.drag?def.bulletSpeed/fx.drag*(1-Math.exp(-fx.drag*def.bulletLife)):def.bulletSpeed*def.bulletLife;
+        return t('weapon.val.range',{n:r.toFixed(1)});
+    }
+    return def.cooldown?t('weapon.val.none'):t('weapon.val.mag',{n:def.magazine,s:def.reloadTime});
 }
 
 export class WeaponView extends Panel {
@@ -4768,8 +4784,11 @@ export class WeaponView extends Panel {
             ctx.textAlign='left';
             ctx.textBaseline='middle';
             ctx.fillText(t('weapon.stat.'+key),bx,byy+8);
-            const lx=bx+46;
-            const lw=bw-52;
+            ctx.font=(small?'11px ':'12px ')+FONT;
+            ctx.fillStyle=PALETTE.nearGray;
+            fitText(ctx,weaponValue(def,key),bx+34,byy+8,TUNING.weaponUi.valueW-6,small?11:12,'');
+            const lx=bx+34+TUNING.weaponUi.valueW;
+            const lw=bw-40-TUNING.weaponUi.valueW;
             for (let s=0;s<5;s++) {
                 const f=Math.max(0,Math.min(1,(this.bars[key]||0)-s));
                 const sx=lx+s*(lw/5);
@@ -4779,12 +4798,6 @@ export class WeaponView extends Panel {
                 ctx.fillRect(sx,byy+2,(lw/5-4)*f,12);
             }
         }
-        y+=small?52:66;
-        ctx.fillStyle=PALETTE.midGray;
-        ctx.font='12px '+FONT;
-        ctx.textAlign='left';
-        ctx.textBaseline='top';
-        ctx.fillText(def.cooldown?t('weapon.numbersCd',{dmg:def.damage,cd:def.cooldown}):t('weapon.numbers',{dmg:def.damage,n:def.pellets||1,rate:(1/def.fireInterval*(def.burst||1)).toFixed(1),mag:def.magazine,reload:def.reloadTime}),dx,y);
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?15:17);
         const eq=settings.weapon===this.sel;
         const label=locked?t('codex.locked',{level:def.unlock}):(eq?t('weapon.equipped'):t('weapon.equip'));
@@ -5094,8 +5107,8 @@ export class ChoicePanel extends Panel {
         const pw=Math.min(C.maxW,w-32,fitW(h));
         const gap=C.gap;
         const cw=(pw-48-gap*(n-1))/n;
-        const ch=Math.min(C.cardH,h*0.42);
-        const ph=ch+C.head+40;
+        const ch=Math.min(C.cardH,h-C.head-60);
+        const ph=ch+C.head+30;
         const px=w/2-pw/2;
         const py=h/2-ph/2;
         this.P={x:px,y:py,w:pw,h:ph};
@@ -5148,25 +5161,72 @@ export class ChoicePanel extends Panel {
         const h=this.height;
         const a=EASE.easeOutBack(Math.min(1,this.t/0.35));
         ctx.save();
-        ctx.fillStyle=rgba('paper',Math.min(0.7,this.t*3));
+        ctx.fillStyle=rgba('ink',Math.min(0.25,this.t));
         ctx.fillRect(0,0,w,h);
         ctx.globalAlpha=Math.min(1,this.t*4);
         ctx.translate(w/2,h/2);
+        ctx.rotate(C.tilt);
         ctx.scale(0.9+0.1*a,0.9+0.1*a);
         ctx.translate(-w/2,-h/2);
         ctx.fillStyle=PALETTE.paper;
         ctx.fillRect(P.x,P.y,P.w,P.h);
-        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:2210}),PALETTE.ink,v);
+        ctx.strokeStyle=rgba('farGray',0.9);
+        ctx.lineWidth=1;
+        for (let y=P.y+C.rule;y<P.y+P.h-6;y+=C.rule) {
+            ctx.beginPath();
+            ctx.moveTo(P.x+4,y);
+            ctx.lineTo(P.x+P.w-4,y);
+            ctx.stroke();
+        }
+        ctx.strokeStyle=rgba('red',0.45);
+        ctx.lineWidth=1.5;
+        ctx.beginPath();
+        ctx.moveTo(P.x+C.margin,P.y+2);
+        ctx.lineTo(P.x+C.margin,P.y+P.h-2);
+        ctx.stroke();
+        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.4,seed:2210}),PALETTE.ink,v);
+        for (const [tx,rot] of [[P.x+P.w*0.18,-0.12],[P.x+P.w*0.82,0.1]]) {
+            ctx.save();
+            ctx.translate(tx,P.y);
+            ctx.rotate(rot);
+            ctx.fillStyle=rgba('farGray',0.85);
+            ctx.fillRect(-C.tapeW/2,-10,C.tapeW,20);
+            ctx.restore();
+        }
+        const kind=this.spec.kind==='event'?'event':this.spec.kind;
+        const ix=P.x+C.margin+C.iconR+14;
+        const iy=P.y+C.titleY;
+        drawChoiceIcon(ctx,CHOICE_ICONS[kind]||'event',ix,iy,C.iconR,v,false);
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold 26px '+FONT;
-        ctx.textAlign='center';
+        ctx.textAlign='left';
         ctx.textBaseline='middle';
-        ctx.fillText(this.title(),w/2,P.y+34);
-        ctx.font='14px '+FONT;
+        fitText(ctx,this.title(),ix+C.iconR+14,iy,P.w-(ix-P.x)-C.iconR-40,C.titleSize,'bold ');
+        ctx.font=C.bodySize+'px '+FONT;
+        const bx=P.x+C.margin+14;
+        const bw=P.w-C.margin-40;
+        const bl=wrapText(ctx,this.body(),bw-28).slice(0,C.bodyLines);
+        const by=iy+C.iconR+12;
+        const bh=bl.length*C.bodyLine+18;
+        ctx.fillStyle=rgba('paper',0.96);
+        ctx.fillRect(bx,by,bw,bh);
+        drawShape(ctx,sketchRect(bx,by,bw,bh,{width:1.6,seed:2215}),PALETTE.ink,v);
+        ctx.beginPath();
+        ctx.moveTo(ix-6,by+1);
+        ctx.lineTo(ix+2,by-12);
+        ctx.lineTo(ix+10,by+1);
+        ctx.closePath();
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fill();
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=1.6;
+        ctx.beginPath();
+        ctx.moveTo(ix-6,by);
+        ctx.lineTo(ix+2,by-12);
+        ctx.lineTo(ix+10,by);
+        ctx.stroke();
         ctx.fillStyle=PALETTE.nearGray;
-        const bl=wrapText(ctx,this.body(),P.w-60);
-        for (let i=0;i<bl.length&&i<2;i++) {
-            ctx.fillText(bl[i],w/2,P.y+64+i*19);
+        for (let i=0;i<bl.length;i++) {
+            ctx.fillText(bl[i],bx+14,by+9+C.bodyLine/2+i*C.bodyLine);
         }
         for (let i=0;i<this.cards.length;i++) {
             const o=this.spec.options[i];
@@ -5185,27 +5245,33 @@ export class ChoicePanel extends Panel {
             ctx.translate(r.x+r.w/2,r.y+r.h/2+(1-ap)*30-(hv?6:0));
             const s=ap*(sel?1+Math.sin(Math.min(1,this.pickT/C.pickTime)*Math.PI)*0.08:(hv?1.04:1));
             ctx.scale(s,s);
-            ctx.rotate(hv?-0.015:0);
+            ctx.rotate(hv?0:(i%2===0?-1:1)*C.cardTilt);
             ctx.translate(-r.w/2,-r.h/2);
-            ctx.fillStyle=sel?rgba('red',0.12):(hv?rgba('farGray',0.7):rgba('paper',0.95));
+            ctx.fillStyle=rgba('ink',0.12);
+            ctx.fillRect(4,5,r.w,r.h);
+            ctx.fillStyle=sel?rgba('red',0.12):(hv?PALETTE.farGray:PALETTE.paper);
             ctx.fillRect(0,0,r.w,r.h);
-            drawShape(ctx,sketchRect(0,0,r.w,r.h,{width:hv||sel?2.6:1.6,seed:2220+i}),red||sel?PALETTE.red:PALETTE.ink,v);
-            drawChoiceIcon(ctx,CHOICE_ICONS[o.id]||'event',r.w/2,C.iconY,C.iconR,v,red);
+            drawShape(ctx,sketchRect(0,0,r.w,r.h,{width:hv||sel?2.6:1.8,seed:2220+i}),red||sel?PALETTE.red:PALETTE.ink,v);
+            ctx.fillStyle=PALETTE.red;
+            ctx.beginPath();
+            ctx.arc(r.w/2,8,6,0,Math.PI*2);
+            ctx.fill();
+            drawChoiceIcon(ctx,CHOICE_ICONS[o.id]||'event',r.w/2,C.iconY,C.cardIconR,v,red);
             ctx.fillStyle=red?PALETTE.red:PALETTE.ink;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            fitText(ctx,t(lk,o),r.w/2,C.iconY+C.iconR+22,r.w-16,18,'bold ');
-            ctx.font='13px '+FONT;
+            fitText(ctx,t(lk,o),r.w/2,C.iconY+C.cardIconR+24,r.w-16,C.labelSize,'bold ');
+            ctx.font=C.descSize+'px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
             ctx.textBaseline='top';
             const dl=wrapText(ctx,t(dk,o),r.w-20);
             for (let k=0;k<dl.length&&k<4;k++) {
-                ctx.fillText(dl[k],r.w/2,C.iconY+C.iconR+40+k*18);
+                ctx.fillText(dl[k],r.w/2,C.iconY+C.cardIconR+44+k*C.descLine);
             }
             if (o.disabled) {
                 ctx.fillStyle=PALETTE.red;
-                ctx.font='bold 12px '+FONT;
-                ctx.fillText(t(o.reason?'choice.'+o.reason:'choice.disabled'),r.w/2,r.h-22);
+                ctx.font='bold 14px '+FONT;
+                ctx.fillText(t(o.reason?'choice.'+o.reason:'choice.disabled'),r.w/2,r.h-24);
             }
             ctx.restore();
         }

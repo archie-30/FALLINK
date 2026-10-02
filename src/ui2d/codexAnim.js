@@ -1926,7 +1926,7 @@ export const WEAPON_ANIMS={
             const f=seg(k,0.1,0.8);
             const out=f<0.5?f*2:2-f*2;
             const x=PX+0.9+out*9;
-            const y=PY-Math.sin(f*Math.PI*2)*1.4;
+            const y=PY;
             if (f>0&&f<1) {
                 const a=k*40;
                 for (const sp of [-0.32,0.32]) {
@@ -1936,9 +1936,12 @@ export const WEAPON_ANIMS={
                 S.line(x+Math.cos(a+0.32)*0.75,y+Math.sin(a+0.32)*0.75,x+Math.cos(a+0.32)*0.9,y+Math.sin(a+0.32)*0.9,PALETTE.ink,0.06,1);
                 S.circle(x,y,0.14,PALETTE.ink,1);
             }
+            const cd=seg(k,0.1,0.1+1.8/2.8);
+            S.rect(PX-0.8,PY+1.1,1.6,0.25,PALETTE.farGray,1);
+            S.rect(PX-0.8,PY+1.1,1.6*(k<0.1?1:cd),0.25,cd>=1||k<0.1?PALETTE.ink:PALETTE.nearGray,1);
             S.player(PX,PY,0,{kick:seg(k,0.1,0.13)*(1-seg(k,0.13,0.2))});
-            S.target('doodle',PX+5.5,PY-1.2,k,0.28);
-            S.target('blob',PX+8.5,PY-0.6,k,0.38);
+            S.target('doodle',PX+5.5,PY,k,0.28);
+            S.target('blob',PX+8.5,PY,k,0.39);
         }
     }
 };

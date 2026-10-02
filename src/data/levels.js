@@ -101,9 +101,24 @@ function peace(props,npcs) {
         wallThickness:0.6,
         spawnPoints:PEACE_SPAWNS,
         props:props.concat(DECOR),
+        base:props,
+        decor:DECOR,
         npcs
     };
 }
+
+export const PEACE_VARY={
+    spots:[[0,-1],[0,-3],[-5,-2.5],[5,-2.5],[-6.5,0.5],[6.5,0.5],[-3,-0.5],[3,-0.5]],
+    trios:[[[-5,-2],[0,-3],[5,-2]],[[-6,-3],[0,-1.5],[6,-3]],[[-7,0],[0,-3],[7,0]],[[-6,-3.5],[-1,-1.5],[4.5,0.5]],[[-4.5,-3.5],[0,-3.5],[4.5,-3.5]],[[-7,-2],[-2,0.5],[3,-3]]],
+    slots:[[-9.5,-5],[9.5,-5],[-9.5,-0.5],[9.5,-0.5],[-9,4.5],[9,4.5],[-5,5],[5,5],[-6,1.5],[6,1.5],[-3,-3.8],[3,-3.8],[-2,1.5],[2.5,1]],
+    jitter:0.7,
+    spin:0.5,
+    npcJitter:0.6,
+    npcClear:3.4,
+    spawnClear:3,
+    bellClear:2.2,
+    mirror:0.5
+};
 
 export const PEACE_LAYOUTS={
     shop:[
