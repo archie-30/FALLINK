@@ -190,7 +190,7 @@ export const TUNING={
     input:{
         deadZone:0.14,
         fireRingRange:[0.55,0.9],
-        skill:{scale:0.46,sizeRange:[0.75,1.3],gap:14,angles:[2.9,3.55,4.2,4.88],ultMul:1.15,dashMul:0.92,grab:1.15,dragRadius:1.3,moveSlop:12},
+        skill:{scale:0.46,sizeRange:[0.75,1.3],gap:14,angles:[2.9,3.55,4.2,4.88],ultMul:1.15,dashMul:0.92,grab:1.15,dragRadius:1.3,moveSlop:12,cancelReach:1.15},
         stickMin:50,
         stickMax:76,
         stickScale:0.1,
@@ -509,6 +509,7 @@ export const TUNING={
     hud:{
         toastTime:3,
         toastMax:4,
+        facing:{dist:0.75,len:0.32,half:0.2,alpha:0.85,guideFrom:1.1,guideLen:4.5,guideAlpha:0.28,dash:7,gap:7},
         toastY:72,
         toastBannerY:196,
         result:{y:0.3,time:4.2,perLine:0.5,lineH:24,maxW:460,fade:0.35},

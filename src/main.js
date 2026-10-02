@@ -1602,6 +1602,12 @@ function boot() {
     let skillToggle=false;
     let skillQuick=false;
     input.onSkill=(type,slot,vx,vy,mag,moved)=>{
+        if (type==='cancel') {
+            skillQuick=false;
+            hand.cancelTargeting();
+            audio.play('ui',0.7);
+            return;
+        }
         if (run.state!=='combat'||!input.canStick()) {
             return;
         }
@@ -1865,6 +1871,7 @@ function boot() {
             run.update(dt,player);
             npcs.update(dt,player,i=>run.canInteract(i));
             doors.update(dt,player);
+            input.interactReady=!fx.paused&&!transition.active&&((doors.focus>=0&&run.canExit())||(npcs.focus>=0&&run.canInteract(npcs.focus)));
         }
     }
     function updateDamageFx(dt) {

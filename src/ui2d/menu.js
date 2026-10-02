@@ -598,7 +598,7 @@ export class PauseMenu extends Panel {
     }
 }
 
-const SETTING_KEYS=['volume','quality','assist','reduced','full','fps','god'];
+const SETTING_KEYS=['volume','quality','assist','guide','reduced','full','fps','god'];
 
 const TOUCH_SETTING_KEYS=['stickSize','stickX','stickY','aimRing','skillSize'];
 
@@ -646,6 +646,9 @@ export class SettingsMenu extends Panel {
         }
         if (key==='assist') {
             return settings.aimAssist?1:0;
+        }
+        if (key==='guide') {
+            return settings.aimGuide?1:0;
         }
         if (key==='god') {
             return settings.godMode?1:0;
@@ -864,6 +867,9 @@ export class SettingsMenu extends Panel {
                 }
                 else if (r.key==='assist') {
                     settings.aimAssist=!settings.aimAssist;
+                }
+                else if (r.key==='guide') {
+                    settings.aimGuide=!settings.aimGuide;
                 }
                 else if (r.key==='god') {
                     settings.godMode=!settings.godMode;

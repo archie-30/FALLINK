@@ -288,6 +288,46 @@ export class Hud {
         this.toasts=this.toasts.filter(q=>q.t>0);
     }
 
+    drawFacing(ctx,player,project,guide) {
+        const F=TUNING.hud.facing;
+        const px=player.renderPos.x;
+        const pz=player.renderPos.z;
+        const dx=Math.sin(player.aimYaw);
+        const dz=Math.cos(player.aimYaw);
+        const p=this.fp||(this.fp=[{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0}]);
+        if (guide) {
+            project(px+dx*F.guideFrom,0.05,pz+dz*F.guideFrom,p[3]);
+            project(px+dx*(F.guideFrom+F.guideLen),0.05,pz+dz*(F.guideFrom+F.guideLen),p[4]);
+            ctx.save();
+            const g=ctx.createLinearGradient(p[3].x,p[3].y,p[4].x,p[4].y);
+            g.addColorStop(0,rgba('ink',F.guideAlpha));
+            g.addColorStop(1,rgba('ink',0));
+            ctx.strokeStyle=g;
+            ctx.lineWidth=2;
+            ctx.setLineDash([F.dash,F.gap]);
+            ctx.beginPath();
+            ctx.moveTo(p[3].x,p[3].y);
+            ctx.lineTo(p[4].x,p[4].y);
+            ctx.stroke();
+            ctx.restore();
+        }
+        const bx=px+dx*F.dist;
+        const bz=pz+dz*F.dist;
+        project(bx+dx*F.len,0.05,bz+dz*F.len,p[0]);
+        project(bx-dz*F.half,0.05,bz+dx*F.half,p[1]);
+        project(bx+dz*F.half,0.05,bz-dx*F.half,p[2]);
+        ctx.save();
+        ctx.globalAlpha=F.alpha;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.beginPath();
+        ctx.moveTo(p[0].x,p[0].y);
+        ctx.lineTo(p[1].x,p[1].y);
+        ctx.lineTo(p[2].x,p[2].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
     showResult(title,lines) {
         const R=TUNING.hud.result;
         this.result={title,lines,t:0,life:R.time+lines.length*R.perLine};

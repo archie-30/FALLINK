@@ -13,6 +13,7 @@ export const settings={
     reducedMotion:false,
     showFps:false,
     aimAssist:true,
+    aimGuide:true,
     volume:0.8,
     stickSize:0.45,
     stickX:0.45,
