@@ -605,9 +605,6 @@ function boot() {
         return e;
     };
     weaponSys.compass.onReturn=(x,z,caught)=>{
-        if (player.W.returns) {
-            player.ammo=Math.min(player.W.magazine,player.ammo+1);
-        }
         if (caught) {
             particles.burst(x,H,z,4,{color:'nearGray',speed:[1,3],up:[1,3],size:[0.06,0.12]});
             audio.play('draw',1.7);

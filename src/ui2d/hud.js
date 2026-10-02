@@ -139,6 +139,24 @@ export class Hud {
             ctx.fillText(t(W.heat?'hud.cool':'hud.reload'),cx,cy+6);
             return;
         }
+        if (W.cooldown) {
+            const k=1-Math.min(1,(player.cdT||0)/W.cooldown);
+            const a0=Math.PI/2+span/2;
+            ctx.lineCap='round';
+            ctx.lineWidth=5;
+            ctx.strokeStyle=rgba('midGray',0.5);
+            ctx.beginPath();
+            ctx.arc(cx,cy-r,r,a0,a0-span,true);
+            ctx.stroke();
+            ctx.strokeStyle=k>=1?PALETTE.ink:PALETTE.nearGray;
+            ctx.lineWidth=k>=1?5:4;
+            if (k>0) {
+                ctx.beginPath();
+                ctx.arc(cx,cy-r,r,a0,a0-span*k,true);
+                ctx.stroke();
+            }
+            return;
+        }
         if (player.rapidT>0) {
             return;
         }
@@ -154,7 +172,7 @@ export class Hud {
             ctx.fillRect(-1.5,-4,3,8);
             ctx.restore();
         }
-        if (player.ammo<=Math.max(3,W.magazine*0.2)&&!W.heat&&!W.returns) {
+        if (player.ammo<=Math.max(3,W.magazine*0.2)&&!W.heat) {
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='11px '+FONT;
             ctx.textAlign='center';

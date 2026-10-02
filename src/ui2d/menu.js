@@ -4778,7 +4778,7 @@ export class WeaponView extends Panel {
         ctx.font='12px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='top';
-        ctx.fillText(t('weapon.numbers',{dmg:def.damage,n:def.pellets||1,rate:(1/def.fireInterval*(def.burst||1)).toFixed(1),mag:def.magazine,reload:def.reloadTime}),dx,y);
+        ctx.fillText(def.cooldown?t('weapon.numbersCd',{dmg:def.damage,cd:def.cooldown}):t('weapon.numbers',{dmg:def.damage,n:def.pellets||1,rate:(1/def.fireInterval*(def.burst||1)).toFixed(1),mag:def.magazine,reload:def.reloadTime}),dx,y);
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?15:17);
         const eq=settings.weapon===this.sel;
         const label=locked?t('codex.locked',{level:def.unlock}):(eq?t('weapon.equipped'):t('weapon.equip'));
