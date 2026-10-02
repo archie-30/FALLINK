@@ -741,7 +741,7 @@ export class Player {
         this.pos.x+=this.vel.x*dt;
         this.pos.z+=this.vel.z*dt;
         resolveCircle(this.pos,P.radius,room.colliders,3);
-        clampToBounds(this.pos,P.radius,room.bounds);
+        clampToBounds(this.pos,P.radius,room.walkBounds||room.bounds);
         const sp=Math.hypot(this.pos.x-this.prev.x,this.pos.z-this.prev.z)/dt;
         this.speedFrac=Math.min(1,sp/P.speed);
         const nowMoving=moveLen>0.05&&this.speedFrac>0.05;

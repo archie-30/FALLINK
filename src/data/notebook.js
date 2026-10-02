@@ -8,11 +8,13 @@ export const NOTEBOOK={
         event:{weight:2.0,minAct:0},
         rest:{weight:1.1,minAct:0}
     },
-    doors:3,
+    doorsMin:2,
+    doorsMax:3,
+    threeChance:0.6,
     minDeck:5,
     restHeal:4,
     eliteScore:500,
-    eliteUpChance:0.6,
+    eliteRareChance:0.5,
     overtimeStart:15,
     challenges:[
         {id:'nohit'},
@@ -20,7 +22,7 @@ export const NOTEBOOK={
         {id:'nocard'}
     ],
     challengeScore:800,
-    shop:{buy:600,upgrade:700,remove:500,upChance:0.3},
+    shop:{buy:600,upgrade:700,remove:500},
     supply:[['heal',2],['ink',3],['score',300]],
     chests:['rare','supply','mimic'],
     events:[
@@ -55,7 +57,7 @@ export const NOTEBOOK={
             id:'notes',
             model:'notebook',
             options:[
-                {id:'copy',effects:[['cardUp','common'],['score',-400]]},
+                {id:'copy',effects:[['card','common'],['score',-300]]},
                 {id:'return',effects:[['heal',2]]}
             ]
         },

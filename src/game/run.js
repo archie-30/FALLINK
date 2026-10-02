@@ -203,7 +203,8 @@ export class Run {
         const pool=keys.filter(k=>N[k].minAct<=this.act&&(N[k].combat||k!==this.node));
         const out=[];
         let guard=0;
-        while (out.length<NOTEBOOK.doors&&guard<50) {
+        const want=this.rng.next()<NOTEBOOK.threeChance?NOTEBOOK.doorsMax:NOTEBOOK.doorsMin;
+        while (out.length<want&&guard<50) {
             guard++;
             const left=pool.filter(k=>!out.includes(k));
             if (left.length===0) {
@@ -255,25 +256,25 @@ export class Run {
             this.overtime=true;
             this.otPage=0;
             this.node='battle';
-            this.go();
+            this.go(i);
             return true;
         }
         this.node=ex.kind==='node'?ex.node:'battle';
-        this.advance();
+        this.advance(i);
         return true;
     }
 
-    advance() {
+    advance(via) {
         if (this.overtime) {
             this.otPage++;
-            this.go();
+            this.go(via);
             return;
         }
         this.index++;
         if (this.mode==='endless') {
             this.act=this.plan.act;
             this.stats.act=this.act;
-            this.go();
+            this.go(via);
             return;
         }
         if (this.index>ACTS[this.act].rooms) {
@@ -282,11 +283,15 @@ export class Run {
             this.stats.act=this.act;
             this.stats.xp+=TUNING.levels.xpAct;
         }
-        this.go();
+        this.go(via);
     }
 
-    go() {
+    go(via=-1) {
         this.state='transition';
+        if (via>=0) {
+            this.hooks.doorTransition(()=>this.enter(),via);
+            return;
+        }
         this.hooks.transition(()=>this.enter());
     }
 
@@ -312,11 +317,10 @@ export class Run {
         return true;
     }
 
-    rewardChoices(kind='mixed',up=null) {
+    rewardChoices(kind='mixed',rareBoost=null) {
         const R=TUNING.reward;
-        const boss=this.plan.boss;
-        const rareChance=kind==='rare'?1:(kind==='normal'?0:R.rareChance);
-        const upChance=up??Math.min(0.6,this.act*0.2+(boss?0.3:0));
+        const rareChance=kind==='rare'?1:(kind==='normal'?0:(rareBoost??R.rareChance));
+        const upChance=this.plan.boss?R.bossUpChance:0;
         const lv=effectiveLevel();
         const pool=unlockedCards(lv);
         const fresh=(UNLOCKS[lv]||[]).concat(UNLOCKS[lv-1]||[]).filter(id=>pool.includes(id));
@@ -335,7 +339,7 @@ export class Run {
                 continue;
             }
             const id=list[Math.floor(this.rng.next()*list.length)];
-            out.push(createCard(id,this.rng.next()<upChance));
+            out.push(createCard(id,!rare&&this.rng.next()<upChance));
         }
         return out;
     }
@@ -470,7 +474,7 @@ export class Run {
             const back=()=>this.backToPeace();
             if (id==='buy') {
                 this.state='reward';
-                this.hooks.openReward([{kind:'mixed',cards:this.rewardChoices('mixed',S.upChance)}],this.deckCounts(),cards=>this.takeCards(cards,back));
+                this.hooks.openReward([{kind:'mixed',cards:this.rewardChoices('mixed')}],this.deckCounts(),cards=>this.takeCards(cards,back));
             }
             else if (id==='upgrade') {
                 this.pickUpgrade(back);
@@ -502,9 +506,9 @@ export class Run {
         });
     }
 
-    randomCard(rarity,up) {
+    randomCard(rarity) {
         const pool=unlockedCards(effectiveLevel()).filter(id=>(CARDS[id].rarity==='rare')===(rarity==='rare'));
-        return createCard(pool[Math.floor(this.rng.next()*pool.length)],up);
+        return createCard(pool[Math.floor(this.rng.next()*pool.length)],false);
     }
 
     applyEffects(list,done) {
@@ -570,8 +574,8 @@ export class Run {
             }
             cont();
         }
-        else if (kind==='card'||kind==='cardUp') {
-            const card=this.randomCard(arg,kind==='cardUp');
+        else if (kind==='card') {
+            const card=this.randomCard(arg);
             this.hooks.notify('gained',card.id);
             this.takeCards([card],cont);
         }
@@ -705,7 +709,7 @@ export class Run {
                     return;
                 }
                 this.state='reward';
-                const groups=this.plan.boss?[{kind:'normal',cards:this.rewardChoices('normal')},{kind:'rare',cards:this.rewardChoices('rare')}]:[{kind:'mixed',cards:this.rewardChoices('mixed',this.plan.elite?NOTEBOOK.eliteUpChance:null)}];
+                const groups=this.plan.boss?[{kind:'normal',cards:this.rewardChoices('normal')},{kind:'rare',cards:this.rewardChoices('rare')}]:[{kind:'mixed',cards:this.rewardChoices('mixed',this.plan.elite?NOTEBOOK.eliteRareChance:null)}];
                 this.hooks.openReward(groups,this.deckCounts(),cards=>this.takeCards(cards));
             }
             return;

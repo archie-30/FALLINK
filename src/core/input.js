@@ -162,6 +162,9 @@ export class Input {
             return;
         }
         if (e.code==='Escape') {
+            if (e.repeat) {
+                return;
+            }
             if (this.onEscape) {
                 this.onEscape();
             }
