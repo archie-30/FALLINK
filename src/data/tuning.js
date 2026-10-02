@@ -280,7 +280,7 @@ export const TUNING={
     doors:{width:2.4,height:1.9,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
     npc:{range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
     worldMarks:{enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14},
-    doorFx:{glow:0.85,hold:0.12,fade:0.55,startR:0.06,rays:12,raySpin:0.6},
+    doorFx:{close:0.75,hold:0.6,open:0.7,startR:0.05,base:0.55,spacing:7,lineW:1.4,blobPts:44,blobJag:0.22,edgeW:3,drops:9,cardIn:0.3,cardW:340,cardH:120,eraserW:120,eraserH:56,wipeAngle:0.45,crumbs:40,crumbSpread:60,sweepRate:9,drawInAt:0.2},
     reportUi:{maxW:600,head:84,lineH:26,lineDelay:0.08,scale:0.8,gap:14,foot:76},
     choiceUi:{maxW:900,gap:16,cardH:180,head:100,iconY:44,iconR:26,pickTime:0.35},
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:70},

@@ -693,6 +693,11 @@ function boot() {
     const upgradeView=new UpgradeView();
     const summary=new RunSummary();
     const transition=new Transition();
+    transition.onDoorDone=()=>{
+        if (game.mode==='play'&&run.state!=='summary') {
+            resumePlay();
+        }
+    };
     let shardList=null;
     function allShards() {
         if (!shardList) {
@@ -744,7 +749,8 @@ function boot() {
     function enterRoom(plan,deckList) {
         clearWorld();
         renderer.post.resetDeath();
-        renderer.post.drawIn(TUNING.transition.drawIn,transition.active?TUNING.transition.drawInDelay:0);
+        const viaDoor=transition.state==='hold';
+        renderer.post.drawIn(TUNING.transition.drawIn,viaDoor?TUNING.doorFx.hold+TUNING.doorFx.open*TUNING.doorFx.drawInAt:(transition.active?TUNING.transition.drawInDelay:0));
         if (game.room) {
             game.room.destroy();
         }
@@ -775,7 +781,7 @@ function boot() {
         hand.reset();
         deck.reset(deckList);
         deck.start();
-        fx.paused=false;
+        fx.paused=viaDoor;
         warmShaders();
         return r;
     }
@@ -902,7 +908,7 @@ function boot() {
             fx.paused=true;
             hand.cancelTargeting();
             audio.play('page');
-            transition.runDoor(mid,p.x,p.y);
+            transition.runDoor(mid,p.x,p.y,()=>pageTitle(run.plan));
         },
         onDeath:()=>{
             audio.play('death');
@@ -963,6 +969,14 @@ function boot() {
         for (const o of shown) {
             o.visible=false;
         }
+    }
+    function pageTitle(p) {
+        if (!p) {
+            return null;
+        }
+        const title=p.boss?t('run.bossTitle',{name:t('enemy.'+p.bossType)}):p.overtime?t('run.overtimeTitle',{page:p.otPage+1}):p.endless?t('run.endlessTitle',{page:p.index+1}):t('run.roomTitle',{act:p.act+1,page:p.index+1});
+        const sub=p.node&&p.node!=='battle'&&!p.boss?t('node.'+p.node):'';
+        return {title,sub};
     }
     function resumePlay() {
         if (!pauseMenu.open) {
