@@ -113,6 +113,19 @@ export class Hand {
         this.stickT=null;
         this._tmp={x:0,y:0};
         this._g={x:0,y:0,z:0};
+        this.shown=1;
+        this.showTo=1;
+    }
+
+    setShown(on,instant=false) {
+        this.showTo=on?1:0;
+        if (instant) {
+            this.shown=this.showTo;
+        }
+    }
+
+    visible() {
+        return this.shown>0.5;
     }
 
     reset() {
@@ -249,6 +262,9 @@ export class Hand {
     }
 
     hitCard(x,y) {
+        if (!this.visible()) {
+            return null;
+        }
         const order=this.drawOrder();
         for (let i=order.length-1;i>=0;i--) {
             const v=order[i];
@@ -503,6 +519,9 @@ export class Hand {
     }
 
     keyPlay(i) {
+        if (!this.visible()) {
+            return;
+        }
         const v=this.views.find(o=>o.slot===i);
         if (!v||v.state!=='idle') {
             return;
@@ -524,6 +543,9 @@ export class Hand {
     }
 
     down(x,y,id,type,button) {
+        if (!this.visible()) {
+            return false;
+        }
         this.pointer.x=x;
         this.pointer.y=y;
         if (this.targetView) {
@@ -808,6 +830,10 @@ export class Hand {
 
     update(dt,frozen=false) {
         const k=1-Math.exp(-C.follow*dt);
+        if (this.shown!==this.showTo) {
+            const sp=dt/TUNING.hand.showTime;
+            this.shown=this.showTo>this.shown?Math.min(1,this.shown+sp):Math.max(0,this.shown-sp);
+        }
         this.slotTargets();
         this.lockMsgT=Math.max(0,this.lockMsgT-dt);
         this.burnMsgT=Math.max(0,this.burnMsgT-dt);
@@ -1222,7 +1248,19 @@ export class Hand {
     }
 
     draw(ctx,art) {
+        if (this.shown<=0.001) {
+            return;
+        }
         const variant=time.boilIndex;
+        const e=EASE.easeOutBack(this.shown);
+        ctx.save();
+        ctx.translate(0,(1-e)*TUNING.hand.hideOffset);
+        ctx.globalAlpha*=Math.min(1,this.shown*2);
+        this.drawContent(ctx,art,variant);
+        ctx.restore();
+    }
+
+    drawContent(ctx,art,variant) {
         this.drawPiles(ctx,art,variant);
         this.drawSlots(ctx,variant);
         for (const v of this.drawOrder()) {

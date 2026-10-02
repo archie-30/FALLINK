@@ -25,7 +25,11 @@ export const NOTEBOOK={
     shop:{buy:600,upgrade:700,patch:400,patchHeal:2},
     supply:[['heal',1],['ink',3],['score',300]],
     chests:['rare','supply','mimic'],
-    badNotes:['note.hurt','note.removed','note.scoreLoss','note.downgraded','note.eliteNext','gacha.broken','chest.mimic','challenge.failed'],
+    puzzles:{
+        sequence:{xs:[-6,-2,2,6],z:2.5,len:[3,4,5],step:0.75,lead:0.6,reward:[['score',500],['reward','mixed']],fail:[['hurt',1]]},
+        targets:{count:6,time:12,reward:[['score',500],['reward','mixed']],fail:[]}
+    },
+    badNotes:['puzzle.lose','note.hurt','note.removed','note.scoreLoss','note.downgraded','note.eliteNext','gacha.broken','chest.mimic','challenge.failed'],
     events:[
         {
             id:'spill',
@@ -87,6 +91,18 @@ export const NOTEBOOK={
                 {id:'drink',effects:[['heal',2],['downgrade']]},
                 {id:'leave',effects:[]}
             ]
+        },
+        {
+            id:'bells',
+            model:'conductor',
+            puzzle:'sequence',
+            options:[]
+        },
+        {
+            id:'range',
+            model:'range',
+            puzzle:'targets',
+            options:[]
         },
         {
             id:'ghost',

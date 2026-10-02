@@ -94,7 +94,9 @@ export class Overlay {
                 this.screenSpace(false);
                 this.screenSpace(true);
                 this.drawDash(input,player);
-                this.drawSkills(input,game.hand,game.ink,game.art);
+                if (game.hand.visible()) {
+                    this.drawSkills(input,game.hand,game.ink,game.art);
+                }
                 this.screenSpace(false);
             }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
@@ -107,7 +109,6 @@ export class Overlay {
             game.reward.draw(ctx,game.art);
             game.choice.draw(ctx);
             game.deckPick.draw(ctx,game.art);
-            game.report.draw(ctx,game.art);
             game.upgradeView.draw(ctx,game.art);
             game.summary.draw(ctx);
             game.pause.draw(ctx);
@@ -147,6 +148,7 @@ export class Overlay {
         game.codex.draw(ctx,game.art);
         game.popup.draw(ctx);
         this.hud.drawToast(ctx,this.width,game.dt);
+        this.hud.drawResult(ctx,this.width,this.height,game.dt);
         game.transition.drawTop(ctx,this.width,this.height);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             const play=game.mode==='play'&&game.run.state!=='dead';

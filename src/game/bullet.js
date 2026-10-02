@@ -336,7 +336,7 @@ export class BulletSystem {
                 if (own&&col.passPlayer) {
                     continue;
                 }
-                if (this.boomerang&&col.piece&&col.piece.kind!=='border'&&col.piece.kind!=='door') {
+                if (this.boomerang&&col.piece&&col.piece.kind!=='border'&&col.piece.kind!=='door'&&col.piece.kind!=='target') {
                     continue;
                 }
                 if (circleVs(x,z,r,col,hit)) {

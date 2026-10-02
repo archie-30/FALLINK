@@ -617,6 +617,22 @@ class Zones {
 }
 
 function buildInteractive(type,x,z,group) {
+    if (type==='target') {
+        const g=new THREE.Group();
+        const post=new THREE.Mesh(cachedGeo('tpost',()=>new THREE.CylinderGeometry(0.06,0.08,1.1,6)),mat('dark'));
+        post.position.y=0.55;
+        g.add(post);
+        const rings=[[0.55,'light'],[0.4,'red'],[0.24,'light'],[0.1,'dark']];
+        rings.forEach(([r,tone],i)=>{
+            const m=new THREE.Mesh(cachedGeo('tdisc|'+r,()=>new THREE.CylinderGeometry(r,r,0.06,18)),tone==='red'?toonMaterial({light:'red',mid:'red',dark:'darkRed'}):mat(tone));
+            m.rotation.x=Math.PI/2;
+            m.position.set(0,1.25,0.03+i*0.012);
+            g.add(m);
+        });
+        g.position.set(x,0,z);
+        group.add(g);
+        return {object:g,cols:[makeCircle(x,z,0.5)],radius:0.6,hp:1};
+    }
     if (type==='barrel') {
         const g=new THREE.Group();
         const body=new THREE.Mesh(cachedGeo('barrel',()=>new THREE.CylinderGeometry(0.55,0.6,1.3,10)),mat('dark'));
@@ -744,9 +760,16 @@ export class Room {
         }
     }
 
+    addTarget(x,z) {
+        const res=buildInteractive('target',x,z,this.group);
+        const piece=this.addPiece('target',res.object,res.cols,{x,z,radius:res.radius,erasable:false,hp:res.hp});
+        piece.flash=0;
+        return piece;
+    }
+
     damageProps(x,z,r,dmg) {
         for (const p of this.pieces.slice()) {
-            if ((p.kind==='barrel'||p.kind==='crate')&&p.state==='alive'&&Math.hypot(p.x-x,p.z-z)<r+p.radius) {
+            if ((p.kind==='barrel'||p.kind==='crate'||p.kind==='target')&&p.state==='alive'&&Math.hypot(p.x-x,p.z-z)<r+p.radius) {
                 this.damagePiece(p,dmg);
             }
         }
@@ -901,7 +924,7 @@ export class Room {
     }
 
     damagePiece(piece,dmg) {
-        if ((piece.kind==='barrel'||piece.kind==='crate')&&piece.state==='alive') {
+        if ((piece.kind==='barrel'||piece.kind==='crate'||piece.kind==='target')&&piece.state==='alive') {
             piece.hp-=dmg;
             piece.object.scale.set(1.12,0.9,1.12);
             piece.flash=0.12;

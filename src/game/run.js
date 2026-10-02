@@ -31,6 +31,7 @@ export class Run {
         this.exitsOpen=false;
         this.ambushAfter=null;
         this.report=null;
+        this.puz=null;
         const ids=mode==='training'?unlockedCards(effectiveLevel()):(startDeck||STARTING_DECK);
         this.deckList=ids.map(id=>({id,upgraded:false}));
         this.stats={kills:0,cards:0,damage:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0};
@@ -119,9 +120,10 @@ export class Run {
         this.lastLayout=plan.layoutKey;
         this.exitsOpen=false;
         this.ambushAfter=null;
+        this.puz=null;
         this.timer=0;
         this.director=null;
-        this.room=this.hooks.enterRoom(plan,plan.peace?[]:this.deckList);
+        this.room=this.hooks.enterRoom(plan,this.deckList);
         if (plan.peace) {
             this.state='peace';
             this.npcUsed=plan.npcs.map(()=>false);
@@ -154,6 +156,12 @@ export class Run {
             plan.event=ev.id;
             plan.block=!!ev.block;
             plan.npcs=[{model:ev.model,...spot(0)}];
+            if (ev.puzzle==='sequence') {
+                const Q=NOTEBOOK.puzzles.sequence;
+                for (const x of Q.xs) {
+                    plan.npcs.push({model:'bell',x,z:Q.z});
+                }
+            }
         }
         else if (node==='treasure') {
             const out=NOTEBOOK.chests.slice();
@@ -399,7 +407,117 @@ export class Run {
 
     canInteract(i) {
         const p=this.plan;
-        return this.state==='peace'&&!!p&&!!p.peace&&i>=0&&i<p.npcs.length&&!this.npcUsed[i];
+        if (this.state!=='peace'||!p||!p.peace||i<0||i>=p.npcs.length) {
+            return false;
+        }
+        const z=this.puz;
+        if (z) {
+            return z.kind==='sequence'&&z.phase==='input'&&i>0;
+        }
+        return !this.npcUsed[i]&&!(p.npcs[i].model==='bell');
+    }
+
+    startPuzzle(ev) {
+        const p=this.plan;
+        if (ev.puzzle==='sequence') {
+            const Q=NOTEBOOK.puzzles.sequence;
+            const len=Q.len[Math.min(this.act,Q.len.length-1)];
+            const seq=[];
+            for (let k=0;k<len;k++) {
+                seq.push(1+Math.floor(this.rng.next()*Q.xs.length));
+            }
+            this.puz={kind:'sequence',seq,step:0,phase:'show',t:-Q.lead,shown:0};
+        }
+        else {
+            const Q=NOTEBOOK.puzzles.targets;
+            const n=this.hooks.spawnTargets(Q.count);
+            this.puz={kind:'targets',total:n,left:n,t:Q.time};
+        }
+        this.state='peace';
+        this.hooks.resume();
+        this.note('puzzle.'+this.puz.kind+'.go');
+        p.puzzleOn=true;
+    }
+
+    endPuzzle(ok) {
+        const z=this.puz;
+        this.puz=null;
+        this.plan.puzzleOn=false;
+        const Q=NOTEBOOK.puzzles[z.kind];
+        for (let k=0;k<this.npcUsed.length;k++) {
+            this.npcUsed[k]=true;
+            this.hooks.npcUsed(k,k>0);
+        }
+        if (z.kind==='targets') {
+            this.hooks.clearTargets();
+        }
+        this.state='node';
+        this.withReport({key:'report.event',params:{name:'event.'+this.plan.event+'.title'}},fin=>{
+            this.note(ok?'puzzle.win':'puzzle.lose');
+            this.applyEffects((ok?Q.reward:Q.fail).slice(),fin);
+        },()=>this.backToPeace());
+    }
+
+    puzzleInput(i) {
+        const z=this.puz;
+        this.hooks.npcFlash(i,true);
+        if (z.seq[z.step]!==i) {
+            this.endPuzzle(false);
+            return;
+        }
+        z.step++;
+        if (z.step>=z.seq.length) {
+            this.endPuzzle(true);
+        }
+    }
+
+    targetHit() {
+        const z=this.puz;
+        if (!z||z.kind!=='targets') {
+            return;
+        }
+        z.left--;
+        if (z.left<=0) {
+            this.endPuzzle(true);
+        }
+    }
+
+    updatePuzzle(dt) {
+        const z=this.puz;
+        if (!z||this.state!=='peace') {
+            return;
+        }
+        if (z.kind==='targets') {
+            z.t-=dt;
+            if (z.t<=0) {
+                this.endPuzzle(false);
+            }
+            return;
+        }
+        if (z.phase!=='show') {
+            return;
+        }
+        const Q=NOTEBOOK.puzzles.sequence;
+        z.t+=dt;
+        while (z.t>=0&&z.shown<=z.t/Q.step&&z.shown<z.seq.length) {
+            this.hooks.npcFlash(z.seq[z.shown],false);
+            z.shown++;
+        }
+        if (z.t>=z.seq.length*Q.step) {
+            z.phase='input';
+            this.note('puzzle.sequence.yours');
+        }
+    }
+
+    puzzleInfo() {
+        const z=this.puz;
+        if (!z) {
+            return null;
+        }
+        if (z.kind==='targets') {
+            return {key:'puzzle.targets.info',params:{left:z.left,total:z.total,s:Math.ceil(Math.max(0,z.t))}};
+        }
+        return {key:z.phase==='show'?'puzzle.sequence.watch':'puzzle.sequence.info',params:{step:z.step,len:z.seq.length}};
     }
 
     backToPeace() {
@@ -480,6 +598,23 @@ export class Run {
             return true;
         }
         const ev=NOTEBOOK.events.find(e=>e.id===p.event);
+        if (this.puz) {
+            this.state='peace';
+            this.puzzleInput(i);
+            return true;
+        }
+        if (ev.puzzle) {
+            this.hooks.openChoice({kind:'event',id:ev.id,options:[{id:'start'},{id:'skip'}]},k=>{
+                if (k===0) {
+                    this.startPuzzle(ev);
+                    return;
+                }
+                this.npcUsed[i]=true;
+                this.hooks.npcUsed(i);
+                done();
+            });
+            return true;
+        }
         this.npcUsed[i]=true;
         this.hooks.npcUsed(i);
         const opts=ev.options.map(o=>({id:o.id}));
@@ -687,6 +822,7 @@ export class Run {
         if (this.state==='combat'||this.state==='cleared'||this.state==='dead') {
             this.stats.time+=dt;
         }
+        this.updatePuzzle(dt);
         if (this.state==='combat') {
             this.director.update(dt,player);
             for (const e of this.director.events) {

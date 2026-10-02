@@ -270,6 +270,48 @@ export class Hud {
         this.toasts=this.toasts.filter(q=>q.t>0);
     }
 
+    showResult(title,lines) {
+        const R=TUNING.hud.result;
+        this.result={title,lines,t:0,life:R.time+lines.length*R.perLine};
+    }
+
+    drawResult(ctx,w,h,dt) {
+        const q=this.result;
+        if (!q) {
+            return;
+        }
+        const R=TUNING.hud.result;
+        q.t+=dt;
+        if (q.t>=q.life) {
+            this.result=null;
+            return;
+        }
+        const a=Math.min(1,q.t/R.fade,(q.life-q.t)/R.fade);
+        const bw=Math.min(R.maxW,w-32);
+        const bh=40+q.lines.length*R.lineH;
+        const x=w/2-bw/2;
+        const y=h*R.y-(1-EASE.easeOutBack(Math.min(1,q.t/R.fade)))*20;
+        ctx.save();
+        ctx.globalAlpha=Math.max(0,a);
+        ctx.fillStyle=rgba('paper',0.95);
+        ctx.fillRect(x,y,bw,bh);
+        drawShape(ctx,sketchRect(x,y,bw,bh,{width:2,seed:780}),PALETTE.ink);
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 16px '+FONT;
+        ctx.fillText(q.title,w/2,y+20,bw-20);
+        ctx.font='14px '+FONT;
+        for (let i=0;i<q.lines.length;i++) {
+            const l=q.lines[i];
+            const k=Math.max(0,Math.min(1,(q.t-0.15-i*0.12)/0.2));
+            ctx.globalAlpha=Math.max(0,a)*k;
+            ctx.fillStyle=l.bad?PALETTE.red:PALETTE.ink;
+            ctx.fillText((l.bad?'✕ ':'✓ ')+l.text,w/2,y+44+i*R.lineH,bw-24);
+        }
+        ctx.restore();
+    }
+
     banner(text,sub,dur=2.2) {
         this.bannerText=text;
         this.bannerSub=sub||'';
@@ -347,6 +389,12 @@ export class Hud {
             ctx.font='13px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
             ctx.fillText(t('run.wave',{wave:wv,waves:d.totalWaves(),left:enemies.aliveCount()+d.queue.length}),w/2,34);
+        }
+        const pz=run.puzzleInfo&&run.puzzleInfo();
+        if (pz) {
+            ctx.font='bold 14px '+FONT;
+            ctx.fillStyle=PALETTE.red;
+            ctx.fillText(t(pz.key,pz.params),w/2,40);
         }
         const ch=p.challenge;
         if (ch&&(run.state==='combat'||run.state==='cleared')) {

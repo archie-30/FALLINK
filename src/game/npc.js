@@ -142,6 +142,35 @@ const MODELS={
         body.add(ball(0.12,'ink',0,1.15,0.56));
         return {r:0.8,h:2.2,float:true};
     },
+    conductor(body) {
+        body.add(cyl(0.05,0.05,1.3,'dark',0,0.65,0,6));
+        body.add(cyl(0.35,0.4,0.06,'dark',0,0.03,0,10));
+        const stand=bx(1.0,0.7,0.06,'light',0,1.45,0.05);
+        stand.rotation.x=-0.35;
+        body.add(stand);
+        body.add(bx(0.6,0.04,0.02,'ink',0,1.55,0.11));
+        body.add(bx(0.5,0.04,0.02,'ink',0,1.42,0.15));
+        body.add(ball(0.07,'ink',0.2,1.36,0.17));
+        eyes(body,1.75,0.02,0.18,0.07);
+        return {r:0.7,h:2.1};
+    },
+    bell(body) {
+        body.add(cyl(0.45,0.5,0.12,'dark',0,0.06,0,12));
+        const dome=mesh(geo('dome',()=>new THREE.SphereGeometry(0.38,12,8,0,Math.PI*2,0,Math.PI/2)),'light',0,0.12,0);
+        body.add(dome);
+        body.add(cyl(0.06,0.06,0.12,'accent',0,0.55,0,6));
+        body.add(ball(0.08,'accent',0,0.63,0));
+        return {r:0.55,h:0.9,still:true};
+    },
+    range(body) {
+        body.add(bx(0.12,1.6,0.12,'dark',0,0.8,0));
+        body.add(cyl(0.55,0.55,0.08,'light',0,1.5,0.1,16).rotateX(Math.PI/2));
+        body.add(cyl(0.38,0.38,0.09,'accent',0,1.5,0.12,16).rotateX(Math.PI/2));
+        body.add(cyl(0.2,0.2,0.1,'light',0,1.5,0.14,16).rotateX(Math.PI/2));
+        body.add(cyl(0.08,0.08,0.11,'ink',0,1.5,0.16,10).rotateX(Math.PI/2));
+        eyes(body,1.05,0.08,0.14,0.06);
+        return {r:0.6,h:2.1};
+    },
     chest(body) {
         body.add(bx(1.2,0.65,0.85,'cover',0,0.33,0));
         body.add(bx(1.24,0.1,0.89,'dark',0,0.62,0));
@@ -176,7 +205,15 @@ export class Npcs {
             const info=MODELS[s.model](body,root);
             room.group.add(root);
             room.addPiece('npc',root,[makeCircle(s.x,s.z,info.r)],{x:s.x,z:s.z,radius:info.r,erasable:false});
-            this.list.push({model:s.model,root,body,x:s.x,z:s.z,r:info.r,h:info.h,lid:info.lid||null,float:!!info.float,used:false,sealed:false,t:Math.random()*6,yaw:0,pop:0,open:0});
+            this.list.push({model:s.model,root,body,x:s.x,z:s.z,r:info.r,h:info.h,lid:info.lid||null,float:!!info.float,still:!!info.still,used:false,sealed:false,t:Math.random()*6,yaw:0,pop:0,open:0,lit:0});
+        }
+    }
+
+    flash(i) {
+        const n=this.list[i];
+        if (n) {
+            n.pop=1;
+            n.lit=1;
         }
     }
 
@@ -200,13 +237,14 @@ export class Npcs {
             const dx=player.pos.x-n.x;
             const dz=player.pos.z-n.z;
             const d=Math.hypot(dx,dz);
-            const still=n.model==='shop'||n.model==='chest';
+            const still=n.still||n.model==='shop'||n.model==='chest';
             const want=still?0:Math.atan2(dx,dz);
             let dy=want-n.yaw;
             dy=Math.atan2(Math.sin(dy),Math.cos(dy));
             n.yaw+=dy*Math.min(1,dt*N.turn);
             n.body.rotation.y=n.yaw;
             n.pop=Math.max(0,n.pop-dt*N.popDecay);
+            n.lit=Math.max(0,n.lit-dt*N.litDecay);
             const bob=n.float?N.floatAmp*(1+Math.sin(n.t*N.floatRate))+N.floatBase:Math.abs(Math.sin(n.t*N.bobRate))*N.bobAmp;
             n.body.position.y=n.sealed||still?0:bob;
             const sq=1+(still?0:Math.sin(n.t*N.bobRate*2)*N.squash)+Math.sin(n.pop*Math.PI)*N.popScale;
