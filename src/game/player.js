@@ -82,16 +82,19 @@ export class Player {
         const tm=o=>toonMaterial(g?{...o,ghost:true,unique:true,alpha:0.75}:{...o,unique:true});
         const dark=tm({light:'midGray',mid:'nearGray',dark:'ink',jitter:J});
         const coat=tm({light:'farGray',mid:'midGray',dark:'ink',jitter:J});
+        const sleeve=tm({light:'farGray',mid:'farGray',dark:'midGray',jitter:J,softNormal:TUNING.skinHatch.sleeveSoft});
         const face=tm({light:'paper',mid:'farGray',dark:'midGray',jitter:J});
         const hat=tm({light:'midGray',mid:'nearGray',dark:'ink',jitter:J});
         const gear=tm({light:'nearGray',mid:'nearGray',dark:'ink',jitter:J});
         const ink=g?dark:unlitMaterial({color:'ink',jitter:J,unique:true});
         this.skinMats={coat,limbs:dark,face,hat,gear,accent:g?null:ink};
-        this.ghostMats=g?[dark,coat,face,hat,gear]:[];
+        this.sleeveMat=sleeve;
+        this.ghostMats=g?[dark,coat,face,hat,gear,sleeve]:[];
         const hull={jitter:J};
         this.hullMat=g?null:hullMaterial({jitter:J,unique:true});
-        const addHull=g?()=>null:(mesh=>{
-            const h=new THREE.Mesh(mesh.geometry,this.hullMat);
+        this.limbHullMat=g?null:hullMaterial({jitter:J,unique:true});
+        const addHull=g?()=>null:((mesh,o,thin=false)=>{
+            const h=new THREE.Mesh(mesh.geometry,thin?this.limbHullMat:this.hullMat);
             h.name='hull';
             h.renderOrder=mesh.renderOrder;
             mesh.add(h);
@@ -208,16 +211,16 @@ export class Player {
         for (const sx of [-1,1]) {
             const pivot=new THREE.Group();
             pivot.position.set(sx*0.36,1.08,0);
-            const arm=new THREE.Mesh(armGeo,coat);
+            const arm=new THREE.Mesh(armGeo,sleeve);
             arm.position.y=-0.16;
-            addHull(arm,hull);
+            addHull(arm,hull,true);
             pivot.add(arm);
             const cuff=new THREE.Mesh(new THREE.CylinderGeometry(0.095,0.095,0.06,8),dark);
             cuff.position.y=-0.32;
             pivot.add(cuff);
             const hand=new THREE.Mesh(handGeo,gear);
             hand.position.y=-0.41;
-            addHull(hand,hull);
+            addHull(hand,hull,true);
             pivot.add(hand);
             this.body.add(pivot);
             this.arms.push(pivot);
@@ -315,8 +318,12 @@ export class Player {
         const S=TUNING.skinHatch;
         const plain=['coat','limbs','face','hat','gear'].every(k=>skin[k]===DEFAULT_SKIN[k]);
         if (this.hullMat) {
-            this.hullMat.uniforms.uWidth.value=plain?S.hullPlain:S.hullColor;
-            this.hullMat.uniforms.uColor.value.copy(pal(plain?'ink':S.hullTone));
+            const w=plain?S.hullPlain:S.hullColor;
+            const c=pal(plain?'ink':S.hullTone);
+            this.hullMat.uniforms.uWidth.value=w;
+            this.hullMat.uniforms.uColor.value.copy(c);
+            this.limbHullMat.uniforms.uWidth.value=w*S.limbHull;
+            this.limbHullMat.uniforms.uColor.value.copy(c);
         }
         for (const part of ['coat','limbs','face','hat','gear']) {
             const m0=this.skinMats[part];
@@ -331,6 +338,14 @@ export class Player {
             m.uniforms.uColLight.value.set(tones[0]);
             m.uniforms.uColMid.value.set(tones[1]);
             m.uniforms.uColDark.value.set(tones[2]);
+        }
+        const st=SKIN_TONES[skin.coat];
+        const sm=this.sleeveMat;
+        if (st&&sm) {
+            sm.uniforms.uColLight.value.set(st[0]);
+            sm.uniforms.uColMid.value.set(st[0]).lerp(sm.uniforms.uColDark.value.set(st[1]),S.sleeveMid);
+            sm.uniforms.uColDark.value.set(st[1]);
+            sm.uniforms.uHatch.value.set(S.lines,S.shade);
         }
         const a=this.skinMats.accent;
         if (a&&ACCENTS[skin.accent]) {

@@ -49,6 +49,7 @@ uniform vec3 uFlashColor;
 uniform float uAlpha;
 uniform vec2 uHatch;
 uniform vec3 uInk;
+uniform float uSoftNormal;
 #ifdef USE_REVEAL
 uniform float uReveal;
 uniform float uLen;
@@ -189,6 +190,7 @@ void main() {
     col=mix(col,uFogColor,smoothstep(uMist.z,uMist.w,distance(vWorldPos.xz,uMist.xy))*uMistK);
     col=mix(col,uFlashColor,uFlash);
     vec3 vn=normalize((viewMatrix*vec4(n,0.0)).xyz);
+    vn=normalize(mix(vn,vec3(0.0,0.0,1.0),uSoftNormal));
     gl_FragColor=vec4(col,uAlpha);
     gBuf=vec4(vn*0.5+0.5,vDepth/uFar);
 }

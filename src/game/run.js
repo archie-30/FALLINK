@@ -30,6 +30,7 @@ export class Run {
         this.eliteNext=false;
         this.exitsOpen=false;
         this.ambushAfter=null;
+        this.report=null;
         const ids=mode==='training'?unlockedCards(effectiveLevel()):(startDeck||STARTING_DECK);
         this.deckList=ids.map(id=>({id,upgraded:false}));
         this.stats={kills:0,cards:0,damage:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0};
@@ -126,9 +127,6 @@ export class Run {
             this.npcUsed=plan.npcs.map(()=>false);
             this.stats.nodes=(this.stats.nodes||0)+1;
             this.hooks.banner('peace',this);
-            if (!plan.block) {
-                this.openExits();
-            }
             return;
         }
         this.director=new RoomDirector(plan,this.hooks.enemies,this.room,this.rng);
@@ -412,6 +410,36 @@ export class Run {
         }
     }
 
+    note(key,params={},card=null) {
+        if (this.report) {
+            this.report.push({key,params,card,bad:NOTEBOOK.badNotes.includes(key)});
+            return;
+        }
+        this.hooks.toast(key,params,card);
+    }
+
+    withReport(title,run,done) {
+        this.report=[];
+        run(()=>{
+            const r=this.report;
+            this.report=null;
+            if (!r||r.length===0) {
+                done();
+                return;
+            }
+            this.state='node';
+            this.hooks.showReport(title,r,done);
+        });
+    }
+
+    restHeal() {
+        const R=NOTEBOOK.rest;
+        if (this.hooks.hp()<=R.lowHp) {
+            return R.low;
+        }
+        return R.min+Math.floor(this.rng.next()*(R.max-R.min+1));
+    }
+
     interact(i) {
         if (!this.canInteract(i)) {
             return false;
@@ -422,10 +450,11 @@ export class Run {
         if (p.node==='rest') {
             this.npcUsed[i]=true;
             this.hooks.npcUsed(i);
-            const opts=[{id:'heal',n:NOTEBOOK.restHeal},{id:'upgrade',disabled:this.upgradable().length===0}];
+            const n=this.restHeal();
+            const opts=[{id:'heal',n},{id:'upgrade',disabled:this.upgradable().length===0}];
             this.hooks.openChoice({kind:'rest',options:opts},k=>{
                 if (k===0) {
-                    this.hooks.heal(NOTEBOOK.restHeal);
+                    this.note('note.healed',{n:this.hooks.heal(n)});
                     done();
                     return;
                 }
@@ -444,15 +473,19 @@ export class Run {
             }
             const kind=p.chests[i];
             const eff=kind==='rare'?[['reward','rare']]:(kind==='supply'?NOTEBOOK.supply.slice():[['ambush',false],['reward','mixed']]);
-            this.hooks.toast('chest.'+kind);
-            this.applyEffects(eff,done);
+            this.withReport({key:'report.chest'},fin=>{
+                this.note('chest.'+kind);
+                this.applyEffects(eff,fin);
+            },done);
             return true;
         }
         const ev=NOTEBOOK.events.find(e=>e.id===p.event);
         this.npcUsed[i]=true;
         this.hooks.npcUsed(i);
-        const opts=ev.options.map(o=>({id:o.id,disabled:o.effects.some(e=>e[0]==='remove')&&this.deckList.length<=NOTEBOOK.minDeck}));
-        this.hooks.openChoice({kind:'event',id:ev.id,options:opts},k=>this.applyEffects(ev.options[k].effects.slice(),done));
+        const opts=ev.options.map(o=>({id:o.id}));
+        this.hooks.openChoice({kind:'event',id:ev.id,options:opts},k=>{
+            this.withReport({key:'report.event',params:{name:'event.'+ev.id+'.title'}},fin=>this.applyEffects(ev.options[k].effects.slice(),fin),done);
+        });
         return true;
     }
 
@@ -460,8 +493,8 @@ export class Run {
         const S=NOTEBOOK.shop;
         const p=this.plan;
         const score=this.stats.score;
-        const opt=(id,extra=false)=>({id,price:S[id],disabled:!!p.bought[id]||score<S[id]||extra,reason:p.bought[id]?'bought':(score<S[id]?'poor':null)});
-        const opts=[opt('buy'),opt('upgrade',this.upgradable().length===0),opt('remove',this.deckList.length<=NOTEBOOK.minDeck),{id:'leave'}];
+        const opt=(id,extra=false)=>({id,price:S[id],n:S.patchHeal,disabled:!!p.bought[id]||score<S[id]||extra,reason:p.bought[id]?'bought':(score<S[id]?'poor':null)});
+        const opts=[opt('buy'),opt('upgrade',this.upgradable().length===0),opt('patch'),{id:'leave'}];
         this.hooks.openChoice({kind:'shop',score,options:opts},k=>{
             const id=opts[k].id;
             if (id==='leave') {
@@ -470,7 +503,7 @@ export class Run {
             }
             p.bought[id]=true;
             this.stats.score-=S[id];
-            this.hooks.toast('note.paid',{n:S[id]});
+            this.note('note.paid',{n:S[id]});
             const back=()=>this.backToPeace();
             if (id==='buy') {
                 this.state='reward';
@@ -480,7 +513,8 @@ export class Run {
                 this.pickUpgrade(back);
             }
             else {
-                this.pickRemove(back);
+                this.note('note.healed',{n:this.hooks.heal(S.patchHeal)});
+                back();
             }
         });
     }
@@ -492,16 +526,7 @@ export class Run {
     pickUpgrade(done) {
         this.hooks.openDeckPick('upgrade',this.deckList,i=>{
             this.deckList[i].upgraded=true;
-            this.hooks.notify('upgraded',this.deckList[i].id);
-            done();
-        });
-    }
-
-    pickRemove(done) {
-        this.hooks.openDeckPick('remove',this.deckList,i=>{
-            const id=this.deckList[i].id;
-            this.deckList.splice(i,1);
-            this.hooks.notify('removed',id);
+            this.note('note.upgraded',{},this.deckList[i].id);
             done();
         });
     }
@@ -516,23 +541,25 @@ export class Run {
             done();
             return;
         }
-        const [kind,arg,a2,a3]=list.shift();
+        const [kind,arg]=list.shift();
         const cont=()=>this.applyEffects(list,done);
         if (kind==='heal') {
-            this.hooks.heal(arg);
+            this.note('note.healed',{n:this.hooks.heal(arg)});
             cont();
         }
         else if (kind==='hurt') {
             this.hooks.hurt(arg);
+            this.note('note.hurt',{n:arg});
             cont();
         }
         else if (kind==='ink') {
             this.hooks.addInk(arg);
+            this.note('note.ink',{n:arg});
             cont();
         }
         else if (kind==='score') {
             this.stats.score=Math.max(0,this.stats.score+arg);
-            this.hooks.toast(arg>=0?'note.score':'note.scoreLoss',{n:Math.abs(arg)});
+            this.note(arg>=0?'note.score':'note.scoreLoss',{n:Math.abs(arg)});
             cont();
         }
         else if (kind==='upgradeRandom') {
@@ -541,7 +568,7 @@ export class Run {
                 if (ups.length>0) {
                     const i=ups[Math.floor(this.rng.next()*ups.length)];
                     this.deckList[i].upgraded=true;
-                    this.hooks.notify('upgraded',this.deckList[i].id);
+                    this.note('note.upgraded',{},this.deckList[i].id);
                 }
             }
             cont();
@@ -551,32 +578,29 @@ export class Run {
             if (ups.length>0) {
                 const c=ups[Math.floor(this.rng.next()*ups.length)];
                 c.upgraded=false;
-                this.hooks.notify('downgraded',c.id);
+                this.note('note.downgraded',{},c.id);
             }
             else {
                 this.hooks.hurt(1);
+                this.note('note.hurt',{n:1});
             }
             cont();
-        }
-        else if (kind==='remove') {
-            if (this.deckList.length<=NOTEBOOK.minDeck) {
-                cont();
-                return;
-            }
-            this.pickRemove(cont);
         }
         else if (kind==='removeRandom') {
             if (this.deckList.length>NOTEBOOK.minDeck) {
                 const i=Math.floor(this.rng.next()*this.deckList.length);
                 const id=this.deckList[i].id;
                 this.deckList.splice(i,1);
-                this.hooks.notify('removed',id);
+                this.note('note.removed',{},id);
+            }
+            else {
+                this.note('note.removeSafe');
             }
             cont();
         }
         else if (kind==='card') {
             const card=this.randomCard(arg);
-            this.hooks.notify('gained',card.id);
+            this.note('note.gained',{},card.id);
             this.takeCards([card],cont);
         }
         else if (kind==='reward') {
@@ -585,12 +609,25 @@ export class Run {
         }
         else if (kind==='eliteNext') {
             this.eliteNext=true;
-            this.hooks.toast('note.eliteNext');
+            this.note('note.eliteNext');
             cont();
         }
-        else if (kind==='chance') {
-            const pick=this.rng.next()<arg?a2:a3;
-            this.applyEffects(pick.concat(list),done);
+        else if (kind==='roll') {
+            let total=0;
+            for (const o of arg) {
+                total+=o[0];
+            }
+            let r=this.rng.next()*total;
+            let pick=arg[arg.length-1];
+            for (const o of arg) {
+                r-=o[0];
+                if (r<=0) {
+                    pick=o;
+                    break;
+                }
+            }
+            this.note(pick[1]);
+            this.applyEffects(pick[2].concat(list),done);
         }
         else if (kind==='ambush') {
             this.ambush(arg,list.slice(),done);
@@ -642,7 +679,7 @@ export class Run {
         this.chHp=player.hp;
         if (fail) {
             this.chFail=true;
-            this.hooks.toast('challenge.failed');
+            this.note('challenge.failed');
         }
     }
 
@@ -695,7 +732,7 @@ export class Run {
                 const ch=this.plan.challenge;
                 if (ch) {
                     const ok=this.challengeDone();
-                    this.hooks.toast(ok?'challenge.success':'challenge.missed',{n:NOTEBOOK.challengeScore});
+                    this.note(ok?'challenge.success':'challenge.missed',{n:NOTEBOOK.challengeScore});
                     if (ok) {
                         this.addScore(NOTEBOOK.challengeScore);
                     }
