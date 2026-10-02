@@ -276,6 +276,9 @@ export const TUNING={
     },
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
     pauseUi:{compactH:700,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
+    doors:{width:2.2,height:2.2,entryHeight:0.9,post:0.32,depth:0.7,leaf:0.14,swing:1.9,openTime:0.7,closeTime:0.35,closeDelay:0.55,stagger:0.18,spread:0.5,pairSpread:0.5,reach:1.0,reachX:0.2,floorLen:2.6,glow:0.75,floor:0.55,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24,dustCount:14,spawnIn:1.7},
+    npc:{range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
+    worldMarks:{doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,closedAlpha:0.55,promptH:34,bangH:8,touchPad:14},
     choiceUi:{maxW:900,gap:16,cardH:180,head:100,iconY:44,iconR:26,pickTime:0.35},
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:70},
     settingsUi:{
@@ -381,6 +384,8 @@ export const TUNING={
         pulseDecay:3.5,
         spinTime:0.8,
         follow:14,
+        scrollFollow:16,
+        dragSlop:8,
         sparkGrav:520
     },
     skinHatch:{
@@ -496,6 +501,9 @@ export const TUNING={
     },
     hud:{
         toastTime:3,
+        toastMax:4,
+        toastY:72,
+        toastBannerY:196,
         timer:{offset:42,cloneOffset:14,width:76,height:5},
         timerSkip:['clone'],
         enemyHp:{minTicks:4,maxTicks:12,hpPerTick:8,radius:30,radiusScale:20,span:0.5,offset:26,follow:0.08,tickW:3.5,tickH:10},

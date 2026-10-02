@@ -1,4 +1,4 @@
-import {ACTS,ENDLESS,TRAINING,LAYOUTS} from '../data/levels.js';
+import {ACTS,ENDLESS,TRAINING,LAYOUTS,PEACE_LAYOUTS} from '../data/levels.js';
 import {settings} from '../core/settings.js';
 import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
@@ -23,9 +23,13 @@ export class Run {
         this.act=0;
         this.index=0;
         this.lastLayout=null;
+        this.lastEvent=null;
         this.overtime=false;
         this.otPage=0;
         this.node='battle';
+        this.eliteNext=false;
+        this.exitsOpen=false;
+        this.ambushAfter=null;
         const ids=mode==='training'?unlockedCards(effectiveLevel()):(startDeck||STARTING_DECK);
         this.deckList=ids.map(id=>({id,upgraded:false}));
         this.stats={kills:0,cards:0,damage:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0};
@@ -56,13 +60,17 @@ export class Run {
         return NOTEBOOK.overtimeStart+this.otPage;
     }
 
+    peaceNode() {
+        return this.notebook()&&!this.overtime&&!(NOTEBOOK.nodes[this.node]||{combat:true}).combat;
+    }
+
     enter() {
         if (this.training()) {
             const T=TRAINING;
             const c=settings.training;
             const base=c.map==='training'?T.layout:(LAYOUTS[c.map]||T.layout);
             const layout=c.props?base:{...base,props:base.props.filter(q=>!T.solid.includes(q.type))};
-            this.plan={act:0,index:0,training:true,boss:false,layoutKey:'training',layout,hpMult:1,waves:[],barrels:c.props?T.barrels:0,crates:c.props?T.crates:0};
+            this.plan={act:0,index:0,training:true,boss:false,layoutKey:'training',layout,hpMult:1,waves:[],exits:[],barrels:c.props?T.barrels:0,crates:c.props?T.crates:0};
             const room=this.hooks.enterRoom(this.plan,this.deckList);
             this.director=new TrainingDirector(c,this.hooks.enemies,room,trainable);
             this.state='combat';
@@ -70,29 +78,216 @@ export class Run {
             this.hooks.banner('training',this);
             return room;
         }
+        let plan;
         if (this.overtime) {
-            this.plan=planEndless(this.otIndex(),this.rng,this.lastLayout);
-            this.plan.overtime=true;
-            this.plan.fresh=null;
-            this.plan.otPage=this.otPage;
+            plan=planEndless(this.otIndex(),this.rng,this.lastLayout);
+            plan.overtime=true;
+            plan.fresh=null;
+            plan.otPage=this.otPage;
+        }
+        else if (this.mode==='endless') {
+            plan=planEndless(this.index,this.rng,this.lastLayout);
+        }
+        else if (this.peaceNode()) {
+            plan=this.planPeace(this.node);
         }
         else {
-            this.plan=this.mode==='endless'?planEndless(this.index,this.rng,this.lastLayout):planRoom(this.act,this.index,this.rng,this.lastLayout);
+            plan=planRoom(this.act,this.index,this.rng,this.lastLayout);
         }
-        if (this.node==='elite'&&!this.plan.boss) {
-            this.plan.mod='elite';
-            this.plan.elite=true;
+        if (!plan.peace&&!plan.boss&&this.notebook()) {
+            if (this.node==='elite'||(this.node==='battle'&&this.eliteNext)) {
+                plan.mod='elite';
+                plan.elite=true;
+                if (this.node==='battle') {
+                    this.eliteNext=false;
+                }
+            }
+            if (this.node==='challenge') {
+                const C=NOTEBOOK.challenges;
+                plan.challenge=C[Math.floor(this.rng.next()*C.length)];
+                plan.mod=null;
+            }
         }
         const forced=new URLSearchParams(location.search).get('mod');
-        if (forced&&!this.plan.boss) {
-            this.plan.mod=forced;
+        if (forced&&!plan.boss&&!plan.peace) {
+            plan.mod=forced;
         }
-        this.lastLayout=this.plan.layoutKey;
-        const room=this.hooks.enterRoom(this.plan,this.deckList);
-        this.director=new RoomDirector(this.plan,this.hooks.enemies,room,this.rng);
-        this.state='combat';
+        plan.node=this.notebook()&&!this.overtime?this.node:'battle';
+        plan.exits=this.makeExits();
+        this.plan=plan;
+        this.lastLayout=plan.layoutKey;
+        this.exitsOpen=false;
+        this.ambushAfter=null;
         this.timer=0;
-        this.hooks.banner(this.plan.boss?'boss':'room',this);
+        this.director=null;
+        this.room=this.hooks.enterRoom(plan,plan.peace?[]:this.deckList);
+        if (plan.peace) {
+            this.state='peace';
+            this.npcUsed=plan.npcs.map(()=>false);
+            this.stats.nodes=(this.stats.nodes||0)+1;
+            this.hooks.banner('peace',this);
+            if (!plan.block) {
+                this.openExits();
+            }
+            return;
+        }
+        this.director=new RoomDirector(plan,this.hooks.enemies,this.room,this.rng);
+        this.state='combat';
+        this.chFail=false;
+        this.chHp=-1;
+        this.chT=0;
+        this.chCards=this.stats.cards;
+        this.hooks.banner(plan.boss?'boss':'room',this);
+    }
+
+    planPeace(node) {
+        const list=PEACE_LAYOUTS[node];
+        let k=Math.floor(this.rng.next()*list.length);
+        if (node+k===this.lastLayout&&list.length>1) {
+            k=(k+1)%list.length;
+        }
+        const layout=list[k];
+        const plan={act:this.act,index:this.index,peace:true,node,boss:false,layoutKey:node+k,layout,hpMult:ACTS[this.act].hpMult,waves:[],barrels:0,crates:0};
+        const spot=i=>({x:layout.npcs[i][0],z:layout.npcs[i][1]});
+        if (node==='event') {
+            const pool=NOTEBOOK.events.filter(e=>e.id!==this.lastEvent);
+            const ev=pool[Math.floor(this.rng.next()*pool.length)];
+            this.lastEvent=ev.id;
+            plan.event=ev.id;
+            plan.block=!!ev.block;
+            plan.npcs=[{model:ev.model,...spot(0)}];
+        }
+        else if (node==='treasure') {
+            const out=NOTEBOOK.chests.slice();
+            for (let i=out.length-1;i>0;i--) {
+                const j=Math.floor(this.rng.next()*(i+1));
+                [out[i],out[j]]=[out[j],out[i]];
+            }
+            plan.chests=out;
+            plan.npcs=out.map((c,i)=>({model:'chest',...spot(i)}));
+        }
+        else {
+            plan.npcs=[{model:node,...spot(0)}];
+        }
+        if (node==='shop') {
+            plan.bought={};
+        }
+        return plan;
+    }
+
+    makeExits() {
+        if (this.overtime) {
+            const n=this.otIndex()+1;
+            return [{kind:n%ENDLESS.bossEvery===ENDLESS.bossEvery-1?'boss':'next'}];
+        }
+        if (this.mode==='endless') {
+            const n=this.index+1;
+            return [{kind:n%ENDLESS.bossEvery===ENDLESS.bossEvery-1?'boss':'next'}];
+        }
+        const rooms=ACTS[this.act].rooms;
+        if (this.index>=rooms) {
+            if (this.act>=ACTS.length-1) {
+                return [{kind:'finish'},{kind:'continue'}];
+            }
+            return [{kind:'act',act:this.act+2}];
+        }
+        if (this.index+1>=rooms) {
+            return [{kind:'boss'}];
+        }
+        return this.routeOptions().map(node=>({kind:'node',node}));
+    }
+
+    routeOptions() {
+        const N=NOTEBOOK.nodes;
+        const keys=Object.keys(N);
+        const pool=keys.filter(k=>N[k].minAct<=this.act&&(N[k].combat||k!==this.node));
+        const out=[];
+        let guard=0;
+        while (out.length<NOTEBOOK.doors&&guard<50) {
+            guard++;
+            const left=pool.filter(k=>!out.includes(k));
+            if (left.length===0) {
+                break;
+            }
+            let total=0;
+            for (const k of left) {
+                total+=N[k].weight;
+            }
+            let r=this.rng.next()*total;
+            for (const k of left) {
+                r-=N[k].weight;
+                if (r<=0) {
+                    out.push(k);
+                    break;
+                }
+            }
+        }
+        if (!out.some(k=>N[k].combat)) {
+            out[Math.floor(this.rng.next()*out.length)]='battle';
+        }
+        return out;
+    }
+
+    openExits() {
+        this.exitsOpen=true;
+        if (!this.plan.peace) {
+            this.state='exit';
+        }
+        this.hooks.openDoors();
+    }
+
+    canExit() {
+        return this.exitsOpen&&(this.state==='exit'||this.state==='peace');
+    }
+
+    useExit(i) {
+        const ex=this.plan.exits[i];
+        if (!ex||!this.canExit()) {
+            return false;
+        }
+        this.exitsOpen=false;
+        if (ex.kind==='finish') {
+            this.state='summary';
+            this.hooks.showSummary(true,this.stats);
+            return true;
+        }
+        if (ex.kind==='continue') {
+            this.overtime=true;
+            this.otPage=0;
+            this.node='battle';
+            this.go();
+            return true;
+        }
+        this.node=ex.kind==='node'?ex.node:'battle';
+        this.advance();
+        return true;
+    }
+
+    advance() {
+        if (this.overtime) {
+            this.otPage++;
+            this.go();
+            return;
+        }
+        this.index++;
+        if (this.mode==='endless') {
+            this.act=this.plan.act;
+            this.stats.act=this.act;
+            this.go();
+            return;
+        }
+        if (this.index>ACTS[this.act].rooms) {
+            this.act++;
+            this.index=0;
+            this.stats.act=this.act;
+            this.stats.xp+=TUNING.levels.xpAct;
+        }
+        this.go();
+    }
+
+    go() {
+        this.state='transition';
+        this.hooks.transition(()=>this.enter());
     }
 
     playerDown() {
@@ -163,7 +358,7 @@ export class Run {
         return out;
     }
 
-    takeCards(cards,then=()=>this.next()) {
+    takeCards(cards,then=()=>this.openExits()) {
         const merged=[];
         for (const c of cards) {
             const m=this.addCard(c);
@@ -200,123 +395,90 @@ export class Run {
         return card.id;
     }
 
-    go() {
-        this.state='transition';
-        this.hooks.transition(()=>this.enter());
+    canInteract(i) {
+        const p=this.plan;
+        return this.state==='peace'&&!!p&&!!p.peace&&i>=0&&i<p.npcs.length&&!this.npcUsed[i];
     }
 
-    next() {
-        if (this.overtime) {
-            this.otPage++;
-            this.route(this.otIndex()%ENDLESS.bossEvery===ENDLESS.bossEvery-1);
-            return;
+    backToPeace() {
+        this.state='peace';
+        this.hooks.resume();
+        if (!this.exitsOpen) {
+            this.openExits();
         }
-        this.index++;
-        if (this.mode==='endless') {
-            this.act=this.plan.act;
-            this.stats.act=this.act;
-            this.state='transition';
-            this.hooks.transition(()=>this.enter());
-            return;
+    }
+
+    interact(i) {
+        if (!this.canInteract(i)) {
+            return false;
         }
-        if (this.index>ACTS[this.act].rooms) {
-            this.act++;
-            this.index=0;
-            this.stats.act=this.act;
-            this.stats.xp+=TUNING.levels.xpAct;
-            if (this.act>=ACTS.length) {
-                this.act=ACTS.length-1;
-                this.stats.xp+=TUNING.levels.xpVictory;
-                this.stats.score+=ENDLESS.scoreVictory;
-                this.stats.cleared=true;
-                this.finale();
+        const p=this.plan;
+        this.state='node';
+        const done=()=>this.backToPeace();
+        if (p.node==='rest') {
+            this.npcUsed[i]=true;
+            this.hooks.npcUsed(i);
+            const opts=[{id:'heal',n:NOTEBOOK.restHeal},{id:'upgrade',disabled:this.upgradable().length===0}];
+            this.hooks.openChoice({kind:'rest',options:opts},k=>{
+                if (k===0) {
+                    this.hooks.heal(NOTEBOOK.restHeal);
+                    done();
+                    return;
+                }
+                this.pickUpgrade(done);
+            });
+            return true;
+        }
+        if (p.node==='shop') {
+            this.openShop();
+            return true;
+        }
+        if (p.node==='treasure') {
+            for (let k=0;k<this.npcUsed.length;k++) {
+                this.npcUsed[k]=true;
+                this.hooks.npcUsed(k,k!==i);
+            }
+            const kind=p.chests[i];
+            const eff=kind==='rare'?[['reward','rare']]:(kind==='supply'?NOTEBOOK.supply.slice():[['ambush',false],['reward','mixed']]);
+            this.hooks.toast('chest.'+kind);
+            this.applyEffects(eff,done);
+            return true;
+        }
+        const ev=NOTEBOOK.events.find(e=>e.id===p.event);
+        this.npcUsed[i]=true;
+        this.hooks.npcUsed(i);
+        const opts=ev.options.map(o=>({id:o.id,disabled:o.effects.some(e=>e[0]==='remove')&&this.deckList.length<=NOTEBOOK.minDeck}));
+        this.hooks.openChoice({kind:'event',id:ev.id,options:opts},k=>this.applyEffects(ev.options[k].effects.slice(),done));
+        return true;
+    }
+
+    openShop() {
+        const S=NOTEBOOK.shop;
+        const p=this.plan;
+        const score=this.stats.score;
+        const opt=(id,extra=false)=>({id,price:S[id],disabled:!!p.bought[id]||score<S[id]||extra,reason:p.bought[id]?'bought':(score<S[id]?'poor':null)});
+        const opts=[opt('buy'),opt('upgrade',this.upgradable().length===0),opt('remove',this.deckList.length<=NOTEBOOK.minDeck),{id:'leave'}];
+        this.hooks.openChoice({kind:'shop',score,options:opts},k=>{
+            const id=opts[k].id;
+            if (id==='leave') {
+                this.backToPeace();
                 return;
             }
-        }
-        this.route(this.index===ACTS[this.act].rooms||this.index===0);
-    }
-
-    route(forced) {
-        if (forced) {
-            this.node='battle';
-            this.go();
-            return;
-        }
-        this.state='route';
-        this.hooks.openRoute(this.routeOptions(),this.routeHeader(),type=>this.pickNode(type));
-    }
-
-    routeHeader() {
-        if (this.overtime) {
-            return {kind:'overtime',page:this.otPage+1,every:ENDLESS.bossEvery};
-        }
-        return {kind:'act',act:this.act+1,page:this.index+1,pages:this.totalRooms()};
-    }
-
-    routeOptions() {
-        const N=NOTEBOOK.nodes;
-        const act=this.overtime?ACTS.length-1:this.act;
-        const pool=Object.keys(N).filter(k=>N[k].minAct<=act);
-        const out=['battle'];
-        let guard=0;
-        while (out.length<NOTEBOOK.routeChoices&&guard<50) {
-            guard++;
-            const left=pool.filter(k=>!out.includes(k));
-            let total=0;
-            for (const k of left) {
-                total+=N[k].weight;
+            p.bought[id]=true;
+            this.stats.score-=S[id];
+            this.hooks.toast('note.paid',{n:S[id]});
+            const back=()=>this.backToPeace();
+            if (id==='buy') {
+                this.state='reward';
+                this.hooks.openReward([{kind:'mixed',cards:this.rewardChoices('mixed',S.upChance)}],this.deckCounts(),cards=>this.takeCards(cards,back));
             }
-            let r=this.rng.next()*total;
-            for (const k of left) {
-                r-=N[k].weight;
-                if (r<=0) {
-                    out.push(k);
-                    break;
-                }
+            else if (id==='upgrade') {
+                this.pickUpgrade(back);
             }
-        }
-        return out.sort((a,b)=>Object.keys(N).indexOf(a)-Object.keys(N).indexOf(b));
-    }
-
-    pickNode(type) {
-        this.node=type;
-        if (type==='battle'||type==='elite') {
-            this.go();
-            return;
-        }
-        this.state='node';
-        this.stats.nodes=(this.stats.nodes||0)+1;
-        if (type==='rest') {
-            const opts=[{id:'heal',n:NOTEBOOK.restHeal},{id:'upgrade',disabled:this.upgradable().length===0}];
-            this.hooks.openChoice({kind:'rest',options:opts},i=>{
-                if (i===0) {
-                    this.hooks.heal(NOTEBOOK.restHeal);
-                    this.next();
-                    return;
-                }
-                this.pickUpgrade(()=>this.next());
-            });
-            return;
-        }
-        if (type==='shop') {
-            const opts=[{id:'buy'},{id:'remove',disabled:this.deckList.length<=NOTEBOOK.minDeck},{id:'leave'}];
-            this.hooks.openChoice({kind:'shop',options:opts},i=>{
-                if (i===0) {
-                    this.state='reward';
-                    this.hooks.openReward([{kind:'mixed',cards:this.rewardChoices('mixed')}],this.deckCounts(),cards=>this.takeCards(cards));
-                    return;
-                }
-                if (i===1) {
-                    this.pickRemove(()=>this.next());
-                    return;
-                }
-                this.next();
-            });
-            return;
-        }
-        const ev=NOTEBOOK.events[Math.floor(this.rng.next()*NOTEBOOK.events.length)];
-        const opts=ev.options.map(o=>({id:o.id,disabled:o.effects.some(e=>e[0]==='remove')&&this.deckList.length<=NOTEBOOK.minDeck}));
-        this.hooks.openChoice({kind:'event',id:ev.id,options:opts},i=>this.applyEffects(ev.options[i].effects.slice(),()=>this.next()));
+            else {
+                this.pickRemove(back);
+            }
+        });
     }
 
     upgradable() {
@@ -340,12 +502,17 @@ export class Run {
         });
     }
 
+    randomCard(rarity,up) {
+        const pool=unlockedCards(effectiveLevel()).filter(id=>(CARDS[id].rarity==='rare')===(rarity==='rare'));
+        return createCard(pool[Math.floor(this.rng.next()*pool.length)],up);
+    }
+
     applyEffects(list,done) {
         if (list.length===0) {
             done();
             return;
         }
-        const [kind,arg]=list.shift();
+        const [kind,arg,a2,a3]=list.shift();
         const cont=()=>this.applyEffects(list,done);
         if (kind==='heal') {
             this.hooks.heal(arg);
@@ -359,42 +526,120 @@ export class Run {
             this.hooks.addInk(arg);
             cont();
         }
+        else if (kind==='score') {
+            this.stats.score=Math.max(0,this.stats.score+arg);
+            this.hooks.toast(arg>=0?'note.score':'note.scoreLoss',{n:Math.abs(arg)});
+            cont();
+        }
         else if (kind==='upgradeRandom') {
-            const ups=this.upgradable();
+            for (let k=0;k<arg;k++) {
+                const ups=this.upgradable();
+                if (ups.length>0) {
+                    const i=ups[Math.floor(this.rng.next()*ups.length)];
+                    this.deckList[i].upgraded=true;
+                    this.hooks.notify('upgraded',this.deckList[i].id);
+                }
+            }
+            cont();
+        }
+        else if (kind==='downgrade') {
+            const ups=this.deckList.filter(c=>c.upgraded);
             if (ups.length>0) {
-                const i=ups[Math.floor(this.rng.next()*ups.length)];
-                this.deckList[i].upgraded=true;
-                this.hooks.notify('upgraded',this.deckList[i].id);
+                const c=ups[Math.floor(this.rng.next()*ups.length)];
+                c.upgraded=false;
+                this.hooks.notify('downgraded',c.id);
+            }
+            else {
+                this.hooks.hurt(1);
             }
             cont();
         }
         else if (kind==='remove') {
+            if (this.deckList.length<=NOTEBOOK.minDeck) {
+                cont();
+                return;
+            }
             this.pickRemove(cont);
         }
-        else if (kind==='card') {
-            const pool=unlockedCards(effectiveLevel()).filter(id=>(CARDS[id].rarity==='rare')===(arg==='rare'));
-            const id=pool[Math.floor(this.rng.next()*pool.length)];
-            this.hooks.notify('gained',id);
-            this.takeCards([createCard(id)],cont);
+        else if (kind==='removeRandom') {
+            if (this.deckList.length>NOTEBOOK.minDeck) {
+                const i=Math.floor(this.rng.next()*this.deckList.length);
+                const id=this.deckList[i].id;
+                this.deckList.splice(i,1);
+                this.hooks.notify('removed',id);
+            }
+            cont();
+        }
+        else if (kind==='card'||kind==='cardUp') {
+            const card=this.randomCard(arg,kind==='cardUp');
+            this.hooks.notify('gained',card.id);
+            this.takeCards([card],cont);
+        }
+        else if (kind==='reward') {
+            this.state='reward';
+            this.hooks.openReward([{kind:arg,cards:this.rewardChoices(arg)}],this.deckCounts(),cards=>this.takeCards(cards,cont));
+        }
+        else if (kind==='eliteNext') {
+            this.eliteNext=true;
+            this.hooks.toast('note.eliteNext');
+            cont();
+        }
+        else if (kind==='chance') {
+            const pick=this.rng.next()<arg?a2:a3;
+            this.applyEffects(pick.concat(list),done);
+        }
+        else if (kind==='ambush') {
+            this.ambush(arg,list.slice(),done);
         }
         else {
             cont();
         }
     }
 
-    finale() {
-        this.state='finale';
-        this.hooks.openChoice({kind:'finale',options:[{id:'finish'},{id:'continue'}]},i=>{
-            if (i===0) {
-                this.state='summary';
-                this.hooks.showSummary(true,this.stats);
-                return;
-            }
-            this.overtime=true;
-            this.otPage=0;
-            this.node='battle';
-            this.go();
-        });
+    ambush(elite,after,done) {
+        const p=this.plan;
+        const base=planRoom(this.act,Math.min(this.index,ACTS[this.act].rooms-1),this.rng,null);
+        p.waves=base.waves.slice(0,2);
+        p.hpMult=base.hpMult;
+        p.mod=elite?'elite':null;
+        p.ambush=true;
+        this.ambushAfter={after,done};
+        this.exitsOpen=false;
+        this.hooks.closeDoors();
+        this.hooks.dealDeck(this.deckList);
+        this.director=new RoomDirector(p,this.hooks.enemies,this.room,this.rng);
+        this.state='combat';
+        this.chFail=false;
+        this.chHp=-1;
+        this.chT=0;
+        this.hooks.banner('ambush',this);
+    }
+
+    challengeDone() {
+        return !this.chFail;
+    }
+
+    trackChallenge(dt,player) {
+        const ch=this.plan.challenge;
+        if (!ch||this.chFail) {
+            return;
+        }
+        this.chT+=dt;
+        let fail=false;
+        if (ch.id==='nohit'&&this.chHp>=0&&player.hp<this.chHp) {
+            fail=true;
+        }
+        if (ch.id==='timed'&&this.chT>ch.time) {
+            fail=true;
+        }
+        if (ch.id==='nocard'&&this.stats.cards>this.chCards) {
+            fail=true;
+        }
+        this.chHp=player.hp;
+        if (fail) {
+            this.chFail=true;
+            this.hooks.toast('challenge.failed');
+        }
     }
 
     update(dt,player) {
@@ -409,6 +654,7 @@ export class Run {
             if (this.training()) {
                 return;
             }
+            this.trackChallenge(dt,player);
             if (this.director.cleared) {
                 this.state='cleared';
                 this.timer=1.4;
@@ -420,6 +666,12 @@ export class Run {
                 }
                 if (this.plan.boss) {
                     this.stats.bosses++;
+                    if (this.notebook()&&!this.overtime&&this.act>=ACTS.length-1) {
+                        this.stats.act=ACTS.length;
+                        this.stats.xp+=TUNING.levels.xpAct+TUNING.levels.xpVictory;
+                        this.stats.score+=ENDLESS.scoreVictory;
+                        this.stats.cleared=true;
+                    }
                 }
                 this.hooks.onCleared(this.plan);
             }
@@ -428,8 +680,28 @@ export class Run {
         if (this.state==='cleared') {
             this.timer-=dt;
             if (this.timer<=0) {
+                if (this.ambushAfter) {
+                    const a=this.ambushAfter;
+                    this.ambushAfter=null;
+                    this.plan.ambush=false;
+                    this.state='node';
+                    this.applyEffects(a.after,a.done);
+                    return;
+                }
+                const ch=this.plan.challenge;
+                if (ch) {
+                    const ok=this.challengeDone();
+                    this.hooks.toast(ok?'challenge.success':'challenge.missed',{n:NOTEBOOK.challengeScore});
+                    if (ok) {
+                        this.addScore(NOTEBOOK.challengeScore);
+                    }
+                    this.state='reward';
+                    const kind=ok?'rare':'mixed';
+                    this.hooks.openReward([{kind,cards:this.rewardChoices(kind)}],this.deckCounts(),cards=>this.takeCards(cards));
+                    return;
+                }
                 if (!this.rewardPage()) {
-                    this.next();
+                    this.openExits();
                     return;
                 }
                 this.state='reward';

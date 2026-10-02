@@ -86,6 +86,7 @@ export class Overlay {
                 this.hud.drawHp(ctx,player);
                 this.hud.drawInk(ctx,game.ink);
             }
+            game.marks.draw(ctx,game,input.lastDevice==='touch',this.height);
             game.hand.draw(ctx,game.art);
             if (input.lastDevice==='touch') {
                 this.screenSpace(true);

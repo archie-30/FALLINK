@@ -38,6 +38,7 @@ export class Input {
         this.onDeckKey=null;
         this.onEscape=null;
         this.onPauseKey=null;
+        this.onInteract=null;
         this.onWheel=null;
         this.onAimRelease=null;
         this.canStick=null;
@@ -170,6 +171,12 @@ export class Input {
         if (dm&&!e.repeat) {
             if (this.onCardKey) {
                 this.onCardKey(Number(dm[1])-1);
+            }
+            return;
+        }
+        if (e.code==='KeyF'&&!e.repeat) {
+            if (this.onInteract) {
+                this.onInteract();
             }
             return;
         }
