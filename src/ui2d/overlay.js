@@ -146,6 +146,7 @@ export class Overlay {
         game.codex.draw(ctx,game.art);
         game.popup.draw(ctx);
         this.hud.drawToast(ctx,this.width,game.dt);
+        game.transition.drawTop(ctx,this.width,this.height);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             const play=game.mode==='play'&&game.run.state!=='dead';
             const lock=play&&!game.frozen&&!!game.aimTarget&&game.aimTarget.alive;

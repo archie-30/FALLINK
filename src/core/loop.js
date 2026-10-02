@@ -47,7 +47,7 @@ export function createLoop(update,render) {
         time.boilIndex=time.freezeBoil?0:bs%TUNING.boil.variants;
         acc+=dt*time.timeScale;
         let n=0;
-        while (acc>=step&&n<8) {
+        while (acc>=step&&n<TUNING.loop.maxSteps) {
             if (time.timeScale<=0) {
                 acc=0;
                 break;
@@ -58,7 +58,7 @@ export function createLoop(update,render) {
             time.tick++;
             n++;
         }
-        if (n>=8) {
+        if (n>=TUNING.loop.maxSteps) {
             acc=0;
         }
         time.alpha=acc/step;

@@ -200,15 +200,16 @@ export class Npcs {
             const dx=player.pos.x-n.x;
             const dz=player.pos.z-n.z;
             const d=Math.hypot(dx,dz);
-            const want=n.model==='shop'?0:Math.atan2(dx,dz);
+            const still=n.model==='shop'||n.model==='chest';
+            const want=still?0:Math.atan2(dx,dz);
             let dy=want-n.yaw;
             dy=Math.atan2(Math.sin(dy),Math.cos(dy));
             n.yaw+=dy*Math.min(1,dt*N.turn);
             n.body.rotation.y=n.yaw;
             n.pop=Math.max(0,n.pop-dt*N.popDecay);
             const bob=n.float?N.floatAmp*(1+Math.sin(n.t*N.floatRate))+N.floatBase:Math.abs(Math.sin(n.t*N.bobRate))*N.bobAmp;
-            n.body.position.y=n.sealed?0:bob;
-            const sq=1+Math.sin(n.t*N.bobRate*2)*N.squash+Math.sin(n.pop*Math.PI)*N.popScale;
+            n.body.position.y=n.sealed||still?0:bob;
+            const sq=1+(still?0:Math.sin(n.t*N.bobRate*2)*N.squash)+Math.sin(n.pop*Math.PI)*N.popScale;
             n.body.scale.set(1/Math.sqrt(sq),n.sealed?N.sealedScale:sq,1/Math.sqrt(sq));
             if (n.lid) {
                 n.open+=((n.used&&!n.sealed?1:0)-n.open)*Math.min(1,dt*N.lidRate);

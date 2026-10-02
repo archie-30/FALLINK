@@ -14,6 +14,7 @@ export class Renderer {
             powerPreference:'high-performance'
         });
         this.gl.outputColorSpace=THREE.LinearSRGBColorSpace;
+        this.gl.debug.checkShaderErrors=new URLSearchParams(location.search).has('debug');
         this.gl.autoClear=false;
         this.gl.info.autoReset=false;
         this.post=new PostFX(this.gl);

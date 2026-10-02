@@ -12,7 +12,7 @@ import {tweens} from './core/tween.js';
 import {fx} from './core/fx.js';
 import {detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device} from './core/settings.js';
 import {Renderer} from './render/renderer.js';
-import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial,shared} from './render/materials.js';
+import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial,shared,dissolveVariant} from './render/materials.js';
 import {Particles,MuzzleFlashes,Rings} from './render/particles.js';
 import {Preview} from './render/preview.js';
 import {Shards} from './render/shards.js';
@@ -49,7 +49,7 @@ import {ENDLESS,MENU_SCENE} from './data/levels.js';
 import {renderFlags} from './render/materials.js';
 import {Transition} from './ui2d/transition.js';
 import {DamageNumbers} from './ui2d/damageNumbers.js';
-import {Doors} from './game/doors.js';
+import {Doors,doorXs} from './game/doors.js';
 import {Npcs} from './game/npc.js';
 import {WorldMarks} from './ui2d/worldMarks.js';
 
@@ -129,6 +129,7 @@ function boot() {
         if (!sh) {
             sh=new Shards(world,toonMaterial({...e.def.tones[e.def.shardTone],jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),e.def.boss?64:40);
             enemyShards.set(key,sh);
+            shardList=null;
         }
         return sh;
     }
@@ -136,10 +137,7 @@ function boot() {
     const doors=new Doors(fxScene,particles);
     const npcs=new Npcs();
     const marks=new WorldMarks();
-    doors.onSlam=()=>{
-        fx.cameraShake(0.15);
-        audio.play('page',0.6);
-    };
+    doors.onClose=()=>fx.cameraShake(0.15);
     doors.onOpen=()=>audio.play('clear',1.3);
     const terrainShards=new Shards(world,toonMaterial({light:'farGray',mid:'midGray',dark:'nearGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),48);
     const paperShards=new Shards(world,toonMaterial({light:'paper',mid:'farGray',dark:'midGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),24);
@@ -695,8 +693,12 @@ function boot() {
     const upgradeView=new UpgradeView();
     const summary=new RunSummary();
     const transition=new Transition();
+    let shardList=null;
     function allShards() {
-        return [...enemyShards.values(),terrainShards,paperShards];
+        if (!shardList) {
+            shardList=[...enemyShards.values(),terrainShards,paperShards];
+        }
+        return shardList;
     }
     const beamMp={x:0,z:0};
     function updateBeam(dt) {
@@ -746,13 +748,14 @@ function boot() {
         if (game.room) {
             game.room.destroy();
         }
-        const def=plan.training?plan.layout:{...plan.layout,spawn:[0,plan.layout.size[1]/2-TUNING.doors.spawnIn]};
-        const r=buildRoom(def,world,fxScene,{rng:new RNG(plan.act*100+plan.index*7+Math.floor(Math.random()*1000)),barrels:plan.barrels||0,crates:plan.crates||0});
+        const gaps=doorXs((plan.exits||[]).length,plan.layout.size[0]/2).map(x=>({x,w:TUNING.doors.width}));
+        const r=buildRoom(plan.layout,world,fxScene,{gaps,rng:new RNG(plan.act*100+plan.index*7+Math.floor(Math.random()*1000)),barrels:plan.barrels||0,crates:plan.crates||0});
         r.shards=terrainShards;
         r.onBreak=onBreak;
         r.onPropBreak=onPropBreak;
-        doors.build(r,plan.exits||[],!plan.training);
+        doors.build(r,plan.exits||[]);
         npcs.build(r,plan.npcs||[]);
+        art.warm(deckList.map(c=>createCard(c.id,c.upgraded)));
         game.mod=plan.mod||null;
         const M=TUNING.fog.mist;
         shared.uFog.value.set(TUNING.fog.near,TUNING.fog.far,TUNING.fog.max);
@@ -764,7 +767,7 @@ function boot() {
         enemies.hpMult=plan.hpMult;
         enemies.act=plan.act;
         player.enterRoom(r.spawn);
-        rig.setBounds(r.bounds);
+        rig.setBounds(r.walkBounds||r.bounds);
         look.x=0;
         look.z=0;
         rig.follow(player.pos,0,0);
@@ -773,6 +776,7 @@ function boot() {
         deck.reset(deckList);
         deck.start();
         fx.paused=false;
+        warmShaders();
         return r;
     }
     const run=new Run({
@@ -885,6 +889,17 @@ function boot() {
             audio.play('page');
             transition.run(mid);
         },
+        doorTransition:(mid,i)=>{
+            const d=doors.list[i];
+            const p={x:overlay.width/2,y:overlay.height/2};
+            if (d) {
+                projectFn(d.x,TUNING.doors.height*0.5,d.z-d.t-TUNING.doors.alcove*0.5,p);
+            }
+            fx.paused=true;
+            hand.cancelTargeting();
+            audio.play('page');
+            transition.runDoor(mid,p.x,p.y,()=>pageTitle(run.plan));
+        },
         onDeath:()=>{
             audio.play('death');
             renderer.post.death();
@@ -929,6 +944,30 @@ function boot() {
             });
         }
     },seedParam||(Date.now()&0xffff));
+    function pageTitle(p) {
+        if (!p) {
+            return null;
+        }
+        const title=p.boss?t('run.bossTitle',{name:t('enemy.'+p.bossType)}):p.overtime?t('run.overtimeTitle',{page:p.otPage+1}):p.endless?t('run.endlessTitle',{page:p.index+1}):t('run.roomTitle',{act:p.act+1,page:p.index+1});
+        const sub=p.node&&p.node!=='battle'&&!p.boss?t('node.'+p.node):(p.boss&&!p.endless?t('run.bossSub',{act:p.act+1}):'');
+        return {title,sub};
+    }
+    function warmShaders() {
+        const shown=[];
+        for (const sc of [scene,fxScene]) {
+            sc.traverse(o=>{
+                if (!o.visible) {
+                    o.visible=true;
+                    shown.push(o);
+                }
+            });
+        }
+        renderer.gl.compile(scene,rig.camera);
+        renderer.gl.compile(fxScene,rig.camera);
+        for (const o of shown) {
+            o.visible=false;
+        }
+    }
     function resumePlay() {
         if (!pauseMenu.open) {
             fx.paused=false;
@@ -937,7 +976,15 @@ function boot() {
         input.dashQueued=false;
     }
     function tryInteract() {
-        if (game.mode!=='play'||fx.paused||npcs.focus<0||!run.canInteract(npcs.focus)) {
+        if (game.mode!=='play'||fx.paused||transition.active) {
+            return false;
+        }
+        if (doors.focus>=0&&run.canExit()) {
+            audio.play('ui');
+            hand.cancelTargeting();
+            return run.useExit(doors.focus);
+        }
+        if (npcs.focus<0||!run.canInteract(npcs.focus)) {
             return false;
         }
         audio.play('ui');
@@ -1780,10 +1827,7 @@ function boot() {
         if (game.mode==='play') {
             run.update(dt,player);
             npcs.update(dt,player,i=>run.canInteract(i));
-            const ei=doors.update(dt,player,run.canExit());
-            if (ei>=0) {
-                run.useExit(ei);
-            }
+            doors.update(dt,player);
         }
     }
     function updateDamageFx(dt) {
@@ -1803,7 +1847,7 @@ function boot() {
     let slowT=0;
     function updatePerf(dt) {
         const P=TUNING.perf;
-        if (!device.mobile||game.mode!=='play'||fx.paused||settings.quality==='low') {
+        if (game.mode!=='play'||fx.paused||settings.quality==='low'||(!device.mobile&&settings.quality!=='high')) {
             return;
         }
         slowT=time.fps<P.lowFps?slowT+dt:Math.max(0,slowT-dt*0.5);
@@ -1964,6 +2008,20 @@ function boot() {
     }
     art.warm(deck.drawPile);
     equipWeapon();
+    enterMenu();
+    const keep=new THREE.Group();
+    keep.visible=false;
+    const kg=new THREE.BoxGeometry(0.1,0.1,0.1);
+    const J=TUNING.boil.vertexJitter;
+    for (const m of [toonMaterial({jitter:J,unique:true,yreveal:true}),toonMaterial({light:'farGray',mid:'midGray',dark:'nearGray',reveal:true,unique:true,jitter:J*0.6}),dissolveVariant(toonMaterial({light:'farGray',mid:'midGray',dark:'nearGray'})),dissolveVariant(toonMaterial({light:'paper',mid:'farGray',dark:'midGray'}))]) {
+        keep.add(new THREE.Mesh(kg,m));
+    }
+    world.add(keep);
+    doors.prewarm();
+    for (const type of Object.keys(ENEMIES)) {
+        shardsFor(enemies.spawn(type,0,-40,{quick:true}));
+    }
+    warmShaders();
     enterMenu();
     if (!device.fullscreen) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);

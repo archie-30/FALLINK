@@ -665,11 +665,19 @@ export class Room {
         const t=def.wallThickness;
         const h=def.wallHeight;
         const walls=[
-            [0,-hd-t/2,def.size[0]+t*2,t],
             [0,hd+t/2,def.size[0]+t*2,t],
             [-hw-t/2,0,t,def.size[1]],
             [hw+t/2,0,t,def.size[1]]
         ];
+        const gaps=(opts.gaps||[]).slice().sort((a,b)=>a.x-b.x);
+        let from=-hw-t;
+        for (const g of gaps.concat([{x:hw+t,w:0}])) {
+            const to=g.x-g.w/2;
+            if (to-from>0.01) {
+                walls.push([(from+to)/2,-hd-t/2,to-from,t]);
+            }
+            from=g.x+g.w/2;
+        }
         for (const w of walls) {
             const m=new THREE.Mesh(box(w[2],h,w[3]),mat('cover'));
             m.position.set(w[0],h/2,w[1]);
