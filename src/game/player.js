@@ -68,6 +68,7 @@ export class Player {
         this.resolved=[];
         this.equipAt=-9;
         this.ammo=this.W.magazine;
+        this.cdT=0;
         this.reloadT=0;
         this.hp=TUNING.player.maxHp;
         this.invuln=0;
@@ -416,6 +417,7 @@ export class Player {
         this.dualT=0;
         this.reflectT=0;
         this.ammo=this.W.magazine;
+        this.cdT=0;
         this.burstLeft=0;
         this.reloadT=0;
         this.invuln=1.0;
@@ -463,6 +465,7 @@ export class Player {
         this.weaponId=WEAPONS[id]?id:'pen';
         this.W={...TUNING.weapon,...def};
         this.ammo=this.W.magazine;
+        this.cdT=0;
         this.reloadT=0;
         this.burstLeft=0;
         this.beamT=0;
@@ -609,9 +612,13 @@ export class Player {
 
     shoot(ctx,aim) {
         this.fire(ctx,aim);
+        if (this.W.cooldown) {
+            this.cdT=this.W.cooldown/(this.rapidT>0?this.rapidMult:1);
+            return;
+        }
         if (this.rapidT<=0) {
             this.ammo--;
-            if (this.ammo<=0&&!this.W.returns) {
+            if (this.ammo<=0) {
                 this.startReload();
             }
         }
@@ -794,7 +801,7 @@ export class Player {
                 }
             }
         }
-        else if (input.consumeReload&&input.consumeReload()&&this.ammo<W.magazine&&!W.heat&&!W.returns) {
+        else if (input.consumeReload&&input.consumeReload()&&this.ammo<W.magazine&&!W.heat&&!W.cooldown) {
             this.startReload();
         }
         this.updateHeat(dt,input.isFiring()&&this.reloadT<=0&&this.ammo>0);
@@ -810,7 +817,8 @@ export class Player {
                 this.shoot(ctx,aim);
             }
         }
-        if (input.isFiring()&&this.fireCd<=0&&this.hp>0&&this.reloadT<=0&&this.ammo>0&&this.burstLeft<=0) {
+        this.cdT=Math.max(0,(this.cdT||0)-dt);
+        if (input.isFiring()&&this.fireCd<=0&&this.hp>0&&this.reloadT<=0&&this.ammo>0&&this.burstLeft<=0&&this.cdT<=0) {
             this.fireCd+=Math.max(Math.min(W.fireInterval,WEAPON_LIMITS.minInterval),W.fireInterval/(this.rapidT>0?this.rapidMult:1));
             if (this.fireCd<0) {
                 this.fireCd=0;

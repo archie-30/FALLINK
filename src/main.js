@@ -605,9 +605,6 @@ function boot() {
         return e;
     };
     weaponSys.compass.onReturn=(x,z,caught)=>{
-        if (player.W.returns) {
-            player.ammo=Math.min(player.W.magazine,player.ammo+1);
-        }
         if (caught) {
             particles.burst(x,H,z,4,{color:'nearGray',speed:[1,3],up:[1,3],size:[0.06,0.12]});
             audio.play('draw',1.7);
@@ -1605,6 +1602,12 @@ function boot() {
     let skillToggle=false;
     let skillQuick=false;
     input.onSkill=(type,slot,vx,vy,mag,moved)=>{
+        if (type==='cancel') {
+            skillQuick=false;
+            hand.cancelTargeting();
+            audio.play('ui',0.7);
+            return;
+        }
         if (run.state!=='combat'||!input.canStick()) {
             return;
         }
@@ -1868,6 +1871,7 @@ function boot() {
             run.update(dt,player);
             npcs.update(dt,player,i=>run.canInteract(i));
             doors.update(dt,player);
+            input.interactReady=!fx.paused&&!transition.active&&((doors.focus>=0&&run.canExit())||(npcs.focus>=0&&run.canInteract(npcs.focus)));
         }
     }
     function updateDamageFx(dt) {

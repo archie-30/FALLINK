@@ -139,6 +139,24 @@ export class Hud {
             ctx.fillText(t(W.heat?'hud.cool':'hud.reload'),cx,cy+6);
             return;
         }
+        if (W.cooldown) {
+            const k=1-Math.min(1,(player.cdT||0)/W.cooldown);
+            const a0=Math.PI/2+span/2;
+            ctx.lineCap='round';
+            ctx.lineWidth=5;
+            ctx.strokeStyle=rgba('midGray',0.5);
+            ctx.beginPath();
+            ctx.arc(cx,cy-r,r,a0,a0-span,true);
+            ctx.stroke();
+            ctx.strokeStyle=k>=1?PALETTE.ink:PALETTE.nearGray;
+            ctx.lineWidth=k>=1?5:4;
+            if (k>0) {
+                ctx.beginPath();
+                ctx.arc(cx,cy-r,r,a0,a0-span*k,true);
+                ctx.stroke();
+            }
+            return;
+        }
         if (player.rapidT>0) {
             return;
         }
@@ -154,7 +172,7 @@ export class Hud {
             ctx.fillRect(-1.5,-4,3,8);
             ctx.restore();
         }
-        if (player.ammo<=Math.max(3,W.magazine*0.2)&&!W.heat&&!W.returns) {
+        if (player.ammo<=Math.max(3,W.magazine*0.2)&&!W.heat) {
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='11px '+FONT;
             ctx.textAlign='center';
@@ -268,6 +286,46 @@ export class Hud {
         }
         ctx.restore();
         this.toasts=this.toasts.filter(q=>q.t>0);
+    }
+
+    drawFacing(ctx,player,project,guide) {
+        const F=TUNING.hud.facing;
+        const px=player.renderPos.x;
+        const pz=player.renderPos.z;
+        const dx=Math.sin(player.aimYaw);
+        const dz=Math.cos(player.aimYaw);
+        const p=this.fp||(this.fp=[{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0}]);
+        if (guide) {
+            project(px+dx*F.guideFrom,0.05,pz+dz*F.guideFrom,p[3]);
+            project(px+dx*(F.guideFrom+F.guideLen),0.05,pz+dz*(F.guideFrom+F.guideLen),p[4]);
+            ctx.save();
+            const g=ctx.createLinearGradient(p[3].x,p[3].y,p[4].x,p[4].y);
+            g.addColorStop(0,rgba('ink',F.guideAlpha));
+            g.addColorStop(1,rgba('ink',0));
+            ctx.strokeStyle=g;
+            ctx.lineWidth=2;
+            ctx.setLineDash([F.dash,F.gap]);
+            ctx.beginPath();
+            ctx.moveTo(p[3].x,p[3].y);
+            ctx.lineTo(p[4].x,p[4].y);
+            ctx.stroke();
+            ctx.restore();
+        }
+        const bx=px+dx*F.dist;
+        const bz=pz+dz*F.dist;
+        project(bx+dx*F.len,0.05,bz+dz*F.len,p[0]);
+        project(bx-dz*F.half,0.05,bz+dx*F.half,p[1]);
+        project(bx+dz*F.half,0.05,bz-dx*F.half,p[2]);
+        ctx.save();
+        ctx.globalAlpha=F.alpha;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.beginPath();
+        ctx.moveTo(p[0].x,p[0].y);
+        ctx.lineTo(p[1].x,p[1].y);
+        ctx.lineTo(p[2].x,p[2].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
     }
 
     showResult(title,lines) {

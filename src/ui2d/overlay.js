@@ -86,6 +86,7 @@ export class Overlay {
                 this.hud.drawHp(ctx,player);
                 this.hud.drawInk(ctx,game.ink);
             }
+            this.hud.drawFacing(ctx,player,game.project,input.lastDevice==='touch'&&settings.aimGuide);
             game.marks.draw(ctx,game,input.lastDevice==='touch',this.height);
             game.hand.draw(ctx,game.art);
             if (input.lastDevice==='touch') {
@@ -343,6 +344,40 @@ export class Overlay {
         const ready=player.dashCd<=0;
         const pressed=d.id>=0;
         const r=d.r*(pressed?0.92:1);
+        if (input.skillHeld()) {
+            const hov=input.skillCancelHover();
+            const rr=r*(hov?1.15:1);
+            ctx.fillStyle=hov?rgba('red',0.3):rgba('paper',0.7);
+            ctx.beginPath();
+            ctx.arc(d.x,d.y,rr,0,Math.PI*2);
+            ctx.fill();
+            this.ring(d.x,d.y,rr,3,PALETTE.red,72);
+            const k=rr*0.38;
+            ctx.strokeStyle=PALETTE.red;
+            ctx.lineWidth=hov?6:4;
+            ctx.lineCap='round';
+            ctx.beginPath();
+            ctx.moveTo(d.x-k,d.y-k);
+            ctx.lineTo(d.x+k,d.y+k);
+            ctx.moveTo(d.x+k,d.y-k);
+            ctx.lineTo(d.x-k,d.y+k);
+            ctx.stroke();
+            return;
+        }
+        if (input.interactReady) {
+            const pulse=1+Math.sin(performance.now()/180)*0.04;
+            ctx.fillStyle=rgba('paper',0.85);
+            ctx.beginPath();
+            ctx.arc(d.x,d.y,r*pulse,0,Math.PI*2);
+            ctx.fill();
+            this.ring(d.x,d.y,r*pulse,3,PALETTE.ink,73);
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold 17px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('ui.interact'),d.x,d.y+1);
+            return;
+        }
         ctx.fillStyle=rgba('paper',0.55);
         ctx.beginPath();
         ctx.arc(d.x,d.y,r,0,Math.PI*2);

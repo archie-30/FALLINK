@@ -2,7 +2,7 @@ import {TUNING} from '../data/tuning.js';
 import {settings} from './settings.js';
 
 function makeSkill(slot) {
-    return {slot,x:0,y:0,r:30,id:-1,ox:0,oy:0,vx:0,vy:0,mag:0,moved:false,flash:0};
+    return {slot,x:0,y:0,r:30,id:-1,ox:0,oy:0,vx:0,vy:0,mag:0,moved:false,flash:0,cancel:false};
 }
 
 export function fireRing() {
@@ -28,6 +28,7 @@ export class Input {
         this.skills=[makeSkill(0),makeSkill(1),makeSkill(2)];
         this.onSkill=null;
         this.dashQueued=false;
+        this.interactReady=false;
         this.reloadQueued=false;
         this.touches=new Map();
         this.multiTapArmed=true;
@@ -240,14 +241,12 @@ export class Input {
             }
             const d=this.dash;
             const st=this.stickAt(x,y);
-            const onDash=d.id<0&&Math.hypot(x-d.x,y-d.y)<=d.r*1.2;
+            const onDash=d.id<0&&!this.skillHeld()&&Math.hypot(x-d.x,y-d.y)<=d.r*1.2;
             if (st||onDash) {
                 this.lastDevice='touch';
                 this.touches.set(e.pointerId,{x,y,t:performance.now()});
                 if (onDash&&(!st||Math.hypot(x-d.x,y-d.y)<Math.hypot(x-st.cx,y-st.cy))) {
-                    d.id=e.pointerId;
-                    d.flash=1;
-                    this.dashQueued=true;
+                    this.pressDash(e.pointerId);
                     return;
                 }
                 this.startStick(st,e.pointerId,x,y);
@@ -283,10 +282,8 @@ export class Input {
             }
         }
         const d=this.dash;
-        if (d.id<0&&Math.hypot(x-d.x,y-d.y)<=d.r*1.25) {
-            d.id=e.pointerId;
-            d.flash=1;
-            this.dashQueued=true;
+        if (d.id<0&&!this.skillHeld()&&Math.hypot(x-d.x,y-d.y)<=d.r*1.25) {
+            this.pressDash(e.pointerId);
             return;
         }
         const st=this.stickAt(x,y);
@@ -336,6 +333,25 @@ export class Input {
         }
     }
 
+    pressDash(id) {
+        const d=this.dash;
+        d.id=id;
+        d.flash=1;
+        if (this.interactReady&&this.onInteract) {
+            this.onInteract();
+            return;
+        }
+        this.dashQueued=true;
+    }
+
+    skillHeld() {
+        return this.skills.some(k=>k.id>=0);
+    }
+
+    skillCancelHover() {
+        return this.skills.some(k=>k.id>=0&&k.cancel);
+    }
+
     skillAt(x,y) {
         for (const k of this.skills) {
             if (k.id<0&&Math.hypot(x-k.x,y-k.y)<=k.r*TUNING.input.skill.grab) {
@@ -354,6 +370,8 @@ export class Input {
         if (d>K.moveSlop) {
             k.moved=true;
         }
+        const D=this.dash;
+        k.cancel=Math.hypot(x-D.x,y-D.y)<=D.r*K.cancelReach;
         const m=Math.min(1,d/R);
         k.mag=k.moved?Math.max(0.05,m):0;
         if (d>1e-4) {
@@ -368,6 +386,7 @@ export class Input {
         k.vy=0;
         k.mag=0;
         k.moved=false;
+        k.cancel=false;
     }
 
     skillDrag() {
@@ -412,7 +431,12 @@ export class Input {
         for (const k of this.skills) {
             if (k.id===e.pointerId) {
                 if (this.onSkill) {
-                    this.onSkill('up',k.slot,k.vx,k.vy,k.mag,k.moved);
+                    if (k.cancel) {
+                        this.onSkill('cancel',k.slot);
+                    }
+                    else {
+                        this.onSkill('up',k.slot,k.vx,k.vy,k.mag,k.moved);
+                    }
                 }
                 this.releaseSkill(k);
             }
