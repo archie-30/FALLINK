@@ -15,6 +15,8 @@ export const settings={
     aimAssist:true,
     aimGuide:true,
     volume:0.8,
+    fpsCap:60,
+    fpsAuto:true,
     musicVol:0.55,
     sfxVol:0.8,
     mute:{volume:false,music:false,sfx:false},

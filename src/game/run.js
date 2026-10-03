@@ -555,6 +555,9 @@ export class Run {
             this.report.push({key,params,card,bad:NOTEBOOK.badNotes.includes(key)});
             return;
         }
+        if (NOTEBOOK.fxNotes.includes(key)) {
+            return;
+        }
         this.hooks.toast(key,params,card);
     }
 
@@ -681,7 +684,8 @@ export class Run {
         });
         const L=plan.layout;
         const own=L.props.filter(q=>!L.decor.includes(q));
-        plan.layout={...L,props:own.filter(q=>plan.npcs.slice(1).every(n=>Math.hypot(q.x-n.x,q.z-n.z)>S.shelfClear)).concat(L.decor)};
+        const front=q=>Math.abs(q.x-k.x)<S.frontW&&q.z>k.z-S.frontBack&&q.z<k.z+S.frontDepth;
+        plan.layout={...L,props:own.filter(q=>!front(q)&&plan.npcs.slice(1).every(n=>Math.hypot(q.x-n.x,q.z-n.z)>S.shelfClear)).concat(L.decor)};
     }
 
     shopBlocked(id) {

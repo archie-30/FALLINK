@@ -86,7 +86,7 @@ export class Player {
         const coat=tm({light:'farGray',mid:'midGray',dark:'ink',jitter:J});
         const sleeve=tm({light:'farGray',mid:'farGray',dark:'midGray',jitter:J,softNormal:TUNING.skinHatch.sleeveSoft});
         const face=tm({light:'paper',mid:'farGray',dark:'midGray',jitter:J});
-        const hat=tm({light:'midGray',mid:'nearGray',dark:'ink',jitter:J});
+        const hat=tm({light:'midGray',mid:'nearGray',dark:'ink',jitter:J*TUNING.boil.hatJitter});
         const gear=tm({light:'nearGray',mid:'nearGray',dark:'ink',jitter:J});
         const ink=g?dark:unlitMaterial({color:'ink',jitter:J,unique:true});
         this.skinMats={coat,limbs:dark,face,hat,gear,accent:g?null:ink};
@@ -193,18 +193,18 @@ export class Player {
             cheek.rotation.y=sx*0.55;
             this.head.add(cheek);
         }
-        const brim=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.24,0.06,12),hat);
-        brim.position.set(0,0.24,-0.02);
+        const brim=new THREE.Mesh(new THREE.CylinderGeometry(0.21,0.25,0.06,12),hat);
+        brim.position.set(0,TUNING.skinHatch.brimY,-0.02);
         brim.rotation.x=-0.3;
         addHull(brim,hull);
         this.head.add(brim);
         const drop=new THREE.Mesh(new THREE.ConeGeometry(0.15,0.36,10),hat);
-        drop.position.set(0,0.4,-0.08);
+        drop.position.set(0,TUNING.skinHatch.brimY+0.16,-0.08);
         drop.rotation.x=-0.45;
         addHull(drop,hull);
         this.head.add(drop);
         const tip=new THREE.Mesh(new THREE.SphereGeometry(0.045,6,4),ink);
-        tip.position.set(0,0.55,-0.17);
+        tip.position.set(0,TUNING.skinHatch.brimY+0.31,-0.17);
         this.head.add(tip);
         this.body.add(this.head);
         const armGeo=capsule(0.08,0.22);
@@ -584,6 +584,34 @@ export class Player {
         if (this.rapidT<=0) {
             this.ammo--;
             if (this.ammo<=0) {
+                if (this.W.refund) {
+                    this.pendReload=true;
+                    this.pendT=this.W.bulletLife+this.W.refund.wait;
+                }
+                else {
+                    this.startReload();
+                }
+            }
+        }
+    }
+
+    swingResult(dealt) {
+        const W=this.W;
+        if (!W.refund) {
+            return;
+        }
+        this.lowStreak=dealt<=W.refund.max?(this.lowStreak||0)+1:0;
+        if (this.lowStreak>=W.refund.streak) {
+            this.lowStreak=0;
+            this.ammo=Math.min(W.magazine,this.ammo+1);
+            this.pendReload=false;
+            if (this.events.onRefund) {
+                this.events.onRefund(this);
+            }
+        }
+        if (this.pendReload) {
+            this.pendReload=false;
+            if (this.ammo<=0) {
                 this.startReload();
             }
         }
@@ -740,6 +768,15 @@ export class Player {
         this.kick*=Math.exp(-18*dt);
         this.fireCd-=dt;
         const W=this.W;
+        if (this.pendReload) {
+            this.pendT-=dt;
+            if (this.pendT<=0) {
+                this.pendReload=false;
+                if (this.ammo<=0) {
+                    this.startReload();
+                }
+            }
+        }
         if (this.reloadT>0) {
             this.reloadT-=dt;
             if (this.reloadT<=0) {

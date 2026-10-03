@@ -3,6 +3,7 @@ import {CARDS} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
 import {toonMaterial,lineMaterial,unlitMaterial} from '../render/materials.js';
+import {circleVs,clampToBounds} from '../core/collision.js';
 
 let nextUid=1;
 
@@ -449,7 +450,26 @@ export class CardEffects {
     inkDash(dx,dz,dps,duration) {
         const g=this.g;
         const p=g.player;
+        const E=this.E;
         p.faceDir(dx,dz);
+        const cols=g.room?g.room.colliders:[];
+        const r=this.T.player.radius;
+        const n=Math.ceil(E.dashLead/E.dashLeadStep);
+        const sx=p.pos.x;
+        const sz=p.pos.z;
+        for (let i=0;i<n;i++) {
+            const nx=p.pos.x+dx*E.dashLead/n;
+            const nz=p.pos.z+dz*E.dashLead/n;
+            if (cols.some(c=>circleVs(nx,nz,r,c))) {
+                break;
+            }
+            p.pos.x=nx;
+            p.pos.z=nz;
+        }
+        if (g.room) {
+            clampToBounds(p.pos,r,g.room.bounds);
+        }
+        g.particles.burst(sx,0.4,sz,10,{color:'ink',speed:[2,5],up:[1,3],size:[0.06,0.14]});
         p.forceDash(dx,dz,this.E.dashSpeed,this.E.dashTime);
         p.invuln=Math.max(p.invuln,this.E.dashTime+0.1);
         g.room.zones.addTrail(p,dps,duration);

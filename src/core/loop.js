@@ -10,7 +10,8 @@ export const time={
     boilStep:0,
     boilIndex:0,
     boilChanged:false,
-    fps:60
+    fps:60,
+    fpsCap:0
 };
 
 export function createLoop(update,render) {
@@ -24,6 +25,9 @@ export function createLoop(update,render) {
     function frame(ts) {
         raf=requestAnimationFrame(frame);
         const now=ts/1000;
+        if (time.fpsCap>0&&last>=0&&now-last<1/time.fpsCap-TUNING.loop.capSlack) {
+            return;
+        }
         let dt=last<0?step:now-last;
         last=now;
         if (dt>TUNING.loop.maxFrameTime) {

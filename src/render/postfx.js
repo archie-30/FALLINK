@@ -48,6 +48,7 @@ export class PostFX {
             uInk:{value:pal('ink').clone()},
             uPaperOff:{value:new THREE.Vector2(0,0)},
             uGrain:{value:new THREE.Vector2(P.grain,1)},
+            uLineGrain:{value:TUNING.outline.lineGrain},
             uInvert:{value:0},
             tFx:{value:this.fxTarget.texture},
             uBleed:{value:0},

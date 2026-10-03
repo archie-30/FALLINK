@@ -2,7 +2,13 @@ export const TUNING={
     loop:{
         hz:60,
         maxFrameTime:0.1,
-        maxSteps:4
+        maxSteps:4,
+        fpsOptions:[60,90,120],
+        capSlack:0.0025,
+        autoProbe:1.5,
+        autoMargin:6,
+        weakCores:6,
+        mobileMax:90
     },
     boil:{
         fps:15,
@@ -11,6 +17,7 @@ export const TUNING={
         farAmp:0.5,
         noiseScale:2.2,
         vertexJitter:0.018,
+        hatJitter:0.3,
         hatchJitter:0.05
     },
     outline:{
@@ -24,10 +31,12 @@ export const TUNING={
         normalLo:0.45,
         normalHi:0.9,
         refHeight:720,
-        smallMaxBoost:1.9,
+        smallMaxBoost:1.3,
         depthBoost:0.4,
-        smallMinWidth:0.7,
-        hullWidth:0.035
+        smallMinWidth:0.6,
+        hullWidth:0.035,
+        mobileHull:0.7,
+        lineGrain:0.2
     },
     toon:{
         lightDir:[-0.55,1.0,0.5],
@@ -49,7 +58,7 @@ export const TUNING={
         alpha:0.35
     },
     paper:{
-        grain:0.2,
+        grain:0.1,
         texSize:512
     },
     shadow:{
@@ -59,6 +68,8 @@ export const TUNING={
         fov:38,
         pitch:55,
         distance:22,
+        mobilePitch:52,
+        mobileDistance:17,
         near:1,
         far:200,
         follow:6,
@@ -185,15 +196,17 @@ export const TUNING={
         bleed:0.75,
         bleedDecay:0.7,
         lowHp:0.3,
-        lowBase:0.3,
-        lowPulse:0.22,
+        lowBase:0.1,
+        lowPulse:0.12,
         heartRate:1.25,
         heartFov:0.5
     },
     input:{
+        mouseWake:3,
+        far:-10000,
         deadZone:0.14,
         fireRingRange:[0.55,0.9],
-        nudge:{idle:10,every:3,dur:0.5,amp:6,rate:42,stagger:0.12,interactEvery:1.3,interactDur:0.35,interactAmp:3,interactTilt:0.12},
+        nudge:{waveDur:1.4,waves:3,waveGap:0.25,waveGrow:0.9,waveAlpha:0.75,waveWidth:4,idle:10,every:3,dur:0.5,amp:6,rate:42,stagger:0.12,interactEvery:1.3,interactDur:0.35,interactAmp:3,interactTilt:0.12},
         skill:{scale:0.46,sizeRange:[0.75,1.3],gap:14,angles:[2.9,3.55,4.2,4.88],ultMul:1.15,dashMul:0.92,grab:1.15,dragRadius:1.3,moveSlop:12,cancelReach:1.15},
         stickMin:50,
         stickMax:76,
@@ -283,7 +296,7 @@ export const TUNING={
         stampTime:0.35,
         countTime:0.9,
         xpTime:1.2,
-        drawer:{peek:52,peekSmall:40,frac:0.8,maxW:900,time:0.3,actGap:10,head:52,headSmall:40,foot:46,footSmall:38,row:27,rowSmall:21},
+        drawer:{closeTime:0.28,tilt:0.025,rowsAt:0.45,rowStagger:0.03,rowRise:10,bottomPad:14,barMin:24,fadeH:34,dragSlop:6,follow:16,peek:52,peekSmall:40,frac:0.8,maxW:900,time:0.45,actGap:10,head:52,headSmall:40,foot:46,footSmall:38,row:27,rowSmall:21},
         grade:{
             story:[['S',35000],['A',20000],['B',10000],['C',4000],['D',-1]],
             endless:[['S',60000],['A',30000],['B',15000],['C',5000],['D',-1]]
@@ -300,6 +313,10 @@ export const TUNING={
     choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,descMax:5,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:124,btnH:44,lineH:21,maxLines:2},
     settingsUi:{
+        devCode:'0012830',
+        iconTap:20,
+        pwErrDecay:1.6,
+        pwPressDecay:5,
         muteR:13,
         muteGap:26,
         mutedAlpha:0.35,
@@ -313,6 +330,13 @@ export const TUNING={
         pulseDecay:3
     },
     codex:{
+        compactH:600,
+        compactTop:10,
+        compactCols:3,
+        compactScale:0.62,
+        compactGap:18,
+        titleW:70,
+        filterH:28,
         enemyAnim:{slide:16,spin:0.5,bob:2.5,bobFreq:2.6,sway:0.05,squash:0.03,hoverFreq:9,hoverTilt:0.04},
         toggleFollow:10,
         cardPanelH:640,
@@ -355,6 +379,8 @@ export const TUNING={
         shieldSpin:2.4,
         dashSpeed:26,
         dashTime:0.24,
+        dashLead:1.4,
+        dashLeadStep:0.2,
         timeStopFade:0.18,
         cloneFire:0.22,
         cloneRange:14,
@@ -394,10 +420,9 @@ export const TUNING={
         equip:{time:0.9,jolt:0.25,joltScale:0.08,shake:0.05,spinTime:0.6,spins:1,lift:0.18,grow:0.35,drops:12,dropTime:0.45,stampDelay:0.35,stampTime:0.3,stampFrom:2.6}
     },
     trainUi:{
-        mapRows:4.1,
-        rowH:44,
-        mapRowsSmall:3,
-        mapGap:12,
+        rowH:48,
+        bossGap:0.35,
+        bossH:1.25,
         pulseDecay:3.2,
         popDecay:4,
         hoverScale:0.06,
@@ -415,6 +440,14 @@ export const TUNING={
     beam:{height:1.1,fadeIn:30,fadeOut:14,pulse:40,pulseAmp:0.08,step:0.25,mergeTime:0.35,sparks:2},
     equip:{time:0.55,lift:0.35,spin:2,particles:10},
     skinUi:{
+        r:14,
+        rSmall:12,
+        rTiny:10,
+        gap:14,
+        gapSmall:16,
+        gapTiny:12,
+        rowGap:12,
+        rowGapSmall:12,
         pulseDecay:3.5,
         spinTime:0.8,
         follow:14,
@@ -423,6 +456,7 @@ export const TUNING={
         sparkGrav:520
     },
     skinHatch:{
+        brimY:0.28,
         lines:0.12,
         shade:0.18,
         hullPlain:0.035,
@@ -436,6 +470,13 @@ export const TUNING={
         follow:9
     },
     menu:{
+        bestGap:26,
+        bestGapSmall:18,
+        barW:330,
+        barWSmall:250,
+        barH:50,
+        barHSmall:40,
+        gearW:1.1,
         colFrac:0.34,
         divider:{drawIn:0.8,freq:9,speed:1.6,amp:4,jitter:1.6,drops:2,dropSpeed:0.12,dropSize:4},
         skinY:0.72,
@@ -468,6 +509,11 @@ export const TUNING={
         dpsWindow:5
     },
     reward:{
+        touchScale:1.7,
+        touchH:0.56,
+        touchW:0.66,
+        tipW:270,
+        touchTip:1.3,
         choices:2,
         every:2,
         pickTime:0.65,
@@ -565,11 +611,11 @@ export const TUNING={
     },
     quality:{
         low:{pixelRatio:1.0,grain:false,hatchedShadow:false,anisotropy:1,particles:120,hulls:false},
-        mid:{pixelRatio:1.25,grain:true,hatchedShadow:true,anisotropy:2,particles:250},
+        mid:{pixelRatio:1.5,grain:true,hatchedShadow:true,anisotropy:2,particles:250},
         high:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:4,particles:500}
     },
     pixelRatioCap:{
-        mobile:1.5,
+        mobile:2.0,
         desktop:2.0
     },
     reducedMotion:{

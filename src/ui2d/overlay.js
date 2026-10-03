@@ -301,6 +301,22 @@ export class Overlay {
             const r=k.r*(pressed?0.92:1)*(sel?1.06+Math.sin(time.real*8)*0.03:1);
             const x=k.x+shake;
             const y=k.y;
+            if (card&&!poor&&ph<N.waveDur) {
+                ctx.save();
+                for (let j=0;j<N.waves;j++) {
+                    const q=(ph-j*N.waveGap)/(N.waveDur-N.waveGap*(N.waves-1));
+                    if (q<=0||q>=1) {
+                        continue;
+                    }
+                    const e=EASE.easeOutCubic(q);
+                    ctx.strokeStyle=rgba(ult?'red':'ink',(1-q)*N.waveAlpha);
+                    ctx.lineWidth=N.waveWidth*(1-q)+1;
+                    ctx.beginPath();
+                    ctx.arc(k.x,y,k.r*(1+e*N.waveGrow),0,Math.PI*2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
             ctx.save();
             ctx.globalAlpha=card||!hand?(poor?0.5:1):0.45;
             ctx.fillStyle=sel?rgba('red',0.18):rgba('paper',0.72);
