@@ -6,6 +6,7 @@ import {sketchRect,sketchLine,sketchPath,hatchFill,rectPoly,drawShape} from './s
 import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
 import {CARDS} from '../data/cards.js';
+import {ACTS} from '../data/levels.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -79,6 +80,10 @@ export class Hud {
         this.bannerT=0;
         this.bannerDur=0;
         this.bossShown=1;
+        this.prog=null;
+        this.scoreShown=0;
+        this.scorePop=0;
+        this.scoreAt=0;
     }
 
     drawEnemyHp(ctx,enemies,project,tmp) {
@@ -346,26 +351,28 @@ export class Hud {
         }
         const a=Math.min(1,q.t/R.fade,(q.life-q.t)/R.fade);
         const bw=Math.min(R.maxW,w-32);
-        const bh=40+q.lines.length*R.lineH;
-        const x=w/2-bw/2;
         const y=h*R.y-(1-EASE.easeOutBack(Math.min(1,q.t/R.fade)))*20;
         ctx.save();
         ctx.globalAlpha=Math.max(0,a);
-        ctx.fillStyle=rgba('paper',0.95);
-        ctx.fillRect(x,y,bw,bh);
-        drawShape(ctx,sketchRect(x,y,bw,bh,{width:2,seed:780}),PALETTE.ink);
         ctx.textAlign='center';
         ctx.textBaseline='middle';
+        ctx.lineJoin='round';
+        ctx.strokeStyle=rgba('paper',0.9);
+        ctx.lineWidth=R.halo;
+        ctx.font='bold '+R.titleSize+'px '+FONT;
+        ctx.strokeText(q.title,w/2,y,bw);
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold 16px '+FONT;
-        ctx.fillText(q.title,w/2,y+20,bw-20);
-        ctx.font='14px '+FONT;
+        ctx.fillText(q.title,w/2,y,bw);
+        ctx.font='bold '+R.lineSize+'px '+FONT;
         for (let i=0;i<q.lines.length;i++) {
             const l=q.lines[i];
             const k=Math.max(0,Math.min(1,(q.t-0.15-i*0.12)/0.2));
+            const ly=y+R.titleSize+6+i*R.lineH;
+            const txt=(l.bad?'✕ ':'✓ ')+l.text;
             ctx.globalAlpha=Math.max(0,a)*k;
+            ctx.strokeText(txt,w/2,ly,bw);
             ctx.fillStyle=l.bad?PALETTE.red:PALETTE.ink;
-            ctx.fillText((l.bad?'✕ ':'✓ ')+l.text,w/2,y+44+i*R.lineH,bw-24);
+            ctx.fillText(txt,w/2,ly,bw);
         }
         ctx.restore();
     }
@@ -432,27 +439,34 @@ export class Hud {
         if (p.training) {
             return;
         }
-        let title=p.overtime?t('run.overtimeInfo',{page:p.otPage+1,score:run.stats.score}):run.mode==='endless'?t('run.endlessInfo',{page:p.index+1,score:run.stats.score}):t('run.info',{act:p.act+1,page:p.index+1,pages:run.totalRooms(),score:run.stats.score});
-        if (p.node&&p.node!=='battle'&&!p.boss) {
-            title+='　·　'+t('node.'+p.node);
+        const PB=TUNING.hud.progress;
+        if (run.notebook()&&!p.overtime) {
+            this.drawProgress(ctx,w,run);
         }
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold 15px '+FONT;
+        else {
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold 15px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='top';
+            ctx.fillText(p.overtime?t('run.overtimeInfo',{page:p.otPage+1}):t('run.endlessInfo',{page:p.index+1}),w/2,14);
+        }
+        this.drawScore(ctx,w,run.stats.score);
         ctx.textAlign='center';
         ctx.textBaseline='top';
-        ctx.fillText(title,w/2,14);
+        const by=PB.below;
         const d=run.director;
         if (d&&!p.boss&&run.state==='combat') {
             const wv=Math.max(1,d.wave+1);
             ctx.font='13px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
-            ctx.fillText(t('run.wave',{wave:wv,waves:d.totalWaves(),left:enemies.aliveCount()+d.queue.length}),w/2,34);
+            ctx.fillText(t('run.wave',{wave:wv,waves:d.totalWaves(),left:enemies.aliveCount()+d.queue.length}),w/2,by);
         }
         const pz=run.puzzleInfo&&run.puzzleInfo();
         if (pz) {
-            ctx.font='bold 14px '+FONT;
+            ctx.font='bold 15px '+FONT;
             ctx.fillStyle=PALETTE.red;
-            ctx.fillText(t(pz.key,pz.params),w/2,40);
+            const tail=pz.params&&pz.params.s!==undefined?'　'+t('mg.time',{s:pz.params.s}):'';
+            ctx.fillText(t(pz.key,pz.params)+tail,w/2,by+4);
         }
         const ch=p.challenge;
         if (ch&&(run.state==='combat'||run.state==='cleared')) {
@@ -461,7 +475,7 @@ export class Hud {
             const txt=t('challenge.'+ch.id,ch)+(ch.time&&!fail?t('challenge.left',{n:left}):'')+'　'+t(fail?'challenge.markFail':'challenge.markOk');
             ctx.font='bold 13px '+FONT;
             ctx.fillStyle=fail?PALETTE.midGray:PALETTE.red;
-            ctx.fillText(txt,w/2,52);
+            ctx.fillText(txt,w/2,by+18);
         }
         const boss=enemies.boss();
         if (boss) {
@@ -469,7 +483,7 @@ export class Hud {
             this.bossShown+=(f-this.bossShown)*0.15;
             const bw=Math.min(520,w*0.45);
             const x=w/2-bw/2;
-            const y=38;
+            const y=by+4;
             ctx.fillStyle=PALETTE.ink;
             ctx.font='bold 14px '+FONT;
             ctx.textAlign='center';
@@ -487,6 +501,132 @@ export class Hud {
             ctx.fillStyle=PALETTE.red;
             ctx.fillText(t('boss.hint.'+boss.type),w/2,y+40);
         }
+    }
+
+    drawProgress(ctx,w,run) {
+        const P=TUNING.hud.progress;
+        const p=run.plan;
+        const counts=ACTS.map(a=>a.rooms+1);
+        let pos=p.index;
+        for (let a=0;a<p.act;a++) {
+            pos+=counts[a];
+        }
+        const now=time.real;
+        let g=this.prog;
+        if (!g||g.stats!==run.stats) {
+            g=this.prog={stats:run.stats,from:pos,to:pos,at:-9};
+        }
+        if (g.to!==pos) {
+            g.from=g.to;
+            g.to=pos;
+            g.at=now;
+        }
+        const k=Math.min(1,(now-g.at)/P.anim);
+        const n=counts.length;
+        const segW=Math.max(P.minSeg,Math.min(P.segW,(w-P.side*2-P.gap*(n-1))/n));
+        const total=segW*n+P.gap*(n-1);
+        const x0=w/2-total/2;
+        const y=P.y;
+        const dotX=gi=>{
+            let a=0;
+            while (a<n-1&&gi>=counts[a]) {
+                gi-=counts[a];
+                a++;
+            }
+            return x0+a*(segW+P.gap)+gi/(counts[a]-1)*segW;
+        };
+        ctx.save();
+        ctx.textBaseline='middle';
+        let gi=0;
+        for (let a=0;a<n;a++) {
+            const lx=x0+a*(segW+P.gap);
+            const cur=a===p.act;
+            ctx.strokeStyle=a<p.act?PALETTE.ink:(cur?PALETTE.ink:PALETTE.midGray);
+            ctx.lineWidth=cur?2.4:1.6;
+            ctx.beginPath();
+            ctx.moveTo(lx,y);
+            ctx.lineTo(lx+segW,y);
+            ctx.stroke();
+            ctx.font=(cur?'bold ':'')+P.actSize+'px '+FONT;
+            ctx.fillStyle=cur?PALETTE.ink:PALETTE.midGray;
+            ctx.textAlign='left';
+            ctx.fillText(t('hud.act',{n:a+1}),lx,y-P.actY);
+            for (let j=0;j<counts[a];j++,gi++) {
+                const boss=j===counts[a]-1;
+                const x=lx+j/(counts[a]-1)*segW;
+                const done=gi<g.to;
+                const r=boss?P.bossR:P.dotR;
+                ctx.beginPath();
+                if (boss) {
+                    ctx.moveTo(x,y-r);
+                    ctx.lineTo(x+r,y);
+                    ctx.lineTo(x,y+r);
+                    ctx.lineTo(x-r,y);
+                    ctx.closePath();
+                }
+                else {
+                    ctx.arc(x,y,r,0,Math.PI*2);
+                }
+                ctx.fillStyle=done?PALETTE.ink:PALETTE.paper;
+                ctx.fill();
+                ctx.lineWidth=1.6;
+                ctx.strokeStyle=boss?PALETTE.red:(a>p.act?PALETTE.midGray:PALETTE.ink);
+                ctx.stroke();
+            }
+        }
+        const e=EASE.easeInOutCubic(k);
+        const mx=dotX(g.from)+(dotX(g.to)-dotX(g.from))*e;
+        const my=y-Math.sin(k*Math.PI)*P.hop*(g.from!==g.to?1:0);
+        const pulse=1+Math.sin(now*P.pulseRate)*P.pulse;
+        ctx.fillStyle=rgba('red',0.25);
+        ctx.beginPath();
+        ctx.arc(mx,my,P.curR*1.7*pulse,0,Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle=PALETTE.red;
+        ctx.beginPath();
+        ctx.arc(mx,my,P.curR,0,Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=1.6;
+        ctx.stroke();
+        const label=p.boss?t('hud.bossPage'):t('node.'+(p.node||'battle'));
+        ctx.font='bold '+P.tagSize+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.fillStyle=PALETTE.red;
+        ctx.globalAlpha=k;
+        ctx.fillText(label,mx,y+P.tagY);
+        ctx.restore();
+    }
+
+    drawScore(ctx,w,score) {
+        const S=TUNING.hud.score;
+        const now=time.real;
+        const dt=Math.min(0.1,now-this.scoreAt);
+        this.scoreAt=now;
+        if (Math.round(this.scoreShown)!==score) {
+            if (score>this.scoreShown) {
+                this.scorePop=1;
+            }
+            this.scoreShown+=(score-this.scoreShown)*Math.min(1,dt*S.rate);
+            if (Math.abs(score-this.scoreShown)<1) {
+                this.scoreShown=score;
+            }
+        }
+        this.scorePop=Math.max(0,this.scorePop-dt*S.popDecay);
+        const x=w-S.right;
+        ctx.save();
+        ctx.textAlign='right';
+        ctx.textBaseline='top';
+        ctx.font=S.labelSize+'px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillText(t('hud.score'),x,S.y);
+        const s=1+EASE.easeOutQuad(this.scorePop)*S.pop;
+        ctx.translate(x,S.y+S.labelSize+2);
+        ctx.scale(s,s);
+        ctx.font='bold '+S.size+'px '+FONT;
+        ctx.fillStyle=this.scorePop>0.3?PALETTE.red:PALETTE.ink;
+        ctx.fillText(String(Math.round(this.scoreShown)),0,0);
+        ctx.restore();
     }
 
     inkChanged(delta) {

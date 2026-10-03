@@ -8,6 +8,7 @@ import {planRoom,planEndless} from './level.js';
 import {RoomDirector,TrainingDirector} from './room.js';
 import {createCard} from './card.js';
 import {NOTEBOOK} from '../data/notebook.js';
+import {MINIGAMES} from '../data/minigames.js';
 
 export class Run {
     constructor(hooks,seed) {
@@ -24,6 +25,8 @@ export class Run {
         this.index=0;
         this.lastLayout=null;
         this.lastEvent=null;
+        this.lastGames=[];
+        this.lastPrize=null;
         this.overtime=false;
         this.otPage=0;
         this.node='battle';
@@ -31,7 +34,6 @@ export class Run {
         this.exitsOpen=false;
         this.ambushAfter=null;
         this.report=null;
-        this.puz=null;
         const ids=mode==='training'?unlockedCards(effectiveLevel()):(startDeck||STARTING_DECK);
         this.deckList=ids.map(id=>({id,upgraded:false}));
         this.stats={kills:0,cards:0,damage:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0};
@@ -120,7 +122,6 @@ export class Run {
         this.lastLayout=plan.layoutKey;
         this.exitsOpen=false;
         this.ambushAfter=null;
-        this.puz=null;
         this.timer=0;
         this.director=null;
         this.room=this.hooks.enterRoom(plan,this.deckList);
@@ -146,10 +147,12 @@ export class Run {
         if (node+k===this.lastLayout&&list.length>1) {
             k=(k+1)%list.length;
         }
-        const pool=node==='event'?NOTEBOOK.events.filter(e=>e.id!==this.lastEvent):null;
+        if (node==='event') {
+            return this.planGame(list[k],node+k);
+        }
+        const pool=node==='encounter'?NOTEBOOK.events.filter(e=>e.id!==this.lastEvent):null;
         const ev=pool?pool[Math.floor(this.rng.next()*pool.length)]:null;
-        const bells=ev&&ev.puzzle==='sequence'?NOTEBOOK.puzzles.sequence:null;
-        const layout=this.arrangePeace(list[k],node==='treasure'?3:1,bells);
+        const layout=this.arrangePeace(list[k],node==='treasure'?3:1);
         const plan={act:this.act,index:this.index,peace:true,node,boss:false,layoutKey:node+k,layout,hpMult:ACTS[this.act].hpMult,waves:[],barrels:0,crates:0};
         const spot=i=>({x:layout.npcs[i][0],z:layout.npcs[i][1]});
         if (ev) {
@@ -157,12 +160,6 @@ export class Run {
             plan.event=ev.id;
             plan.block=!!ev.block;
             plan.npcs=[{model:ev.model,...spot(0)}];
-            if (ev.puzzle==='sequence') {
-                const Q=NOTEBOOK.puzzles.sequence;
-                for (const x of Q.xs) {
-                    plan.npcs.push({model:'bell',x,z:Q.z});
-                }
-            }
         }
         else if (node==='treasure') {
             const out=NOTEBOOK.chests.slice();
@@ -182,24 +179,63 @@ export class Run {
         return plan;
     }
 
-    arrangePeace(base,count,bells) {
+    planGame(base,key) {
+        const M=MINIGAMES;
+        const pool=M.order.filter(id=>!this.lastGames.includes(id));
+        const id=pool[Math.floor(this.rng.next()*pool.length)];
+        this.lastGames.push(id);
+        while (this.lastGames.length>M.order.length-4) {
+            this.lastGames.shift();
+        }
+        const def=M.games[id];
+        const flip=this.rng.next()<0.5?-1:1;
+        const host=def.host||M.host;
+        const layout={...base,props:base.decor,npcs:[[host[0]*flip,host[1]]]};
+        return {act:this.act,index:this.index,peace:true,node:'event',boss:false,layoutKey:key,layout,hpMult:ACTS[this.act].hpMult,waves:[],barrels:0,crates:0,game:id,gameFlip:flip,npcs:[{model:def.model,x:host[0]*flip,z:host[1]}]};
+    }
+
+    prize(ok) {
+        const list=ok?MINIGAMES.rewards:MINIGAMES.penalties;
+        const pool=list.filter(q=>JSON.stringify(q[1])!==this.lastPrize);
+        let total=0;
+        for (const q of pool) {
+            total+=q[0];
+        }
+        let r=this.rng.next()*total;
+        let pick=pool[pool.length-1];
+        for (const q of pool) {
+            r-=q[0];
+            if (r<=0) {
+                pick=q;
+                break;
+            }
+        }
+        this.lastPrize=JSON.stringify(pick[1]);
+        return pick[1].map(e=>e.slice());
+    }
+
+    gameDone(ok) {
+        const p=this.plan;
+        this.state='node';
+        this.withReport({key:ok?'report.gameWin':'report.gameLose',params:{name:'event.'+p.game+'.title'}},fin=>this.applyEffects(this.prize(ok),fin),()=>this.backToPeace());
+    }
+
+    arrangePeace(base,count) {
         const V=PEACE_VARY;
         const r=()=>this.rng.next();
         const pick=a=>a[Math.floor(r()*a.length)];
         const flip=r()<V.mirror?-1:1;
         const near=(x,z,px,pz,d)=>Math.hypot(x-px,z-pz)<d;
-        const nearBell=(x,z,d)=>!!bells&&bells.xs.some(bx=>near(x,z,bx,bells.z,d));
         let npcs;
         if (count>1) {
             npcs=pick(V.trios.concat([base.npcs])).map(q=>[q[0]*flip,q[1]]);
         }
         else {
-            const ok=V.spots.concat(base.npcs).filter(q=>!nearBell(q[0],q[1],V.bellClear+1));
-            const q=pick(ok);
+            const q=pick(V.spots.concat(base.npcs));
             npcs=[[q[0]*flip+(r()-0.5)*V.npcJitter,q[1]+(r()-0.5)*V.npcJitter]];
         }
         const sp=base.spawn;
-        const free=V.slots.filter(q=>!near(q[0],q[1],sp[0],sp[1],V.spawnClear)&&!nearBell(q[0],q[1],V.bellClear)&&!npcs.some(n=>near(q[0],q[1],n[0],n[1],V.npcClear)));
+        const free=V.slots.filter(q=>!near(q[0],q[1],sp[0],sp[1],V.spawnClear)&&!npcs.some(n=>near(q[0],q[1],n[0],n[1],V.npcClear)));
         for (let i=free.length-1;i>0;i--) {
             const j=Math.floor(r()*(i+1));
             [free[i],free[j]]=[free[j],free[i]];
@@ -444,114 +480,11 @@ export class Run {
         if (this.state!=='peace'||!p||!p.peace||i<0||i>=p.npcs.length) {
             return false;
         }
-        const z=this.puz;
-        if (z) {
-            return z.kind==='sequence'&&z.phase==='input'&&i>0;
-        }
-        return !this.npcUsed[i]&&!(p.npcs[i].model==='bell');
-    }
-
-    startPuzzle(ev) {
-        const p=this.plan;
-        if (ev.puzzle==='sequence') {
-            const Q=NOTEBOOK.puzzles.sequence;
-            const len=Q.len[Math.min(this.act,Q.len.length-1)];
-            const seq=[];
-            for (let k=0;k<len;k++) {
-                seq.push(1+Math.floor(this.rng.next()*Q.xs.length));
-            }
-            this.puz={kind:'sequence',seq,step:0,phase:'show',t:-Q.lead,shown:0};
-        }
-        else {
-            const Q=NOTEBOOK.puzzles.targets;
-            const n=this.hooks.spawnTargets(Q.count);
-            this.puz={kind:'targets',total:n,left:n,t:Q.time};
-        }
-        this.state='peace';
-        this.hooks.resume();
-        this.note('puzzle.'+this.puz.kind+'.go');
-        p.puzzleOn=true;
-    }
-
-    endPuzzle(ok) {
-        const z=this.puz;
-        this.puz=null;
-        this.plan.puzzleOn=false;
-        const Q=NOTEBOOK.puzzles[z.kind];
-        for (let k=0;k<this.npcUsed.length;k++) {
-            this.npcUsed[k]=true;
-            this.hooks.npcUsed(k,k>0);
-        }
-        if (z.kind==='targets') {
-            this.hooks.clearTargets();
-        }
-        this.state='node';
-        this.withReport({key:'report.event',params:{name:'event.'+this.plan.event+'.title'}},fin=>{
-            this.note(ok?'puzzle.win':'puzzle.lose');
-            this.applyEffects((ok?Q.reward:Q.fail).slice(),fin);
-        },()=>this.backToPeace());
-    }
-
-    puzzleInput(i) {
-        const z=this.puz;
-        this.hooks.npcFlash(i,true);
-        if (z.seq[z.step]!==i) {
-            this.endPuzzle(false);
-            return;
-        }
-        z.step++;
-        if (z.step>=z.seq.length) {
-            this.endPuzzle(true);
-        }
-    }
-
-    targetHit() {
-        const z=this.puz;
-        if (!z||z.kind!=='targets') {
-            return;
-        }
-        z.left--;
-        if (z.left<=0) {
-            this.endPuzzle(true);
-        }
-    }
-
-    updatePuzzle(dt) {
-        const z=this.puz;
-        if (!z||this.state!=='peace') {
-            return;
-        }
-        if (z.kind==='targets') {
-            z.t-=dt;
-            if (z.t<=0) {
-                this.endPuzzle(false);
-            }
-            return;
-        }
-        if (z.phase!=='show') {
-            return;
-        }
-        const Q=NOTEBOOK.puzzles.sequence;
-        z.t+=dt;
-        while (z.t>=0&&z.shown<=z.t/Q.step&&z.shown<z.seq.length) {
-            this.hooks.npcFlash(z.seq[z.shown],false);
-            z.shown++;
-        }
-        if (z.t>=z.seq.length*Q.step) {
-            z.phase='input';
-            this.note('puzzle.sequence.yours');
-        }
+        return !this.npcUsed[i];
     }
 
     puzzleInfo() {
-        const z=this.puz;
-        if (!z) {
-            return null;
-        }
-        if (z.kind==='targets') {
-            return {key:'puzzle.targets.info',params:{left:z.left,total:z.total,s:Math.ceil(Math.max(0,z.t))}};
-        }
-        return {key:z.phase==='show'?'puzzle.sequence.watch':'puzzle.sequence.info',params:{step:z.step,len:z.seq.length}};
+        return this.hooks.gameInfo();
     }
 
     backToPeace() {
@@ -631,24 +564,17 @@ export class Run {
             },done);
             return true;
         }
-        const ev=NOTEBOOK.events.find(e=>e.id===p.event);
-        if (this.puz) {
-            this.state='peace';
-            this.puzzleInput(i);
-            return true;
-        }
-        if (ev.puzzle) {
-            this.hooks.openChoice({kind:'event',id:ev.id,options:[{id:'start'},{id:'skip'}]},k=>{
-                if (k===0) {
-                    this.startPuzzle(ev);
-                    return;
-                }
-                this.npcUsed[i]=true;
-                this.hooks.npcUsed(i);
-                done();
+        if (p.game) {
+            this.npcUsed[i]=true;
+            this.hooks.npcUsed(i);
+            this.hooks.openChoice({kind:'event',id:p.game,options:[{id:'start'}]},()=>{
+                this.state='peace';
+                this.hooks.resume();
+                this.hooks.startGame();
             });
             return true;
         }
+        const ev=NOTEBOOK.events.find(e=>e.id===p.event);
         this.npcUsed[i]=true;
         this.hooks.npcUsed(i);
         const opts=ev.options.map(o=>({id:o.id}));
@@ -856,7 +782,6 @@ export class Run {
         if (this.state==='combat'||this.state==='cleared'||this.state==='dead') {
             this.stats.time+=dt;
         }
-        this.updatePuzzle(dt);
         if (this.state==='combat') {
             this.director.update(dt,player);
             for (const e of this.director.events) {

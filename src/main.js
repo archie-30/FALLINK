@@ -40,7 +40,7 @@ import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Tutorial,WeaponView,InfoPopup,ChoicePanel,DeckPicker} from './ui2d/menu.js';
-import {weaponUnlocked} from './data/weapons.js';
+import {weaponUnlocked,pickWeapon,RANDOM_WEAPON} from './data/weapons.js';
 import {DEFAULT_SKIN} from './data/skins.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
@@ -51,6 +51,7 @@ import {Transition} from './ui2d/transition.js';
 import {DamageNumbers} from './ui2d/damageNumbers.js';
 import {Doors,doorXs} from './game/doors.js';
 import {Npcs} from './game/npc.js';
+import {MiniGames} from './game/minigames.js';
 import {WorldMarks} from './ui2d/worldMarks.js';
 
 const QUALITY_ORDER=['low','mid','high'];
@@ -109,7 +110,18 @@ function boot() {
     let menuAngle=0;
     const player=new Player(actors);
     player.applySkin({...DEFAULT_SKIN,...settings.skin});
-    const equipWeapon=()=>player.setWeapon(weaponUnlocked(settings.weapon,effectiveLevel())?settings.weapon:'pen');
+    const equipWeapon=(play=false)=>{
+        const lv=effectiveLevel();
+        let id=weaponUnlocked(settings.weapon,lv)?settings.weapon:'pen';
+        if (id===RANDOM_WEAPON.id) {
+            id=play?pickWeapon(lv,settings.lastWeapon):(weaponUnlocked(settings.lastWeapon,lv)&&settings.lastWeapon!==RANDOM_WEAPON.id?settings.lastWeapon:'pen');
+        }
+        player.setWeapon(id);
+        if (play) {
+            settings.lastWeapon=id;
+            saveSettings();
+        }
+    };
     player.spawn(new THREE.Vector3(0,0,4));
     const rig=new CameraRig(1);
     rig.follow(player.pos,0,0);
@@ -587,10 +599,6 @@ function boot() {
         particles.burst(x,1.0,z,PT.redKill,{color:'red',dirX:dx,dirZ:dz,cone:0.8,speed:[4,10],up:[1,5],size:[0.08,0.18]});
     };
     player.events.onReload=()=>audio.play('reload');
-    player.events.onRefund=p=>{
-        dmgNums.spawnText(p.pos.x,2.4,p.pos.z,t('hud.refund'));
-        audio.play('draw',1.4);
-    };
     player.events.onEquip=p=>{
         audio.play('equip');
         if (game.mode==='play') {
@@ -604,13 +612,12 @@ function boot() {
             const tier=PW.tiers.find(q=>d<=q[0]);
             dmg*=(tier?tier[1]:PW.damage)/PW.damage;
         }
-        const e=hitEnemies(x,z,r,dmg,vx,vz,sys,i);
-        if (e) {
-            player.shotHit(sys.tag[i]);
-        }
-        return e;
+        return hitEnemies(x,z,r,dmg,vx,vz,sys,i);
     };
-    weaponSys.compass.onReturn=(x,z,caught)=>{
+    weaponSys.compass.onReturn=(x,z,caught,struck)=>{
+        if (!struck&&player.W.missCut) {
+            player.cdT*=player.W.missCut;
+        }
         if (caught) {
             particles.burst(x,H,z,4,{color:'nearGray',speed:[1,3],up:[1,3],size:[0.06,0.12]});
             audio.play('draw',1.7);
@@ -659,7 +666,7 @@ function boot() {
             audio.play('wall',1.6);
             particles.burst(piece.x,1.2,piece.z,16,{color:'farGray',speed:[2,5],up:[2,5]});
             particles.burst(piece.x,1.2,piece.z,6,{color:'red',speed:[2,4],up:[2,4]});
-            run.targetHit();
+            minis.hitTarget();
             return;
         }
         if (piece.kind==='barrel') {
@@ -731,6 +738,7 @@ function boot() {
     }
 
     function clearWorld() {
+        minis.clear();
         enemies.clear();
         playerBullets.clear();
         enemyBullets.clear();
@@ -771,6 +779,9 @@ function boot() {
         r.onPropBreak=onPropBreak;
         doors.build(r,plan.exits||[]);
         npcs.build(r,plan.npcs||[]);
+        if (plan.game) {
+            minis.setup(plan.game,r,plan.act,plan.gameFlip);
+        }
         art.warm(deckList.map(c=>createCard(c.id,c.upgraded)));
         game.mod=plan.mod||null;
         const M=TUNING.fog.mist;
@@ -799,6 +810,20 @@ function boot() {
         warmShaders();
         return r;
     }
+    const minis=new MiniGames({
+        burst:(x,y,z,n,color)=>particles.burst(x,y,z,n,{color,speed:[1,4],up:[1,4],size:[0.08,0.18]}),
+        sound:(name,pitch)=>audio.play(name,pitch),
+        say:(x,z,key,params)=>dmgNums.spawnText(x,2.2,z,t(key,params)),
+        place:(x,z)=>{
+            particles.burst(player.pos.x,0.6,player.pos.z,8,{color:'midGray',speed:[1,3],up:[1,3]});
+            player.pos.set(x,0,z);
+            player.prev.copy(player.pos);
+            player.renderPos.copy(player.pos);
+            player.root.position.copy(player.pos);
+            particles.burst(x,0.6,z,10,{color:'ink',speed:[1,3],up:[1,3]});
+        },
+        onEnd:ok=>run.gameDone(ok)
+    });
     const run=new Run({
         enemies,
         enterRoom,
@@ -808,7 +833,7 @@ function boot() {
                 overlay.hud.banner(t('training.title'),t('training.sub'),2.2);
             }
             else if (kind==='peace') {
-                const sub=p.event?t('event.'+p.event+'.title')+'　｜　'+t(p.block?'peace.block':'peace.sub'):t('peace.'+p.node);
+                const sub=p.game?t('event.'+p.game+'.title')+'　｜　'+t('peace.game'):p.event?t('event.'+p.event+'.title')+'　｜　'+t(p.block?'peace.block':'peace.sub'):t('peace.'+p.node);
                 overlay.hud.banner(t('node.'+p.node),sub,2.4);
             }
             else if (kind==='ambush') {
@@ -884,36 +909,8 @@ function boot() {
             overlay.hud.showResult(t(title.key,title.params?{name:t(title.params.name)}:{}),lines.map(l=>({text:t(l.key,{...l.params,name:l.card?t(CARDS[l.card].nameKey):''}),bad:l.bad})));
             cb();
         },
-        spawnTargets:n=>{
-            const rng=new RNG(Math.floor(Math.random()*1e6));
-            let k=0;
-            for (let i=0;i<n;i++) {
-                const p=game.room.freeSpot(rng);
-                if (p) {
-                    game.room.addTarget(p.x,p.z);
-                    particles.burst(p.x,1.2,p.z,8,{color:'farGray',speed:[1,3],up:[1,3]});
-                    k++;
-                }
-            }
-            audio.play('page',1.2);
-            return k;
-        },
-        clearTargets:()=>{
-            for (const pc of game.room.pieces.slice()) {
-                if (pc.kind==='target') {
-                    particles.burst(pc.x,1.2,pc.z,8,{color:'farGray',speed:[1,3],up:[1,3]});
-                    game.room.removePiece(pc);
-                }
-            }
-        },
-        npcFlash:(i,input)=>{
-            const n=npcs.list[i];
-            npcs.flash(i);
-            if (n) {
-                particles.burst(n.x,n.h,n.z,input?10:16,{color:input?'midGray':'ink',speed:[1,3],up:[2,4],size:[0.08,0.16]});
-            }
-            audio.play('ui',TUNING.npc.bellPitch[(i-1)%TUNING.npc.bellPitch.length]);
-        },
+        startGame:()=>minis.begin(player),
+        gameInfo:()=>minis.info(),
         resume:()=>resumePlay(),
         openChoice:(spec,cb)=>{
             fx.paused=true;
@@ -1027,6 +1024,9 @@ function boot() {
             hand.cancelTargeting();
             return run.useExit(doors.focus);
         }
+        if (minis.interact(player)) {
+            return true;
+        }
         if (npcs.focus<0||!run.canInteract(npcs.focus)) {
             return false;
         }
@@ -1087,7 +1087,7 @@ function boot() {
         player.hp=TUNING.player.maxHp;
         ink.value=TUNING.ink.start;
         trainFixed=[];
-        equipWeapon();
+        equipWeapon(mode!=='training');
         if (mode==='training') {
             settings.training.weapon=player.weaponId;
         }
@@ -1210,7 +1210,7 @@ function boot() {
         equip:id=>{
             settings.weapon=id;
             saveSettings();
-            player.setWeapon(id);
+            equipWeapon();
             audio.play('reload');
         },
         back:()=>{
@@ -1305,7 +1305,7 @@ function boot() {
             }
             saveSettings();
             if (game.mode!=='play') {
-                player.setWeapon(settings.weapon);
+                equipWeapon();
             }
             audio.play('erase');
         },
@@ -1875,9 +1875,10 @@ function boot() {
         decals.update(dt);
         if (game.mode==='play') {
             run.update(dt,player);
+            minis.update(dt,player);
             npcs.update(dt,player,i=>run.canInteract(i));
             doors.update(dt,player);
-            input.interactReady=!fx.paused&&!transition.active&&((doors.focus>=0&&run.canExit())||(npcs.focus>=0&&run.canInteract(npcs.focus)));
+            input.interactReady=!fx.paused&&!transition.active&&((doors.focus>=0&&run.canExit())||(npcs.focus>=0&&run.canInteract(npcs.focus))||minis.wantsInteract(player));
         }
     }
     function updateDamageFx(dt) {
@@ -2076,7 +2077,7 @@ function boot() {
     if (!device.fullscreen) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={doors,npcs,marks,choice,deckPick,popup,device,weaponSys,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

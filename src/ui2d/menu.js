@@ -14,7 +14,7 @@ import {ENEMIES} from '../data/enemies.js';
 import {ENDLESS,TRAINING_MAPS,TRAINING,LAYOUTS} from '../data/levels.js';
 import {fmtInk,DESKTOP_KEYS,TOUCH_KEYS} from './hud.js';
 import {CARD_ANIMS,ENEMY_ATTACKS,WEAPON_ANIMS,drawStage} from './codexAnim.js';
-import {WEAPONS,WEAPON_ORDER,weaponUnlocked} from '../data/weapons.js';
+import {WEAPONS,WEAPON_ORDER,weaponUnlocked,unlockedWeapons,RANDOM_WEAPON} from '../data/weapons.js';
 import {VERSION} from '../data/version.js';
 import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip,cardBrief,cardChips} from './cardView.js';
 import {ENEMY_ICONS} from './enemyIcons.js';
@@ -4623,10 +4623,10 @@ export class WeaponView extends Panel {
         this.animT+=dt;
         this.pop=Math.max(0,this.pop-dt*2.5);
         this.equipT=(this.equipT??9)+dt;
-        const st=WEAPONS[this.sel].stats;
+        const st=WEAPONS[this.sel]?.stats;
         const k=1-Math.exp(-10*dt);
         for (const key of WEAPON_STATS) {
-            this.bars[key]=(this.bars[key]??0)+(st[key]-(this.bars[key]??0))*k;
+            this.bars[key]=(this.bars[key]??0)+((st?st[key]:0)-(this.bars[key]??0))*k;
         }
     }
 
@@ -4667,8 +4667,12 @@ export class WeaponView extends Panel {
         const cols=2;
         const cg=12;
         const cw=(gw-cg)/cols;
-        const ch=Math.min(small?78:120,(this.backBtn.y-gy-16-(WEAPON_ORDER.length/cols-1)*cg)/(WEAPON_ORDER.length/cols));
+        const rows=WEAPON_ORDER.length/cols;
+        const U=TUNING.weaponUi;
+        const randH=small?U.randHSmall:U.randH;
+        const ch=Math.min(small?78:120,(this.backBtn.y-gy-16-randH-cg-(rows-1)*cg)/rows);
         this.hits=[];
+        this.drawRandomTile(ctx,{x:gx,y:gy+rows*(ch+cg),w:gw,h:randH,id:RANDOM_WEAPON.id},lv,small,v);
         for (let i=0;i<WEAPON_ORDER.length;i++) {
             const id=WEAPON_ORDER[i];
             const x=gx+(i%cols)*(cw+cg);
@@ -4751,9 +4755,15 @@ export class WeaponView extends Panel {
         const dx=gx+gw+24;
         const dw=P.x+P.w-24-dx;
         const locked=!weaponUnlocked(this.sel,lv);
-        const def=WEAPONS[this.sel];
+        const rnd=this.sel===RANDOM_WEAPON.id;
+        const def=rnd?{unlock:0}:WEAPONS[this.sel];
         const sh=Math.min(dw*9/16,small?(this.backBtn.y-gy)*0.46:230);
-        drawStage(ctx,dx,gy,dw,sh,WEAPON_ANIMS[this.sel],this.animT,v);
+        if (rnd) {
+            this.drawRandomStage(ctx,dx,gy,dw,sh,lv,v);
+        }
+        else {
+            drawStage(ctx,dx,gy,dw,sh,WEAPON_ANIMS[this.sel],this.animT,v);
+        }
         drawShape(ctx,sketchRect(dx,gy,dw,sh,{width:1.6,seed:2030}),PALETTE.ink,v);
         if (locked) {
             ctx.fillStyle=rgba('paper',0.55);
@@ -4775,7 +4785,19 @@ export class WeaponView extends Panel {
         }
         y+=small?6:10;
         const bw=dw*0.46;
-        for (let i=0;i<WEAPON_STATS.length;i++) {
+        if (rnd) {
+            const names=unlockedWeapons(lv).map(id=>t('weapon.'+id+'.name')).join('、');
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold '+(small?12:14)+'px '+FONT;
+            ctx.fillText(t('weapon.random.pool',{list:names}),dx,y);
+            const last=settings.lastWeapon;
+            if (WEAPONS[last]) {
+                ctx.fillStyle=PALETTE.red;
+                ctx.font=(small?'12px ':'13px ')+FONT;
+                ctx.fillText(t('weapon.random.last',{name:t('weapon.'+last+'.name')}),dx,y+(small?18:24));
+            }
+        }
+        for (let i=0;i<WEAPON_STATS.length&&!rnd;i++) {
             const key=WEAPON_STATS[i];
             const bx=dx+(i%2)*(dw/2);
             const byy=y+Math.floor(i/2)*(small?24:30);
@@ -4800,7 +4822,7 @@ export class WeaponView extends Panel {
         }
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?15:17);
         const eq=settings.weapon===this.sel;
-        const label=locked?t('codex.locked',{level:def.unlock}):(eq?t('weapon.equipped'):t('weapon.equip'));
+        const label=locked?(rnd?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('codex.locked',{level:def.unlock})):(eq?t('weapon.equipped'):t(rnd?'weapon.random.equip':'weapon.equip'));
         const eb=this.equipBtn;
         if (!locked&&!eq) {
             ctx.save();
@@ -4827,6 +4849,94 @@ export class WeaponView extends Panel {
             ctx.fillText(label,eb.x+eb.w/2,eb.y+eb.h/2+1);
             ctx.restore();
         }
+        ctx.restore();
+    }
+
+    drawRandomTile(ctx,r,lv,small,v) {
+        this.hits.push(r);
+        const locked=!weaponUnlocked(r.id,lv);
+        const sel=this.sel===r.id;
+        const eq=settings.weapon===r.id;
+        const hv=inRect(r,this.hx,this.hy);
+        const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.08-WEAPON_ORDER.length*0.05)/0.3)));
+        if (ap<=0) {
+            return;
+        }
+        ctx.save();
+        ctx.translate(r.x+r.w/2,r.y+r.h/2);
+        ctx.scale(ap*(hv||sel?1.02:1),ap*(hv||sel?1.02:1));
+        ctx.translate(-r.w/2,-r.h/2);
+        ctx.fillStyle=sel?rgba('ink',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.95));
+        ctx.fillRect(0,0,r.w,r.h);
+        drawShape(ctx,sketchRect(0,0,r.w,r.h,{width:sel?2.8:1.5,seed:2025}),eq?PALETTE.red:(sel?PALETTE.ink:PALETTE.nearGray),v);
+        const d=r.h*0.62;
+        const spin=sel&&!locked?Math.sin(this.animT*4)*0.25:0;
+        ctx.save();
+        ctx.translate(r.h*0.62,r.h/2);
+        ctx.rotate(spin-0.12);
+        ctx.fillStyle=locked?PALETTE.farGray:PALETTE.paper;
+        ctx.fillRect(-d/2,-d/2,d,d);
+        drawShape(ctx,sketchRect(-d/2,-d/2,d,d,{width:1.8,seed:2026}),locked?PALETTE.midGray:PALETTE.ink,v);
+        ctx.fillStyle=locked?PALETTE.midGray:PALETTE.red;
+        for (const [px,py] of [[-0.22,-0.22],[0.22,0.22],[0,0],[0.22,-0.22],[-0.22,0.22]]) {
+            ctx.beginPath();
+            ctx.arc(px*d,py*d,d*0.08,0,Math.PI*2);
+            ctx.fill();
+        }
+        ctx.restore();
+        ctx.fillStyle=locked?PALETTE.midGray:PALETTE.ink;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        const x0=r.h*1.25;
+        fitText(ctx,t('weapon.random.name'),x0,r.h/2,r.w*0.3,small?15:19,'bold ');
+        ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
+        fitText(ctx,locked?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('weapon.random.short'),x0+(small?52:66),r.h/2+1,r.w-x0-(small?60:76)-(eq?58:0),12,'');
+        if (eq) {
+            ctx.save();
+            ctx.translate(r.w-10,r.h/2-10);
+            ctx.rotate(0.08);
+            ctx.fillStyle=PALETTE.red;
+            ctx.fillRect(-46,0,44,20);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.font='bold 12px '+FONT;
+            ctx.textAlign='center';
+            ctx.fillText(t('weapon.equipped'),-24,10);
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    drawRandomStage(ctx,x,y,w,h,lv,v) {
+        const U=TUNING.weaponUi;
+        const list=unlockedWeapons(lv);
+        const pool=list.length>0?list:WEAPON_ORDER;
+        const step=Math.floor(this.animT/U.randStep);
+        const f=(this.animT%U.randStep)/U.randStep;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x,y,w,h);
+        ctx.clip();
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(x,y,w,h);
+        const cx=x+w/2;
+        const cy=y+h/2;
+        const s=h/150;
+        for (let k=-2;k<=2;k++) {
+            const id=pool[((step+k)%pool.length+pool.length)%pool.length];
+            const px=cx+(k-f)*h*0.55;
+            const a=Math.max(0,1-Math.abs(k-f)*0.45);
+            ctx.globalAlpha=a;
+            drawWeaponIcon(ctx,id,px,cy,s*(k===0?1.2-f*0.3:0.8),v,false);
+        }
+        ctx.globalAlpha=1;
+        ctx.strokeStyle=PALETTE.red;
+        ctx.lineWidth=2.5;
+        ctx.strokeRect(cx-h*0.3,cy-h*0.36,h*0.6,h*0.72);
+        ctx.fillStyle=PALETTE.red;
+        ctx.font='bold '+Math.round(h*0.18)+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText('?',cx+h*0.36,cy-h*0.3);
         ctx.restore();
     }
 }
@@ -4908,7 +5018,7 @@ export class InfoPopup extends Panel {
     }
 }
 
-export const CHOICE_ICONS={battle:'battle',elite:'elite',challenge:'challenge',treasure:'treasure',shop:'shop',event:'event',rest:'rest',heal:'heal',upgrade:'upgrade',buy:'card',remove:'remove',leave:'leave',finish:'flag',continue:'pen',boss:'boss',next:'next',act:'book'};
+export const CHOICE_ICONS={battle:'battle',elite:'elite',challenge:'challenge',treasure:'treasure',shop:'shop',event:'event',encounter:'event',start:'next',rest:'rest',heal:'heal',upgrade:'upgrade',buy:'card',remove:'remove',leave:'leave',finish:'flag',continue:'pen',boss:'boss',next:'next',act:'book'};
 
 export function drawChoiceIcon(ctx,kind,x,y,r,v,red) {
     const col=red?PALETTE.red:PALETTE.ink;
@@ -5106,7 +5216,8 @@ export class ChoicePanel extends Panel {
         const n=this.spec.options.length;
         const pw=Math.min(C.maxW,w-32,fitW(h));
         const gap=C.gap;
-        const cw=(pw-48-gap*(n-1))/n;
+        const cw=Math.min(C.cardMaxW,(pw-48-gap*(n-1))/n);
+        const cx0=w/2-(cw*n+gap*(n-1))/2;
         const ch=Math.min(C.cardH,h-C.head-60);
         const ph=ch+C.head+30;
         const px=w/2-pw/2;
@@ -5114,7 +5225,7 @@ export class ChoicePanel extends Panel {
         this.P={x:px,y:py,w:pw,h:ph};
         this.cards=[];
         for (let i=0;i<n;i++) {
-            this.cards.push({x:px+24+i*(cw+gap),y:py+C.head,w:cw,h:ch});
+            this.cards.push({x:cx0+i*(cw+gap),y:py+C.head,w:cw,h:ch});
         }
     }
 

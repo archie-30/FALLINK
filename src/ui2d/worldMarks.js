@@ -113,14 +113,6 @@ export class WorldMarks {
         const npcs=game.npcs;
         for (let i=0;i<npcs.list.length;i++) {
             const n=npcs.list[i];
-            if (n.lit>0) {
-                game.project(n.x,n.h+W.npcLift,n.z,p);
-                ctx.globalAlpha=Math.min(1,n.lit*2);
-                ctx.fillStyle=PALETTE.ink;
-                ctx.font='bold 30px '+FONT;
-                ctx.fillText('♪',p.x,p.y-W.bangH-(1-n.lit)*20);
-                ctx.globalAlpha=1;
-            }
             if (n.used||!game.run.canInteract(i)) {
                 continue;
             }
@@ -128,7 +120,7 @@ export class WorldMarks {
             if (npcs.focus===i&&doors.focus<0) {
                 this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t('npc.'+n.model),v,2320+i);
             }
-            else if (n.model!=='bell') {
+            else {
                 const y=p.y-W.bangH+Math.abs(Math.sin(time.real*W.bobRate*0.8+i))*-W.bob*2;
                 ctx.fillStyle=PALETTE.red;
                 ctx.font='bold 26px '+FONT;

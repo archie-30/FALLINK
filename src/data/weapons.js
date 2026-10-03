@@ -34,7 +34,7 @@ export const WEAPONS={
         sys:'brush',
         sound:'wBrush',
         fireInterval:0.62,
-        magazine:6,
+        magazine:5,
         reloadTime:1.2,
         damage:15,
         tiers:[[1.7,25],[3.2,20]],
@@ -44,7 +44,6 @@ export const WEAPONS={
         pellets:5,
         fan:0.8,
         erase:{radius:4.2,cone:0.7},
-        refund:{shots:2,maxHits:0},
         kick:1.6,
         flashMul:1.2,
         stats:{dmg:5,rate:1,range:2,mag:1}
@@ -84,7 +83,7 @@ export const WEAPONS={
         kick:0.15,
         flashColor:'marker',
         flashMul:0.35,
-        stats:{dmg:3,rate:5,range:3,mag:4}
+        stats:{dmg:3,rate:5,range:3,mag:3}
     },
     compass:{
         unlock:6,
@@ -92,6 +91,7 @@ export const WEAPONS={
         sound:'wCompass',
         fireInterval:0.55,
         cooldown:1.8,
+        missCut:0.4,
         magazine:1,
         reloadTime:1.0,
         damage:20,
@@ -111,6 +111,22 @@ export const WEAPON_LIMITS={
     minInterval:0.06
 };
 
+export const RANDOM_WEAPON={id:'random',min:2};
+
 export function weaponUnlocked(id,level) {
+    if (id===RANDOM_WEAPON.id) {
+        return unlockedWeapons(level).length>=RANDOM_WEAPON.min;
+    }
     return (WEAPONS[id]?.unlock??99)<=level;
+}
+
+export function unlockedWeapons(level) {
+    return WEAPON_ORDER.filter(id=>weaponUnlocked(id,level));
+}
+
+export function pickWeapon(level,last) {
+    const all=unlockedWeapons(level);
+    const pool=all.filter(id=>id!==last);
+    const list=pool.length>0?pool:all;
+    return list[Math.floor(Math.random()*list.length)]||'pen';
 }

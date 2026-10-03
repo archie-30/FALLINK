@@ -212,6 +212,23 @@ void main() {
 }
 `;
 
+export const STAMP_FRAG=`
+${GBUF_OUT}
+uniform sampler2D tStamp;
+uniform vec3 uColor;
+uniform float uFar;
+varying vec2 vUv;
+varying vec3 vViewNormal;
+varying float vDepth;
+void main() {
+    if (texture2D(tStamp,vUv).r<0.5) {
+        discard;
+    }
+    gl_FragColor=vec4(uColor,1.0);
+    gBuf=vec4(normalize(vViewNormal)*0.5+0.5,vDepth/uFar);
+}
+`;
+
 export const DASH_FRAG=`
 ${OCCLUDE}
 uniform vec3 uColor;

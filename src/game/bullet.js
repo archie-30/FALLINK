@@ -58,6 +58,7 @@ export class BulletSystem {
         this.K=K;
         this.color=o.color;
         this.radius=o.radius;
+        this.wallR=o.wallR||o.radius;
         this.size=o.size;
         this.trailWidth=o.trailWidth;
         this.height=o.height??TUNING.weapon.height;
@@ -79,7 +80,7 @@ export class BulletSystem {
         this.hitN=new Uint8Array(cap);
         this.boomerang=!!o.boomerang;
         this.ret=new Uint8Array(cap);
-        this.tag=new Int32Array(cap);
+        this.struck=new Uint8Array(cap);
         this.el=new Float32Array(cap);
         this.spd=new Float32Array(cap);
         this.sx=new Float32Array(cap);
@@ -160,7 +161,7 @@ export class BulletSystem {
         this.age[i]=0;
         this.hitN[i]=0;
         this.ret[i]=0;
-        this.tag[i]=0;
+        this.struck[i]=0;
         this.el[i]=0;
         this.spd[i]=speed;
         const K=this.K;
@@ -173,7 +174,7 @@ export class BulletSystem {
 
     kill(i,caught=false) {
         if (this.boomerang&&this.onReturn) {
-            this.onReturn(this.x[i],this.z[i],caught);
+            this.onReturn(this.x[i],this.z[i],caught,this.struck[i]>0);
         }
         const j=--this.n;
         if (i===j) {
@@ -190,7 +191,7 @@ export class BulletSystem {
         this.age[i]=this.age[j];
         this.hitN[i]=this.hitN[j];
         this.ret[i]=this.ret[j];
-        this.tag[i]=this.tag[j];
+        this.struck[i]=this.struck[j];
         this.el[i]=this.el[j];
         this.spd[i]=this.spd[j];
         this.sx[i]=this.sx[j];
@@ -268,6 +269,7 @@ export class BulletSystem {
         const cols=room.colliders;
         const b=room.bounds;
         const r=this.radius;
+        const wr=this.wallR;
         const frozen=this.frozen>0;
         if (frozen) {
             this.frozen-=dt;
@@ -343,7 +345,7 @@ export class BulletSystem {
                 if (this.boomerang&&col.piece&&col.piece.kind!=='border'&&col.piece.kind!=='door'&&col.piece.kind!=='target') {
                     continue;
                 }
-                if (circleVs(x,z,r,col,hit)) {
+                if (circleVs(x,z,wr,col,hit)&&!(this.boomerang&&hit.x*this.vx[i]+hit.z*this.vz[i]>=0)) {
                     wall=col;
                     break;
                 }
@@ -370,6 +372,7 @@ export class BulletSystem {
             if (this.onHit) {
                 const e=this.onHit(x,z,r,this.dmg[i],this.vx[i],this.vz[i],this,i);
                 if (e) {
+                    this.struck[i]=1;
                     if (this.pierce&&this.hitN[i]<6) {
                         this.hits[i*6+this.hitN[i]]=e.uid;
                         this.hitN[i]++;
