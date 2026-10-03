@@ -72,6 +72,7 @@ export const TUNING={
         fovPunchDecay:9
     },
     player:{
+        arm:{drawTime:0.45,stowTime:0.3,ready:0.7,spin:3.2,lift:0.5,back:0.4,raise:0.9},
         radius:0.5,
         visualScale:1.35,
         speed:7.5,
@@ -190,6 +191,7 @@ export const TUNING={
     input:{
         deadZone:0.14,
         fireRingRange:[0.55,0.9],
+        nudge:{idle:10,every:3,dur:0.5,amp:6,rate:42,stagger:0.12,interactEvery:1.3,interactDur:0.35,interactAmp:3,interactTilt:0.12},
         skill:{scale:0.46,sizeRange:[0.75,1.3],gap:14,angles:[2.9,3.55,4.2,4.88],ultMul:1.15,dashMul:0.92,grab:1.15,dragRadius:1.3,moveSlop:12,cancelReach:1.15},
         stickMin:50,
         stickMax:76,
@@ -278,7 +280,7 @@ export const TUNING={
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
     pauseUi:{compactH:700,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
     doors:{width:2.4,height:1.9,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
-    minigame:{endDelay:0.9},
+    minigame:{endDelay:0.9,bellShake:0.18},
     npc:{bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
     worldMarks:{subH:22,subMaxW:340,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
@@ -344,8 +346,9 @@ export const TUNING={
         redrawTime:0.7
     },
     levels:{
-        base:120,
-        step:70,
+        max:10,
+        base:300,
+        step:180,
         xpKill:3,
         xpBoss:80,
         xpRoom:15,
@@ -423,7 +426,9 @@ export const TUNING={
         camLook:1.3,
         camSpin:0.1
     },
+    levelUp:{stampAt:0.15,stampTime:0.45,stampFrom:2.6,levelAt:0.6,cardsAt:1.1,cardGap:0.28,cardTime:0.55,drops:22,titleY:0.2,cardsY:0.58,weaponY:0.86},
     levelView:{
+        focusPad:12,
         rowH:84
     },
     training:{
@@ -517,9 +522,9 @@ export const TUNING={
         facing:{dist:0.75,len:0.32,half:0.2,alpha:0.85,guideFrom:1.1,guideLen:4.5,guideAlpha:0.28,dash:7,gap:7},
         toastY:72,
         toastBannerY:196,
-        result:{y:0.3,time:4.2,perLine:0.5,lineH:28,maxW:560,fade:0.35,titleSize:22,lineSize:18,halo:5},
-        progress:{y:30,segW:170,minSeg:70,side:250,gap:24,dotR:5,bossR:7.5,curR:8,anim:0.8,hop:12,pulse:0.12,pulseRate:4,actSize:12,actY:14,tagSize:13,tagY:18,below:58},
-        score:{right:78,y:12,labelSize:12,size:30,pop:0.35,popDecay:2.5,rate:8},
+        result:{time:4.2,perLine:0.6,lineH:26,maxW:420,fade:0.35,titleSize:19,lineSize:16,halo:5,gapTop:22,lineGap:10,lineDelay:0.18,cardH:56,cardGap:10,cardIn:0.45,tearDelay:0.45,tearTime:0.6,flyDelay:0.45,flyTime:0.7,flyArc:40,flySize:24},
+        progress:{y:30,segW:340,minSeg:160,side:240,actGap:12,dotR:6,bossR:8.5,curR:9,anim:0.8,hop:14,pulse:0.12,pulseRate:4,actSize:15,tagSize:14,tagY:20,below:58,show:4,fade:0.8,pauseY:34},
+        score:{right:78,y:12,labelSize:12,size:30,pop:0.35,popDecay:2.5,rate:6,shake:4,shakeRate:55,shakeDecay:2.2},
         timer:{offset:42,cloneOffset:14,width:76,height:5},
         timerSkip:['clone'],
         enemyHp:{minTicks:4,maxTicks:12,hpPerTick:8,radius:30,radiusScale:20,span:0.5,offset:26,follow:0.08,tickW:3.5,tickH:10},

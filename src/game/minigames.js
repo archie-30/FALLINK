@@ -269,14 +269,23 @@ const GAMES={
                 const root=new THREE.Group();
                 root.position.set(x,0,P.z);
                 g.add(root);
-                g.cyl(0.45,0.5,0.12,'dark',0,0.06,0,root);
-                const dome=new THREE.Mesh(geo('dome',()=>new THREE.SphereGeometry(0.42,14,8,0,Math.PI*2,0,Math.PI/2)),mat('light'));
-                dome.position.y=0.12;
-                root.add(dome);
-                g.ball(0.09,'accent',0,0.6,0,root);
-                const ring=g.ring(P.pad,'dark',x,P.z);
-                return {x,z:P.z,root,dome,ring,lit:0,in:false,i};
+                g.cyl(0.55,0.62,0.16,'dark',0,0.08,0,root);
+                const swing=new THREE.Group();
+                swing.position.y=1.5;
+                root.add(swing);
+                const dome=new THREE.Mesh(geo('bell',()=>new THREE.CylinderGeometry(0.22,0.6,0.9,16,1,true)),mat('light'));
+                dome.position.y=-0.55;
+                swing.add(dome);
+                g.ball(0.24,'light',0,-0.12,0,swing);
+                g.ball(0.13,'accent',0,-1.0,0,swing);
+                g.cyl(0.05,0.05,1.5,'dark',0,0.75,-0.45,root,6);
+                g.box(0.9,0.08,0.08,'dark',0,1.52,-0.45,root);
+                const wave=g.ring(0.9,'accent',x,P.z);
+                wave.visible=false;
+                const ring=g.ring(P.reach,'cover',x,P.z);
+                return {x,z:P.z,root,swing,dome,ring,wave,lit:0,i};
             });
+            g.solid(g.bells.map(b=>makeBox(b.x,b.z,0.55,0.55,0)));
         },
         begin(g) {
             const P=g.P;
@@ -291,51 +300,70 @@ const GAMES={
             g.shown=0;
             g.step=0;
         },
-        flash(g,i) {
+        flash(g,i,input) {
             const b=g.bells[i];
             b.lit=1;
-            g.sound('ui',TUNING.npc.bellPitch[i%TUNING.npc.bellPitch.length]);
-            g.burst(b.x,b.z,'ink',10,0.8);
+            b.wave.visible=true;
+            g.sound('bell',TUNING.npc.bellPitch[i%TUNING.npc.bellPitch.length]);
+            g.burst(b.x,b.z,input?'red':'ink',18,1.4);
+            g.burst(b.x,b.z,'marker',8,0.3);
+            g.mg.api.shake(TUNING.minigame.bellShake);
         },
         idle(g,dt) {
             for (const b of g.bells) {
-                b.lit=Math.max(0,b.lit-dt*2.5);
-                const s=1+Math.sin(b.lit*Math.PI)*0.35;
-                b.dome.scale.set(s,s,s);
-                b.ring.material=mat(b.lit>0.3?'accent':'dark');
+                b.lit=Math.max(0,b.lit-dt*1.6);
+                const k=1-b.lit;
+                b.swing.rotation.z=Math.sin(k*Math.PI*5)*b.lit*0.5;
+                const s=1+Math.sin(b.lit*Math.PI)*0.25;
+                b.swing.scale.set(s,s,s);
+                b.dome.material=mat(b.lit>0.3?'marker':'light');
+                b.wave.scale.setScalar(1+k*2.2);
+                b.wave.visible=b.lit>0.05;
             }
         },
-        tick(g,dt,pl) {
-            const P=g.P;
-            if (g.phase==='show') {
-                g.st+=dt;
-                while (g.st>=0&&g.shown<=g.st/P.step&&g.shown<g.seq.length) {
-                    this.flash(g,g.seq[g.shown]);
-                    g.shown++;
+        near(g,pl) {
+            let best=null;
+            let bd=g.P.reach;
+            for (const b of g.bells) {
+                const d=Math.hypot(pl.pos.x-b.x,pl.pos.z-b.z);
+                if (d<bd) {
+                    bd=d;
+                    best=b;
                 }
-                if (g.st>=g.seq.length*P.step) {
-                    g.phase='input';
-                    for (const b of g.bells) {
-                        b.in=g.inside(pl,b.x,b.z,P.pad);
-                    }
-                }
+            }
+            return best;
+        },
+        canInteract(g,pl) {
+            return g.phase==='input'&&!!this.near(g,pl);
+        },
+        prompt(g,pl) {
+            const b=this.canInteract(g,pl)?this.near(g,pl):null;
+            return b?{x:b.x,y:2.6,z:b.z,key:'mg.bells.ring'}:null;
+        },
+        interact(g,pl) {
+            const b=this.near(g,pl);
+            this.flash(g,b.i,true);
+            if (g.seq[g.step]!==b.i) {
+                g.lose();
                 return;
             }
-            for (const b of g.bells) {
-                const inside=g.inside(pl,b.x,b.z,P.pad);
-                if (inside&&!b.in) {
-                    this.flash(g,b.i);
-                    if (g.seq[g.step]!==b.i) {
-                        g.lose();
-                        return;
-                    }
-                    g.step++;
-                    if (g.step>=g.seq.length) {
-                        g.win();
-                        return;
-                    }
-                }
-                b.in=inside;
+            g.step++;
+            if (g.step>=g.seq.length) {
+                g.win();
+            }
+        },
+        tick(g,dt) {
+            const P=g.P;
+            if (g.phase!=='show') {
+                return;
+            }
+            g.st+=dt;
+            while (g.st>=0&&g.shown<=g.st/P.step&&g.shown<g.seq.length) {
+                this.flash(g,g.seq[g.shown],false);
+                g.shown++;
+            }
+            if (g.st>=g.seq.length*P.step) {
+                g.phase='input';
             }
         },
         info(g) {
@@ -360,6 +388,7 @@ const GAMES={
             }
             g.hits=0;
             g.sound('page',1.2);
+            g.mg.api.arm(true);
             g.timer(g.a(P.time));
         },
         hit(g) {
@@ -369,6 +398,7 @@ const GAMES={
             }
         },
         teardown(g) {
+            g.mg.api.arm(false);
             for (const pc of g.room.pieces.slice()) {
                 if (pc.kind==='target') {
                     g.burst(pc.x,pc.z,'farGray',8,1.2);
@@ -1071,6 +1101,9 @@ const GAMES={
         canInteract(g,pl) {
             return !g.fly&&g.inside(pl,g.P.pad[0],g.P.pad[1],g.P.padR);
         },
+        prompt(g,pl) {
+            return this.canInteract(g,pl)?{x:g.P.pad[0],y:2.4,z:g.P.pad[1],key:'mg.plane.throw'}:null;
+        },
         interact(g,pl) {
             const P=g.P;
             const m=this.power(g);
@@ -1293,7 +1326,7 @@ const GAMES={
                     g.hits++;
                     L.lit=1;
                     g.burst(L.x,L.z,'red',10,0.5);
-                    g.sound('ui',TUNING.npc.bellPitch[q.lane]);
+                    g.sound('bell',TUNING.npc.bellPitch[q.lane]);
                 }
                 else {
                     g.miss++;
@@ -1358,7 +1391,7 @@ const GAMES={
             m.lit=1;
             m.a.material=mat(red?'accent':'ink');
             m.b.material=mat(red?'accent':'ink');
-            g.sound('ui',TUNING.npc.bellPitch[i%TUNING.npc.bellPitch.length]);
+            g.sound('bell',TUNING.npc.bellPitch[i%TUNING.npc.bellPitch.length]);
         },
         idle(g,dt) {
             for (const m of g.marks) {
@@ -1734,6 +1767,15 @@ export class MiniGames {
         }
         GAMES[this.g.id].interact(this.g,player);
         return true;
+    }
+
+    prompt(player) {
+        const g=this.g;
+        if (!g||!this.running||g.ended) {
+            return null;
+        }
+        const def=GAMES[g.id];
+        return def.prompt?def.prompt(g,player):null;
     }
 
     info() {

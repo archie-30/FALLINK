@@ -506,12 +506,15 @@ export const CARDS={
 
 export const UNLOCKS={
     1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','eraseCover','trap','paperShield','inkDash','timeStop','clone','execute','redraw'],
-    2:['whiteout','shockwave','haste'],
-    3:['mark','inkMine','tsunami','blot'],
-    4:['dualWield','pin','paperBlade','echo'],
-    5:['chain','inkRain','blackHole','inkField'],
-    6:['reflect','inkWell','barrage','clusterBomb'],
-    7:['giantPen','freezeAll','inkStorm']
+    2:['whiteout','shockwave'],
+    3:['haste','mark'],
+    4:['inkMine','tsunami','blot'],
+    5:['dualWield','pin'],
+    6:['paperBlade','echo','chain'],
+    7:['inkRain','blackHole','inkField'],
+    8:['reflect','inkWell','barrage'],
+    9:['clusterBomb','giantPen'],
+    10:['freezeAll','inkStorm']
 };
 
 export function unlockLevel(id) {

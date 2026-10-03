@@ -109,6 +109,17 @@ export const SOUNDS={
             {kind:'tone',wave:'sine',f0:1319,dur:0.7,gain:0.12,delay:0.16}
         ]
     },
+    bell:{
+        gap:0.06,
+        gain:0.6,
+        rev:0.5,
+        layers:[
+            {kind:'tone',wave:'sine',f0:784,dur:1.3,gain:0.38},
+            {kind:'tone',wave:'sine',f0:2160,dur:0.7,gain:0.12},
+            {kind:'tone',wave:'triangle',f0:1568,dur:0.45,gain:0.08},
+            {kind:'noise',dur:0.03,gain:0.15,filter:{type:'highpass',f0:4000}}
+        ]
+    },
     page:{
         gap:0.3,
         gain:0.45,

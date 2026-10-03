@@ -39,8 +39,8 @@ import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
-import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Tutorial,WeaponView,InfoPopup,ChoicePanel,DeckPicker} from './ui2d/menu.js';
-import {weaponUnlocked,pickWeapon,RANDOM_WEAPON} from './data/weapons.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Tutorial,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView} from './ui2d/menu.js';
+import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
 import {DEFAULT_SKIN} from './data/skins.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
@@ -466,6 +466,7 @@ function boot() {
         openDeck,
         showKeys:()=>input.lastDevice==='mouse'&&!device.mobile,
         onPlayStart:()=>{
+            hand.idleT=0;
             audio.play('card');
             if (run.stats) {
                 run.stats.cards++;
@@ -599,6 +600,7 @@ function boot() {
         particles.burst(x,1.0,z,PT.redKill,{color:'red',dirX:dx,dirZ:dz,cone:0.8,speed:[4,10],up:[1,5],size:[0.08,0.18]});
     };
     player.events.onReload=()=>audio.play('reload');
+    player.events.onArm=()=>audio.play('equip',1.2);
     player.events.onEquip=p=>{
         audio.play('equip');
         if (game.mode==='play') {
@@ -805,6 +807,7 @@ function boot() {
             deck.start();
         }
         hand.setShown(!plan.peace,true);
+        player.setArmed(!plan.peace,true);
         overlay.hud.result=null;
         fx.paused=viaDoor;
         warmShaders();
@@ -812,6 +815,8 @@ function boot() {
     }
     const minis=new MiniGames({
         burst:(x,y,z,n,color)=>particles.burst(x,y,z,n,{color,speed:[1,4],up:[1,4],size:[0.08,0.18]}),
+        shake:a=>fx.cameraShake(a),
+        arm:on=>player.setArmed(on),
         sound:(name,pitch)=>audio.play(name,pitch),
         say:(x,z,key,params)=>dmgNums.spawnText(x,2.2,z,t(key,params)),
         place:(x,z)=>{
@@ -900,13 +905,16 @@ function boot() {
         dealDeck:()=>{
             resumePlay();
             hand.setShown(true);
+            player.setArmed(true);
             audio.play('page',1.1);
             deck.start();
         },
         toast:(key,params,card)=>overlay.hud.toast(t(key,{...params,name:card?t(CARDS[card].nameKey):''})),
         hp:()=>player.hp,
         showReport:(title,lines,cb)=>{
-            overlay.hud.showResult(t(title.key,title.params?{name:t(title.params.name)}:{}),lines.map(l=>({text:t(l.key,{...l.params,name:l.card?t(CARDS[l.card].nameKey):''}),bad:l.bad})));
+            const SK={'note.score':1,'note.scoreLoss':-1,'note.paid':-1};
+            const CK={'note.gained':'gain','note.upgraded':'gain','note.removed':'remove','note.downgraded':'gain'};
+            overlay.hud.showResult(t(title.key,title.params?{name:t(title.params.name)}:{}),lines.map(l=>({text:t(l.key,{...l.params,name:l.card?t(CARDS[l.card].nameKey):''}),bad:l.bad,card:l.card||null,kind:CK[l.key]||null,score:SK[l.key]?SK[l.key]*l.params.n:0})));
             cb();
         },
         startGame:()=>minis.begin(player),
@@ -976,6 +984,10 @@ function boot() {
                 progress[bestKey]=Math.max(progress[bestKey],stats.score);
                 stats.best=progress[bestKey];
                 const res=addXp(stats.xp);
+                if (res.levels>0) {
+                    const from=pendingLevel?pendingLevel.from:lvBefore;
+                    pendingLevel={from,to:progress.level,cards:(pendingLevel?pendingLevel.cards:[]).concat(res.unlocked),weapons:WEAPON_ORDER.filter(id=>WEAPONS[id].unlock>from&&WEAPONS[id].unlock<=progress.level)};
+                }
                 summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey)),xpFrom,xpTo:progress.xp/xpToNext(progress.level)};
             }
             summary.show(victory,stats,quit,toMenu=>{
@@ -985,6 +997,12 @@ function boot() {
                 renderer.post.resetDeath();
                 if (toMenu) {
                     enterMenu();
+                    if (pendingLevel) {
+                        const q=pendingLevel;
+                        art.warm(q.cards.map(id=>createCard(id)));
+                        levelUp.open2(q.from,q.to,q.cards,q.weapons);
+                    }
+                    pendingLevel=null;
                 }
                 else {
                     run.start(startIds(),run.mode);
@@ -1036,6 +1054,7 @@ function boot() {
     }
     function enterMenu() {
         clearWorld();
+        player.setArmed(true,true);
         doors.clear();
         npcs.clear();
         renderer.post.resetDeath();
@@ -1256,6 +1275,17 @@ function boot() {
         },
         resume:closeTrainingMenu,
         pick:openPicker,
+        games:()=>{
+            trainingMenu.gamesOpen=true;
+        },
+        testGame:id=>{
+            audio.play('ui');
+            trainingMenu.hide();
+            trainingMenu.pendingRoom=false;
+            fx.paused=false;
+            input.mouse.down=false;
+            run.testGame(id);
+        },
         reset:()=>{
             resetTrainStats();
             overlay.hud.toast(t('trainMenu.resetDone'));
@@ -1269,6 +1299,14 @@ function boot() {
         }
     });
     const trainingPicker=new TrainingPicker({
+        home:()=>{
+            audio.play('ui');
+            trainingPicker.hide();
+            trainingPicker.startMode=false;
+            fx.paused=false;
+            run.quit();
+            enterMenu();
+        },
         pick:trainPick,
         random:trainRandomPick,
         select:()=>audio.play('ui'),
@@ -1329,7 +1367,15 @@ function boot() {
         select:()=>audio.play('ui'),
         confirm:mode=>audio.play(mode==='remove'?'fail':'clear',0.8)
     });
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,tutorial,weaponView,popup,choice,deckPick];
+    const levelUp=new LevelUpView({
+        sound:(name,pitch)=>audio.play(name,pitch),
+        close:()=>{
+            audio.play('ui');
+            levelUp.hide();
+        }
+    });
+    let pendingLevel=null;
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,tutorial,weaponView,popup,choice,deckPick,levelUp];
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
@@ -1397,6 +1443,9 @@ function boot() {
                 input.lastDevice='touch';
             }
             checkDevice();
+            if (levelUp.open) {
+                return levelUp.down(x,y);
+            }
             if (popup.open) {
                 return popup.down(x,y);
             }
@@ -1558,6 +1607,10 @@ function boot() {
             }
             return;
         }
+        if (levelUp.open) {
+            levelUp.down();
+            return;
+        }
         if (levelView.open) {
             levelView.hide();
             return;
@@ -1710,7 +1763,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial,weaponView,popup,choice,deckPick,doors,npcs,marks};
+    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -1863,6 +1916,7 @@ function boot() {
         homingBullets.update(dt,room);
         lobs.update(dt);
         deck.update(dt);
+        hand.idleT=run.state==='combat'&&hand.visible()?(hand.idleT||0)+dt:0;
         room.update(dt,enemies);
         effects.update(dt);
         for (const c of clones) {
@@ -2077,7 +2131,7 @@ function boot() {
     if (!device.fullscreen) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

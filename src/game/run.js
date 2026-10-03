@@ -27,6 +27,7 @@ export class Run {
         this.lastEvent=null;
         this.lastGames=[];
         this.lastPrize=null;
+        this.trainGame=null;
         this.overtime=false;
         this.otPage=0;
         this.node='battle';
@@ -68,7 +69,27 @@ export class Run {
         return this.notebook()&&!this.overtime&&!(NOTEBOOK.nodes[this.node]||{combat:true}).combat;
     }
 
+    testGame(id) {
+        this.trainGame=id;
+        this.go();
+    }
+
     enter() {
+        if (this.training()&&this.trainGame) {
+            const list=PEACE_LAYOUTS.event;
+            const plan=this.planGame(list[Math.floor(this.rng.next()*list.length)],'test',this.trainGame);
+            plan.exits=[{kind:'back'}];
+            plan.trainGame=true;
+            this.plan=plan;
+            this.exitsOpen=false;
+            this.director=null;
+            this.timer=0;
+            this.room=this.hooks.enterRoom(plan,this.deckList);
+            this.state='peace';
+            this.npcUsed=plan.npcs.map(()=>false);
+            this.hooks.banner('peace',this);
+            return this.room;
+        }
         if (this.training()) {
             const T=TRAINING;
             const c=settings.training;
@@ -179,10 +200,10 @@ export class Run {
         return plan;
     }
 
-    planGame(base,key) {
+    planGame(base,key,forced=null) {
         const M=MINIGAMES;
         const pool=M.order.filter(id=>!this.lastGames.includes(id));
-        const id=pool[Math.floor(this.rng.next()*pool.length)];
+        const id=forced||pool[Math.floor(this.rng.next()*pool.length)];
         this.lastGames.push(id);
         while (this.lastGames.length>M.order.length-4) {
             this.lastGames.shift();
@@ -217,7 +238,13 @@ export class Run {
     gameDone(ok) {
         const p=this.plan;
         this.state='node';
-        this.withReport({key:ok?'report.gameWin':'report.gameLose',params:{name:'event.'+p.game+'.title'}},fin=>this.applyEffects(this.prize(ok),fin),()=>this.backToPeace());
+        const effects=p.trainGame?[]:this.prize(ok);
+        this.withReport({key:ok?'report.gameWin':'report.gameLose',params:{name:'event.'+p.game+'.title'}},fin=>{
+            if (p.trainGame) {
+                this.note(ok?'mg.win':'mg.lose');
+            }
+            this.applyEffects(effects,fin);
+        },()=>this.backToPeace());
     }
 
     arrangePeace(base,count) {
@@ -323,6 +350,11 @@ export class Run {
             return false;
         }
         this.exitsOpen=false;
+        if (ex.kind==='back') {
+            this.trainGame=null;
+            this.go(i);
+            return true;
+        }
         if (ex.kind==='finish') {
             this.state='summary';
             this.hooks.showSummary(true,this.stats);
