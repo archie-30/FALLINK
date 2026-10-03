@@ -18,7 +18,7 @@ export const WEAPONS={
         sys:'pencil',
         sound:'wPencil',
         fireInterval:0.09,
-        magazine:32,
+        magazine:26,
         reloadTime:1.4,
         damage:5,
         bulletSpeed:34,

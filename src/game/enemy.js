@@ -1894,7 +1894,7 @@ export class EnemyManager {
         const arr=this.list.slice();
         for (const e of arr) {
             if (e.alive) {
-                e.update(dt,ctx);
+                e.update(e.def.boss?dt*TUNING.bossTempo:dt,ctx);
             }
         }
     }

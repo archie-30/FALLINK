@@ -9,6 +9,8 @@ import {RoomDirector,TrainingDirector} from './room.js';
 import {createCard} from './card.js';
 import {NOTEBOOK} from '../data/notebook.js';
 import {MINIGAMES} from '../data/minigames.js';
+import {WEAPON_ORDER} from '../data/weapons.js';
+import {t} from '../data/strings.js';
 
 export class Run {
     constructor(hooks,seed) {
@@ -37,7 +39,7 @@ export class Run {
         this.report=null;
         const ids=mode==='training'?unlockedCards(effectiveLevel()):(startDeck||STARTING_DECK);
         this.deckList=ids.map(id=>({id,upgraded:false}));
-        this.stats={kills:0,cards:0,damage:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0};
+        this.stats={kills:0,cards:0,damage:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0,log:[]};
         this.enter();
     }
 
@@ -78,7 +80,7 @@ export class Run {
         if (this.training()&&this.trainGame) {
             const list=PEACE_LAYOUTS.event;
             const plan=this.planGame(list[Math.floor(this.rng.next()*list.length)],'test',this.trainGame);
-            plan.exits=[{kind:'back'}];
+            plan.exits=[{kind:'back'},{kind:'games'}];
             plan.trainGame=true;
             this.plan=plan;
             this.exitsOpen=false;
@@ -95,10 +97,12 @@ export class Run {
             const c=settings.training;
             const base=c.map==='training'?T.layout:(LAYOUTS[c.map]||T.layout);
             const layout=c.props?base:{...base,props:base.props.filter(q=>!T.solid.includes(q.type))};
-            this.plan={act:0,index:0,training:true,boss:false,layoutKey:'training',layout,hpMult:1,waves:[],exits:[],barrels:c.props?T.barrels:0,crates:c.props?T.crates:0};
+            this.plan={act:0,index:0,training:true,boss:false,layoutKey:'training',layout,hpMult:1,waves:[],exits:[{kind:'home'},{kind:'games'}],barrels:c.props?T.barrels:0,crates:c.props?T.crates:0};
             const room=this.hooks.enterRoom(this.plan,this.deckList);
             this.director=new TrainingDirector(c,this.hooks.enemies,room,trainable);
             this.state='combat';
+            this.exitsOpen=true;
+            this.hooks.openDoors(true);
             this.timer=0;
             this.hooks.banner('training',this);
             return room;
@@ -146,6 +150,7 @@ export class Run {
         this.timer=0;
         this.director=null;
         this.room=this.hooks.enterRoom(plan,this.deckList);
+        this.logPage(plan);
         if (plan.peace) {
             this.state='peace';
             this.npcUsed=plan.npcs.map(()=>false);
@@ -160,6 +165,11 @@ export class Run {
         this.chT=0;
         this.chCards=this.stats.cards;
         this.hooks.banner(plan.boss?'boss':'room',this);
+    }
+
+    logPage(plan) {
+        const S=this.stats;
+        S.log.push({act:plan.act,index:plan.index,node:plan.boss?'boss':plan.overtime?'overtime':(this.mode==='endless'?'endless':(plan.node||'battle')),game:plan.game||plan.event||null,hp:this.hooks.hp(),s:{kills:S.kills,damage:S.damage,cards:S.cards,time:S.time,score:S.score}});
     }
 
     planPeace(node) {
@@ -341,7 +351,7 @@ export class Run {
     }
 
     canExit() {
-        return this.exitsOpen&&(this.state==='exit'||this.state==='peace');
+        return this.exitsOpen&&(this.state==='exit'||this.state==='peace'||(this.training()&&this.state==='combat'));
     }
 
     useExit(i) {
@@ -349,7 +359,16 @@ export class Run {
         if (!ex||!this.canExit()) {
             return false;
         }
+        if (ex.kind==='games') {
+            this.hooks.openGames();
+            return true;
+        }
         this.exitsOpen=false;
+        if (ex.kind==='home') {
+            this.state='idle';
+            this.hooks.doorTransition(()=>this.hooks.leaveToMenu(),i);
+            return true;
+        }
         if (ex.kind==='back') {
             this.trainGame=null;
             this.go(i);
@@ -425,7 +444,7 @@ export class Run {
         return true;
     }
 
-    rewardChoices(kind='mixed',rareBoost=null) {
+    rewardChoices(kind='mixed',rareBoost=null,count=TUNING.reward.choices) {
         const R=TUNING.reward;
         const rareChance=kind==='rare'?1:(kind==='normal'?0:(rareBoost??R.rareChance));
         const upChance=this.plan.boss?R.bossUpChance:0;
@@ -435,7 +454,7 @@ export class Run {
         const owned=new Set(this.deckList.map(c=>c.id));
         const out=[];
         let guard=0;
-        while (out.length<R.choices&&guard<200) {
+        while (out.length<count&&guard<200) {
             guard++;
             const rare=this.rng.next()<rareChance;
             let list=pool.filter(id=>(CARDS[id].rarity==='rare')===rare&&!out.some(c=>c.id===id));
@@ -616,32 +635,72 @@ export class Run {
         return true;
     }
 
+    shopOffer() {
+        const S=NOTEBOOK.shop;
+        const keys=Object.keys(S.items);
+        let pick=null;
+        for (let k=0;k<20;k++) {
+            const list=keys.slice();
+            for (let i=list.length-1;i>0;i--) {
+                const j=Math.floor(this.rng.next()*(i+1));
+                [list[i],list[j]]=[list[j],list[i]];
+            }
+            pick=list.slice(0,S.offer);
+            const same=pick.filter(id=>(this.lastShop||[]).includes(id)).length;
+            if (same<S.offer-1) {
+                break;
+            }
+        }
+        this.lastShop=pick;
+        return pick;
+    }
+
     openShop() {
         const S=NOTEBOOK.shop;
         const p=this.plan;
+        if (!p.shopItems) {
+            p.shopItems=this.shopOffer();
+        }
         const score=this.stats.score;
-        const opt=(id,extra=false)=>({id,price:S[id],n:S.patchHeal,disabled:!!p.bought[id]||score<S[id]||extra,reason:p.bought[id]?'bought':(score<S[id]?'poor':null)});
-        const opts=[opt('buy'),opt('upgrade',this.upgradable().length===0),opt('patch'),{id:'leave'}];
+        const block=id=>(id==='upgrade'||id==='upgrade2')?this.upgradable().length===0:(id==='remove'?this.deckList.length<=NOTEBOOK.minDeck:false);
+        const opt=id=>{
+            const it=S.items[id];
+            return {id,price:it.price,n:it.n||0,disabled:!!p.bought[id]||score<it.price||block(id),reason:p.bought[id]?'bought':(score<it.price?'poor':null)};
+        };
+        const opts=p.shopItems.map(opt).concat([{id:'leave'}]);
         this.hooks.openChoice({kind:'shop',score,options:opts},k=>{
             const id=opts[k].id;
             if (id==='leave') {
                 this.backToPeace();
                 return;
             }
+            const it=S.items[id];
             p.bought[id]=true;
-            this.stats.score-=S[id];
-            this.note('note.paid',{n:S[id]});
+            this.stats.score-=it.price;
+            this.note('note.paid',{n:it.price});
             const back=()=>this.backToPeace();
-            if (id==='buy') {
+            if (id==='buy'||id==='rare') {
+                const kind=id==='rare'?'rare':'mixed';
                 this.state='reward';
-                this.hooks.openReward([{kind:'mixed',cards:this.rewardChoices('mixed')}],this.deckCounts(),cards=>this.takeCards(cards,back));
+                this.hooks.openReward([{kind,cards:this.rewardChoices(kind,null,S.cards)}],this.deckCounts(),cards=>this.takeCards(cards,back),true);
             }
             else if (id==='upgrade') {
                 this.pickUpgrade(back);
             }
-            else {
-                this.note('note.healed',{n:this.hooks.heal(S.patchHeal)});
+            else if (id==='remove') {
+                this.hooks.openDeckPick('remove',this.deckList,i=>{
+                    const cid=this.deckList[i].id;
+                    this.deckList.splice(i,1);
+                    this.note('note.removed',{},cid);
+                    this.hooks.cardFx('remove',cid,back);
+                });
+            }
+            else if (id==='patch'||id==='bigPatch') {
+                this.note('note.healed',{n:this.hooks.heal(it.n)});
                 back();
+            }
+            else {
+                this.applyEffects([[it.effect,it.n]],back);
             }
         });
     }
@@ -654,13 +713,21 @@ export class Run {
         this.hooks.openDeckPick('upgrade',this.deckList,i=>{
             this.deckList[i].upgraded=true;
             this.note('note.upgraded',{},this.deckList[i].id);
-            done();
+            this.hooks.cardFx('upgrade',this.deckList[i].id,done);
         });
     }
 
     randomCard(rarity) {
         const pool=unlockedCards(effectiveLevel()).filter(id=>(CARDS[id].rarity==='rare')===(rarity==='rare'));
         return createCard(pool[Math.floor(this.rng.next()*pool.length)],false);
+    }
+
+    fxChain(kind,ids,done) {
+        if (ids.length===0) {
+            done();
+            return;
+        }
+        this.hooks.cardFx(kind,ids[0],()=>this.fxChain(kind,ids.slice(1),done));
     }
 
     applyEffects(list,done) {
@@ -690,15 +757,17 @@ export class Run {
             cont();
         }
         else if (kind==='upgradeRandom') {
+            const ids=[];
             for (let k=0;k<arg;k++) {
                 const ups=this.upgradable();
                 if (ups.length>0) {
                     const i=ups[Math.floor(this.rng.next()*ups.length)];
                     this.deckList[i].upgraded=true;
                     this.note('note.upgraded',{},this.deckList[i].id);
+                    ids.push(this.deckList[i].id);
                 }
             }
-            cont();
+            this.fxChain('upgrade',ids,cont);
         }
         else if (kind==='downgrade') {
             const ups=this.deckList.filter(c=>c.upgraded);
@@ -706,11 +775,11 @@ export class Run {
                 const c=ups[Math.floor(this.rng.next()*ups.length)];
                 c.upgraded=false;
                 this.note('note.downgraded',{},c.id);
+                this.hooks.cardFx('downgrade',c.id,cont);
+                return;
             }
-            else {
-                this.hooks.hurt(1);
-                this.note('note.hurt',{n:1});
-            }
+            this.hooks.hurt(1);
+            this.note('note.hurt',{n:1});
             cont();
         }
         else if (kind==='removeRandom') {
@@ -719,20 +788,35 @@ export class Run {
                 const id=this.deckList[i].id;
                 this.deckList.splice(i,1);
                 this.note('note.removed',{},id);
+                this.hooks.cardFx('remove',id,cont);
+                return;
             }
-            else {
-                this.note('note.removeSafe');
-            }
+            this.note('note.removeSafe');
             cont();
         }
         else if (kind==='card') {
             const card=this.randomCard(arg);
             this.note('note.gained',{},card.id);
-            this.takeCards([card],cont);
+            this.hooks.cardFx('gain',card.id,()=>this.takeCards([card],cont));
         }
         else if (kind==='reward') {
             this.state='reward';
             this.hooks.openReward([{kind:arg,cards:this.rewardChoices(arg)}],this.deckCounts(),cards=>this.takeCards(cards,cont));
+        }
+        else if (kind==='weapon') {
+            const cur=this.hooks.weaponId();
+            const ids=WEAPON_ORDER.filter(id=>id!==cur);
+            for (let i=ids.length-1;i>0;i--) {
+                const j=Math.floor(this.rng.next()*(i+1));
+                [ids[i],ids[j]]=[ids[j],ids[i]];
+            }
+            const opts=ids.slice(0,MINIGAMES.swapChoices);
+            this.state='node';
+            this.hooks.openChoice({kind:'swap',options:opts.map(id=>({id}))},k=>{
+                this.hooks.setWeapon(opts[k]);
+                this.note('note.swapped',{w:t('weapon.'+opts[k]+'.name')});
+                cont();
+            });
         }
         else if (kind==='eliteNext') {
             this.eliteNext=true;

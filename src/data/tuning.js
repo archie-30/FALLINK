@@ -72,6 +72,8 @@ export const TUNING={
         fovPunchDecay:9
     },
     player:{
+        weaponHull:false,
+        weaponSoft:0.85,
         arm:{drawTime:0.45,stowTime:0.3,ready:0.7,spin:3.2,lift:0.5,back:0.4,raise:0.9},
         radius:0.5,
         visualScale:1.35,
@@ -250,6 +252,12 @@ export const TUNING={
         lowFps:42,
         window:4
     },
+    cardFx:{
+        gain:{scale:1.25,inTime:0.55,hold:0.9,outTime:0.5,total:2.0,skip:0.5,burst:0.35,toX:0.08,toY:0.9},
+        remove:{scale:1.25,inTime:0.45,burst:1.05,tearTime:0.7,total:2.0,skip:0.5},
+        downgrade:{scale:1.25,inTime:0.45,burst:1.0,total:1.9,skip:0.5},
+        upgrade:{burst:1.35,total:3.4,skip:1.6}
+    },
     upgrade:{
         gather:0.75,
         merge:1.35,
@@ -269,6 +277,7 @@ export const TUNING={
         deckOutMax:0.75
     },
     summaryUi:{
+        best:{at:1.7,bursts:9,gap:0.4,life:1.1,sparks:14,strips:40,stampTime:0.45,x:0.19,y:0.22,rot:-0.14},
         stampTime:0.35,
         countTime:0.9,
         xpTime:1.2,
@@ -280,12 +289,12 @@ export const TUNING={
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
     pauseUi:{compactH:700,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
     doors:{width:2.4,height:1.9,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
-    minigame:{endDelay:0.9,bellShake:0.18},
+    minigame:{endDelay:0.9,bellShake:0.18,tilesSearch:4000,popTime:0.35,popGap:0.04,wallRise:0.5,wallGap:0.03,wallSink:0.5},
     npc:{bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
     worldMarks:{subH:22,subMaxW:340,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
     hand:{showTime:0.55,hideOffset:260},
-    choiceUi:{maxW:960,gap:18,cardMaxW:380,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
+    choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:70},
     settingsUi:{
         twoColMin:600,
@@ -380,7 +389,7 @@ export const TUNING={
         popDecay:4,
         hoverScale:0.06,
         pressScale:0.18,
-        dropdown:{openTime:0.22,closeTime:0.15,pickDecay:3,itemH:34,stagger:0.08}
+        dropdown:{openTime:0.22,closeTime:0.15,pickDecay:3,itemH:34,mapItemH:40,stagger:0.08}
     },
     weaponFx:{
         pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
@@ -475,10 +484,11 @@ export const TUNING={
         pickupInk:2,
         pickupHeal:1
     },
+    bossTempo:1.15,
     bossDrop:{
         interval:[9,14],
         first:6,
-        ink:1,
+        ink:2,
         max:2,
         minPlayerDist:3.5
     },
@@ -522,7 +532,7 @@ export const TUNING={
         facing:{dist:0.75,len:0.32,half:0.2,alpha:0.85,guideFrom:1.1,guideLen:4.5,guideAlpha:0.28,dash:7,gap:7},
         toastY:72,
         toastBannerY:196,
-        result:{time:4.2,perLine:0.6,lineH:26,maxW:420,fade:0.35,titleSize:19,lineSize:16,halo:5,gapTop:22,lineGap:10,lineDelay:0.18,cardH:56,cardGap:10,cardIn:0.45,tearDelay:0.45,tearTime:0.6,flyDelay:0.45,flyTime:0.7,flyArc:40,flySize:24},
+        result:{time:4.2,perLine:0.6,lineH:26,maxW:420,fade:0.35,titleSize:19,lineSize:16,halo:5,gapTop:22,lineGap:10,lineDelay:0.18,flyDelay:0.45,flyTime:0.7,flyArc:40,flySize:24},
         progress:{y:30,segW:340,minSeg:160,side:240,actGap:12,dotR:6,bossR:8.5,curR:9,anim:0.8,hop:14,pulse:0.12,pulseRate:4,actSize:15,tagSize:14,tagY:20,below:58,show:4,fade:0.8,pauseY:34},
         score:{right:78,y:12,labelSize:12,size:30,pop:0.35,popDecay:2.5,rate:6,shake:4,shakeRate:55,shakeDecay:2.2},
         timer:{offset:42,cloneOffset:14,width:76,height:5},

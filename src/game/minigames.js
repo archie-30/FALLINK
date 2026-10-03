@@ -41,10 +41,14 @@ function stampTex(text) {
         x.fillStyle='#000';
         x.fillRect(0,0,128,128);
         x.fillStyle='#fff';
-        x.font='bold 96px "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+        const font=sz=>'bold '+sz+'px "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+        x.font=font(96);
+        const tw=x.measureText(text).width;
+        const sz=tw>112?Math.floor(96*112/tw):96;
+        x.font=font(sz);
         x.textAlign='center';
         x.textBaseline='middle';
-        x.fillText(text,64,70);
+        x.fillText(text,64,68);
         const tex=new THREE.CanvasTexture(c);
         tex.colorSpace=THREE.NoColorSpace;
         stampCache.set(text,tex);
@@ -599,6 +603,51 @@ const GAMES={
         }
     },
     tiles:{
+        solvable(C,R,blocked,rng) {
+            const free=[];
+            for (let k=0;k<C*R;k++) {
+                if (!blocked.has(k)) {
+                    free.push(k);
+                }
+            }
+            const nb=k=>{
+                const r=Math.floor(k/C);
+                const c=k%C;
+                return [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([rr,cc])=>rr>=0&&cc>=0&&rr<R&&cc<C&&!blocked.has(rr*C+cc)).map(([rr,cc])=>rr*C+cc);
+            };
+            const edge=free.filter(k=>{
+                const r=Math.floor(k/C);
+                const c=k%C;
+                return r===0||c===0||r===R-1||c===C-1;
+            });
+            let steps=0;
+            const seen=new Set();
+            const dfs=k=>{
+                if (++steps>TUNING.minigame.tilesSearch) {
+                    return false;
+                }
+                seen.add(k);
+                if (seen.size===free.length) {
+                    return true;
+                }
+                const opts=nb(k).filter(n=>!seen.has(n)).map(n=>[n,nb(n).filter(m=>!seen.has(m)).length+rng()*0.5]).sort((x,y)=>x[1]-y[1]);
+                for (const [n] of opts) {
+                    if (dfs(n)) {
+                        return true;
+                    }
+                }
+                seen.delete(k);
+                return false;
+            };
+            for (const st of edge) {
+                steps=0;
+                seen.clear();
+                if (dfs(st)) {
+                    return true;
+                }
+            }
+            return false;
+        },
         setup(g) {
             const P=g.P;
             g.cols=g.a(P.cols);
@@ -606,13 +655,36 @@ const GAMES={
             const s=P.size;
             g.x0=-g.cols*s/2;
             g.z0=-0.6-g.rows*s/2;
+            let blocked=new Set();
+            for (let n=g.a(P.blocks);n>=0;n--) {
+                let ok=false;
+                for (let tries=0;tries<30&&!ok;tries++) {
+                    const cand=new Set(g.shuffle([...Array(g.cols*g.rows).keys()]).slice(0,n));
+                    if (this.solvable(g.cols,g.rows,cand,()=>g.r())) {
+                        blocked=cand;
+                        ok=true;
+                    }
+                }
+                if (ok) {
+                    break;
+                }
+            }
             g.tiles=[];
             for (let r=0;r<g.rows;r++) {
                 for (let c=0;c<g.cols;c++) {
-                    const m=g.flat(s-0.14,s-0.14,'light',g.x0+(c+0.5)*s,g.z0+(r+0.5)*s,0.05);
-                    g.tiles.push({m,painted:false});
+                    const k=r*g.cols+c;
+                    const x=g.x0+(c+0.5)*s;
+                    const z=g.z0+(r+0.5)*s;
+                    const hole=blocked.has(k);
+                    const m=g.flat(s-0.14,s-0.14,hole?'dark':'light',x,z,0.05);
+                    if (hole) {
+                        g.disc(s*0.36,'ink',x,z,0.09);
+                        g.stamp('✕',1.4,'red',x,z,0.13);
+                    }
+                    g.tiles.push({m,painted:false,hole});
                 }
             }
+            g.need=g.tiles.filter(q=>!q.hole).length;
             g.flat(g.cols*s+0.2,g.rows*s+0.2,'dark',0,g.z0+g.rows*s/2,0.02);
         },
         begin(g) {
@@ -635,7 +707,7 @@ const GAMES={
             }
             g.cur=k;
             const q=g.tiles[k];
-            if (q.painted) {
+            if (q.painted||q.hole) {
                 q.m.material=mat('accent');
                 g.burst(q.m.position.x,q.m.position.z,'red',14,0.3);
                 g.lose();
@@ -646,12 +718,12 @@ const GAMES={
             g.burst(q.m.position.x,q.m.position.z,'ink',6,0.3);
             g.sound('draw',1+g.count*0.04);
             g.count++;
-            if (g.count>=g.tiles.length) {
+            if (g.count>=g.need) {
                 g.win();
             }
         },
         info(g) {
-            return {key:'mg.tiles.info',params:{n:g.count,total:g.tiles.length}};
+            return {key:'mg.tiles.info',params:{n:g.count,total:g.need}};
         }
     },
     diff:{
@@ -678,6 +750,7 @@ const GAMES={
                 return null;
             });
             g.cells=[];
+            g.pops=[];
             const zc=-0.8;
             for (const side of [-1,1]) {
                 const cx=side*P.gapX;
@@ -686,14 +759,18 @@ const GAMES={
                 for (let i=0;i<9;i++) {
                     const x=cx+(i%3-1)*cell;
                     const z=zc+(Math.floor(i/3)-1)*cell;
-                    g.flat(cell-0.16,cell-0.16,'light',x,z,0.04);
+                    const tile=g.flat(cell-0.16,cell-0.16,'light',x,z,0.04);
                     if (list[i]) {
-                        g.shape(list[i].shape,list[i].tone,x,z,0.9);
+                        const obj=g.shape(list[i].shape,list[i].tone,x,z,0.9);
+                        obj.scale.setScalar(0.001);
+                        obj.visible=false;
+                        g.pops.push({obj,delay:(i+(side>0?9:0))*TUNING.minigame.popGap});
                     }
                     if (side>0) {
                         const p=g.pad(x,z,0.85,'cover',0.11);
                         p.diff=which.includes(i);
                         p.done=false;
+                        p.tile=tile;
                         g.cells.push(p);
                     }
                 }
@@ -706,10 +783,32 @@ const GAMES={
             g.place(0,MINIGAMES.start[1]);
             g.found=0;
             g.miss=0;
+            g.popT=0;
+            g.sound('page',1.3);
             g.timer(g.a(g.P.time));
+        },
+        idle(g,dt) {
+            if (g.popT===undefined) {
+                return;
+            }
+            g.popT+=dt;
+            const M=TUNING.minigame;
+            for (const q of g.pops) {
+                const k=Math.max(0,Math.min(1,(g.popT-q.delay)/M.popTime));
+                q.obj.visible=k>0;
+                q.obj.scale.setScalar(Math.max(0.001,EASE.easeOutBack(k)));
+                q.obj.rotation.y=(1-k)*3;
+                if (k>0&&!q.puffed) {
+                    q.puffed=true;
+                    g.burst(q.obj.position.x,q.obj.position.z,'farGray',4,0.5);
+                }
+            }
         },
         tick(g,dt,pl) {
             const P=g.P;
+            if (g.popT<g.pops.length*TUNING.minigame.popGap+TUNING.minigame.popTime) {
+                return;
+            }
             for (const p of g.cells) {
                 if (p.done) {
                     continue;
@@ -721,6 +820,8 @@ const GAMES={
                 if (p.diff) {
                     p.ring.material=mat('accent');
                     p.ring.scale.set(1.15,1.15,1.15);
+                    p.tile.material=mat('accent');
+                    g.stamp('○',1.6,'paper',p.x,p.z,0.14);
                     g.burst(p.x,p.z,'red',12,0.6);
                     g.sound('draw',1.3);
                     g.found++;
@@ -730,7 +831,8 @@ const GAMES={
                     }
                 }
                 else {
-                    g.stamp('✕',1.3,'red',p.x,p.z,1.2);
+                    p.tile.material=mat('dark');
+                    g.stamp('✕',1.6,'red',p.x,p.z,0.14);
                     g.say(p.x,p.z,'mg.diff.wrong');
                     g.miss++;
                     if (g.miss>P.miss) {
@@ -910,13 +1012,26 @@ const GAMES={
         },
         reveal(g,k) {
             const q=g.tiles[k];
-            if (q.open) {
+            if (q.open||q.mine) {
                 return;
             }
             q.open=true;
             q.tile.material=mat('light');
             if (q.near>0) {
                 g.stamp(String(q.near),1.5,q.near>=3?'red':'ink',q.x,q.z,0.1);
+                return;
+            }
+            const C=g.P.cols;
+            const r=Math.floor(k/C);
+            const c=k%C;
+            for (let dr=-1;dr<=1;dr++) {
+                for (let dc=-1;dc<=1;dc++) {
+                    const rr=r+dr;
+                    const cc=c+dc;
+                    if ((dr||dc)&&rr>=0&&cc>=0&&rr<g.P.rows&&cc<C) {
+                        this.reveal(g,rr*C+cc);
+                    }
+                }
             }
         },
         begin(g) {
@@ -1190,11 +1305,10 @@ const GAMES={
             g.walls=walls;
             g.wallGroup=new THREE.Group();
             g.add(g.wallGroup);
-            for (const [x,z,w,d] of walls) {
-                g.box(w,P.wallH,d,'cover',x,P.wallH/2,z,g.wallGroup);
+            g.wallMeshes=walls.map(([x,z,w,d])=>{
                 g.flat(w,d,'dark',x,z,0.03);
-            }
-            g.wallGroup.scale.y=0.001;
+                return {m:g.box(w,P.wallH,d,'cover',x,P.wallH/2,z,g.wallGroup),x,z};
+            });
             g.wallGroup.visible=false;
             const startC=g.flip>0?0:C-1;
             g.start=startC;
@@ -1220,6 +1334,10 @@ const GAMES={
             }
             const center=k=>[cx(k%C)+P.cell/2,cz(Math.floor(k/C))+P.cell/2];
             g.sp=center(startC);
+            for (const q of g.wallMeshes) {
+                q.d=Math.hypot(q.x-g.sp[0],q.z-g.sp[1])/P.cell;
+                q.m.scale.y=0.001;
+            }
             g.gp=center(goal);
             g.disc(0.9,'accent',g.gp[0],g.gp[1]);
             g.stamp('★',1.2,'paper',g.gp[0],g.gp[1],0.09);
@@ -1229,14 +1347,34 @@ const GAMES={
             g.place(g.sp[0],g.sp[1]);
             g.wallGroup.visible=true;
             g.grow=0;
+            g.sink=-1;
             g.solid(g.walls.map(([x,z,w,d])=>makeBox(x,z,w/2,d/2,0)));
             g.timer(g.a(g.P.time));
             g.sound('wall',1);
         },
         idle(g,dt) {
-            if (g.grow!==undefined&&g.grow<1) {
-                g.grow=Math.min(1,g.grow+dt*3);
-                g.wallGroup.scale.y=Math.max(0.001,EASE.easeOutBack(g.grow));
+            if (g.grow===undefined) {
+                return;
+            }
+            const M=TUNING.minigame;
+            const H=g.P.wallH;
+            g.grow+=dt;
+            if (g.sink>=0) {
+                g.sink+=dt;
+            }
+            let any=false;
+            for (const q of g.wallMeshes) {
+                let k=Math.max(0,Math.min(1,(g.grow-q.d*M.wallGap)/M.wallRise));
+                k=EASE.easeOutBack(k);
+                if (g.sink>=0) {
+                    k*=1-EASE.easeInCubic(Math.max(0,Math.min(1,(g.sink-q.d*M.wallGap*0.6)/M.wallSink)));
+                }
+                q.m.scale.y=Math.max(0.001,k);
+                q.m.position.y=H/2*Math.max(0.001,k);
+                any=any||k>0.002;
+            }
+            if (g.sink>=0&&!any) {
+                g.wallGroup.visible=false;
             }
         },
         tick(g,dt,pl) {
@@ -1246,9 +1384,10 @@ const GAMES={
             }
         },
         teardown(g) {
-            g.wallGroup.visible=false;
+            g.sink=0;
+            g.sound('wall',0.8);
             for (const [x,z] of g.walls) {
-                if (Math.random()<0.35) {
+                if (Math.random()<0.3) {
                     g.burst(x,z,'farGray',3,0.6);
                 }
             }
@@ -1562,7 +1701,13 @@ const GAMES={
     cups:{
         setup(g) {
             const P=g.P;
-            g.cups=P.xs.map((x,i)=>{
+            const opts=g.a(P.counts);
+            const n=opts[g.int(opts.length)];
+            g.xs=[];
+            for (let i=0;i<n;i++) {
+                g.xs.push((i-(n-1)/2)*P.spacing);
+            }
+            g.cups=g.xs.map((x,i)=>{
                 const root=new THREE.Group();
                 root.position.set(x,0,P.z);
                 g.add(root);
@@ -1572,8 +1717,8 @@ const GAMES={
                 return {root,slot:i,x,z:P.z,y:0};
             });
             g.ballM=g.ball(0.28,'accent',0,0.28,P.z);
-            g.has=g.int(3);
-            g.pads=P.xs.map((x,i)=>{
+            g.has=g.int(g.cups.length);
+            g.pads=g.xs.map((x,i)=>{
                 const p=g.pad(x,P.padZ,P.pad,'dark');
                 p.slot=i;
                 return p;
@@ -1619,16 +1764,17 @@ const GAMES={
                         return;
                     }
                     g.swaps--;
-                    const a=g.int(3);
-                    const b=(a+1+g.int(2))%3;
+                    const N=g.cups.length;
+                    const a=g.int(N);
+                    const b=(a+1+g.int(N-1))%N;
                     g.sw={a:g.cups.find(c=>c.slot===a),b:g.cups.find(c=>c.slot===b),t:0};
                     g.sound('page',1.5);
                 }
                 const s=g.sw;
                 s.t+=dt/T;
                 const k=EASE.easeInOutQuad(Math.min(1,s.t));
-                const xa=P.xs[s.a.slot];
-                const xb=P.xs[s.b.slot];
+                const xa=g.xs[s.a.slot];
+                const xb=g.xs[s.b.slot];
                 s.a.x=xa+(xb-xa)*k;
                 s.b.x=xb+(xa-xb)*k;
                 s.a.z=P.z+Math.sin(k*Math.PI)*0.9;

@@ -43,8 +43,9 @@ export class RewardView {
         return Math.min(s,(this.width-80)/(CARD_W*5.6));
     }
 
-    show(groups,title,counts,onPick,target) {
+    show(groups,title,counts,onPick,target,forced=false) {
         this.open=true;
+        this.forced=forced;
         this.groups=groups.map((g,gi)=>({kind:g.kind,sel:-1,gi,skip:false,skipA:0,rect:null}));
         this.items=[];
         for (let gi=0;gi<groups.length;gi++) {
@@ -124,7 +125,7 @@ export class RewardView {
             }
         }
         const r=this.btnRect;
-        if (x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h) {
+        if (!this.forced&&x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h) {
             if (!this.dual()) {
                 this.groups[0].sel=-1;
             }
@@ -335,7 +336,7 @@ export class RewardView {
         const bx=w/2-bw/2;
         const by=Math.min(h*0.52+CARD_H*s*0.5+(dual?48*s+14:44*Math.min(1.2,s)),h-bh-(dual?32:12));
         this.btnRect={x:bx,y:by,w:bw,h:bh};
-        const ba=Math.min(1,Math.max(0,(this.t-0.6)/0.3))*fade;
+        const ba=this.forced?0:Math.min(1,Math.max(0,(this.t-0.6)/0.3))*fade;
         const label=dual?(this.selected().length>0?t('reward.confirm',{n:this.selected().length}):t('reward.skipAll')):t('reward.skip');
         ctx.save();
         ctx.globalAlpha=ba;
