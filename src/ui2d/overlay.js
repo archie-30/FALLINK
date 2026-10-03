@@ -79,7 +79,7 @@ export class Overlay {
             this.hud.drawTimers(ctx,player,game.effects.timers,game.project,this.tmp||(this.tmp={x:0,y:0}));
             this.hud.drawCloneTimers(ctx,game.clones,game.project,this.tmp);
             this.drawLock(ctx,game);
-            if (training) {
+            if (training&&!(game.run.plan&&game.run.plan.trainGame)) {
                 this.hud.drawTrainingInfo(ctx,game.trainStats,game.enemies.aliveCount(),device.mobile||input.lastDevice==='touch',this.height);
             }
             else {
@@ -114,6 +114,10 @@ export class Overlay {
             game.summary.draw(ctx);
             game.pause.draw(ctx);
             if (game.pause.open) {
+                const rn=game.run;
+                if (rn.plan&&rn.notebook()&&!rn.plan.overtime&&!rn.plan.training) {
+                    this.hud.drawProgress(ctx,this.width,rn,true,TUNING.hud.progress.pauseY);
+                }
                 game.hand.draw(ctx,game.art);
                 const hv=game.hand.hover;
                 if (hv) {
@@ -137,6 +141,7 @@ export class Overlay {
         game.levelView.draw(ctx);
         game.tutorial.draw(ctx,game.art);
         game.weaponView.draw(ctx);
+        game.levelUp.draw(ctx,game.art);
         game.skinEditor.draw(ctx);
         game.settingsMenu.draw(ctx);
         if (game.settingsMenu.open&&game.settingsMenu.page==='touch') {
@@ -149,7 +154,7 @@ export class Overlay {
         game.codex.draw(ctx,game.art);
         game.popup.draw(ctx);
         this.hud.drawToast(ctx,this.width,game.dt);
-        this.hud.drawResult(ctx,this.width,this.height,game.dt);
+        this.hud.drawResult(ctx,this.width,this.height,game.dt,game.art);
         game.transition.drawTop(ctx,this.width,this.height);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             const play=game.mode==='play'&&game.run.state!=='dead';
@@ -287,7 +292,11 @@ export class Overlay {
             const sel=!!(hand&&view&&hand.targetView===view);
             const cost=card?cardCost(card):0;
             const poor=!!(card&&ink&&!ink.can(cost));
-            const shake=view&&view.shakeT>0?Math.sin(view.shakeT*70)*5*view.shakeT/0.35:0;
+            const N=TUNING.input.nudge;
+            const idle=hand?(hand.idleT||0)-N.idle:-1;
+            const ph=idle>0?(idle+k.slot*N.stagger)%N.every:9;
+            const nudge=card&&!poor&&ph<N.dur?Math.sin(ph*N.rate)*N.amp*(1-ph/N.dur):0;
+            const shake=(view&&view.shakeT>0?Math.sin(view.shakeT*70)*5*view.shakeT/0.35:0)+nudge;
             const pressed=k.id>=0;
             const r=k.r*(pressed?0.92:1)*(sel?1.06+Math.sin(time.real*8)*0.03:1);
             const x=k.x+shake;
@@ -365,17 +374,24 @@ export class Overlay {
             return;
         }
         if (input.interactReady) {
+            const N=TUNING.input.nudge;
             const pulse=1+Math.sin(performance.now()/180)*0.04;
+            const ph=(time.real%N.interactEvery);
+            const wig=ph<N.interactDur?Math.sin(ph*N.rate)*(1-ph/N.interactDur):0;
+            ctx.save();
+            ctx.translate(d.x+wig*N.interactAmp,d.y);
+            ctx.rotate(wig*N.interactTilt);
             ctx.fillStyle=rgba('paper',0.85);
             ctx.beginPath();
-            ctx.arc(d.x,d.y,r*pulse,0,Math.PI*2);
+            ctx.arc(0,0,r*pulse,0,Math.PI*2);
             ctx.fill();
-            this.ring(d.x,d.y,r*pulse,3,PALETTE.ink,73);
+            this.ring(0,0,r*pulse,3,PALETTE.ink,73);
             ctx.fillStyle=PALETTE.ink;
             ctx.font='bold 17px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            ctx.fillText(t('ui.interact'),d.x,d.y+1);
+            ctx.fillText(t('ui.interact'),0,1);
+            ctx.restore();
             return;
         }
         ctx.fillStyle=rgba('paper',0.55);

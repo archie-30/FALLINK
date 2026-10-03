@@ -26,7 +26,7 @@ export const NOTEBOOK={
     shop:{buy:600,upgrade:700,patch:400,patchHeal:2},
     supply:[['heal',1],['ink',3],['score',300]],
     chests:['rare','supply','mimic'],
-    badNotes:['note.hurt','note.removed','note.scoreLoss','note.downgraded','note.eliteNext','gacha.broken','chest.mimic','challenge.failed'],
+    badNotes:['mg.lose','note.hurt','note.removed','note.scoreLoss','note.downgraded','note.eliteNext','gacha.broken','chest.mimic','challenge.failed'],
     events:[
         {
             id:'spill',

@@ -16,6 +16,7 @@ import {fmtInk,DESKTOP_KEYS,TOUCH_KEYS} from './hud.js';
 import {CARD_ANIMS,ENEMY_ATTACKS,WEAPON_ANIMS,drawStage} from './codexAnim.js';
 import {WEAPONS,WEAPON_ORDER,weaponUnlocked,unlockedWeapons,RANDOM_WEAPON} from '../data/weapons.js';
 import {VERSION} from '../data/version.js';
+import {MINIGAMES} from '../data/minigames.js';
 import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip,cardBrief,cardChips} from './cardView.js';
 import {ENEMY_ICONS} from './enemyIcons.js';
 
@@ -189,7 +190,7 @@ const MENU_ACTS=['start','endless','training','weapon','tutorial','codex'];
 
 const MENU_EXTRA=['settings','skin'];
 
-const MAX_LEVEL=Math.max(...Object.keys(UNLOCKS).map(Number));
+const MAX_LEVEL=TUNING.levels.max;
 
 export class MainMenu extends Panel {
     constructor(actions) {
@@ -397,7 +398,7 @@ export class MainMenu extends Panel {
         ctx.font='12px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         ctx.textAlign='right';
-        ctx.fillText(t('menu.xp',{xp:progress.xp,next:need}),x+pw-14,y+14);
+        ctx.fillText(progress.level>=MAX_LEVEL?t('menu.xpMax'):t('menu.xp',{xp:progress.xp,next:need}),x+pw-14,y+14);
         ctx.textAlign='left';
         const nextCards=UNLOCKS[progress.level+1];
         const lines=wrapText(ctx,nextCards?t('menu.nextUnlock',{cards:nextCards.map(id=>t(CARDS[id].nameKey)).join('、')}):t('menu.allUnlocked'),pw-28);
@@ -2544,6 +2545,7 @@ export class TrainingPicker extends Panel {
         const bh=h<600?44:50;
         this.backBtn={x:w/2-200,y:h-(h<600?54:68),w:180,h:bh};
         this.okBtn={x:w/2+20,y:h-(h<600?54:68),w:180,h:bh};
+        this.homeBtn={x:Math.max(12,this.view.x),y:h-(h<600?54:68),w:h<600?120:150,h:bh};
     }
 
     lists() {
@@ -2594,6 +2596,10 @@ export class TrainingPicker extends Panel {
         }
         this.layout();
         this.touch=type!=='mouse';
+        if (this.startMode&&inRect(this.homeBtn,x,y)) {
+            this.actions.home();
+            return true;
+        }
         if (inRect(this.backBtn,x,y)) {
             if (this.startMode) {
                 this.actions.random();
@@ -2768,6 +2774,9 @@ export class TrainingPicker extends Panel {
         ctx.restore();
         this.clampScroll();
         drawButton(ctx,this.backBtn,t(this.startMode?'training.random':'menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0);
+        if (this.startMode) {
+            drawButton(ctx,this.homeBtn,t('training.home'),v,(this.t-0.15)/0.3,this.hoverIdx===2,h<600?14:16,true);
+        }
         const n=this.sel.length;
         if (n>0) {
             ctx.save();
@@ -2789,7 +2798,7 @@ export class TrainingPicker extends Panel {
             ctx.textBaseline='middle';
             ctx.fillText(t('training.pickNone'),this.okBtn.x+this.okBtn.w/2,this.okBtn.y+this.okBtn.h/2);
         }
-        this.buttons=[this.backBtn,this.okBtn];
+        this.buttons=this.startMode?[this.backBtn,this.okBtn,this.homeBtn]:[this.backBtn,this.okBtn];
         if (hovered&&!this.drag) {
             const below=hovered.y<V.y+140;
             drawCardTooltip(ctx,hovered.card,Math.max(150,Math.min(w-150,hovered.x)),below?hovered.y+ch+170:hovered.y-10);
@@ -2813,7 +2822,8 @@ export class LevelView extends Panel {
 
     show() {
         super.show();
-        this.scrollTo=Math.max(0,(effectiveLevel()-2)*TUNING.levelView.rowH);
+        this.jump=true;
+        this.scrollTo=0;
         this.scroll=0;
     }
 
@@ -2934,7 +2944,7 @@ export class LevelView extends Panel {
         const bw=P.w-48;
         ctx.font='bold 15px '+FONT;
         ctx.textAlign='left';
-        ctx.fillText(t('levels.current',{level:real,xp:progress.xp,next:need}),bx,by);
+        ctx.fillText(real>=MAX_LEVEL?t('levels.max',{level:real}):t('levels.current',{level:real,xp:progress.xp,next:need}),bx,by);
         if (godMode()) {
             ctx.fillStyle=PALETTE.red;
             ctx.textAlign='right';
@@ -2969,6 +2979,9 @@ export class LevelView extends Panel {
             const ids=UNLOCKS[n]||[];
             const tmpH=ids.length>0?R.rowH:48;
             const rowTop=y;
+            if (cur) {
+                this.curTop=rowTop+this.scroll-V.y;
+            }
             ctx.fillStyle=cur?rgba('red',0.07):(reached?rgba('paper',0.9):rgba('farGray',0.35));
             ctx.fillRect(V.x,rowTop,V.w,tmpH-8);
             drawShape(ctx,sketchRect(V.x,rowTop,V.w,tmpH-8,{width:cur?2.2:1.2,seed:1420+n}),cur?PALETTE.red:(reached?PALETTE.ink:PALETTE.midGray),v);
@@ -2992,6 +3005,12 @@ export class LevelView extends Panel {
         y+=30;
         this.contentH=y+this.scroll-V.y;
         ctx.restore();
+        if (this.jump) {
+            this.jump=false;
+            this.scrollTo=(this.curTop||0)-TUNING.levelView.focusPad;
+            this.clampScroll();
+            this.scroll=this.scrollTo;
+        }
         this.clampScroll();
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0);
         ctx.restore();
@@ -3523,10 +3542,15 @@ export class TrainingMenu extends Panel {
         this.pop={};
         this.dd={open:false,t:0,pick:-1,pickT:0};
         this.ddHits=[];
+        this.gamesOpen=false;
+        this.gamesT=0;
+        this.gameHits=[];
     }
 
     show() {
         super.show();
+        this.gamesOpen=false;
+        this.gamesT=0;
         this.pendingRoom=false;
         this.pulse={};
         this.pop={};
@@ -3535,6 +3559,10 @@ export class TrainingMenu extends Panel {
     }
 
     closeDropdown() {
+        if (this.gamesOpen) {
+            this.gamesOpen=false;
+            return true;
+        }
         if (!this.dd.open) {
             return false;
         }
@@ -3561,6 +3589,16 @@ export class TrainingMenu extends Panel {
     down(x,y) {
         if (!this.open) {
             return false;
+        }
+        if (this.gamesOpen) {
+            for (const q of this.gameHits) {
+                if (inRect(q,x,y)) {
+                    q.act();
+                    return true;
+                }
+            }
+            this.gamesOpen=false;
+            return true;
         }
         if (this.dd.open) {
             for (const q of this.ddHits) {
@@ -3603,6 +3641,7 @@ export class TrainingMenu extends Panel {
         const D=TUNING.trainUi.dropdown;
         this.dd.t=Math.max(0,Math.min(1,this.dd.t+(this.dd.open?dt/D.openTime:-dt/D.closeTime)));
         this.dd.pickT=Math.max(0,this.dd.pickT-dt*D.pickDecay);
+        this.gamesT=Math.max(0,Math.min(1,this.gamesT+(this.gamesOpen?dt/D.openTime:-dt/D.closeTime)));
         const c=settings.training;
         for (const key of ['props','attack','immortal','ammo','random']) {
             this.anim[key]=(this.anim[key]??(c[key]?1:0))+(((c[key]?1:0))-(this.anim[key]??0))*k;
@@ -4048,7 +4087,7 @@ export class TrainingMenu extends Panel {
             ry+=frh;
         }
         const by=py+ph-(small?46:64);
-        const btns=[['trainMenu.leave','leave'],['trainMenu.pick','pick'],['trainMenu.reset','reset'],['menu.settings','settings'],['trainMenu.resume','resume']];
+        const btns=[['trainMenu.leave','leave'],['trainMenu.pick','pick'],['trainMenu.games','games'],['trainMenu.reset','reset'],['menu.settings','settings'],['trainMenu.resume','resume']];
         const bw2=Math.min(160,(pw-40-(btns.length-1)*10)/btns.length);
         const bx0=w/2-(btns.length*bw2+(btns.length-1)*10)/2;
         this.buttons=[];
@@ -4066,6 +4105,75 @@ export class TrainingMenu extends Panel {
             add(r,()=>this.actions[btns[i][1]](),key);
         }
         this.drawDropdown(ctx,v);
+        this.drawGames(ctx,v);
+        ctx.restore();
+    }
+
+    drawGames(ctx,v) {
+        this.gameHits=[];
+        if (this.gamesT<=0) {
+            return;
+        }
+        const w=this.width;
+        const h=this.height;
+        const small=h<600;
+        const k=EASE.easeOutBack(this.gamesT);
+        const ids=MINIGAMES.order;
+        const cols=4;
+        const rows=Math.ceil(ids.length/cols);
+        const pw=Math.min(820,w-40);
+        const ph=Math.min(h-30,small?h-30:470);
+        const px=w/2-pw/2;
+        const py=h/2-ph/2;
+        ctx.save();
+        ctx.globalAlpha*=Math.min(1,this.gamesT*2);
+        ctx.fillStyle=rgba('ink',0.25);
+        ctx.fillRect(0,0,w,h);
+        ctx.translate(w/2,h/2);
+        ctx.scale(0.9+0.1*k,0.9+0.1*k);
+        ctx.translate(-w/2,-h/2);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(px,py,pw,ph);
+        drawShape(ctx,sketchRect(px,py,pw,ph,{width:2.2,seed:1680}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(small?17:22)+'px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        const head=small?40:58;
+        ctx.fillText(t('trainMenu.gamesTitle'),px+20,py+head/2+2);
+        ctx.font=(small?'11px ':'13px ')+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='right';
+        ctx.fillText(t('trainMenu.gamesHint'),px+pw-20,py+head/2+2);
+        const gap=10;
+        const gw=(pw-40-gap*(cols-1))/cols;
+        const gh=(ph-head-20-gap*(rows-1))/rows;
+        ids.forEach((id,i)=>{
+            const r={x:px+20+(i%cols)*(gw+gap),y:py+head+Math.floor(i/cols)*(gh+gap),w:gw,h:gh};
+            const hv=inRect(r,this.hx,this.hy);
+            const ik=Math.max(0,Math.min(1,(this.gamesT-i*0.03)/0.5));
+            ctx.save();
+            ctx.globalAlpha*=ik;
+            ctx.translate(r.x+r.w/2,r.y+r.h/2+(1-ik)*12);
+            ctx.scale(hv?1.04:1,hv?1.04:1);
+            ctx.fillStyle=hv?rgba('red',0.1):rgba('paper',0.95);
+            ctx.fillRect(-r.w/2,-r.h/2,r.w,r.h);
+            drawShape(ctx,sketchRect(-r.w/2,-r.h/2,r.w,r.h,{width:hv?2:1.3,seed:1690+i}),hv?PALETTE.red:PALETTE.ink,v);
+            ctx.fillStyle=hv?PALETTE.red:PALETTE.ink;
+            ctx.font='bold '+(small?13:16)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('event.'+id+'.title'),0,-r.h*0.12,r.w-10);
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font=(small?'10px ':'12px ')+FONT;
+            ctx.fillText(t('npc.'+MINIGAMES.games[id].model),0,r.h*0.22,r.w-10);
+            ctx.restore();
+            const act=()=>{
+                this.gamesOpen=false;
+                this.actions.testGame(id);
+            };
+            this.gameHits.push({...r,act});
+        });
         ctx.restore();
     }
 
@@ -4942,6 +5050,174 @@ export class WeaponView extends Panel {
 }
 
 const WEAPON_STATS=['dmg','rate','range','mag'];
+
+export class LevelUpView extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.35;
+        this.cards=[];
+        this.weapons=[];
+        this.sounded=0;
+    }
+
+    open2(from,to,cards,weapons) {
+        this.from=from;
+        this.to=to;
+        this.cards=cards.map(id=>createCard(id));
+        this.weapons=weapons;
+        this.sounded=0;
+        this.show();
+    }
+
+    doneAt() {
+        const U=TUNING.levelUp;
+        return U.cardsAt+this.cards.length*U.cardGap+U.cardTime;
+    }
+
+    down() {
+        if (!this.open) {
+            return false;
+        }
+        if (this.t>=this.doneAt()) {
+            this.actions.close();
+        }
+        else {
+            this.t=this.doneAt();
+        }
+        return true;
+    }
+
+    update(dt) {
+        super.update(dt);
+        if (!this.open) {
+            return;
+        }
+        const U=TUNING.levelUp;
+        if (this.sounded===0&&this.t>U.stampAt) {
+            this.sounded=1;
+            this.actions.sound('clear',1);
+        }
+        const k=Math.floor((this.t-U.cardsAt)/U.cardGap)+2;
+        if (this.sounded>=1&&this.sounded<k&&this.sounded<=this.cards.length) {
+            this.sounded++;
+            this.actions.sound('page',1.2+this.sounded*0.05);
+        }
+    }
+
+    draw(ctx,art) {
+        if (!this.shown()) {
+            return;
+        }
+        const U=TUNING.levelUp;
+        const w=this.width;
+        const h=this.height;
+        const v=time.boilIndex;
+        const tt=this.t;
+        const small=h<600;
+        ctx.save();
+        ctx.globalAlpha=Math.min(1,this.t*4);
+        ctx.fillStyle=rgba('paper',0.88);
+        ctx.fillRect(0,0,w,h);
+        const sy=h*(this.cards.length>0?U.titleY:0.42);
+        const sk=Math.max(0,Math.min(1,(tt-U.stampAt)/U.stampTime));
+        if (sk>0) {
+            const sc=sk<1?U.stampFrom-(U.stampFrom-1)*EASE.easeOutBack(sk):1;
+            for (let i=0;i<U.drops;i++) {
+                const an=hash1(i*7.3)*Math.PI*2;
+                const d=EASE.easeOutCubic(sk)*(120+hash1(i*3.1)*180);
+                ctx.fillStyle=i%3===0?rgba('red',0.7*(1-sk*0.6)):rgba('ink',0.6*(1-sk*0.6));
+                ctx.beginPath();
+                ctx.arc(w/2+Math.cos(an)*d,sy+Math.sin(an)*d*0.5,3+hash1(i)*6,0,Math.PI*2);
+                ctx.fill();
+            }
+            ctx.save();
+            ctx.translate(w/2,sy);
+            ctx.rotate(-0.06+(1-sk)*0.3);
+            ctx.scale(sc,sc);
+            ctx.globalAlpha*=Math.min(1,sk*3);
+            ctx.font='bold '+(small?38:56)+'px '+FONT;
+            const tw=ctx.measureText(t('levelUp.title')).width+48;
+            const th=small?60:84;
+            ctx.fillStyle=PALETTE.red;
+            ctx.fillRect(-tw/2,-th/2,tw,th);
+            drawShape(ctx,sketchRect(-tw/2,-th/2,tw,th,{width:2.4,seed:2400}),PALETTE.ink,v);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('levelUp.title'),0,2);
+            ctx.restore();
+        }
+        const lk=Math.max(0,Math.min(1,(tt-U.levelAt)/0.4));
+        if (lk>0) {
+            ctx.globalAlpha=lk;
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold '+(small?20:26)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            const shown=lk<1?this.from:this.to;
+            ctx.fillText(t('levelUp.levels',{from:this.from,to:shown}),w/2,sy+(small?52:72));
+            ctx.globalAlpha=1;
+        }
+        const n=this.cards.length;
+        if (n>0) {
+            const cs=Math.min(small?0.62:0.95,(w-80)/(n*(CARD_W+18)));
+            const cw=CARD_W*cs;
+            const ch=CARD_H*cs;
+            const row=n*cw+(n-1)*18*cs;
+            const cy=h*U.cardsY;
+            const lab=Math.max(0,Math.min(1,(tt-U.cardsAt+0.2)/0.3));
+            ctx.globalAlpha=lab;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font='bold '+(small?14:17)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.fillText(t('levelUp.cards'),w/2,cy-ch/2-(small?16:24));
+            ctx.globalAlpha=1;
+            this.cards.forEach((c,i)=>{
+                const k=Math.max(0,Math.min(1,(tt-U.cardsAt-i*U.cardGap)/U.cardTime));
+                if (k<=0) {
+                    return;
+                }
+                const x=w/2-row/2+cw/2+i*(cw+18*cs);
+                const e=EASE.easeOutBack(k);
+                const fy=cy+(1-EASE.easeOutCubic(k))*h*0.6;
+                const flip=Math.cos(Math.min(1,k*1.4)*Math.PI);
+                ctx.save();
+                ctx.translate(x,fy);
+                ctx.rotate((1-e)*(i%2?0.5:-0.5));
+                ctx.scale(Math.max(0.04,Math.abs(flip))*(0.7+0.3*e),0.7+0.3*e);
+                const img=flip>0?art.back(v):art.face(c,v);
+                ctx.drawImage(img,-cw/2,-ch/2,cw,ch);
+                if (k>=1) {
+                    const glow=Math.max(0,1-(tt-U.cardsAt-i*U.cardGap-U.cardTime)*2);
+                    if (glow>0) {
+                        ctx.strokeStyle=rgba('red',glow);
+                        ctx.lineWidth=4;
+                        ctx.strokeRect(-cw/2-4,-ch/2-4,cw+8,ch+8);
+                    }
+                }
+                ctx.restore();
+            });
+        }
+        if (this.weapons.length>0) {
+            const wk=Math.max(0,Math.min(1,(tt-U.levelAt-0.3)/0.4));
+            ctx.globalAlpha=wk;
+            ctx.fillStyle=PALETTE.red;
+            ctx.font='bold '+(small?15:18)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.fillText(t('levelUp.weapons',{names:this.weapons.map(id=>t('weapon.'+id+'.name')).join('、')}),w/2,h*U.weaponY);
+            ctx.globalAlpha=1;
+        }
+        if (tt>=this.doneAt()) {
+            ctx.globalAlpha=0.6+0.4*Math.sin(time.real*4);
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font=(small?'13px ':'15px ')+FONT;
+            ctx.textAlign='center';
+            ctx.fillText(t('levelUp.tap'),w/2,h-(small?22:34));
+        }
+        ctx.restore();
+    }
+}
 
 export class InfoPopup extends Panel {
     constructor(actions) {

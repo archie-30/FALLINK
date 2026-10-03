@@ -7,6 +7,8 @@ import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
 import {CARDS} from '../data/cards.js';
 import {ACTS} from '../data/levels.js';
+import {createCard} from '../game/card.js';
+import {CARD_W,CARD_H} from './cardView.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -84,6 +86,8 @@ export class Hud {
         this.scoreShown=0;
         this.scorePop=0;
         this.scoreAt=0;
+        this.scoreShake=0;
+        this.flys=[];
     }
 
     drawEnemyHp(ctx,enemies,project,tmp) {
@@ -335,46 +339,169 @@ export class Hud {
 
     showResult(title,lines) {
         const R=TUNING.hud.result;
-        this.result={title,lines,t:0,life:R.time+lines.length*R.perLine};
+        this.result={title,lines:lines.map(l=>({...l,card:l.card?createCard(l.card):null})),t:0,life:R.time+lines.length*R.perLine};
+        this.flys=[];
+        lines.forEach((l,i)=>{
+            if (l.score) {
+                this.flys.push({n:l.score,i,t:-(R.lineDelay*i+R.flyDelay),x:0,y:0});
+            }
+        });
     }
 
-    drawResult(ctx,w,h,dt) {
+    drawResult(ctx,w,h,dt,art) {
         const q=this.result;
         if (!q) {
+            this.flys=[];
             return;
         }
         const R=TUNING.hud.result;
+        const S=TUNING.hud.score;
+        const v=time.boilIndex;
         q.t+=dt;
-        if (q.t>=q.life) {
+        if (q.t>=q.life&&this.flys.length===0) {
             this.result=null;
             return;
         }
-        const a=Math.min(1,q.t/R.fade,(q.life-q.t)/R.fade);
-        const bw=Math.min(R.maxW,w-32);
-        const y=h*R.y-(1-EASE.easeOutBack(Math.min(1,q.t/R.fade)))*20;
+        const a=Math.max(0,Math.min(1,q.t/R.fade,(q.life-q.t)/R.fade));
+        const x=w-S.right;
+        let y=S.y+S.labelSize+S.size+R.gapTop;
         ctx.save();
-        ctx.globalAlpha=Math.max(0,a);
-        ctx.textAlign='center';
+        ctx.textAlign='right';
         ctx.textBaseline='middle';
         ctx.lineJoin='round';
-        ctx.strokeStyle=rgba('paper',0.9);
+        ctx.strokeStyle=rgba('paper',0.92);
         ctx.lineWidth=R.halo;
+        const tk=EASE.easeOutBack(Math.min(1,q.t/R.fade));
+        ctx.globalAlpha=a;
         ctx.font='bold '+R.titleSize+'px '+FONT;
-        ctx.strokeText(q.title,w/2,y,bw);
+        ctx.save();
+        ctx.translate(x+(1-tk)*40,y);
+        ctx.strokeText(q.title,0,0,R.maxW);
         ctx.fillStyle=PALETTE.ink;
-        ctx.fillText(q.title,w/2,y,bw);
-        ctx.font='bold '+R.lineSize+'px '+FONT;
+        ctx.fillText(q.title,0,0,R.maxW);
+        ctx.restore();
+        y+=R.titleSize*0.6+R.lineGap;
+        const ch=R.cardH;
+        const cw=ch*CARD_W/CARD_H;
         for (let i=0;i<q.lines.length;i++) {
             const l=q.lines[i];
-            const k=Math.max(0,Math.min(1,(q.t-0.15-i*0.12)/0.2));
-            const ly=y+R.titleSize+6+i*R.lineH;
+            const lt=q.t-R.lineDelay*i-0.15;
+            const k=Math.max(0,Math.min(1,lt/0.25));
+            const lh=l.card?Math.max(R.lineH,ch+8):R.lineH;
+            const ly=y+lh/2;
+            y+=lh;
+            if (k<=0) {
+                continue;
+            }
             const txt=(l.bad?'✕ ':'✓ ')+l.text;
-            ctx.globalAlpha=Math.max(0,a)*k;
-            ctx.strokeText(txt,w/2,ly,bw);
+            ctx.font='bold '+R.lineSize+'px '+FONT;
+            const tw=Math.min(R.maxW,ctx.measureText(txt).width);
+            ctx.globalAlpha=a*k;
+            const ox=(1-EASE.easeOutCubic(k))*30;
+            ctx.strokeText(txt,x+ox,ly,R.maxW);
             ctx.fillStyle=l.bad?PALETTE.red:PALETTE.ink;
-            ctx.fillText(txt,w/2,ly,bw);
+            ctx.fillText(txt,x+ox,ly,R.maxW);
+            const fl=this.flys.find(f=>f.i===i);
+            if (fl) {
+                fl.x=x-tw/2;
+                fl.y=ly;
+            }
+            if (l.card&&art) {
+                this.drawResultCard(ctx,art.face(l.card,v),x-tw-R.cardGap-cw/2,ly,cw,ch,l.kind,lt,a,w);
+            }
         }
         ctx.restore();
+        this.drawFlys(ctx,w,dt);
+    }
+
+    drawResultCard(ctx,img,cx,cy,cw,ch,kind,lt,a,w) {
+        const R=TUNING.hud.result;
+        const k=Math.max(0,Math.min(1,lt/R.cardIn));
+        if (k<=0) {
+            return;
+        }
+        ctx.save();
+        if (kind!=='remove') {
+            const e=EASE.easeOutBack(k);
+            ctx.globalAlpha=a;
+            ctx.translate(cx+(1-e)*w*0.25,cy);
+            ctx.rotate((1-e)*0.8);
+            ctx.scale(0.6+0.4*e,0.6+0.4*e);
+            ctx.drawImage(img,-cw/2,-ch/2,cw,ch);
+            if (k>=1&&lt<R.cardIn+0.5) {
+                ctx.strokeStyle=rgba('red',1-(lt-R.cardIn)*2);
+                ctx.lineWidth=3;
+                ctx.strokeRect(-cw/2-3,-ch/2-3,cw+6,ch+6);
+            }
+            ctx.restore();
+            return;
+        }
+        const tr=Math.max(0,Math.min(1,(lt-R.cardIn-R.tearDelay)/R.tearTime));
+        const teeth=6;
+        for (const side of [-1,1]) {
+            ctx.save();
+            const d=EASE.easeInQuad(tr);
+            ctx.globalAlpha=a*(1-d);
+            ctx.translate(cx+side*d*cw*0.8,cy+d*ch*0.9);
+            ctx.rotate(side*d*0.6);
+            ctx.scale(k,k);
+            ctx.beginPath();
+            ctx.moveTo(0,-ch/2-2);
+            for (let j=1;j<=teeth;j++) {
+                ctx.lineTo((j%2?1:-1)*cw*0.07,-ch/2+ch*j/teeth);
+            }
+            ctx.lineTo(side*cw,ch/2+2);
+            ctx.lineTo(side*cw,-ch/2-2);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(img,-cw/2,-ch/2,cw,ch);
+            if (tr>0) {
+                ctx.fillStyle=rgba('red',0.25*(1-d));
+                ctx.fillRect(-cw/2,-ch/2,cw,ch);
+            }
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    drawFlys(ctx,w,dt) {
+        const R=TUNING.hud.result;
+        const S=TUNING.hud.score;
+        const tx=w-S.right-S.size;
+        const ty=S.y+S.labelSize+S.size*0.5;
+        for (const f of this.flys) {
+            f.t+=dt;
+        }
+        for (const f of this.flys.slice()) {
+            if (f.t<0) {
+                continue;
+            }
+            const k=Math.min(1,f.t/R.flyTime);
+            if (k>=1) {
+                this.flys.splice(this.flys.indexOf(f),1);
+                this.scorePop=1;
+                this.scoreShake=1;
+                continue;
+            }
+            const e=EASE.easeInOutCubic(k);
+            const px=f.x+(tx-f.x)*e;
+            const py=f.y+(ty-f.y)*e-Math.sin(k*Math.PI)*R.flyArc;
+            const sc=1+Math.sin(Math.min(1,k*3)*Math.PI)*0.4-k*0.3;
+            ctx.save();
+            ctx.translate(px,py);
+            ctx.scale(sc,sc);
+            ctx.font='bold '+R.flySize+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.lineJoin='round';
+            ctx.strokeStyle=rgba('paper',0.95);
+            ctx.lineWidth=5;
+            const txt=(f.n>0?'+':'')+f.n;
+            ctx.strokeText(txt,0,0);
+            ctx.fillStyle=f.n>0?PALETTE.red:PALETTE.ink;
+            ctx.fillText(txt,0,0);
+            ctx.restore();
+        }
     }
 
     banner(text,sub,dur=2.2) {
@@ -448,9 +575,11 @@ export class Hud {
             ctx.font='bold 15px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='top';
-            ctx.fillText(p.overtime?t('run.overtimeInfo',{page:p.otPage+1}):t('run.endlessInfo',{page:p.index+1}),w/2,14);
+            ctx.fillText(p.trainGame?t('mg.test')+' · '+t('event.'+p.game+'.title'):p.overtime?t('run.overtimeInfo',{page:p.otPage+1}):t('run.endlessInfo',{page:p.index+1}),w/2,14);
         }
-        this.drawScore(ctx,w,run.stats.score);
+        if (!run.training()) {
+            this.drawScore(ctx,w,run.stats);
+        }
         ctx.textAlign='center';
         ctx.textBaseline='top';
         const by=PB.below;
@@ -503,76 +632,63 @@ export class Hud {
         }
     }
 
-    drawProgress(ctx,w,run) {
+    drawProgress(ctx,w,run,force=false,y=TUNING.hud.progress.y) {
         const P=TUNING.hud.progress;
         const p=run.plan;
-        const counts=ACTS.map(a=>a.rooms+1);
-        let pos=p.index;
-        for (let a=0;a<p.act;a++) {
-            pos+=counts[a];
-        }
+        const n=ACTS[p.act].rooms+1;
+        const pos=p.act*100+p.index;
         const now=time.real;
         let g=this.prog;
         if (!g||g.stats!==run.stats) {
-            g=this.prog={stats:run.stats,from:pos,to:pos,at:-9};
+            g=this.prog={stats:run.stats,from:pos,to:pos,at:now};
         }
         if (g.to!==pos) {
-            g.from=g.to;
+            g.from=Math.floor(g.to/100)===p.act?g.to:pos;
             g.to=pos;
             g.at=now;
         }
-        const k=Math.min(1,(now-g.at)/P.anim);
-        const n=counts.length;
-        const segW=Math.max(P.minSeg,Math.min(P.segW,(w-P.side*2-P.gap*(n-1))/n));
-        const total=segW*n+P.gap*(n-1);
-        const x0=w/2-total/2;
-        const y=P.y;
-        const dotX=gi=>{
-            let a=0;
-            while (a<n-1&&gi>=counts[a]) {
-                gi-=counts[a];
-                a++;
-            }
-            return x0+a*(segW+P.gap)+gi/(counts[a]-1)*segW;
-        };
+        const age=now-g.at;
+        const alpha=force?1:Math.max(0,Math.min(1,(P.show-age)/P.fade+1));
+        if (alpha<=0) {
+            return;
+        }
+        const k=Math.min(1,age/P.anim);
+        const segW=Math.max(P.minSeg,Math.min(P.segW,w-P.side*2));
+        const x0=w/2-segW/2;
+        const dotX=gi=>x0+(gi%100)/(n-1)*segW;
         ctx.save();
+        ctx.globalAlpha=alpha;
         ctx.textBaseline='middle';
-        let gi=0;
-        for (let a=0;a<n;a++) {
-            const lx=x0+a*(segW+P.gap);
-            const cur=a===p.act;
-            ctx.strokeStyle=a<p.act?PALETTE.ink:(cur?PALETTE.ink:PALETTE.midGray);
-            ctx.lineWidth=cur?2.4:1.6;
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=2.4;
+        ctx.beginPath();
+        ctx.moveTo(x0,y);
+        ctx.lineTo(x0+segW,y);
+        ctx.stroke();
+        ctx.font='bold '+P.actSize+'px '+FONT;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.textAlign='right';
+        ctx.fillText(t('hud.act',{n:p.act+1}),x0-P.actGap,y);
+        for (let j=0;j<n;j++) {
+            const boss=j===n-1;
+            const x=x0+j/(n-1)*segW;
+            const r=boss?P.bossR:P.dotR;
             ctx.beginPath();
-            ctx.moveTo(lx,y);
-            ctx.lineTo(lx+segW,y);
-            ctx.stroke();
-            ctx.font=(cur?'bold ':'')+P.actSize+'px '+FONT;
-            ctx.fillStyle=cur?PALETTE.ink:PALETTE.midGray;
-            ctx.textAlign='left';
-            ctx.fillText(t('hud.act',{n:a+1}),lx,y-P.actY);
-            for (let j=0;j<counts[a];j++,gi++) {
-                const boss=j===counts[a]-1;
-                const x=lx+j/(counts[a]-1)*segW;
-                const done=gi<g.to;
-                const r=boss?P.bossR:P.dotR;
-                ctx.beginPath();
-                if (boss) {
-                    ctx.moveTo(x,y-r);
-                    ctx.lineTo(x+r,y);
-                    ctx.lineTo(x,y+r);
-                    ctx.lineTo(x-r,y);
-                    ctx.closePath();
-                }
-                else {
-                    ctx.arc(x,y,r,0,Math.PI*2);
-                }
-                ctx.fillStyle=done?PALETTE.ink:PALETTE.paper;
-                ctx.fill();
-                ctx.lineWidth=1.6;
-                ctx.strokeStyle=boss?PALETTE.red:(a>p.act?PALETTE.midGray:PALETTE.ink);
-                ctx.stroke();
+            if (boss) {
+                ctx.moveTo(x,y-r);
+                ctx.lineTo(x+r,y);
+                ctx.lineTo(x,y+r);
+                ctx.lineTo(x-r,y);
+                ctx.closePath();
             }
+            else {
+                ctx.arc(x,y,r,0,Math.PI*2);
+            }
+            ctx.fillStyle=j<p.index?PALETTE.ink:PALETTE.paper;
+            ctx.fill();
+            ctx.lineWidth=1.6;
+            ctx.strokeStyle=boss?PALETTE.red:PALETTE.ink;
+            ctx.stroke();
         }
         const e=EASE.easeInOutCubic(k);
         const mx=dotX(g.from)+(dotX(g.to)-dotX(g.from))*e;
@@ -593,26 +709,47 @@ export class Hud {
         ctx.font='bold '+P.tagSize+'px '+FONT;
         ctx.textAlign='center';
         ctx.fillStyle=PALETTE.red;
-        ctx.globalAlpha=k;
+        ctx.globalAlpha=alpha*k;
         ctx.fillText(label,mx,y+P.tagY);
         ctx.restore();
     }
 
-    drawScore(ctx,w,score) {
+    drawScore(ctx,w,stats) {
         const S=TUNING.hud.score;
         const now=time.real;
+        const score=stats.score;
+        if (stats!==this.scoreStats) {
+            this.scoreStats=stats;
+            this.scoreShown=score;
+            this.scoreTarget=score;
+            this.scoreShake=0;
+            this.scorePop=0;
+        }
         const dt=Math.min(0.1,now-this.scoreAt);
         this.scoreAt=now;
-        if (Math.round(this.scoreShown)!==score) {
-            if (score>this.scoreShown) {
-                this.scorePop=1;
+        let pending=0;
+        for (const f of this.flys||[]) {
+            pending+=f.n;
+        }
+        const target=score-pending;
+        if (target!==this.scoreTarget) {
+            if (this.scoreTarget!==undefined) {
+                this.scoreShake=1;
+                this.scoreDown=target<this.scoreTarget;
+                if (!this.scoreDown) {
+                    this.scorePop=1;
+                }
             }
-            this.scoreShown+=(score-this.scoreShown)*Math.min(1,dt*S.rate);
-            if (Math.abs(score-this.scoreShown)<1) {
-                this.scoreShown=score;
+            this.scoreTarget=target;
+        }
+        if (Math.round(this.scoreShown)!==target) {
+            this.scoreShown+=(target-this.scoreShown)*Math.min(1,dt*S.rate);
+            if (Math.abs(target-this.scoreShown)<1) {
+                this.scoreShown=target;
             }
         }
         this.scorePop=Math.max(0,this.scorePop-dt*S.popDecay);
+        this.scoreShake=Math.max(0,(this.scoreShake||0)-dt*S.shakeDecay);
         const x=w-S.right;
         ctx.save();
         ctx.textAlign='right';
@@ -621,10 +758,12 @@ export class Hud {
         ctx.fillStyle=PALETTE.nearGray;
         ctx.fillText(t('hud.score'),x,S.y);
         const s=1+EASE.easeOutQuad(this.scorePop)*S.pop;
-        ctx.translate(x,S.y+S.labelSize+2);
+        const sh=this.scoreShake*S.shake;
+        ctx.translate(x+Math.sin(now*S.shakeRate)*sh,S.y+S.labelSize+2+Math.cos(now*S.shakeRate*1.3)*sh*0.5);
+        ctx.rotate(Math.sin(now*S.shakeRate*0.7)*this.scoreShake*0.05);
         ctx.scale(s,s);
         ctx.font='bold '+S.size+'px '+FONT;
-        ctx.fillStyle=this.scorePop>0.3?PALETTE.red:PALETTE.ink;
+        ctx.fillStyle=this.scoreShake>0.3&&this.scoreDown?PALETTE.red:(this.scorePop>0.3?PALETTE.red:PALETTE.ink);
         ctx.fillText(String(Math.round(this.scoreShown)),0,0);
         ctx.restore();
     }

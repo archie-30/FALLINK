@@ -18,16 +18,16 @@ export const WEAPONS={
         sys:'pencil',
         sound:'wPencil',
         fireInterval:0.09,
-        magazine:24,
+        magazine:32,
         reloadTime:1.4,
-        damage:4.5,
+        damage:5,
         bulletSpeed:34,
         bulletLife:0.7,
         spread:0.06,
         pellets:1,
         kick:0.5,
         flashMul:0.6,
-        stats:{dmg:1,rate:4,range:3,mag:4}
+        stats:{dmg:1,rate:4,range:3,mag:5}
     },
     brush:{
         unlock:3,
@@ -49,7 +49,7 @@ export const WEAPONS={
         stats:{dmg:5,rate:1,range:2,mag:1}
     },
     stapler:{
-        unlock:4,
+        unlock:5,
         sys:'staple',
         sound:'wStaple',
         fireInterval:0.5,
@@ -67,7 +67,7 @@ export const WEAPONS={
         stats:{dmg:3,rate:2,range:3,mag:3}
     },
     highlighter:{
-        unlock:5,
+        unlock:7,
         sys:'beam',
         sound:'wMarker',
         fireInterval:0.1,
@@ -86,7 +86,7 @@ export const WEAPONS={
         stats:{dmg:3,rate:5,range:3,mag:3}
     },
     compass:{
-        unlock:6,
+        unlock:9,
         sys:'compass',
         sound:'wCompass',
         fireInterval:0.55,

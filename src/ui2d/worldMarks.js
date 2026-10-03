@@ -110,6 +110,11 @@ export class WorldMarks {
             game.project(d.x,D.height+W.enterLift,d.z-d.t-D.alcove*0.5,p);
             this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t('door.enter',{name:exitLabel(d.exit)}),v,2340,t('intro.'+(d.exit.kind==='node'?d.exit.node:d.exit.kind)));
         }
+        const mp=game.minis.prompt(game.player);
+        if (mp) {
+            game.project(mp.x,mp.y,mp.z,p);
+            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t(mp.key),v,2360);
+        }
         const npcs=game.npcs;
         for (let i=0;i<npcs.list.length;i++) {
             const n=npcs.list[i];

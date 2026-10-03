@@ -3,6 +3,7 @@ import {TUNING} from '../data/tuning.js';
 import {toonMaterial,unlitMaterial,registerShadow,hullMaterial,pal} from '../render/materials.js';
 import {resolveCircle,clampToBounds} from '../core/collision.js';
 import {time} from '../core/loop.js';
+import {EASE} from '../core/easing.js';
 import {SKIN_TONES,ACCENTS} from '../data/palette.js';
 import {WEAPONS,WEAPON_LIMITS} from '../data/weapons.js';
 import {DEFAULT_SKIN} from '../data/skins.js';
@@ -64,6 +65,9 @@ export class Player {
         this.beamT=0;
         this.coolT=0;
         this.equipAt=-9;
+        this.armed=true;
+        this.armK=1;
+        this.armAt=-9;
         this.ammo=this.W.magazine;
         this.cdT=0;
         this.reloadT=0;
@@ -398,6 +402,20 @@ export class Player {
         this.stv+=TUNING.player.dashStretch;
         if (this.events.onDash) {
             this.events.onDash(this);
+        }
+    }
+
+    setArmed(on,instant=false) {
+        if (on===this.armed&&!instant) {
+            return;
+        }
+        this.armed=on;
+        this.armAt=time.real;
+        if (instant) {
+            this.armK=on?1:0;
+        }
+        if (on&&!instant&&this.events&&this.events.onArm) {
+            this.events.onArm(this);
         }
     }
 
@@ -762,7 +780,7 @@ export class Player {
             }
         }
         this.cdT=Math.max(0,(this.cdT||0)-dt);
-        if (input.isFiring()&&this.fireCd<=0&&this.hp>0&&this.reloadT<=0&&this.ammo>0&&this.burstLeft<=0&&this.cdT<=0) {
+        if (this.armed&&this.armK>TUNING.player.arm.ready&&input.isFiring()&&this.fireCd<=0&&this.hp>0&&this.reloadT<=0&&this.ammo>0&&this.burstLeft<=0&&this.cdT<=0) {
             this.fireCd+=Math.max(Math.min(W.fireInterval,WEAPON_LIMITS.minInterval),W.fireInterval/(this.rapidT>0?this.rapidMult:1));
             if (this.fireCd<0) {
                 this.fireCd=0;
@@ -820,6 +838,29 @@ export class Player {
         else {
             this.gun.scale.setScalar(1);
         }
+        this.poseArm(swing);
+    }
+
+    poseArm(swing) {
+        const A=TUNING.player.arm;
+        const want=this.armed?1:0;
+        const dt=Math.min(0.1,time.real-(this.armTick??time.real));
+        this.armTick=time.real;
+        this.armK=want>this.armK?Math.min(1,this.armK+dt/A.drawTime):Math.max(0,this.armK-dt/A.stowTime);
+        const k=this.armK;
+        if (k>=1) {
+            this.gun.visible=true;
+            return;
+        }
+        const e=this.armed?EASE.easeOutBack(k):k;
+        this.gun.visible=k>0.02;
+        this.gun.scale.multiplyScalar(Math.max(0.01,e));
+        this.gun.rotation.y+=(1-k)*A.spin;
+        this.gun.position.y+=Math.sin(k*Math.PI)*A.lift;
+        this.gun.position.z-=(1-k)*A.back;
+        const rest=swing*TUNING.player.armSwing/TUNING.player.legSwing;
+        this.arms[1].rotation.x=rest+(this.arms[1].rotation.x-rest)*Math.min(1,k*1.4)-(this.armed?Math.sin(k*Math.PI)*A.raise:0);
+        this.arms[1].rotation.z=0.12*k-0.15*(1-k);
     }
 
     poseReload(r) {

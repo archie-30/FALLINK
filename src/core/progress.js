@@ -2,7 +2,7 @@ import {TUNING} from '../data/tuning.js';
 import {UNLOCKS} from '../data/cards.js';
 import {settings} from './settings.js';
 
-const MAX_LEVEL=Math.max(...Object.keys(UNLOCKS).map(Number));
+const MAX_LEVEL=TUNING.levels.max;
 
 const KEY='inkfall.progress.v1';
 
@@ -35,6 +35,10 @@ export function loadProgress() {
     if (lv>0) {
         progress.level=lv;
         progress.xp=0;
+    }
+    if (progress.level>=MAX_LEVEL) {
+        progress.level=MAX_LEVEL;
+        progress.xp=Math.min(progress.xp,xpToNext(MAX_LEVEL));
     }
 }
 
@@ -86,9 +90,12 @@ export function xpToNext(level) {
 export function addXp(amount) {
     const before=progress.level;
     progress.xp+=Math.round(amount);
-    while (progress.xp>=xpToNext(progress.level)) {
+    while (progress.level<MAX_LEVEL&&progress.xp>=xpToNext(progress.level)) {
         progress.xp-=xpToNext(progress.level);
         progress.level++;
+    }
+    if (progress.level>=MAX_LEVEL) {
+        progress.xp=Math.min(progress.xp,xpToNext(MAX_LEVEL));
     }
     const unlocked=[];
     for (let lv=before+1;lv<=progress.level;lv++) {

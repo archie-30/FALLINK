@@ -27,7 +27,7 @@ export const MINIGAMES={
         [1,[['ambush',false]]]
     ],
     games:{
-        bells:{model:'conductor',xs:[-6,-2,2,6],z:1.2,pad:1.1,len:[3,4,5],step:0.75,lead:0.8},
+        bells:{model:'conductor',xs:[-6,-2,2,6],z:0.4,reach:1.7,len:[3,4,5],step:0.75,lead:0.8},
         range:{model:'range',count:6,time:[13,12,11],minGap:3},
         trace:{model:'board',points:[5,6,7],time:[16,14,12],tol:1.15,grace:0.4,mark:0.55,zRange:4.2,xRange:8.5},
         push:{model:'eraser',time:[25,22,20],size:1.3,goalR:0.9,minDist:7,margin:1.4},
