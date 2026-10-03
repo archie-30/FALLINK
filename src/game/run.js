@@ -1,4 +1,4 @@
-import {ACTS,ENDLESS,TRAINING,LAYOUTS,PEACE_LAYOUTS} from '../data/levels.js';
+import {ACTS,ENDLESS,TRAINING,LAYOUTS,PEACE_LAYOUTS,PEACE_VARY} from '../data/levels.js';
 import {settings} from '../core/settings.js';
 import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
@@ -146,12 +146,13 @@ export class Run {
         if (node+k===this.lastLayout&&list.length>1) {
             k=(k+1)%list.length;
         }
-        const layout=list[k];
+        const pool=node==='event'?NOTEBOOK.events.filter(e=>e.id!==this.lastEvent):null;
+        const ev=pool?pool[Math.floor(this.rng.next()*pool.length)]:null;
+        const bells=ev&&ev.puzzle==='sequence'?NOTEBOOK.puzzles.sequence:null;
+        const layout=this.arrangePeace(list[k],node==='treasure'?3:1,bells);
         const plan={act:this.act,index:this.index,peace:true,node,boss:false,layoutKey:node+k,layout,hpMult:ACTS[this.act].hpMult,waves:[],barrels:0,crates:0};
         const spot=i=>({x:layout.npcs[i][0],z:layout.npcs[i][1]});
-        if (node==='event') {
-            const pool=NOTEBOOK.events.filter(e=>e.id!==this.lastEvent);
-            const ev=pool[Math.floor(this.rng.next()*pool.length)];
+        if (ev) {
             this.lastEvent=ev.id;
             plan.event=ev.id;
             plan.block=!!ev.block;
@@ -179,6 +180,39 @@ export class Run {
             plan.bought={};
         }
         return plan;
+    }
+
+    arrangePeace(base,count,bells) {
+        const V=PEACE_VARY;
+        const r=()=>this.rng.next();
+        const pick=a=>a[Math.floor(r()*a.length)];
+        const flip=r()<V.mirror?-1:1;
+        const near=(x,z,px,pz,d)=>Math.hypot(x-px,z-pz)<d;
+        const nearBell=(x,z,d)=>!!bells&&bells.xs.some(bx=>near(x,z,bx,bells.z,d));
+        let npcs;
+        if (count>1) {
+            npcs=pick(V.trios.concat([base.npcs])).map(q=>[q[0]*flip,q[1]]);
+        }
+        else {
+            const ok=V.spots.concat(base.npcs).filter(q=>!nearBell(q[0],q[1],V.bellClear+1));
+            const q=pick(ok);
+            npcs=[[q[0]*flip+(r()-0.5)*V.npcJitter,q[1]+(r()-0.5)*V.npcJitter]];
+        }
+        const sp=base.spawn;
+        const free=V.slots.filter(q=>!near(q[0],q[1],sp[0],sp[1],V.spawnClear)&&!nearBell(q[0],q[1],V.bellClear)&&!npcs.some(n=>near(q[0],q[1],n[0],n[1],V.npcClear)));
+        for (let i=free.length-1;i>0;i--) {
+            const j=Math.floor(r()*(i+1));
+            [free[i],free[j]]=[free[j],free[i]];
+        }
+        const props=[];
+        base.base.forEach((p,i)=>{
+            const q=free[i];
+            if (!q) {
+                return;
+            }
+            props.push({...p,x:q[0]+(r()-0.5)*V.jitter,z:q[1]+(r()-0.5)*V.jitter,rot:(p.rot||0)*flip+(r()-0.5)*V.spin});
+        });
+        return {...base,props:props.concat(base.decor),npcs};
     }
 
     makeExits() {

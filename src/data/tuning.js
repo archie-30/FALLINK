@@ -282,7 +282,7 @@ export const TUNING={
     worldMarks:{subH:22,subMaxW:340,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
     hand:{showTime:0.55,hideOffset:260},
-    choiceUi:{maxW:900,gap:16,cardH:180,head:100,iconY:44,iconR:26,pickTime:0.35},
+    choiceUi:{maxW:960,gap:18,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:70},
     settingsUi:{
         twoColMin:600,
@@ -365,6 +365,7 @@ export const TUNING={
         motifY:0.4
     },
     weaponUi:{
+        valueW:84,
         equip:{time:0.9,jolt:0.25,joltScale:0.08,shake:0.05,spinTime:0.6,spins:1,lift:0.18,grow:0.35,drops:12,dropTime:0.45,stampDelay:0.35,stampTime:0.3,stampFrom:2.6}
     },
     trainUi:{

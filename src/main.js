@@ -598,6 +598,12 @@ function boot() {
         }
     };
     weaponSys.brush.onHit=(x,z,r,dmg,vx,vz,sys,i)=>{
+        const PW=player.W;
+        if (PW.tiers) {
+            const d=Math.hypot(x-sys.sx[i],z-sys.sz[i]);
+            const tier=PW.tiers.find(q=>d<=q[0]);
+            dmg*=(tier?tier[1]:PW.damage)/PW.damage;
+        }
         const e=hitEnemies(x,z,r,dmg,vx,vz,sys,i);
         if (e) {
             player.shotHit(sys.tag[i]);
