@@ -755,14 +755,6 @@ export class Run {
         return createCard(pool[Math.floor(this.rng.next()*pool.length)],false);
     }
 
-    fxChain(kind,ids,done) {
-        if (ids.length===0) {
-            done();
-            return;
-        }
-        this.hooks.cardFx(kind,ids[0],()=>this.fxChain(kind,ids.slice(1),done));
-    }
-
     applyEffects(list,done) {
         if (list.length===0) {
             done();
@@ -800,7 +792,11 @@ export class Run {
                     ids.push(this.deckList[i].id);
                 }
             }
-            this.fxChain('upgrade',ids,cont);
+            if (ids.length===0) {
+                cont();
+                return;
+            }
+            this.hooks.cardFx('upgrade',ids,cont);
         }
         else if (kind==='downgrade') {
             const ups=this.deckList.filter(c=>c.upgraded);

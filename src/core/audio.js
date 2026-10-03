@@ -1,9 +1,13 @@
 import {settings} from './settings.js';
 import {SOUNDS,AUDIO} from '../data/sounds.js';
+import {MUSIC} from '../data/music.js';
+import {music} from './music.js';
 
 export const audio={
     ctx:null,
     master:null,
+    sfx:null,
+    musicBus:null,
     wet:null,
     noise:null,
     last:{},
@@ -33,7 +37,11 @@ export const audio={
         comp.ratio.value=AUDIO.compRatio;
         this.master.connect(comp);
         comp.connect(c.destination);
-        this.setVolume(settings.volume);
+        this.sfx=c.createGain();
+        this.sfx.connect(this.master);
+        this.musicBus=c.createGain();
+        this.musicBus.connect(this.master);
+        this.applyVolumes();
         const len=c.sampleRate;
         this.noise=c.createBuffer(1,len,c.sampleRate);
         const d=this.noise.getChannelData(0);
@@ -53,13 +61,31 @@ export const audio={
         this.wet=c.createGain();
         this.wet.gain.value=1;
         this.wet.connect(conv);
-        conv.connect(this.master);
+        conv.connect(this.sfx);
+        const mconv=c.createConvolver();
+        mconv.buffer=ir;
+        const send=c.createGain();
+        send.gain.value=MUSIC.reverb;
+        this.musicBus.connect(send);
+        send.connect(mconv);
+        mconv.connect(this.master);
+        music.init(c,this.musicBus,this.noise);
     },
 
-    setVolume(v) {
-        if (this.master) {
-            this.master.gain.value=v*v*AUDIO.masterGain;
+    level(key,slider) {
+        const m=settings.mute||{};
+        const v=m[key]?0:settings[slider];
+        return v*v;
+    },
+
+    applyVolumes() {
+        if (!this.master) {
+            return;
         }
+        const now=this.ctx.currentTime;
+        this.master.gain.setTargetAtTime(this.level('volume','volume')*AUDIO.masterGain,now,AUDIO.volumeTime);
+        this.sfx.gain.setTargetAtTime(this.level('sfx','sfxVol'),now,AUDIO.volumeTime);
+        this.musicBus.gain.setTargetAtTime(this.level('music','musicVol'),now,AUDIO.volumeTime);
     },
 
     layer(L,now,pitch,out) {
@@ -132,7 +158,7 @@ export const audio={
         this.last[name]=now;
         const bus=c.createGain();
         bus.gain.value=def.gain??1;
-        bus.connect(this.master);
+        bus.connect(this.sfx);
         if (def.rev) {
             const send=c.createGain();
             send.gain.value=def.rev;

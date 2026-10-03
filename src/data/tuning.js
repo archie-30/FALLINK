@@ -262,6 +262,8 @@ export const TUNING={
         gather:0.75,
         merge:1.35,
         reveal:0.8,
+        pairGap:2.3,
+        pairScale:0.86,
         autoClose:7
     },
     ui:{
@@ -296,8 +298,11 @@ export const TUNING={
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
     hand:{showTime:0.55,hideOffset:260},
     choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,descMax:5,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
-    deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:70},
+    deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:124,btnH:44,lineH:21,maxLines:2},
     settingsUi:{
+        muteR:13,
+        muteGap:26,
+        mutedAlpha:0.35,
         twoColMin:600,
         touchSide:215,
         colMax:420,
@@ -389,11 +394,16 @@ export const TUNING={
         equip:{time:0.9,jolt:0.25,joltScale:0.08,shake:0.05,spinTime:0.6,spins:1,lift:0.18,grow:0.35,drops:12,dropTime:0.45,stampDelay:0.35,stampTime:0.3,stampFrom:2.6}
     },
     trainUi:{
+        mapRows:4.1,
+        rowH:44,
+        mapRowsSmall:3,
+        mapGap:12,
         pulseDecay:3.2,
         popDecay:4,
         hoverScale:0.06,
         pressScale:0.18,
-        dropdown:{openTime:0.22,closeTime:0.15,pickDecay:3,itemH:34,mapItemH:40,stagger:0.08}
+        dropdown:{openTime:0.22,closeTime:0.15,pickDecay:3,itemH:34,mapItemH:40,stagger:0.08},
+        games:{openTime:0.36,closeTime:0.26,maxDt:0.034,lift:34,scale:0.06,stagger:0.025,itemTime:0.45}
     },
     weaponFx:{
         pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
@@ -481,6 +491,8 @@ export const TUNING={
         burstTime:0.22
     },
     props:{
+        booksPad:0.3,
+        crumpleR:0.9,
         barrelHp:25,
         crateHp:18,
         barrelRadius:3.2,

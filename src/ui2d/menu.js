@@ -599,11 +599,13 @@ export class PauseMenu extends Panel {
     }
 }
 
-const SETTING_KEYS=['volume','quality','assist','guide','reduced','full','fps','god'];
+const SETTING_KEYS=['volume','music','sfx','quality','assist','guide','reduced','full','fps','god'];
+
+const MUTE_KEYS=['volume','music','sfx'];
 
 const TOUCH_SETTING_KEYS=['stickSize','stickX','stickY','aimRing','skillSize'];
 
-const SLIDERS={volume:'volume',stickSize:'stickSize',stickX:'stickX',stickY:'stickY',aimRing:'aimRing',skillSize:'skillSize'};
+const SLIDERS={volume:'volume',music:'musicVol',sfx:'sfxVol',stickSize:'stickSize',stickX:'stickX',stickY:'stickY',aimRing:'aimRing',skillSize:'skillSize'};
 
 export class SettingsMenu extends Panel {
     constructor(actions) {
@@ -843,6 +845,11 @@ export class SettingsMenu extends Panel {
             if (Math.abs(y-r.y)>24) {
                 continue;
             }
+            if (MUTE_KEYS.includes(r.key)&&Math.hypot(x-this.muteX(r),y-r.y)<=TUNING.settingsUi.muteR+6) {
+                settings.mute={...settings.mute,[r.key]:!settings.mute[r.key]};
+                this.bump(r.key);
+                continue;
+            }
             if (r.rx&&Math.hypot(x-r.rx,y-r.y)<=TUNING.settingsUi.resetR+6) {
                 settings[r.key]=STICK_DEFAULTS[r.key];
                 this.bump(r.key);
@@ -949,8 +956,16 @@ export class SettingsMenu extends Panel {
             if (over) {
                 this.info={key:r.key,x:ix,y:r.y};
             }
+            const muted=MUTE_KEYS.includes(r.key)&&settings.mute[r.key];
+            if (MUTE_KEYS.includes(r.key)) {
+                this.drawMute(ctx,r,muted,pu,v);
+            }
             if (SLIDERS[r.key]) {
                 const val=Math.max(0,Math.min(1,an));
+                ctx.save();
+                if (muted) {
+                    ctx.globalAlpha*=TUNING.settingsUi.mutedAlpha;
+                }
                 const kr=10+pu*4;
                 drawShape(ctx,sketchLine(r.cx,r.y,r.cx+r.cw,r.y,{width:2,seed:1410+i,overshoot:1}),PALETTE.midGray,v);
                 if (val>0.005) {
@@ -966,10 +981,11 @@ export class SettingsMenu extends Panel {
                 ctx.scale(kr/10,kr/10);
                 drawShape(ctx,sketchCircle(0,0,10,{width:2,seed:1430+i}),PALETTE.ink,v);
                 ctx.restore();
-                ctx.fillStyle=PALETTE.nearGray;
+                ctx.restore();
+                ctx.fillStyle=muted?PALETTE.red:PALETTE.nearGray;
                 ctx.font=(pu>0.3?'bold ':'')+'14px '+FONT;
                 ctx.textAlign='left';
-                ctx.fillText(Math.round(this.target(r.key)*100)+'%',r.cx+r.cw+(r.rx?12:16),r.y);
+                ctx.fillText(muted?t('settings.muted'):Math.round(this.target(r.key)*100)+'%',r.cx+r.cw+(r.rx?12:16),r.y);
                 if (r.rx) {
                     this.drawRowReset(ctx,r,i,v);
                 }
@@ -1139,6 +1155,54 @@ export class SettingsMenu extends Panel {
         ctx.lineTo(ax-2,ay+2);
         ctx.closePath();
         ctx.fill();
+        ctx.restore();
+    }
+
+    muteX(r) {
+        return r.cx-TUNING.settingsUi.muteGap;
+    }
+
+    drawMute(ctx,r,muted,pu,v) {
+        const R=TUNING.settingsUi.muteR;
+        const x=this.muteX(r);
+        const over=Math.hypot((this.hx??-99)-x,(this.hy??-99)-r.y)<R+4;
+        const s=1+Math.sin(pu*Math.PI)*0.2;
+        ctx.save();
+        ctx.translate(x,r.y);
+        ctx.scale(s,s);
+        ctx.fillStyle=over?PALETTE.ink:PALETTE.paper;
+        ctx.beginPath();
+        ctx.arc(0,0,R,0,Math.PI*2);
+        ctx.fill();
+        drawShape(ctx,sketchCircle(0,0,R,{width:1.6,seed:1495}),muted?PALETTE.red:PALETTE.ink,v);
+        const col=over?PALETTE.paper:(muted?PALETTE.red:PALETTE.ink);
+        ctx.fillStyle=col;
+        ctx.strokeStyle=col;
+        ctx.lineWidth=2;
+        ctx.lineCap='round';
+        const u=R/10;
+        ctx.beginPath();
+        ctx.moveTo(-6*u,-2.5*u);
+        ctx.lineTo(-3*u,-2.5*u);
+        ctx.lineTo(1*u,-6*u);
+        ctx.lineTo(1*u,6*u);
+        ctx.lineTo(-3*u,2.5*u);
+        ctx.lineTo(-6*u,2.5*u);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        if (muted) {
+            ctx.moveTo(3.5*u,-3*u);
+            ctx.lineTo(8*u,3*u);
+            ctx.moveTo(8*u,-3*u);
+            ctx.lineTo(3.5*u,3*u);
+        }
+        else {
+            ctx.arc(2*u,0,4*u,-0.9,0.9);
+            ctx.moveTo(2*u+Math.cos(-0.9)*7*u,Math.sin(-0.9)*7*u);
+            ctx.arc(2*u,0,7*u,-0.9,0.9);
+        }
+        ctx.stroke();
         ctx.restore();
     }
 
@@ -3957,6 +4021,10 @@ export class TrainingMenu extends Panel {
         this.ddHits=[];
     }
 
+    shown() {
+        return super.shown()||this.gamesT>0;
+    }
+
     closeDropdown() {
         if (this.gamesOpen&&!this.gamesOnly) {
             this.gamesOpen=false;
@@ -4043,7 +4111,9 @@ export class TrainingMenu extends Panel {
         const D=TUNING.trainUi.dropdown;
         this.dd.t=Math.max(0,Math.min(1,this.dd.t+(this.dd.open?dt/D.openTime:-dt/D.closeTime)));
         this.dd.pickT=Math.max(0,this.dd.pickT-dt*D.pickDecay);
-        this.gamesT=Math.max(0,Math.min(1,this.gamesT+(this.gamesOpen?dt/D.openTime:-dt/D.closeTime)));
+        const G=TUNING.trainUi.games;
+        const gd=Math.min(dt,G.maxDt);
+        this.gamesT=Math.max(0,Math.min(1,this.gamesT+(this.gamesOpen?gd/G.openTime:-gd/G.closeTime)));
         const c=settings.training;
         for (const key of ['props','attack','immortal','ammo','random']) {
             this.anim[key]=(this.anim[key]??(c[key]?1:0))+(((c[key]?1:0))-(this.anim[key]??0))*k;
@@ -4191,7 +4261,9 @@ export class TrainingMenu extends Panel {
         ctx.fillText(t('trainMenu.title'),w/2,py+(small?20:34));
         const tw=ctx.measureText(t('trainMenu.title')).width;
         drawShape(ctx,sketchLine(w/2-tw/2,py+(small?34:54),w/2-tw/2+tw*Math.min(1,this.t/0.4),py+(small?34:54),{width:2.4,seed:1601}),PALETTE.red,v);
-        const rh=small?(ph-110)/9.2:50;
+        const TU=TUNING.trainUi;
+        const mRows=small?TU.mapRowsSmall:TU.mapRows;
+        const rh=small?(ph-110)/(7.2+mRows):TU.rowH;
         const colW=pw*0.46;
         const lx=px+22;
         const cx=px+colW*0.5;
@@ -4205,7 +4277,7 @@ export class TrainingMenu extends Panel {
             ctx.translate(-(1-k)*30,0);
         };
         rowStart();
-        const mh=rh*2;
+        const mh=rh*mRows;
         this.rowLabel(ctx,t('trainMenu.map'),lx,y);
         const maps=TRAINING_MAPS;
         const mi=Math.max(0,maps.indexOf(c.map));
@@ -4217,7 +4289,7 @@ export class TrainingMenu extends Panel {
             this.dd.open=true;
         },'mdd');
         this.ddInfos.map={r:mr,list:maps,cur:mi};
-        const pv={x:cx,y:y+22,w:cw,h:mh-58};
+        const pv={x:lx,y:y+20,w:cx+cw-lx,h:mh-20-16-TU.mapGap};
         ctx.save();
         ctx.translate(pv.x+pv.w/2,pv.y+pv.h/2);
         ctx.scale(1+mp*0.08,1+mp*0.08);
@@ -4494,7 +4566,8 @@ export class TrainingMenu extends Panel {
         const w=this.width;
         const h=this.height;
         const small=h<600;
-        const k=EASE.easeOutBack(this.gamesT);
+        const G=TUNING.trainUi.games;
+        const k=EASE.easeOutCubic(this.gamesT);
         const ids=MINIGAMES.order;
         const cols=4;
         const rows=Math.ceil(ids.length/cols);
@@ -4503,11 +4576,11 @@ export class TrainingMenu extends Panel {
         const px=w/2-pw/2;
         const py=h/2-ph/2;
         ctx.save();
-        ctx.globalAlpha*=Math.min(1,this.gamesT*2);
+        ctx.globalAlpha*=k;
         ctx.fillStyle=rgba('ink',0.25);
         ctx.fillRect(0,0,w,h);
-        ctx.translate(w/2,h/2);
-        ctx.scale(0.9+0.1*k,0.9+0.1*k);
+        ctx.translate(w/2,h/2+(1-k)*G.lift);
+        ctx.scale(1-G.scale+G.scale*k,1-G.scale+G.scale*k);
         ctx.translate(-w/2,-h/2);
         ctx.fillStyle=PALETTE.paper;
         ctx.fillRect(px,py,pw,ph);
@@ -4528,7 +4601,7 @@ export class TrainingMenu extends Panel {
         ids.forEach((id,i)=>{
             const r={x:px+20+(i%cols)*(gw+gap),y:py+head+Math.floor(i/cols)*(gh+gap),w:gw,h:gh};
             const hv=inRect(r,this.hx,this.hy);
-            const ik=Math.max(0,Math.min(1,(this.gamesT-i*0.03)/0.5));
+            const ik=this.gamesOpen?EASE.easeOutCubic(Math.max(0,Math.min(1,(this.gamesT-i*G.stagger)/G.itemTime))):1;
             ctx.save();
             ctx.globalAlpha*=ik;
             ctx.translate(r.x+r.w/2,r.y+r.h/2+(1-ik)*12);
@@ -6129,7 +6202,8 @@ export class DeckPicker extends Panel {
         const x0=w/2-(Math.min(cols,this.list.length)*(cw+D.gap)-D.gap)/2;
         this.slots=this.list.map((q,k)=>({x:x0+(k%cols)*(cw+D.gap),y:py+D.head+Math.floor(k/cols)*(ch+D.gap),w:cw,h:ch}));
         const bw=Math.min(220,pw-40);
-        this.okBtn={x:w/2-bw/2,y:py+ph-D.foot+12,w:bw,h:44};
+        this.okBtn={x:w/2-bw/2,y:py+ph-D.btnH-14,w:bw,h:D.btnH};
+        this.gridEnd=py+D.head+gh;
         this.sc=sc;
     }
 
@@ -6226,7 +6300,15 @@ export class DeckPicker extends Panel {
             ctx.textAlign='center';
             ctx.textBaseline='middle';
             const line=(this.mode==='upgrade'?t('pick.upgrade.preview'):'')+cardName(shown)+'：'+cardDesc(shown);
-            ctx.fillText(line,w/2,this.okBtn.y-14,P.w-40);
+            ctx.font='14px '+FONT;
+            const lines=wrapText(ctx,line,Math.min(P.w-60,720)).slice(0,D.maxLines);
+            const top=this.gridEnd+(this.okBtn.y-this.gridEnd-lines.length*D.lineH)/2;
+            const lw=Math.min(P.w-30,Math.max(...lines.map(q=>ctx.measureText(q).width))+30);
+            ctx.fillStyle=rgba('paper',0.95);
+            ctx.fillRect(w/2-lw/2,top-8,lw,lines.length*D.lineH+16);
+            drawShape(ctx,sketchRect(w/2-lw/2,top-8,lw,lines.length*D.lineH+16,{width:1.2,seed:2260}),this.mode==='remove'?PALETTE.red:PALETTE.midGray,v);
+            ctx.fillStyle=this.mode==='remove'?PALETTE.red:PALETTE.ink;
+            lines.forEach((q,i)=>ctx.fillText(q,w/2,top+D.lineH*(i+0.5)));
             drawButton(ctx,this.okBtn,t('pick.'+this.mode+'.ok'),v,1,inRect(this.okBtn,this.hx,this.hy),17,this.mode==='remove');
         }
         else {
@@ -6234,7 +6316,7 @@ export class DeckPicker extends Panel {
             ctx.fillStyle=PALETTE.midGray;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            ctx.fillText(t('pick.choose'),w/2,this.okBtn.y+22);
+            ctx.fillText(t('pick.choose'),w/2,this.okBtn.y+D.btnH/2);
         }
         ctx.restore();
     }

@@ -121,14 +121,16 @@ function buildProp(p,group,colliders) {
         g.position.set(p.x,0,p.z);
         g.rotation.y=rot;
         group.add(g);
-        return;
+        colliders.push(makeBox(p.x,p.z,p.w/2+TUNING.props.booksPad,p.d/2+TUNING.props.booksPad,rot));
+        return {object:g,radius:Math.hypot(p.w,p.d)/2};
     }
     if (p.type==='crumple') {
         const m=new THREE.Mesh(crumpleGeo(p.r,Math.round(p.x*13+p.z*7)),mat('light'));
         m.position.set(p.x,p.r*0.7,p.z);
         m.rotation.set(0.4,p.x,0.2);
         group.add(m);
-        return;
+        colliders.push(makeCircle(p.x,p.z,p.r*TUNING.props.crumpleR));
+        return {object:m,radius:p.r};
     }
     const deco=DECOR_BUILDERS[p.type];
     if (deco) {
