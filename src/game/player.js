@@ -240,63 +240,58 @@ export class Player {
         this.arms[0].add(this.bottle);
         this.gun=new THREE.Group();
         this.gun.position.set(0.34,1.0,0.42);
-        const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,0.5,8),gear);
-        barrel.rotation.x=Math.PI/2;
-        addHull(barrel,hull);
-        const nib=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.2,8),ink);
-        nib.rotation.x=Math.PI/2;
-        nib.position.z=0.35;
-        const band=new THREE.Mesh(new THREE.CylinderGeometry(0.085,0.085,0.08,8),face);
-        band.rotation.x=Math.PI/2;
-        band.position.z=0.2;
-        const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.082,0.07,0.08,8),hat);
-        cap.rotation.x=Math.PI/2;
-        cap.position.z=-0.27;
-        const clip=new THREE.Mesh(new THREE.BoxGeometry(0.025,0.03,0.26),face);
-        clip.position.set(0,0.09,-0.08);
-        const penG=new THREE.Group();
-        penG.add(barrel,nib,band,cap,clip);
-        this.gun.add(penG);
-        const looks={pen:penG};
+        const WS=TUNING.player.weaponSoft;
+        const wL=g?coat:tm({light:'paper',mid:'farGray',dark:'midGray',jitter:J,softNormal:WS});
+        const wM=g?coat:tm({light:'farGray',mid:'midGray',dark:'nearGray',jitter:J,softNormal:WS});
+        const wD=g?coat:tm({light:'midGray',mid:'nearGray',dark:'ink',jitter:J,softNormal:WS});
         const mk=(geo,mat,x,y,z,rx=Math.PI/2,hl=true)=>{
             const m=new THREE.Mesh(geo,mat);
             m.position.set(x,y,z);
             m.rotation.x=rx;
-            if (hl) {
-                addHull(m,hull);
+            if (hl&&TUNING.player.weaponHull) {
+                addHull(m,hull,true);
             }
             return m;
         };
+        const penG=new THREE.Group();
+        penG.add(mk(new THREE.CylinderGeometry(0.048,0.048,0.46,10),wM,0,0,0));
+        penG.add(mk(new THREE.ConeGeometry(0.048,0.18,10),wD,0,0,0.32,Math.PI/2,false));
+        penG.add(mk(new THREE.ConeGeometry(0.014,0.05,6),ink,0,0,0.43,Math.PI/2,false));
+        penG.add(mk(new THREE.CylinderGeometry(0.054,0.054,0.06,10),wL,0,0,0.19,Math.PI/2,false));
+        penG.add(mk(new THREE.CylinderGeometry(0.052,0.046,0.08,10),wD,0,0,-0.25,Math.PI/2,false));
+        penG.add(mk(new THREE.BoxGeometry(0.016,0.022,0.22),wL,0,0.06,-0.08,0,false));
+        this.gun.add(penG);
+        const looks={pen:penG};
         const pencil=new THREE.Group();
-        pencil.add(mk(new THREE.CylinderGeometry(0.07,0.07,0.52,6),gear,0,0,-0.02));
-        pencil.add(mk(new THREE.ConeGeometry(0.07,0.18,6),face,0,0,0.33,Math.PI/2,false));
-        pencil.add(mk(new THREE.ConeGeometry(0.025,0.07,6),ink,0,0,0.43,Math.PI/2,false));
-        pencil.add(mk(new THREE.CylinderGeometry(0.075,0.075,0.07,6),face,0,0,-0.3,Math.PI/2,false));
-        pencil.add(mk(new THREE.CylinderGeometry(0.068,0.068,0.08,6),hat,0,0,-0.37,Math.PI/2,false));
+        pencil.add(mk(new THREE.CylinderGeometry(0.045,0.045,0.5,6),wL,0,0,-0.02));
+        pencil.add(mk(new THREE.ConeGeometry(0.045,0.16,6),wM,0,0,0.31,Math.PI/2,false));
+        pencil.add(mk(new THREE.ConeGeometry(0.016,0.06,6),ink,0,0,0.41,Math.PI/2,false));
+        pencil.add(mk(new THREE.CylinderGeometry(0.05,0.05,0.06,6),wD,0,0,-0.29,Math.PI/2,false));
+        pencil.add(mk(new THREE.CylinderGeometry(0.044,0.044,0.07,6),wM,0,0,-0.35,Math.PI/2,false));
         looks.pencil=pencil;
         const brush=new THREE.Group();
-        brush.add(mk(new THREE.CylinderGeometry(0.045,0.055,0.5,8),hat,0,0,-0.08));
-        brush.add(mk(new THREE.CylinderGeometry(0.06,0.05,0.08,8),face,0,0,0.19,Math.PI/2,false));
-        brush.add(mk(new THREE.ConeGeometry(0.075,0.26,8),ink,0,0,0.35,Math.PI/2));
+        brush.add(mk(new THREE.CylinderGeometry(0.032,0.04,0.5,8),wL,0,0,-0.08));
+        brush.add(mk(new THREE.CylinderGeometry(0.045,0.036,0.07,8),wM,0,0,0.19,Math.PI/2,false));
+        brush.add(mk(new THREE.ConeGeometry(0.055,0.24,8),ink,0,0,0.34,Math.PI/2,false));
         looks.brush=brush;
         const stapler=new THREE.Group();
-        stapler.add(mk(new THREE.BoxGeometry(0.16,0.09,0.52),gear,0,-0.04,0,0));
-        stapler.add(mk(new THREE.BoxGeometry(0.14,0.08,0.48),hat,0,0.06,0.01,-0.08));
-        stapler.add(mk(new THREE.BoxGeometry(0.12,0.04,0.06),ink,0,0.01,0.27,0,false));
+        stapler.add(mk(new THREE.BoxGeometry(0.12,0.06,0.46),wM,0,-0.03,0,0));
+        stapler.add(mk(new THREE.BoxGeometry(0.1,0.055,0.42),wL,0,0.04,0.01,-0.08));
+        stapler.add(mk(new THREE.BoxGeometry(0.09,0.03,0.05),wD,0,0.01,0.24,0,false));
         looks.stapler=stapler;
         const hi=new THREE.Group();
-        hi.add(mk(new THREE.CylinderGeometry(0.1,0.1,0.42,8),coat,0,0,0));
-        hi.add(mk(new THREE.CylinderGeometry(0.105,0.105,0.14,8),hat,0,0,-0.26,Math.PI/2));
-        hi.add(mk(new THREE.BoxGeometry(0.12,0.04,0.12),face,0,0,0.26,0.6,false));
+        hi.add(mk(new THREE.CylinderGeometry(0.068,0.068,0.4,8),wL,0,0,0));
+        hi.add(mk(new THREE.CylinderGeometry(0.072,0.072,0.12,8),wD,0,0,-0.24,Math.PI/2,false));
+        hi.add(mk(new THREE.BoxGeometry(0.08,0.03,0.09),wM,0,0,0.24,0.6,false));
         looks.highlighter=hi;
         const comp=new THREE.Group();
         for (const sx of [-1,1]) {
-            const leg=mk(new THREE.CylinderGeometry(0.03,0.02,0.52,6),gear,sx*0.05,0,0.06);
+            const leg=mk(new THREE.CylinderGeometry(0.02,0.012,0.5,6),wM,sx*0.045,0,0.06);
             leg.rotation.z=sx*0.12;
             comp.add(leg);
         }
-        comp.add(mk(new THREE.SphereGeometry(0.06,8,6),face,0,0,-0.22,0));
-        comp.add(mk(new THREE.ConeGeometry(0.02,0.08,6),ink,0.02,0,0.34,Math.PI/2,false));
+        comp.add(mk(new THREE.SphereGeometry(0.045,8,6),wL,0,0,-0.21,0,false));
+        comp.add(mk(new THREE.ConeGeometry(0.014,0.07,6),ink,0.02,0,0.33,Math.PI/2,false));
         looks.compass=comp;
         for (const k in looks) {
             if (k!=='pen') {
@@ -330,7 +325,7 @@ export class Player {
         for (const part of ['coat','limbs','face','hat','gear']) {
             const m0=this.skinMats[part];
             if (m0) {
-                m0.uniforms.uHatch.value.set(plain?1:S.lines,plain?0:S.shade);
+                m0.uniforms.uHatch.value.set(S.lines,S.shade);
             }
             const tones=SKIN_TONES[skin[part]];
             const m=this.skinMats[part];
@@ -846,7 +841,12 @@ export class Player {
         const want=this.armed?1:0;
         const dt=Math.min(0.1,time.real-(this.armTick??time.real));
         this.armTick=time.real;
-        this.armK=want>this.armK?Math.min(1,this.armK+dt/A.drawTime):Math.max(0,this.armK-dt/A.stowTime);
+        if (want>this.armK) {
+            this.armK=Math.min(1,this.armK+dt/A.drawTime);
+        }
+        else if (want<this.armK) {
+            this.armK=Math.max(0,this.armK-dt/A.stowTime);
+        }
         const k=this.armK;
         if (k>=1) {
             this.gun.visible=true;

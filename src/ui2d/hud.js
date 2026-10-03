@@ -7,8 +7,6 @@ import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
 import {CARDS} from '../data/cards.js';
 import {ACTS} from '../data/levels.js';
-import {createCard} from '../game/card.js';
-import {CARD_W,CARD_H} from './cardView.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -339,7 +337,7 @@ export class Hud {
 
     showResult(title,lines) {
         const R=TUNING.hud.result;
-        this.result={title,lines:lines.map(l=>({...l,card:l.card?createCard(l.card):null})),t:0,life:R.time+lines.length*R.perLine};
+        this.result={title,lines,t:0,life:R.time+lines.length*R.perLine};
         this.flys=[];
         lines.forEach((l,i)=>{
             if (l.score) {
@@ -348,7 +346,7 @@ export class Hud {
         });
     }
 
-    drawResult(ctx,w,h,dt,art) {
+    drawResult(ctx,w,h,dt) {
         const q=this.result;
         if (!q) {
             this.flys=[];
@@ -356,7 +354,6 @@ export class Hud {
         }
         const R=TUNING.hud.result;
         const S=TUNING.hud.score;
-        const v=time.boilIndex;
         q.t+=dt;
         if (q.t>=q.life&&this.flys.length===0) {
             this.result=null;
@@ -381,13 +378,11 @@ export class Hud {
         ctx.fillText(q.title,0,0,R.maxW);
         ctx.restore();
         y+=R.titleSize*0.6+R.lineGap;
-        const ch=R.cardH;
-        const cw=ch*CARD_W/CARD_H;
         for (let i=0;i<q.lines.length;i++) {
             const l=q.lines[i];
             const lt=q.t-R.lineDelay*i-0.15;
             const k=Math.max(0,Math.min(1,lt/0.25));
-            const lh=l.card?Math.max(R.lineH,ch+8):R.lineH;
+            const lh=R.lineH;
             const ly=y+lh/2;
             y+=lh;
             if (k<=0) {
@@ -406,62 +401,9 @@ export class Hud {
                 fl.x=x-tw/2;
                 fl.y=ly;
             }
-            if (l.card&&art) {
-                this.drawResultCard(ctx,art.face(l.card,v),x-tw-R.cardGap-cw/2,ly,cw,ch,l.kind,lt,a,w);
-            }
         }
         ctx.restore();
         this.drawFlys(ctx,w,dt);
-    }
-
-    drawResultCard(ctx,img,cx,cy,cw,ch,kind,lt,a,w) {
-        const R=TUNING.hud.result;
-        const k=Math.max(0,Math.min(1,lt/R.cardIn));
-        if (k<=0) {
-            return;
-        }
-        ctx.save();
-        if (kind!=='remove') {
-            const e=EASE.easeOutBack(k);
-            ctx.globalAlpha=a;
-            ctx.translate(cx+(1-e)*w*0.25,cy);
-            ctx.rotate((1-e)*0.8);
-            ctx.scale(0.6+0.4*e,0.6+0.4*e);
-            ctx.drawImage(img,-cw/2,-ch/2,cw,ch);
-            if (k>=1&&lt<R.cardIn+0.5) {
-                ctx.strokeStyle=rgba('red',1-(lt-R.cardIn)*2);
-                ctx.lineWidth=3;
-                ctx.strokeRect(-cw/2-3,-ch/2-3,cw+6,ch+6);
-            }
-            ctx.restore();
-            return;
-        }
-        const tr=Math.max(0,Math.min(1,(lt-R.cardIn-R.tearDelay)/R.tearTime));
-        const teeth=6;
-        for (const side of [-1,1]) {
-            ctx.save();
-            const d=EASE.easeInQuad(tr);
-            ctx.globalAlpha=a*(1-d);
-            ctx.translate(cx+side*d*cw*0.8,cy+d*ch*0.9);
-            ctx.rotate(side*d*0.6);
-            ctx.scale(k,k);
-            ctx.beginPath();
-            ctx.moveTo(0,-ch/2-2);
-            for (let j=1;j<=teeth;j++) {
-                ctx.lineTo((j%2?1:-1)*cw*0.07,-ch/2+ch*j/teeth);
-            }
-            ctx.lineTo(side*cw,ch/2+2);
-            ctx.lineTo(side*cw,-ch/2-2);
-            ctx.closePath();
-            ctx.clip();
-            ctx.drawImage(img,-cw/2,-ch/2,cw,ch);
-            if (tr>0) {
-                ctx.fillStyle=rgba('red',0.25*(1-d));
-                ctx.fillRect(-cw/2,-ch/2,cw,ch);
-            }
-            ctx.restore();
-        }
-        ctx.restore();
     }
 
     drawFlys(ctx,w,dt) {

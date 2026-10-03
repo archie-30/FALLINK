@@ -28,6 +28,11 @@ export class UpgradeView {
     }
 
     show(id,onDone) {
+        this.play('merge',id,onDone);
+    }
+
+    play(mode,id,onDone) {
+        this.mode=mode;
         this.open=true;
         this.t=0;
         this.closeK=0;
@@ -39,11 +44,17 @@ export class UpgradeView {
         this.burst=false;
     }
 
+    total() {
+        const F=TUNING.cardFx[this.mode];
+        return F?F.total:TUNING.upgrade.autoClose;
+    }
+
     down() {
         if (!this.open) {
             return false;
         }
-        if (this.t>=TUNING.upgrade.merge+TUNING.upgrade.reveal) {
+        const F=TUNING.cardFx[this.mode];
+        if (F?this.t>=F.skip:this.t>=TUNING.upgrade.merge+TUNING.upgrade.reveal) {
             this.finish();
         }
         return true;
@@ -80,7 +91,9 @@ export class UpgradeView {
             return;
         }
         this.t+=dt;
-        if (!this.burst&&this.t>=U.merge) {
+        const F=TUNING.cardFx[this.mode];
+        const at=F?F.burst:U.merge;
+        if (!this.burst&&this.t>=at) {
             this.burst=true;
             const cx=this.width/2;
             const cy=this.height*0.46;
@@ -90,7 +103,7 @@ export class UpgradeView {
                 this.sparks.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,t:0,life:rng.range(0.4,0.9),len:rng.range(10,26),red:i%4===0});
             }
         }
-        if (this.t>=U.autoClose) {
+        if (this.t>=this.total()) {
             this.finish();
         }
     }
@@ -108,6 +121,10 @@ export class UpgradeView {
     }
 
     drawBody(ctx,art) {
+        if (this.mode==='gain'||this.mode==='remove'||this.mode==='downgrade') {
+            this.drawFx(ctx,art);
+            return;
+        }
         const U=TUNING.upgrade;
         const w=this.width;
         const h=this.height;
@@ -127,9 +144,25 @@ export class UpgradeView {
         ctx.save();
         ctx.translate(cx,cy-CARD_H*s*0.5-54*s);
         ctx.scale(ta,ta);
-        ctx.fillText(k<U.merge?t('upgrade.merging'):t('upgrade.title'),0,0);
+        ctx.fillText(k<U.merge?t(this.mode==='merge'?'upgrade.merging':'upgrade.charging'):t('upgrade.title'),0,0);
         ctx.restore();
-        if (k<U.merge) {
+        if (k<U.merge&&this.mode!=='merge') {
+            const p=EASE.easeOutBack(Math.min(1,k/0.45));
+            const m=Math.min(1,Math.max(0,(k-U.gather*0.5)/(U.merge-U.gather*0.5)));
+            const shake=Math.sin(k*80)*6*m;
+            ctx.strokeStyle=this.rare?rgba('red',0.6*m):rgba('ink',0.5*m);
+            ctx.lineWidth=2;
+            for (let i=0;i<10;i++) {
+                const a=i/10*Math.PI*2+k*3;
+                const r0=CARD_H*s*(0.9-m*0.25);
+                ctx.beginPath();
+                ctx.moveTo(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0);
+                ctx.lineTo(cx+Math.cos(a)*(r0-20*m),cy+Math.sin(a)*(r0-20*m));
+                ctx.stroke();
+            }
+            this.drawCard(ctx,art,this.base,cx+shake,cy+(1-p)*h*0.5,s*(0.85+0.15*p)*1.1,0,v,1);
+        }
+        else if (k<U.merge) {
             for (let i=0;i<3;i++) {
                 const p=EASE.easeOutBack(Math.min(1,Math.max(0,(k-i*0.1)/0.45)));
                 const m=EASE.easeInCubic(Math.min(1,Math.max(0,(k-U.gather)/(U.merge-U.gather))));
@@ -186,6 +219,96 @@ export class UpgradeView {
             ctx.moveTo(p.x,p.y);
             ctx.lineTo(p.x-p.vx/l*p.len,p.y-p.vy/l*p.len);
             ctx.stroke();
+        }
+    }
+
+    drawFx(ctx,art) {
+        const F=TUNING.cardFx[this.mode];
+        const w=this.width;
+        const h=this.height;
+        const v=time.boilIndex;
+        const s=Math.max(0.9,Math.min(1.5,h/640))*F.scale;
+        const k=this.t;
+        const cx=w/2;
+        const cy=h*0.46;
+        const fade=Math.min(1,k/0.2,(F.total-k)/0.25);
+        ctx.fillStyle=rgba('paper',0.88*Math.max(0,fade));
+        ctx.fillRect(0,0,w,h);
+        const ta=EASE.easeOutBack(Math.min(1,k/0.35));
+        ctx.save();
+        ctx.globalAlpha*=Math.max(0,fade);
+        ctx.translate(cx,cy-CARD_H*s*0.5-46);
+        ctx.scale(ta,ta);
+        ctx.fillStyle=this.mode==='gain'?PALETTE.ink:PALETTE.red;
+        ctx.font='bold '+Math.round(30*Math.min(1.3,s))+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('cardFx.'+this.mode),0,0);
+        ctx.restore();
+        if (this.mode==='gain') {
+            const pin=EASE.easeOutBack(Math.min(1,k/F.inTime));
+            const out=Math.max(0,Math.min(1,(k-F.inTime-F.hold)/F.outTime));
+            const eo=EASE.easeInCubic(out);
+            const tx=w*F.toX;
+            const ty=h*F.toY;
+            const x=cx+(tx-cx)*eo;
+            const y=cy+(1-pin)*h*0.6+(ty-cy)*eo;
+            const rot=(1-pin)*0.6+eo*-0.4;
+            this.drawCard(ctx,art,this.base,x,y,s*(0.6+0.4*pin)*(1-eo*0.75),rot,v,1-out*0.6);
+        }
+        else if (this.mode==='downgrade') {
+            const pin=EASE.easeOutBack(Math.min(1,k/F.inTime));
+            const sw=Math.max(0,Math.min(1,(k-F.burst)/0.25));
+            const shake=k<F.burst?Math.sin(k*70)*5*Math.min(1,(k-F.inTime)/0.3):0;
+            this.drawCard(ctx,art,sw<0.5?this.up:this.base,cx+shake,cy+(1-pin)*h*0.5,s*(1-Math.sin(sw*Math.PI)*0.12),0,v,1);
+            if (sw>0&&sw<1) {
+                ctx.fillStyle=rgba('ink',0.3*(1-sw));
+                ctx.fillRect(0,0,w,h);
+            }
+        }
+        else {
+            const pin=EASE.easeOutBack(Math.min(1,k/F.inTime));
+            const tr=Math.max(0,Math.min(1,(k-F.burst)/F.tearTime));
+            if (tr<=0) {
+                const shake=k>F.burst-0.35?Math.sin(k*90)*4:0;
+                this.drawCard(ctx,art,this.base,cx+shake,cy+(1-pin)*h*0.5,s,0,v,1);
+            }
+            else {
+                this.drawTorn(ctx,art,this.base,cx,cy,s,tr,v);
+            }
+        }
+        for (const p of this.sparks) {
+            const f=p.t/p.life;
+            const l=Math.hypot(p.vx,p.vy)||1;
+            ctx.strokeStyle=p.red?rgba('red',1-f):rgba('ink',1-f);
+            ctx.lineWidth=3*(1-f)+1;
+            ctx.beginPath();
+            ctx.moveTo(p.x,p.y);
+            ctx.lineTo(p.x-p.vx/l*p.len,p.y-p.vy/l*p.len);
+            ctx.stroke();
+        }
+    }
+
+    drawTorn(ctx,art,card,x,y,sc,tr,v) {
+        const e=EASE.easeInQuad(tr);
+        const teeth=9;
+        for (const side of [-1,1]) {
+            ctx.save();
+            ctx.globalAlpha*=1-e;
+            ctx.translate(x+side*e*CARD_W*sc*0.9,y+e*CARD_H*sc*0.9);
+            ctx.rotate(side*e*0.7);
+            ctx.scale(sc,sc);
+            ctx.beginPath();
+            ctx.moveTo(0,-CARD_H/2-4);
+            for (let j=1;j<=teeth;j++) {
+                ctx.lineTo((j%2?1:-1)*CARD_W*0.05,-CARD_H/2+CARD_H*j/teeth);
+            }
+            ctx.lineTo(side*CARD_W,CARD_H/2+4);
+            ctx.lineTo(side*CARD_W,-CARD_H/2-4);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(art.face(card,v),-CARD_W/2,-CARD_H/2,CARD_W,CARD_H);
+            ctx.restore();
         }
     }
 

@@ -879,23 +879,42 @@ function boot() {
                 overlay.hud.banner(t('run.cleared'),'',1.3);
             }
         },
+        cardFx:(kind,id,done)=>{
+            fx.paused=true;
+            hand.cancelTargeting();
+            art.warm([createCard(id),createCard(id,true)]);
+            audio.play(kind==='remove'?'erase':(kind==='downgrade'?'fail':'clear'),kind==='gain'?1.2:0.9);
+            upgradeView.play(kind,id,done);
+        },
         onMerge:(id,done)=>{
             art.warm([createCard(id),createCard(id,true)]);
             audio.play('clear',0.8);
             upgradeView.show(id,done);
         },
-        openReward:(groups,counts,cb)=>{
+        openReward:(groups,counts,cb,forced=false)=>{
             fx.paused=true;
             hand.cancelTargeting();
             for (const g of groups) {
                 art.warm(g.cards);
             }
             const d=hand.drawRect;
-            reward.show(groups,run.plan.boss?t('reward.bossTitle'):t('reward.title'),counts,cb,{x:d.x+d.w/2,y:d.y+d.h/2});
+            reward.show(groups,run.plan.boss?t('reward.bossTitle'):t('reward.title'),counts,cb,{x:d.x+d.w/2,y:d.y+d.h/2},forced);
         },
-        openDoors:()=>{
+        openDoors:quiet=>{
             doors.openAll();
-            resumePlay();
+            if (!quiet) {
+                resumePlay();
+            }
+        },
+        openGames:()=>{
+            hand.cancelTargeting();
+            audio.play('ui');
+            trainingMenu.show(true);
+            fx.paused=true;
+        },
+        leaveToMenu:()=>{
+            run.quit();
+            enterMenu();
         },
         closeDoors:()=>{
             doors.closeAll();
@@ -913,11 +932,15 @@ function boot() {
         hp:()=>player.hp,
         showReport:(title,lines,cb)=>{
             const SK={'note.score':1,'note.scoreLoss':-1,'note.paid':-1};
-            const CK={'note.gained':'gain','note.upgraded':'gain','note.removed':'remove','note.downgraded':'gain'};
-            overlay.hud.showResult(t(title.key,title.params?{name:t(title.params.name)}:{}),lines.map(l=>({text:t(l.key,{...l.params,name:l.card?t(CARDS[l.card].nameKey):''}),bad:l.bad,card:l.card||null,kind:CK[l.key]||null,score:SK[l.key]?SK[l.key]*l.params.n:0})));
+            overlay.hud.showResult(t(title.key,title.params?{name:t(title.params.name)}:{}),lines.map(l=>({text:t(l.key,{...l.params,name:l.card?t(CARDS[l.card].nameKey):''}),bad:l.bad,score:SK[l.key]?SK[l.key]*l.params.n:0})));
             cb();
         },
         startGame:()=>minis.begin(player),
+        weaponId:()=>player.weaponId,
+        setWeapon:id=>{
+            player.setWeapon(id);
+            player.setArmed(hand.shown,true);
+        },
         gameInfo:()=>minis.info(),
         resume:()=>resumePlay(),
         openChoice:(spec,cb)=>{
@@ -1143,6 +1166,7 @@ function boot() {
     function openSettings(from) {
         audio.play('ui');
         settingsReturn=from;
+        settingsMenu.origin=from;
         settingsMenu.show();
     }
     function settingsChanged(key) {
@@ -1275,9 +1299,6 @@ function boot() {
         },
         resume:closeTrainingMenu,
         pick:openPicker,
-        games:()=>{
-            trainingMenu.gamesOpen=true;
-        },
         testGame:id=>{
             audio.play('ui');
             trainingMenu.hide();
@@ -1291,12 +1312,6 @@ function boot() {
             overlay.hud.toast(t('trainMenu.resetDone'));
         },
         settings:()=>openSettings('training'),
-        leave:()=>{
-            trainingMenu.hide();
-            trainingMenu.pendingRoom=false;
-            run.quit();
-            enterMenu();
-        }
     });
     const trainingPicker=new TrainingPicker({
         home:()=>{
@@ -1346,6 +1361,11 @@ function boot() {
                 equipWeapon();
             }
             audio.play('erase');
+            transition.run(()=>{
+                settingsMenu.hide();
+                enterMenu();
+                overlay.hud.toast(t('settings.resetToast'));
+            });
         },
         select:()=>audio.play('ui'),
         back:()=>{

@@ -204,14 +204,15 @@ const MODELS={
         eyes(body,1.55,0.08,0.12,0.06);
         return {r:0.6,h:2.2};
     },
-    range(body) {
-        body.add(bx(0.12,1.6,0.12,'dark',0,0.8,0));
-        body.add(cyl(0.55,0.55,0.08,'light',0,1.5,0.1,16).rotateX(Math.PI/2));
-        body.add(cyl(0.38,0.38,0.09,'accent',0,1.5,0.12,16).rotateX(Math.PI/2));
-        body.add(cyl(0.2,0.2,0.1,'light',0,1.5,0.14,16).rotateX(Math.PI/2));
-        body.add(cyl(0.08,0.08,0.11,'ink',0,1.5,0.16,10).rotateX(Math.PI/2));
-        eyes(body,1.05,0.08,0.14,0.06);
-        return {r:0.6,h:2.1};
+    coach(body) {
+        body.add(cyl(0.38,0.45,1.1,'cover',0,0.55,0));
+        body.add(ball(0.36,'light',0,1.38,0));
+        body.add(cyl(0.38,0.38,0.12,'accent',0,1.66,0,12));
+        body.add(bx(0.45,0.05,0.3,'accent',0,1.64,0.28));
+        body.add(cyl(0.02,0.02,0.4,'ink',0.18,1.05,0.4,4));
+        body.add(bx(0.12,0.08,0.14,'dark',0.18,0.85,0.44));
+        eyes(body,1.42,0.33,0.13,0.06);
+        return {r:0.7,h:2.0};
     },
     chest(body) {
         body.add(bx(1.2,0.65,0.85,'cover',0,0.33,0));

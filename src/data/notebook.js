@@ -7,7 +7,7 @@ export const NOTEBOOK={
         shop:{weight:1.2,minAct:0},
         event:{weight:1.8,minAct:0},
         encounter:{weight:1.2,minAct:0},
-        rest:{weight:1.1,minAct:0}
+        rest:{weight:0.5,minAct:0}
     },
     doorsMin:2,
     doorsMax:3,
@@ -23,7 +23,21 @@ export const NOTEBOOK={
         {id:'nocard'}
     ],
     challengeScore:800,
-    shop:{buy:600,upgrade:700,patch:400,patchHeal:2},
+    shop:{
+        offer:3,
+        cards:3,
+        items:{
+            buy:{price:600},
+            rare:{price:1100},
+            upgrade:{price:700},
+            upgrade2:{price:650,effect:'upgradeRandom',n:2},
+            patch:{price:400,n:2},
+            bigPatch:{price:750,n:4},
+            remove:{price:500},
+            ink:{price:300,effect:'ink',n:4},
+            swap:{price:900,effect:'weapon'}
+        }
+    },
     supply:[['heal',1],['ink',3],['score',300]],
     chests:['rare','supply','mimic'],
     badNotes:['mg.lose','note.hurt','note.removed','note.scoreLoss','note.downgraded','note.eliteNext','gacha.broken','chest.mimic','challenge.failed'],
