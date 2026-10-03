@@ -28,7 +28,7 @@ import {circleVs} from './core/collision.js';
 import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects,createCard,cardParams} from './game/card.js';
-import {STARTING_DECK,ALL_CARDS,CARDS,isUlt,unlockedCards} from './data/cards.js';
+import {STARTING_DECK,ALL_CARDS,CARDS,isUlt,unlockedCards,TUTORIAL_MERGE} from './data/cards.js';
 import {progress,loadProgress,addXp,markSeen,godMode,effectiveLevel,xpToNext,resetLevel} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
@@ -39,7 +39,7 @@ import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
-import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Tutorial,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView} from './ui2d/menu.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
 import {DEFAULT_SKIN} from './data/skins.js';
 import {EASE} from './core/easing.js';
@@ -226,7 +226,7 @@ function boot() {
     const art=new CardArt();
     const deckView=new DeckView();
     ctx.enemyMgr=enemies;
-    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene},TUNING);
+    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene,redrawRoom:d=>renderer.post.drawIn(d,0)},TUNING);
     ctx.dangerRings=dangerRings;
     ctx.weaponSys=weaponSys;
     const swings=[];
@@ -259,11 +259,12 @@ function boot() {
                 }
                 s.hit.add(e);
                 const PW=s.W;
-                const tier=PW.tiers.find(q=>d<=q[0]);
+                const touch=Math.max(0,d-e.def.radius);
+                const band=PW.bands[Math.min(PW.bands.length-1,Math.floor(touch/(s.reach/PW.bands.length)))];
                 const m=e.damageMult(e.pos.x,e.pos.z);
                 const nx=(e.pos.x-s.x)/(d||1);
                 const nz=(e.pos.z-s.z)/(d||1);
-                const dmg=(tier?tier[1]:PW.damage)*m;
+                const dmg=band*m;
                 s.dealt+=dmg;
                 enemies.damage(e,dmg,nx,nz,false,m>1);
             }
@@ -276,7 +277,8 @@ function boot() {
     };
     ctx.onBrush=(x,z,a,fan)=>{
         const PW=player.W;
-        swings.push({x,z,a,fan,r:TUNING.brushSwing.start,v:PW.bulletSpeed,life:PW.bulletLife,hit:new Set(),W:PW,dealt:0});
+        const reach=TUNING.brushSwing.start+PW.bulletSpeed/WB.brush.drag*(1-Math.exp(-WB.brush.drag*PW.bulletLife));
+        swings.push({x,z,a,fan,r:TUNING.brushSwing.start,v:PW.bulletSpeed,life:PW.bulletLife,hit:new Set(),W:PW,dealt:0,reach});
         strokes.spawn(x,z,a,fan,PW.bulletSpeed,WB.brush.drag,PW.bulletLife);
         for (let i=0;i<5;i++) {
             const an=a+(Math.random()-0.5)*fan;
@@ -546,8 +548,9 @@ function boot() {
         },
         openDeck,
         showKeys:()=>input.lastDevice==='mouse'&&!device.mobile,
-        onPlayStart:()=>{
+        onPlayStart:card=>{
             hand.idleT=0;
+            tutNotify(card&&isUlt(card.id)?'ult':'card');
             audio.play('card');
             if (run.stats) {
                 run.stats.cards++;
@@ -649,6 +652,7 @@ function boot() {
         if (run.mode==='training') {
             trainStats.kills++;
         }
+        tutNotify('kill');
         audio.play(e.def.boss?'boss':'kill',0.8+Math.random()*0.4);
         fx.hitStop(F.hitStopKill,true);
         fx.cameraShake(F.shakeKill);
@@ -700,6 +704,13 @@ function boot() {
             audio.play('draw',1.7);
         }
     };
+    player.events.onDodge=p=>{
+        if (!run.tutorial()) {
+            return;
+        }
+        dmgNums.spawnText(p.pos.x,2.2,p.pos.z,t('tut.dodged'));
+        tutNotify('dodge');
+    };
     player.events.onDash=()=>{
         audio.play('dash');
         fx.fovPunch(TUNING.player.dashFovPunch);
@@ -735,6 +746,10 @@ function boot() {
         particles.burst(p.pos.x,1.0,p.pos.z,6,{color:'farGray',speed:[2,5],up:[2,4]});
     };
     const pickups=new Pickups(actors);
+    player.events.onDualEnd=p=>{
+        audio.play('erase',1.2);
+        particles.burst(p.pos.x,1.0,p.pos.z,8,{color:'farGray',speed:[1,3],up:[2,4],size:[0.06,0.12]});
+    };
     player.events.onRefund=p=>{
         dmgNums.spawnText(p.pos.x,2.2,p.pos.z,t('weapon.refund'));
         particles.burst(p.pos.x,1.2,p.pos.z,8,{color:'ink',speed:[1,3],up:[2,4],size:[0.06,0.12]});
@@ -910,7 +925,61 @@ function boot() {
         },
         onEnd:ok=>run.gameDone(ok)
     });
+    function tutNotify(kind) {
+        if (run.tutorial()&&run.director&&run.director.notify) {
+            run.director.notify(kind);
+        }
+    }
+    function tutProvider() {
+        return run.tutorial()&&run.director&&run.director.provide?run.director.provide(deck):null;
+    }
+    const tutHooks={
+        enemies,
+        enter:()=>{
+            hand.setShown(false,true);
+            deck.timers.length=0;
+            coach.reset();
+            overlay.hud.banner(t('tut.banner'),t('tut.bannerSub'),2);
+        },
+        intro:(step,i)=>{
+            hand.cancelTargeting();
+            input.mouse.down=false;
+            fx.paused=true;
+            if (step.key==='end') {
+                settings.tutorialSeen=true;
+                saveSettings();
+            }
+            audio.play('page',1.2);
+            coach.intro(step,i);
+        },
+        task:(step,need)=>coach.task(step,need),
+        progress:(n,need,pad)=>{
+            coach.progress(n,need);
+            audio.play('ui',1.2+n*0.1);
+            if (pad) {
+                particles.burst(pad.x,0.4,pad.z,14,{color:'red',speed:[2,5],up:[2,5],size:[0.08,0.16]});
+                rings.spawn(pad.x,pad.z,pad.r*1.6,'red',0.4);
+            }
+        },
+        done:()=>{
+            coach.done();
+            audio.play('clear',1.2);
+            fx.cameraShake(0.2);
+            particles.burst(player.pos.x,1.2,player.pos.z,18,{color:'red',speed:[2,6],up:[3,7],size:[0.08,0.18]});
+        },
+        showHand:ult=>{
+            hand.setShown(true);
+            ink.value=ink.max;
+            if (deck.hand.length===0&&deck.pendingDraws()===0) {
+                deck.start();
+            }
+            if (ult) {
+                deck.requestDraw(TUNING.tutorial.handDraw);
+            }
+        }
+    };
     const run=new Run({
+        tutorial:tutHooks,
         enemies,
         enterRoom,
         banner:(kind,rn)=>{
@@ -1160,6 +1229,7 @@ function boot() {
         return run.interact(npcs.focus);
     }
     function enterMenu() {
+        coach.reset();
         clearWorld();
         player.setArmed(true,true);
         doors.clear();
@@ -1218,7 +1288,7 @@ function boot() {
             settings.training.weapon=player.weaponId;
         }
         resetTrainStats();
-        deck.provider=mode==='training'?trainProvider:null;
+        deck.provider=mode==='training'?trainProvider:(mode==='tutorial'?tutProvider:null);
         effects.lastUlt=null;
         run.start(startIds(),mode);
         if (mode==='training') {
@@ -1237,15 +1307,67 @@ function boot() {
         hand.cancelTargeting();
         deckView.hide();
         pauseMenu.training=run.mode==='training';
+        pauseMenu.tutorial=run.tutorial();
         pauseMenu.show();
         fx.paused=true;
     }
+    let tauntBag=[];
+    const rnd=r=>r[0]+Math.random()*(r[1]-r[0]);
+    function updateTaunts(dt) {
+        const T=TUNING.taunt;
+        if (run.mode==='training'||game.mode!=='play') {
+            return;
+        }
+        for (const e of enemies.list) {
+            if (!e.alive||!(e.def.boss||e.elite)||e.state==='spawn') {
+                continue;
+            }
+            if (e.say) {
+                e.say.t+=dt;
+                if (e.say.t>=e.say.dur) {
+                    e.say=null;
+                }
+            }
+            if (e.tauntT===undefined) {
+                e.tauntT=rnd(T.first);
+            }
+            e.tauntT-=dt;
+            if (e.tauntT<=0) {
+                e.tauntT=rnd(T.every);
+                if (tauntBag.length===0) {
+                    tauntBag=Array.from({length:T.count},(q,i)=>i+1).sort(()=>Math.random()-0.5);
+                }
+                e.say={text:t('taunt.'+tauntBag.pop()),t:0,dur:T.dur};
+            }
+        }
+    }
+    let resumeT=0;
     function closePause() {
         audio.play('ui');
         pauseMenu.hide();
-        fx.paused=false;
         input.mouse.down=false;
         input.dashQueued=false;
+        resumeT=coach.open||upgradeView.open?0:TUNING.ui.resumeCount;
+    }
+    function tickResume(dt) {
+        if (resumeT<=0) {
+            return;
+        }
+        if (pauseMenu.open||game.mode!=='play') {
+            resumeT=0;
+            return;
+        }
+        const prev=Math.ceil(resumeT);
+        resumeT-=dt;
+        if (resumeT<=0) {
+            resumeT=0;
+            fx.paused=false;
+            input.dashQueued=false;
+            audio.play('ui',1.5);
+        }
+        else if (Math.ceil(resumeT)!==prev) {
+            audio.play('ui',1.1);
+        }
     }
     let settingsReturn=null;
     function openSettings(from) {
@@ -1342,15 +1464,29 @@ function boot() {
             weaponView.hide();
         }
     });
-    const tutorial=new Tutorial({
-        select:()=>audio.play('page',1.4),
-        back:()=>{
+    const coach=new Coach({
+        begin:()=>{
             audio.play('ui');
-            tutorial.hide();
-            if (tutorialBack) {
-                tutorialBack=false;
-                settingsMenu.show();
-            }
+            fx.paused=false;
+            input.mouse.down=false;
+            input.dashQueued=false;
+            run.director.begin();
+        },
+        next:()=>{
+            audio.play('ui');
+            coach.hide();
+            run.director.next();
+        },
+        merge:()=>{
+            coach.hide();
+            art.warm([createCard(TUTORIAL_MERGE),createCard(TUTORIAL_MERGE,true)]);
+            audio.play('clear',0.8);
+            upgradeView.show(TUTORIAL_MERGE,()=>coach.show());
+        },
+        finish:()=>{
+            audio.play('clear',1.3);
+            coach.hide();
+            transition.run(()=>enterMenu());
         }
     });
     const levelView=new LevelView({
@@ -1426,12 +1562,15 @@ function boot() {
         quit:()=>{
             audio.play('ui');
             pauseMenu.hide();
+            if (run.tutorial()) {
+                settings.tutorialSeen=true;
+                saveSettings();
+            }
             if (transition.active||!run.quit()) {
                 enterMenu();
             }
         }
     });
-    let tutorialBack=false;
     const lockWeapons=()=>{
         for (const q of [settings,settings.training]) {
             if (!weaponUnlocked(q.weapon,effectiveLevel())) {
@@ -1449,12 +1588,8 @@ function boot() {
     const settingsMenu=new SettingsMenu({
         changed:settingsChanged,
         tutorial:()=>{
-            audio.play('ui');
-            settings.tutorialSeen=true;
-            saveSettings();
             settingsMenu.hide();
-            tutorialBack=true;
-            tutorial.show();
+            startGame('tutorial');
         },
         devOn:()=>{
             audio.play('clear',1.2);
@@ -1509,7 +1644,7 @@ function boot() {
         }
     });
     let pendingLevel=null;
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,tutorial,weaponView,popup,choice,deckPick,levelUp];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,weaponView,popup,choice,deckPick,levelUp];
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
@@ -1535,7 +1670,7 @@ function boot() {
         overlay.refresh();
         renderer.post.setBoilScale(boilScale());
         setJitterScale(boilScale());
-        time.freezeBoil=settings.reducedMotion;
+        time.freezeBoil=settings.reducedMotion||boilScale()<=0;
     }
     function resize() {
         const w=Math.max(1,window.innerWidth);
@@ -1592,9 +1727,6 @@ function boot() {
             if (levelView.open) {
                 return levelView.down(x,y);
             }
-            if (tutorial.open) {
-                return tutorial.down(x,y);
-            }
             if (weaponView.open) {
                 return weaponView.down(x,y);
             }
@@ -1650,7 +1782,13 @@ function boot() {
                 openPause();
                 return true;
             }
+            if (coach.open) {
+                return coach.down(x,y);
+            }
             if (type!=='mouse'&&marks.hitPrompt(x,y)&&tryInteract()) {
+                return true;
+            }
+            if (resumeT>0) {
                 return true;
             }
             return hand.down(x,y,id,type,button);
@@ -1707,13 +1845,18 @@ function boot() {
         clearHover:()=>{
             const far=TUNING.input.far;
             for (const m of menus) {
-                m.hover(far,far);
+                if (m.clearHover) {
+                    m.clearHover();
+                }
+                else {
+                    m.hover(far,far);
+                }
             }
             summary.hover(far,far);
         }
     };
     input.onCardKey=i=>{
-        if (!fx.cutin&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!choice.open&&!deckPick.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
+        if (resumeT<=0&&!fx.cutin&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!choice.open&&!deckPick.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
             hand.keyPlay(i);
         }
     };
@@ -1760,10 +1903,6 @@ function boot() {
             levelView.hide();
             return;
         }
-        if (tutorial.open) {
-            tutorial.actions.back();
-            return;
-        }
         if (weaponView.open) {
             weaponView.actions.back();
             return;
@@ -1803,7 +1942,7 @@ function boot() {
         trainingPicker.wheel(dy);
         skinEditor.wheel(dy);
     };
-    input.canStick=()=>!popup.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.canStick=()=>!popup.open&&!coach.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     let skillToggle=false;
     let skillQuick=false;
     input.onSkill=(type,slot,vx,vy,mag,moved)=>{
@@ -1856,14 +1995,11 @@ function boot() {
     };
     window.addEventListener('keydown',()=>audio.unlock());
     window.addEventListener('keydown',e=>{
-        if (!tutorial.open) {
+        if (!coach.open||pauseMenu.open||upgradeView.open) {
             return;
         }
         if (e.code==='ArrowRight'||e.code==='Enter'||e.code==='Space') {
-            tutorial.step(1);
-        }
-        else if (e.code==='ArrowLeft') {
-            tutorial.step(-1);
+            coach.press();
         }
     });
     input.onFirstTouch=()=>{
@@ -1909,7 +2045,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,tutorial,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
+    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -2033,8 +2169,15 @@ function boot() {
                 trainStats.log.shift();
             }
         }
+        if (run.tutorial()&&game.mode==='play') {
+            player.hp=TUNING.player.maxHp;
+            if (hand.visible()) {
+                ink.value=ink.max;
+            }
+        }
         const hurry=game.mod==='hurry'&&game.mode==='play'?1.25:1;
         enemies.update(dt*hurry,ctx);
+        updateTaunts(dt);
         pickups.update(dt,player,(type,x,z,amount)=>{
             const P=TUNING.props;
             audio.play('clear',1.5);
@@ -2118,7 +2261,7 @@ function boot() {
         if (game.mode!=='play'||summary.open||!p) {
             return 'menu';
         }
-        if (run.mode==='training'&&!p.trainGame) {
+        if ((run.mode==='training'&&!p.trainGame)||run.tutorial()) {
             return 'training';
         }
         if (!p.peace||run.state==='combat') {
@@ -2128,6 +2271,8 @@ function boot() {
     }
     function render(dt,alpha) {
         probeFps(dt);
+        tickResume(dt);
+        gameUi.resumeT=resumeT;
         setTouchText(input.lastDevice==='touch');
         music.update(musicTrack());
         music.setDuck(pauseMenu.open&&!settingsMenu.open&&!codex.open);
@@ -2296,7 +2441,7 @@ function boot() {
     if (!device.fullscreen) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,tutorial,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

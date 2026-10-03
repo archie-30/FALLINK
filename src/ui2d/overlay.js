@@ -101,9 +101,12 @@ export class Overlay {
                 this.screenSpace(false);
             }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
+            game.coach.touch=input.lastDevice==='touch';
+            game.coach.drawStrip(ctx);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
             game.ultCutin.draw(ctx,this.width,this.height,game.art);
             this.hud.drawPause(ctx,this.width);
+            game.coach.draw(ctx,game.art);
             game.deckView.draw(ctx,game.art,game.deck);
             game.trainingMenu.draw(ctx);
             game.trainingPicker.draw(ctx,game.art);
@@ -139,7 +142,6 @@ export class Overlay {
             game.mainMenu.draw(ctx);
         }
         game.levelView.draw(ctx);
-        game.tutorial.draw(ctx,game.art);
         game.weaponView.draw(ctx);
         game.levelUp.draw(ctx,game.art);
         game.skinEditor.draw(ctx);
@@ -153,6 +155,9 @@ export class Overlay {
         }
         game.codex.draw(ctx,game.art);
         game.popup.draw(ctx);
+        if (game.resumeT>0) {
+            this.drawCountdown(ctx,game.resumeT);
+        }
         this.hud.drawToast(ctx,this.width,game.dt);
         this.hud.drawResult(ctx,this.width,this.height,game.dt);
         game.transition.drawTop(ctx,this.width,this.height);
@@ -280,6 +285,35 @@ export class Overlay {
             ctx.textBaseline='top';
             ctx.fillText(s===input.move?t('ui.move'):(card?t('ui.cast'):t('ui.fireDual')),s.cx,s.cy+R+6);
         }
+    }
+
+    drawCountdown(ctx,left) {
+        const n=Math.ceil(left);
+        const f=n-left;
+        const w=this.width;
+        const h=this.height;
+        const k=EASE.easeOutBack(Math.min(1,f*3));
+        ctx.save();
+        ctx.fillStyle=rgba('paper',0.35);
+        ctx.fillRect(0,0,w,h);
+        ctx.translate(w/2,h*0.42);
+        ctx.scale(0.6+0.4*k,0.6+0.4*k);
+        ctx.globalAlpha=Math.min(1,(1-f)*3);
+        const R=Math.min(w,h)*0.12;
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=5;
+        ctx.beginPath();
+        ctx.arc(0,0,R,-Math.PI/2,-Math.PI/2+Math.PI*2*(1-f));
+        ctx.stroke();
+        ctx.fillStyle=PALETTE.red;
+        ctx.font='900 '+Math.round(R*1.2)+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(String(n),0,R*0.06);
+        ctx.font='bold '+Math.round(R*0.24)+'px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillText(t('pause.resuming'),0,R*1.45);
+        ctx.restore();
     }
 
     drawSkills(input,hand,ink,art) {

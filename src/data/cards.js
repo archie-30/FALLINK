@@ -110,20 +110,6 @@ export const CARDS={
         upgraded:{cost:2,params:{range:9,angle:1.8}},
         effect:(g,t,p)=>g.eraseCone(t.dx,t.dz,p.range,p.angle)
     },
-    eraseCover:{
-        id:'eraseCover',
-        nameKey:'card.eraseCover.name',
-        descKey:'card.eraseCover.desc',
-        cost:1,
-        rarity:'common',
-        type:'terrain',
-        mode:'target',
-        targeting:'point',
-        range:14,
-        params:{radius:3},
-        upgraded:{cost:1,params:{radius:4}},
-        effect:(g,t,p)=>g.eraseCover(t.x,t.z,p.radius)
-    },
     trap:{
         id:'trap',
         nameKey:'card.trap.name',
@@ -263,12 +249,12 @@ export const CARDS={
         id:'dualWield',
         nameKey:'card.dualWield.name',
         descKey:'card.dualWield.desc',
-        cost:2,
-        rarity:'common',
+        cost:3,
+        rarity:'rare',
         type:'attack',
         mode:'self',
         targeting:'none',
-        params:{duration:6},
+        params:{duration:8},
         upgraded:{cost:2,params:{duration:8}},
         effect:(g,t,p)=>g.dualWield(p.duration)
     },
@@ -505,7 +491,7 @@ export const CARDS={
 };
 
 export const UNLOCKS={
-    1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','eraseCover','trap','paperShield','inkDash','timeStop','clone','execute','redraw'],
+    1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','trap','paperShield','inkDash','timeStop','clone','execute','redraw'],
     2:['whiteout','shockwave'],
     3:['haste','mark'],
     4:['inkMine','tsunami','blot'],
@@ -541,5 +527,11 @@ export function isUlt(id) {
 }
 
 export const STARTING_DECK=['scatter','pierce','bomb','pencilWall','eraser','paperShield','execute'];
+
+export const TUTORIAL_DECK=['scatter','pierce','bomb','homing','scatter','pierce'];
+
+export const TUTORIAL_ULT='execute';
+
+export const TUTORIAL_MERGE='scatter';
 
 export const ALL_CARDS=Object.keys(CARDS);

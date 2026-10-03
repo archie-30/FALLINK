@@ -47,6 +47,7 @@ uniform float uFar;
 uniform float uFlash;
 uniform vec3 uFlashColor;
 uniform float uAlpha;
+uniform float uCalm;
 uniform vec2 uHatch;
 uniform vec3 uInk;
 uniform float uSoftNormal;
@@ -191,7 +192,7 @@ void main() {
     col=mix(col,uFlashColor,uFlash);
     vec3 vn=normalize((viewMatrix*vec4(n,0.0)).xyz);
     vn=normalize(mix(vn,vec3(0.0,0.0,1.0),uSoftNormal));
-    gl_FragColor=vec4(col,uAlpha);
+    gl_FragColor=vec4(col,uAlpha*(1.0-uCalm));
     gBuf=vec4(vn*0.5+0.5,vDepth/uFar);
 }
 `;

@@ -154,13 +154,17 @@ const MODELS={
         eyes(body,1.75,0.02,0.18,0.07);
         return {r:0.7,h:2.1};
     },
-    flag(body) {
-        body.add(cyl(0.06,0.06,2.0,'dark',0,1.0,0,6));
+    cloud(body) {
+        body.add(cyl(0.05,0.05,1.2,'dark',0,0.6,0,6));
         body.add(cyl(0.35,0.4,0.12,'dark',0,0.06,0,10));
-        body.add(bx(0.8,0.5,0.05,'accent',0.42,1.7,0));
-        body.add(ball(0.32,'light',0,0.9,0.05));
-        eyes(body,0.95,0.32,0.11,0.06);
-        return {r:0.6,h:2.2};
+        for (const [x,y,r] of [[0,1.7,0.5],[-0.45,1.55,0.36],[0.45,1.55,0.38],[0.2,1.95,0.32],[-0.22,1.9,0.3]]) {
+            body.add(ball(r,'light',x,y,0));
+        }
+        eyes(body,1.72,0.45,0.13,0.07);
+        for (const x of [-0.3,0.05,0.35]) {
+            body.add(ball(0.08,'ink',x,1.05+Math.abs(x)*0.4,0.05));
+        }
+        return {r:0.7,h:2.3};
     },
     dice(body) {
         body.add(bx(1.0,1.0,1.0,'light',0,0.55,0));

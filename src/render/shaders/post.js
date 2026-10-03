@@ -57,7 +57,8 @@ void main() {
     float fade=smoothstep(uLineFade.x,uLineFade.y,depth);
     vec2 nuv=uv*uBoil.z*vec2(uRes.x/uRes.y,1.0)+uBoilSeed*vec2(0.37,0.61);
     vec2 n=texture2D(tNoise,nuv).rg-0.5;
-    vec2 off=n*2.0*mix(uBoil.x,uBoil.y,fade)*uPx/uRes;
+    float calm=step(texture2D(tColor,uv).a,0.75);
+    vec2 off=n*2.0*mix(uBoil.x,uBoil.y,fade)*uPx/uRes*(1.0-calm);
     vec2 px=mix(uLine.x,uLine.y,fade)*uPx*uLineScale/uRes;
     float edge=edgeAt(uv+off,px);
     float grain=texture2D(tPaper,(gl_FragCoord.xy-uPaperOff)/(uGrain.y*uPx)).r;

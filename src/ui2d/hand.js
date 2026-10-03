@@ -828,7 +828,35 @@ export class Hand {
         api.preview.show(v.card,this.resolveTarget(v.card,sx,sy),api.playerPos());
     }
 
+    reconcile() {
+        const deck=this.api.deck;
+        if (!deck||!deck.hand) {
+            return;
+        }
+        for (let i=this.views.length-1;i>=0;i--) {
+            const v=this.views[i];
+            if (!deck.hand.includes(v.card)&&v.state!=='drag'&&v!==this.targetView) {
+                this.views.splice(i,1);
+            }
+        }
+        for (const card of deck.hand) {
+            if (!this.views.some(v=>v.card===card)&&!this.flying.some(v=>v.card===card)) {
+                this.onDraw(card);
+            }
+        }
+        const normals=this.views.filter(v=>!isUlt(v.card.id));
+        if (normals.length===2&&normals[0].slot===normals[1].slot) {
+            normals[1].slot=normals[0].slot===0?1:0;
+        }
+        for (const v of normals) {
+            if (v.slot===2) {
+                v.slot=normals.some(o=>o!==v&&o.slot===0)?1:0;
+            }
+        }
+    }
+
     update(dt,frozen=false) {
+        this.reconcile();
         const k=1-Math.exp(-C.follow*dt);
         if (this.shown!==this.showTo) {
             const sp=dt/TUNING.hand.showTime;
