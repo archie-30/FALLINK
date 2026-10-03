@@ -36,9 +36,10 @@ export class UpgradeView {
         this.open=true;
         this.t=0;
         this.closeK=0;
-        this.base=createCard(id);
-        this.up=createCard(id,true);
-        this.rare=this.base.def.rarity==='rare';
+        this.items=[].concat(id).map(q=>({base:createCard(q),up:createCard(q,true),rare:createCard(q).def.rarity==='rare'}));
+        this.base=this.items[0].base;
+        this.up=this.items[0].up;
+        this.rare=this.items.some(q=>q.rare);
         this.onDone=onDone;
         this.sparks.length=0;
         this.burst=false;
@@ -95,17 +96,27 @@ export class UpgradeView {
         const at=F?F.burst:U.merge;
         if (!this.burst&&this.t>=at) {
             this.burst=true;
-            const cx=this.width/2;
             const cy=this.height*0.46;
-            for (let i=0;i<28;i++) {
-                const a=rng.range(0,Math.PI*2);
-                const sp=rng.range(160,520);
-                this.sparks.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,t:0,life:rng.range(0.4,0.9),len:rng.range(10,26),red:i%4===0});
+            const n=this.items.length;
+            for (let j=0;j<n;j++) {
+                const cx=this.itemX(j);
+                for (let i=0;i<28;i++) {
+                    const a=rng.range(0,Math.PI*2);
+                    const sp=rng.range(160,520);
+                    this.sparks.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,t:0,life:rng.range(0.4,0.9),len:rng.range(10,26),red:i%4===0});
+                }
             }
         }
         if (this.t>=this.total()) {
             this.finish();
         }
+    }
+
+    itemX(j) {
+        const n=this.items.length;
+        const s=Math.max(0.9,Math.min(1.5,this.height/640));
+        const spread=Math.min(this.width/n,CARD_W*s*TUNING.upgrade.pairGap);
+        return this.width/2+(j-(n-1)/2)*spread;
     }
 
     draw(ctx,art) {
@@ -146,21 +157,27 @@ export class UpgradeView {
         ctx.scale(ta,ta);
         ctx.fillText(k<U.merge?t(this.mode==='merge'?'upgrade.merging':'upgrade.charging'):t('upgrade.title'),0,0);
         ctx.restore();
+        const n=this.items.length;
+        const colW=n>1?Math.min(w/n-30,CARD_W*s*TUNING.upgrade.pairGap-24):Math.min(560,w-60);
+        const cs=n>1?TUNING.upgrade.pairScale:1;
         if (k<U.merge&&this.mode!=='merge') {
             const p=EASE.easeOutBack(Math.min(1,k/0.45));
             const m=Math.min(1,Math.max(0,(k-U.gather*0.5)/(U.merge-U.gather*0.5)));
-            const shake=Math.sin(k*80)*6*m;
-            ctx.strokeStyle=this.rare?rgba('red',0.6*m):rgba('ink',0.5*m);
-            ctx.lineWidth=2;
-            for (let i=0;i<10;i++) {
-                const a=i/10*Math.PI*2+k*3;
-                const r0=CARD_H*s*(0.9-m*0.25);
-                ctx.beginPath();
-                ctx.moveTo(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0);
-                ctx.lineTo(cx+Math.cos(a)*(r0-20*m),cy+Math.sin(a)*(r0-20*m));
-                ctx.stroke();
-            }
-            this.drawCard(ctx,art,this.base,cx+shake,cy+(1-p)*h*0.5,s*(0.85+0.15*p)*1.1,0,v,1);
+            this.items.forEach((it,j)=>{
+                const x=this.itemX(j);
+                const shake=Math.sin(k*80+j*2)*6*m;
+                ctx.strokeStyle=it.rare?rgba('red',0.6*m):rgba('ink',0.5*m);
+                ctx.lineWidth=2;
+                for (let i=0;i<10;i++) {
+                    const a=i/10*Math.PI*2+k*3;
+                    const r0=CARD_H*s*cs*(0.9-m*0.25);
+                    ctx.beginPath();
+                    ctx.moveTo(x+Math.cos(a)*r0,cy+Math.sin(a)*r0);
+                    ctx.lineTo(x+Math.cos(a)*(r0-20*m),cy+Math.sin(a)*(r0-20*m));
+                    ctx.stroke();
+                }
+                this.drawCard(ctx,art,it.base,x+shake,cy+(1-p)*h*0.5,s*cs*(0.85+0.15*p)*1.1,0,v,1);
+            });
         }
         else if (k<U.merge) {
             for (let i=0;i<3;i++) {
@@ -179,36 +196,46 @@ export class UpgradeView {
             ctx.fillStyle=rgba('paper',flash);
             ctx.fillRect(0,0,w,h);
             const glow=0.5+0.5*Math.sin(time.real*4);
-            ctx.strokeStyle=this.rare?rgba('red',0.35+0.3*glow):rgba('ink',0.25+0.25*glow);
-            ctx.lineWidth=3;
-            ctx.beginPath();
-            ctx.arc(cx,cy,CARD_H*s*0.72+glow*6,0,Math.PI*2);
-            ctx.stroke();
-            this.drawCard(ctx,art,this.up,cx,cy,s*(0.7+0.3*e)*1.12,0,v,Math.min(1,r*2));
             const ia=Math.min(1,Math.max(0,(k-U.merge-0.3)/0.4));
-            ctx.save();
-            ctx.globalAlpha*=ia;
-            ctx.textAlign='center';
-            ctx.textBaseline='top';
-            const ty=cy+CARD_H*s*0.62+10;
-            ctx.fillStyle=PALETTE.ink;
-            ctx.font='bold '+Math.round(20*s)+'px '+FONT;
-            ctx.fillText(t(this.base.def.nameKey)+'  →  '+cardName(this.up),cx,ty);
-            ctx.font=Math.round(15*s)+'px '+FONT;
-            ctx.fillStyle=PALETTE.nearGray;
-            const c0=cardCost(this.base);
-            const c1=cardCost(this.up);
-            const text=this.rare?t('upgrade.rare',{from:c0,to:c1}):(c0!==c1?t('upgrade.normal',{from:c0,to:c1})+'　':'')+cardDesc(this.up);
-            const lines=wrapText(ctx,text,Math.min(560,w-60));
-            for (let i=0;i<lines.length;i++) {
-                ctx.fillText(lines[i],cx,ty+32*s+i*22*s);
-            }
+            const ty=cy+CARD_H*s*cs*0.62+10;
+            let most=0;
+            this.items.forEach((it,j)=>{
+                const x=this.itemX(j);
+                ctx.strokeStyle=it.rare?rgba('red',0.35+0.3*glow):rgba('ink',0.25+0.25*glow);
+                ctx.lineWidth=3;
+                ctx.beginPath();
+                ctx.arc(x,cy,CARD_H*s*cs*0.72+glow*6,0,Math.PI*2);
+                ctx.stroke();
+                this.drawCard(ctx,art,it.up,x,cy,s*cs*(0.7+0.3*e)*1.12,0,v,Math.min(1,r*2));
+                ctx.save();
+                ctx.globalAlpha*=ia;
+                ctx.textAlign='center';
+                ctx.textBaseline='top';
+                ctx.fillStyle=PALETTE.ink;
+                ctx.font='bold '+Math.round(20*s)+'px '+FONT;
+                ctx.fillText(t(it.base.def.nameKey)+'  →  '+cardName(it.up),x,ty,colW);
+                ctx.font=Math.round(15*s)+'px '+FONT;
+                ctx.fillStyle=PALETTE.nearGray;
+                const c0=cardCost(it.base);
+                const c1=cardCost(it.up);
+                const text=it.rare?t('upgrade.rare',{from:c0,to:c1}):(c0!==c1?t('upgrade.normal',{from:c0,to:c1})+'　':'')+cardDesc(it.up);
+                const lines=wrapText(ctx,text,colW);
+                for (let i=0;i<lines.length;i++) {
+                    ctx.fillText(lines[i],x,ty+32*s+i*22*s);
+                }
+                most=Math.max(most,lines.length);
+                ctx.restore();
+            });
             if (k>=U.merge+U.reveal) {
+                ctx.save();
+                ctx.globalAlpha*=ia;
+                ctx.textAlign='center';
+                ctx.textBaseline='top';
                 ctx.fillStyle=rgba('ink',0.5+0.4*Math.sin(time.real*5));
                 ctx.font='bold '+Math.round(14*s)+'px '+FONT;
-                ctx.fillText(t('upgrade.continue'),cx,ty+32*s+lines.length*22*s+18);
+                ctx.fillText(t('upgrade.continue'),cx,ty+32*s+most*22*s+18);
+                ctx.restore();
             }
-            ctx.restore();
         }
         for (const p of this.sparks) {
             const f=p.t/p.life;

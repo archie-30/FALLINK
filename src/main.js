@@ -45,6 +45,7 @@ import {DEFAULT_SKIN} from './data/skins.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
 import {audio} from './core/audio.js';
+import {music} from './core/music.js';
 import {ENDLESS,MENU_SCENE} from './data/levels.js';
 import {renderFlags} from './render/materials.js';
 import {Transition} from './ui2d/transition.js';
@@ -931,7 +932,7 @@ function boot() {
         cardFx:(kind,id,done)=>{
             fx.paused=true;
             hand.cancelTargeting();
-            art.warm([createCard(id),createCard(id,true)]);
+            art.warm([].concat(id).flatMap(q=>[createCard(q),createCard(q,true)]));
             audio.play(kind==='remove'?'erase':(kind==='downgrade'?'fail':'clear'),kind==='gain'?1.2:0.9);
             upgradeView.play(kind,id,done);
         },
@@ -1232,7 +1233,7 @@ function boot() {
         }
         saveSettings();
         applyQuality();
-        audio.setVolume(settings.volume);
+        audio.applyVolumes();
         overlay.showDebug=settings.showFps;
         input.resize(input.width,input.height);
     }
@@ -2039,8 +2040,23 @@ function boot() {
             overlay.hud.toast(t('perf.lowered'));
         }
     }
+    function musicTrack() {
+        const p=run.plan;
+        if (game.mode!=='play'||summary.open||!p) {
+            return 'menu';
+        }
+        if (run.mode==='training'&&!p.trainGame) {
+            return 'training';
+        }
+        if (!p.peace||run.state==='combat') {
+            return p.boss?'boss':'battle';
+        }
+        return p.game?'game':'peace';
+    }
     function render(dt,alpha) {
         setTouchText(input.lastDevice==='touch');
+        music.update(musicTrack());
+        music.setDuck(pauseMenu.open||settingsMenu.open||codex.open);
         fx.update(dt);
         tweens.update(dt*time.timeScale,dt);
         setBoilSeed(time.boilIndex);

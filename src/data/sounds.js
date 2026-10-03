@@ -3,7 +3,8 @@ export const AUDIO={
     reverbTime:1.4,
     reverbDecay:3.2,
     compThreshold:-14,
-    compRatio:4
+    compRatio:4,
+    volumeTime:0.04
 };
 
 export const SOUNDS={
