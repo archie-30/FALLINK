@@ -201,6 +201,7 @@ export class Enemy {
         this.speedFrac=0;
         this.tele=null;
         this.stunT=0;
+        this.lockT=0;
         this.vulnT=0;
         this.vulnMult=1;
         this.slowT=0;
@@ -228,8 +229,12 @@ export class Enemy {
         }
     }
 
-    stun(t) {
-        this.stunT=Math.max(this.stunT,this.def.boss?t*0.3:t);
+    stun(t,full) {
+        const k=this.def.boss?(full?TUNING.bossTempo:0.3):1;
+        this.stunT=Math.max(this.stunT,t*k);
+        if (full) {
+            this.lockT=Math.max(this.lockT,t*k);
+        }
         this.tele=null;
         this.sqv+=2;
     }
@@ -298,9 +303,15 @@ export class Enemy {
         }
         else if (this.stunT>0) {
             this.stunT-=dt;
+            this.lockT=Math.max(0,this.lockT-dt);
             this.manual=true;
             this.tele=null;
-            this.vel.multiplyScalar(Math.exp(-10*dt));
+            if (this.lockT>0) {
+                this.vel.set(0,0,0);
+            }
+            else {
+                this.vel.multiplyScalar(Math.exp(-10*dt));
+            }
             if (this.stunT<=0&&this.state!=='move') {
                 this.setState('move');
             }

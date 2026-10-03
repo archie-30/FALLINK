@@ -2,8 +2,12 @@ import {PALETTE,rgba} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
+import {EASE} from '../core/easing.js';
 import {sketchRect,drawShape} from './sketch.js';
 import {drawChoiceIcon,CHOICE_ICONS} from './menu.js';
+import {NOTEBOOK} from '../data/notebook.js';
+
+const SHOP=NOTEBOOK.shop;
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -60,8 +64,52 @@ export class WorldMarks {
         this.prompt={x:x-W.touchPad,y:y-W.touchPad,w:bw+W.touchPad*2,h:bh+W.touchPad*2};
     }
 
-    draw(ctx,game,touch,h) {
+    drawSpeech(ctx,p,q,v) {
+        const W=TUNING.worldMarks;
+        const k=Math.min(1,q.t/0.25,(q.dur-q.t)/0.3);
+        const e=EASE.easeOutBack(Math.min(1,q.t/0.3));
+        ctx.save();
+        ctx.globalAlpha*=Math.max(0,k);
+        ctx.font='bold '+W.sayFont+'px '+FONT;
+        const bw=ctx.measureText(q.text).width+28;
+        const bh=W.sayFont+20;
+        const m=W.sayMargin;
+        const cx=Math.max(bw/2+W.sayLeft,Math.min((this.sw||p.x*2)-bw/2-m,p.x));
+        const cy=Math.max(bh/2+W.sayTop,Math.min((this.sh||p.y*2)-bh-m,p.y-W.sayLift));
+        const tail=Math.abs(cx-p.x)<bw/2&&Math.abs(cy-(p.y-W.sayLift))<1;
+        ctx.translate(cx,cy);
+        ctx.scale(e,e);
+        ctx.fillStyle=rgba('paper',0.97);
+        if (tail) {
+            ctx.beginPath();
+            ctx.moveTo(-8,bh/2-2);
+            ctx.lineTo(0,bh/2+12);
+            ctx.lineTo(8,bh/2-2);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.fillRect(-bw/2,-bh/2,bw,bh);
+        drawShape(ctx,sketchRect(-bw/2,-bh/2,bw,bh,{width:2,seed:2380}),PALETTE.ink,v);
+        if (tail) {
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=2;
+            ctx.beginPath();
+            ctx.moveTo(-8,bh/2);
+            ctx.lineTo(0,bh/2+12);
+            ctx.lineTo(8,bh/2);
+            ctx.stroke();
+        }
+        ctx.fillStyle=PALETTE.ink;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(q.text,0,1);
+        ctx.restore();
+    }
+
+    draw(ctx,game,touch,h,w) {
         this.prompt=null;
+        this.sw=w;
+        this.sh=h;
         const W=TUNING.worldMarks;
         const v=time.boilIndex;
         const p=this.p;
@@ -116,6 +164,12 @@ export class WorldMarks {
             this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t(mp.key),v,2360);
         }
         const npcs=game.npcs;
+        for (const n of npcs.list) {
+            if (n.say) {
+                game.project(n.x,n.h+W.npcLift,n.z,p);
+                this.drawSpeech(ctx,p,n.say,v);
+            }
+        }
         for (let i=0;i<npcs.list.length;i++) {
             const n=npcs.list[i];
             if (n.used||!game.run.canInteract(i)) {
@@ -123,7 +177,23 @@ export class WorldMarks {
             }
             game.project(n.x,n.h+W.npcLift,n.z,p);
             if (npcs.focus===i&&doors.focus<0) {
-                this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t('npc.'+n.model),v,2320+i);
+                const sub=n.item?t('shop.'+n.item+'.desc',{price:n.price,n:SHOP.items[n.item].n||0}):null;
+                this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+(n.label||t('npc.'+n.model)),v,2320+i,sub);
+            }
+            else if (n.item) {
+                const poor=game.run.stats.score<n.price;
+                const y=p.y-W.bangH+Math.sin(time.real*W.bobRate+i)*W.bob;
+                const label=t('shop.price',{n:n.price});
+                ctx.font='bold 14px '+FONT;
+                const tw=ctx.measureText(label).width+16;
+                ctx.fillStyle=rgba('paper',0.95);
+                ctx.fillRect(p.x-tw/2,y-11,tw,22);
+                drawShape(ctx,sketchRect(p.x-tw/2,y-11,tw,22,{width:1.4,seed:2390+i}),poor?PALETTE.red:PALETTE.ink,v);
+                ctx.fillStyle=poor?PALETTE.red:PALETTE.ink;
+                ctx.fillText(label,p.x,y+1);
+                ctx.font='12px '+FONT;
+                ctx.fillStyle=PALETTE.nearGray;
+                ctx.fillText(n.label,p.x,y-22);
             }
             else {
                 const y=p.y-W.bangH+Math.abs(Math.sin(time.real*W.bobRate*0.8+i))*-W.bob*2;

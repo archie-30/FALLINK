@@ -487,7 +487,7 @@ export const CARDS={
         targeting:'none',
         params:{ink:2},
         upgraded:{cost:2,params:{ink:2}},
-        effect:(g)=>g.echo()
+        effect:(g,t)=>g.echo(t)
     },
     inkStorm:{
         id:'inkStorm',

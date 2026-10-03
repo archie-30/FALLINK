@@ -214,6 +214,54 @@ const MODELS={
         eyes(body,1.42,0.33,0.13,0.06);
         return {r:0.7,h:2.0};
     },
+    item(body,root,s) {
+        root.add(cyl(0.55,0.62,0.7,'cover',0,0.35,0,10));
+        root.add(cyl(0.62,0.62,0.06,'dark',0,0.72,0,10));
+        const k=s.item;
+        const y=0.75;
+        if (k==='buy'||k==='rare') {
+            for (let i=0;i<3;i++) {
+                const c=bx(0.42,0.04,0.58,i===2&&k==='rare'?'accent':'light',0.04*i,y+0.03+i*0.05,-0.02*i);
+                c.rotation.y=0.25*i-0.25;
+                body.add(c);
+            }
+            if (k==='rare') {
+                body.add(ball(0.1,'accent',0,y+0.3,0));
+            }
+        }
+        else if (k==='upgrade'||k==='upgrade2') {
+            body.add(bx(0.42,0.04,0.58,'light',0,y+0.03,0));
+            const n=k==='upgrade'?1:2;
+            for (let i=0;i<n;i++) {
+                const st=cyl(0.16,0.16,0.06,'accent',(i-(n-1)/2)*0.32,y+0.4,0,5);
+                st.rotation.x=Math.PI/2;
+                body.add(st);
+            }
+        }
+        else if (k==='patch'||k==='bigPatch') {
+            const sc=k==='patch'?1:1.4;
+            body.add(bx(0.5*sc,0.12*sc,0.32*sc,'light',0,y+0.08*sc,0));
+            body.add(bx(0.12*sc,0.13*sc,0.24*sc,'accent',0,y+0.09*sc,0));
+            body.add(bx(0.3*sc,0.13*sc,0.08*sc,'accent',0,y+0.09*sc,0));
+        }
+        else if (k==='remove') {
+            body.add(cyl(0.2,0.2,0.16,'light',0,y+0.25,0,14).rotateX(Math.PI/2));
+            body.add(bx(0.36,0.2,0.18,'cover',0.12,y+0.12,0));
+            body.add(bx(0.4,0.03,0.12,'light',0.32,y+0.03,0));
+        }
+        else if (k==='ink') {
+            body.add(cyl(0.2,0.24,0.34,'ink',0,y+0.17,0));
+            body.add(cyl(0.1,0.12,0.12,'ink',0,y+0.4,0));
+        }
+        else {
+            for (const sx of [-1,1]) {
+                const p=cyl(0.04,0.04,0.7,sx<0?'dark':'accent',0,y+0.3,0,6);
+                p.rotation.z=sx*0.7;
+                body.add(p);
+            }
+        }
+        return {r:0.65,h:1.3,still:true};
+    },
     chest(body) {
         body.add(bx(1.2,0.65,0.85,'cover',0,0.33,0));
         body.add(bx(1.24,0.1,0.89,'dark',0,0.62,0));
@@ -245,10 +293,18 @@ export class Npcs {
             root.position.set(s.x,0,s.z);
             const body=new THREE.Group();
             root.add(body);
-            const info=MODELS[s.model](body,root);
+            const info=MODELS[s.model](body,root,s);
             room.group.add(root);
             room.addPiece('npc',root,[makeCircle(s.x,s.z,info.r)],{x:s.x,z:s.z,radius:info.r,erasable:false});
-            this.list.push({model:s.model,root,body,x:s.x,z:s.z,r:info.r,h:info.h,lid:info.lid||null,float:!!info.float,still:!!info.still,used:false,sealed:false,t:Math.random()*6,yaw:0,pop:0,open:0});
+            this.list.push({model:s.model,item:s.item||null,label:s.label||null,price:s.price||0,root,body,x:s.x,z:s.z,r:info.r,h:info.h,lid:info.lid||null,float:!!info.float,still:!!info.still,used:false,sealed:false,t:Math.random()*6,yaw:0,pop:0,open:0});
+        }
+    }
+
+    say(i,text,dur) {
+        const n=this.list[i];
+        if (n) {
+            n.say={text,t:0,dur};
+            n.pop=1;
         }
     }
 
@@ -279,6 +335,12 @@ export class Npcs {
             n.yaw+=dy*Math.min(1,dt*N.turn);
             n.body.rotation.y=n.yaw;
             n.pop=Math.max(0,n.pop-dt*N.popDecay);
+            if (n.say) {
+                n.say.t+=dt;
+                if (n.say.t>=n.say.dur) {
+                    n.say=null;
+                }
+            }
             const bob=n.float?N.floatAmp*(1+Math.sin(n.t*N.floatRate))+N.floatBase:Math.abs(Math.sin(n.t*N.bobRate))*N.bobAmp;
             n.body.position.y=n.sealed||still?0:bob;
             const sq=1+(still?0:Math.sin(n.t*N.bobRate*2)*N.squash)+Math.sin(n.pop*Math.PI)*N.popScale;

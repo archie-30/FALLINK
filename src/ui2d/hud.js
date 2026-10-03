@@ -792,7 +792,7 @@ export class Hud {
         }
         drawShape(ctx,sketchPath(BOTTLE_PTS.concat([BOTTLE_PTS[0]]),{width:2.2,seed:620,overshoot:1}),PALETTE.ink);
         drawShape(ctx,sketchRect(11,-22,BOTTLE_W-22,9,{width:1.8,seed:621,overshoot:1}),PALETTE.ink);
-        ctx.fillStyle=PALETTE.ink;
+        ctx.fillStyle=ink.value>ink.max?PALETTE.red:PALETTE.ink;
         ctx.font='bold 26px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='alphabetic';
