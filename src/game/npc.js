@@ -154,13 +154,55 @@ const MODELS={
         eyes(body,1.75,0.02,0.18,0.07);
         return {r:0.7,h:2.1};
     },
-    bell(body) {
-        body.add(cyl(0.45,0.5,0.12,'dark',0,0.06,0,12));
-        const dome=mesh(geo('dome',()=>new THREE.SphereGeometry(0.38,12,8,0,Math.PI*2,0,Math.PI/2)),'light',0,0.12,0);
-        body.add(dome);
-        body.add(cyl(0.06,0.06,0.12,'accent',0,0.55,0,6));
-        body.add(ball(0.08,'accent',0,0.63,0));
-        return {r:0.55,h:0.9,still:true};
+    flag(body) {
+        body.add(cyl(0.06,0.06,2.0,'dark',0,1.0,0,6));
+        body.add(cyl(0.35,0.4,0.12,'dark',0,0.06,0,10));
+        body.add(bx(0.8,0.5,0.05,'accent',0.42,1.7,0));
+        body.add(ball(0.32,'light',0,0.9,0.05));
+        eyes(body,0.95,0.32,0.11,0.06);
+        return {r:0.6,h:2.2};
+    },
+    dice(body) {
+        body.add(bx(1.0,1.0,1.0,'light',0,0.55,0));
+        for (const [x,y] of [[-0.25,0.8],[0.25,0.3],[0,0.55]]) {
+            body.add(ball(0.08,'ink',x,y,0.5));
+        }
+        body.add(ball(0.08,'accent',0,1.06,0));
+        eyes(body,0.8,0.52,0.2,0.05,'accent');
+        return {r:0.75,h:1.4};
+    },
+    plane(body) {
+        const wing=cyl(0.01,0.7,1.6,'light',0,1.1,0,3);
+        wing.rotation.x=Math.PI/2;
+        wing.scale.set(1,1,0.3);
+        body.add(wing);
+        body.add(cyl(0.05,0.05,0.9,'dark',0,0.45,0,6));
+        eyes(body,1.15,0.35,0.15,0.06);
+        return {r:0.7,h:1.6,float:true};
+    },
+    metronome(body) {
+        body.add(cyl(0.2,0.6,1.5,'cover',0,0.75,0,4));
+        const arm=bx(0.06,1.2,0.06,'ink',0,1.1,0.3);
+        arm.rotation.z=0.3;
+        body.add(arm);
+        body.add(bx(0.18,0.14,0.1,'accent',0.16,1.45,0.3));
+        eyes(body,0.6,0.42,0.16,0.06);
+        return {r:0.7,h:1.8};
+    },
+    marble(body) {
+        body.add(ball(0.55,'accent',0,0.6,0));
+        body.add(bx(1.12,0.1,0.1,'light',0,0.6,0));
+        eyes(body,0.8,0.48,0.17,0.07,'light');
+        return {r:0.6,h:1.3};
+    },
+    ruler(body) {
+        const r=bx(0.5,2.0,0.12,'light',0,1.0,0);
+        body.add(r);
+        for (let i=0;i<7;i++) {
+            body.add(bx(i%2?0.12:0.22,0.03,0.04,'ink',-0.16,0.25+i*0.25,0.07));
+        }
+        eyes(body,1.55,0.08,0.12,0.06);
+        return {r:0.6,h:2.2};
     },
     range(body) {
         body.add(bx(0.12,1.6,0.12,'dark',0,0.8,0));
@@ -205,15 +247,7 @@ export class Npcs {
             const info=MODELS[s.model](body,root);
             room.group.add(root);
             room.addPiece('npc',root,[makeCircle(s.x,s.z,info.r)],{x:s.x,z:s.z,radius:info.r,erasable:false});
-            this.list.push({model:s.model,root,body,x:s.x,z:s.z,r:info.r,h:info.h,lid:info.lid||null,float:!!info.float,still:!!info.still,used:false,sealed:false,t:Math.random()*6,yaw:0,pop:0,open:0,lit:0});
-        }
-    }
-
-    flash(i) {
-        const n=this.list[i];
-        if (n) {
-            n.pop=1;
-            n.lit=1;
+            this.list.push({model:s.model,root,body,x:s.x,z:s.z,r:info.r,h:info.h,lid:info.lid||null,float:!!info.float,still:!!info.still,used:false,sealed:false,t:Math.random()*6,yaw:0,pop:0,open:0});
         }
     }
 
@@ -244,7 +278,6 @@ export class Npcs {
             n.yaw+=dy*Math.min(1,dt*N.turn);
             n.body.rotation.y=n.yaw;
             n.pop=Math.max(0,n.pop-dt*N.popDecay);
-            n.lit=Math.max(0,n.lit-dt*N.litDecay);
             const bob=n.float?N.floatAmp*(1+Math.sin(n.t*N.floatRate))+N.floatBase:Math.abs(Math.sin(n.t*N.bobRate))*N.bobAmp;
             n.body.position.y=n.sealed||still?0:bob;
             const sq=1+(still?0:Math.sin(n.t*N.bobRate*2)*N.squash)+Math.sin(n.pop*Math.PI)*N.popScale;

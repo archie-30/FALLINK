@@ -2,7 +2,7 @@ import*as THREE from 'three';
 import {PALETTE} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {TOON_VERT,TOON_FRAG,HULL_VERT,HULL_FRAG,UNLIT_VERT,UNLIT_FRAG,SHADOW_VERT,SHADOW_FRAG} from './shaders/toon.js';
-import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG} from './shaders/fx.js';
+import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,STAMP_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG} from './shaders/fx.js';
 
 const colorCache={};
 
@@ -331,6 +331,21 @@ export function decalMaterial(atlas) {
         polygonOffset:true,
         polygonOffsetFactor:-3,
         polygonOffsetUnits:-3
+    });
+}
+
+export function stampMaterial(tex,color) {
+    return new THREE.ShaderMaterial({
+        vertexShader:DECAL_VERT,
+        fragmentShader:STAMP_FRAG,
+        uniforms:{
+            tStamp:{value:tex},
+            uFar:shared.uFar,
+            uColor:{value:pal(color).clone()}
+        },
+        polygonOffset:true,
+        polygonOffsetFactor:-4,
+        polygonOffsetUnits:-4
     });
 }
 

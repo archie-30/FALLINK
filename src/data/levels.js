@@ -116,9 +116,29 @@ export const PEACE_VARY={
     npcJitter:0.6,
     npcClear:3.4,
     spawnClear:3,
-    bellClear:2.2,
     mirror:0.5
 };
+
+const EVENT_ROOMS=[
+    peace([
+        {type:'pillar',x:-8,z:-4,r:0.6,h:2.4},
+        {type:'pillar',x:8,z:-4,r:0.6,h:2.4},
+        {type:'crumple',x:-5,z:4,r:0.7},
+        {type:'shavings',x:5,z:3.5,count:8}
+    ],[[0,-1.5]]),
+    peace([
+        {type:'wall',x:-7,z:0,w:3,h:1,d:0.7,rot:0.5},
+        {type:'wall',x:7,z:0,w:3,h:1,d:0.7,rot:-0.5},
+        {type:'notes',x:-8,z:4,s:1.2,count:4,rot:-0.3},
+        {type:'clip',x:7,z:4.5,r:0.4,len:2,rot:0.6}
+    ],[[0,-2]]),
+    peace([
+        {type:'box',x:-9,z:-5,w:1.6,h:2.2,d:1.6,rot:0.2},
+        {type:'box',x:9,z:-5,w:1.6,h:2.2,d:1.6,rot:-0.2},
+        {type:'books',x:-5,z:3,w:1.4,d:2,rot:-0.2,count:5},
+        {type:'books',x:6,z:3,w:1.4,d:2,rot:0.4,count:3}
+    ],[[0,-1]])
+];
 
 export const PEACE_LAYOUTS={
     shop:[
@@ -139,26 +159,8 @@ export const PEACE_LAYOUTS={
             {type:'shavings',x:3,z:-5.5,count:7}
         ],[[0,-0.5]])
     ],
-    event:[
-        peace([
-            {type:'pillar',x:-8,z:-4,r:0.6,h:2.4},
-            {type:'pillar',x:8,z:-4,r:0.6,h:2.4},
-            {type:'crumple',x:-5,z:4,r:0.7},
-            {type:'shavings',x:5,z:3.5,count:8}
-        ],[[0,-1.5]]),
-        peace([
-            {type:'wall',x:-7,z:0,w:3,h:1,d:0.7,rot:0.5},
-            {type:'wall',x:7,z:0,w:3,h:1,d:0.7,rot:-0.5},
-            {type:'notes',x:-8,z:4,s:1.2,count:4,rot:-0.3},
-            {type:'clip',x:7,z:4.5,r:0.4,len:2,rot:0.6}
-        ],[[0,-2]]),
-        peace([
-            {type:'box',x:-9,z:-5,w:1.6,h:2.2,d:1.6,rot:0.2},
-            {type:'box',x:9,z:-5,w:1.6,h:2.2,d:1.6,rot:-0.2},
-            {type:'books',x:-5,z:3,w:1.4,d:2,rot:-0.2,count:5},
-            {type:'books',x:6,z:3,w:1.4,d:2,rot:0.4,count:3}
-        ],[[0,-1]])
-    ],
+    event:EVENT_ROOMS,
+    encounter:EVENT_ROOMS,
     rest:[
         peace([
             {type:'sheet',x:-6,z:1,w:3,d:3.6,rot:0.3},

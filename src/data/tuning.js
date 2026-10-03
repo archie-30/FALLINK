@@ -278,11 +278,12 @@ export const TUNING={
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
     pauseUi:{compactH:700,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
     doors:{width:2.4,height:1.9,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
-    npc:{bellPitch:[0.8,1,1.2,1.45],litDecay:1.4,range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
+    minigame:{endDelay:0.9},
+    npc:{bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
     worldMarks:{subH:22,subMaxW:340,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
     hand:{showTime:0.55,hideOffset:260},
-    choiceUi:{maxW:960,gap:18,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
+    choiceUi:{maxW:960,gap:18,cardMaxW:380,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:70},
     settingsUi:{
         twoColMin:600,
@@ -366,6 +367,9 @@ export const TUNING={
     },
     weaponUi:{
         valueW:84,
+        randH:52,
+        randHSmall:34,
+        randStep:0.45,
         equip:{time:0.9,jolt:0.25,joltScale:0.08,shake:0.05,spinTime:0.6,spins:1,lift:0.18,grow:0.35,drops:12,dropTime:0.45,stampDelay:0.35,stampTime:0.3,stampFrom:2.6}
     },
     trainUi:{
@@ -379,7 +383,7 @@ export const TUNING={
         pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
         brush:{color:'ink',capacity:80,radius:0.3,size:0.3,trailWidth:0.42,drag:2.6,hidden:true},
         staple:{color:'midGray',capacity:64,radius:0.13,size:0.17,trailWidth:0.06},
-        compass:{color:'nearGray',capacity:16,radius:0.6,size:0.8,trailWidth:0.06,pierce:true,boomerang:true,model:'compass',spin:18,returnAccel:0,turnRate:12}
+        compass:{color:'nearGray',capacity:16,radius:0.6,wallR:0.3,size:0.8,trailWidth:0.06,pierce:true,boomerang:true,model:'compass',spin:18,returnAccel:0,turnRate:12}
     },
     brushStroke:{count:10,height:1.0,fade:0.3,muzzle:0,thickMin:0.3,thickGrow:0.1,arc:1.0,lead:0.35,bow:0.05},
     beam:{height:1.1,fadeIn:30,fadeOut:14,pulse:40,pulseAmp:0.08,step:0.25,mergeTime:0.35,sparks:2},
@@ -513,7 +517,9 @@ export const TUNING={
         facing:{dist:0.75,len:0.32,half:0.2,alpha:0.85,guideFrom:1.1,guideLen:4.5,guideAlpha:0.28,dash:7,gap:7},
         toastY:72,
         toastBannerY:196,
-        result:{y:0.3,time:4.2,perLine:0.5,lineH:24,maxW:460,fade:0.35},
+        result:{y:0.3,time:4.2,perLine:0.5,lineH:28,maxW:560,fade:0.35,titleSize:22,lineSize:18,halo:5},
+        progress:{y:30,segW:170,minSeg:70,side:250,gap:24,dotR:5,bossR:7.5,curR:8,anim:0.8,hop:12,pulse:0.12,pulseRate:4,actSize:12,actY:14,tagSize:13,tagY:18,below:58},
+        score:{right:78,y:12,labelSize:12,size:30,pop:0.35,popDecay:2.5,rate:8},
         timer:{offset:42,cloneOffset:14,width:76,height:5},
         timerSkip:['clone'],
         enemyHp:{minTicks:4,maxTicks:12,hpPerTick:8,radius:30,radiusScale:20,span:0.5,offset:26,follow:0.08,tickW:3.5,tickH:10},

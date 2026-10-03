@@ -63,9 +63,6 @@ export class Player {
         this.burstT=0;
         this.beamT=0;
         this.coolT=0;
-        this.shotSeq=0;
-        this.pending=[];
-        this.resolved=[];
         this.equipAt=-9;
         this.ammo=this.W.magazine;
         this.cdT=0;
@@ -469,57 +466,12 @@ export class Player {
         this.reloadT=0;
         this.burstLeft=0;
         this.beamT=0;
-        this.pending.length=0;
-        this.resolved.length=0;
         this.equipAt=time.real;
         if (this.weaponLook) {
             this.weaponLook(this.weaponId);
         }
         if (this.events&&this.events.onEquip) {
             this.events.onEquip(this);
-        }
-    }
-
-    shotHit(tag) {
-        for (const p of this.pending) {
-            if (p.id===tag) {
-                p.hits++;
-                return;
-            }
-        }
-    }
-
-    updateRefund(dt) {
-        const F=this.W.refund;
-        if (!F) {
-            return;
-        }
-        for (let i=this.pending.length-1;i>=0;i--) {
-            const p=this.pending[i];
-            p.t-=dt;
-            if (p.t>0) {
-                continue;
-            }
-            this.pending.splice(i,1);
-            this.resolved.push(p.hits);
-            if (this.resolved.length<F.shots) {
-                continue;
-            }
-            const sum=this.resolved.reduce((a,b)=>a+b,0);
-            this.resolved.length=0;
-            if (sum>F.maxHits) {
-                continue;
-            }
-            if (this.reloadT>0) {
-                this.reloadT=0;
-                this.ammo=1;
-            }
-            else {
-                this.ammo=Math.min(this.W.magazine,this.ammo+1);
-            }
-            if (this.events.onRefund) {
-                this.events.onRefund(this);
-            }
         }
     }
 
@@ -655,19 +607,12 @@ export class Player {
             const sys=ctx.weaponSys[W.sys]||ctx.playerBullets;
             const n=W.pellets||1;
             const lanes=this.dualT>0?[-W.dualOffset,W.dualOffset]:[0];
-            const tag=W.refund?++this.shotSeq:0;
-            if (tag) {
-                this.pending.push({id:tag,hits:0,t:W.bulletLife+0.08});
-            }
             for (let p=0;p<n;p++) {
                 const a=base+(n>1?(p/(n-1)-0.5)*W.fan:0)+(Math.random()*2-1)*W.spread;
                 const cx=Math.cos(a);
                 const cz=Math.sin(a);
                 for (const o of lanes) {
-                    const bi=sys.spawn(mx-cz*o,mz+cx*o,cx,cz,W.bulletSpeed,W.damage,W.bulletLife);
-                    if (bi>=0) {
-                        sys.tag[bi]=tag;
-                    }
+                    sys.spawn(mx-cz*o,mz+cx*o,cx,cz,W.bulletSpeed,W.damage,W.bulletLife);
                 }
             }
         }
@@ -805,7 +750,6 @@ export class Player {
             this.startReload();
         }
         this.updateHeat(dt,input.isFiring()&&this.reloadT<=0&&this.ammo>0);
-        this.updateRefund(dt);
         this.rapidT=Math.max(0,this.rapidT-dt);
         this.dualT=Math.max(0,this.dualT-dt);
         this.reflectT=Math.max(0,this.reflectT-dt);
