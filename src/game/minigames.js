@@ -1508,6 +1508,14 @@ const GAMES={
             g.ball(0.09,'light',-0.16,1.4,0.42,g.ghost);
             g.ball(0.09,'light',0.16,1.4,0.42,g.ghost);
             g.ghost.visible=false;
+            g.trail=[];
+            for (let i=0;i<P.trail;i++) {
+                const m=g.disc(P.trailR,'accent',0,0,0.05);
+                m.visible=false;
+                g.trail.push({m,t:9});
+            }
+            g.ti=0;
+            g.tdist=0;
         },
         begin(g) {
             const P=g.P;
@@ -1533,6 +1541,14 @@ const GAMES={
             g.sound('bell',TUNING.npc.bellPitch[i%TUNING.npc.bellPitch.length]);
         },
         idle(g,dt) {
+            for (const q of g.trail) {
+                if (q.t<g.P.trailLife) {
+                    q.t+=dt;
+                    const k=1-q.t/g.P.trailLife;
+                    q.m.visible=k>0;
+                    q.m.scale.set(Math.max(0.01,k),1,Math.max(0.01,k));
+                }
+            }
             for (const m of g.marks) {
                 if (m.lit>0) {
                     m.lit=Math.max(0,m.lit-dt*2);
@@ -1578,8 +1594,16 @@ const GAMES={
                 else {
                     g.gx+=dx/d*st;
                     g.gz+=dz/d*st;
+                    g.tdist+=st;
+                    if (g.tdist>=P.trailGap) {
+                        g.tdist=0;
+                        const q=g.trail[g.ti++%g.trail.length];
+                        q.t=0;
+                        q.m.position.set(g.gx+(Math.random()-0.5)*0.15,0.05,g.gz+(Math.random()-0.5)*0.15);
+                        q.m.visible=true;
+                    }
                     if (Math.random()<dt*14) {
-                        g.burst(g.gx,g.gz,'nearGray',1,0.2);
+                        g.burst(g.gx,g.gz,'red',1,0.2);
                     }
                 }
                 g.ghost.position.set(g.gx,Math.abs(Math.sin(g.t*10))*0.15,g.gz);
@@ -1930,7 +1954,7 @@ export class MiniGames {
             return null;
         }
         if (g.ended) {
-            return {key:g.ok?'mg.win':'mg.lose'};
+            return null;
         }
         const q=GAMES[g.id].info(g);
         const params={...(q.params||{})};

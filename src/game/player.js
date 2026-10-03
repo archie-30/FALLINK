@@ -537,7 +537,7 @@ export class Player {
         this.vel.z+=dz*P.hurtKnockback;
         this.sqv+=TUNING.feel.hurtSquash;
         if (this.events.onHurt) {
-            this.events.onHurt(this,dx,dz);
+            this.events.onHurt(this,dx,dz,dmg);
         }
         if (this.hp<=0&&this.events.onDown) {
             this.events.onDown(this);
@@ -610,7 +610,12 @@ export class Player {
         const base=this.fireAngle(mx,mz);
         let dx;
         let dz;
-        if (W.beam) {
+        if (W.swing) {
+            if (ctx.onBrush) {
+                ctx.onBrush(mx,mz,base,W.fan);
+            }
+        }
+        else if (W.beam) {
             this.beamT=W.fireInterval*1.8;
             if (ctx.onBeam) {
                 ctx.onBeam(mx,mz,Math.cos(base),Math.sin(base),W);
@@ -627,20 +632,6 @@ export class Player {
                 for (const o of lanes) {
                     sys.spawn(mx-cz*o,mz+cx*o,cx,cz,W.bulletSpeed,W.damage,W.bulletLife);
                 }
-            }
-        }
-        if (W.erase) {
-            const E=W.erase;
-            const px=this.pos.x;
-            const pz=this.pos.z;
-            ctx.enemyBullets.killWhere((x,z)=>{
-                const ex=x-px;
-                const ez=z-pz;
-                const l=Math.hypot(ex,ez);
-                return l<E.radius&&(ex*Math.cos(base)+ez*Math.sin(base))/(l||1)>Math.cos(E.cone);
-            },(x,z)=>ctx.particles.burst(x,1,z,2,{color:'farGray',speed:[1,3],up:[1,2]}));
-            if (ctx.onBrush) {
-                ctx.onBrush(mx,mz,base,W.fan,E.radius);
             }
         }
         dx=Math.cos(base);

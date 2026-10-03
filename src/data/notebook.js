@@ -26,6 +26,11 @@ export const NOTEBOOK={
     shop:{
         offer:3,
         cards:3,
+        shelfZ:2.8,shelfSideMin:2,shelfSideZ:1.4,shelfStart:3.2,
+        shelfMaxZ:2.4,
+        shelfGap:2.6,
+        shelfClampX:6.5,
+        shelfClear:2.2,
         items:{
             buy:{price:600},
             rare:{price:1100},

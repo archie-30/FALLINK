@@ -665,25 +665,7 @@ const EXTRAS={
         }
     },
     echo(ctx,w,h,k,cy,a) {
-        const last=a.last;
-        if (!last||!a.art) {
-            stamp(ctx,w/2,cy,'+'+(a.p.ink||''),h*0.1,seg(k,0.3,0.45),PALETTE.ink);
-            return;
-        }
-        const cs=Math.min(w,h)*0.3/164;
-        for (let j=2;j>=0;j--) {
-            const q=EASE.easeOutCubic(seg(k,0.15+j*0.08,0.5+j*0.08));
-            ctx.save();
-            ctx.globalAlpha*=j===0?1:0.35*(1-j*0.25);
-            ctx.translate(w/2-j*40*q,cy-j*10*q);
-            ctx.rotate(-0.1+j*0.08*q);
-            ctx.scale(cs,cs);
-            ctx.drawImage(a.art.face(last,time.boilIndex),-59,-82,118,164);
-            ctx.strokeStyle=j===0?PALETTE.red:PALETTE.ink;
-            ctx.lineWidth=5;
-            ctx.strokeRect(-61,-84,122,168);
-            ctx.restore();
-        }
+        stamp(ctx,w/2,cy,'+'+(a.p.ink||''),h*0.1,seg(k,0.3,0.45),PALETTE.ink);
     },
     inkStorm(ctx,w,h,k,cy,a) {
         const S=Math.min(w,h)*0.1;
@@ -781,6 +763,33 @@ function band(ctx,w,bh,tear,seed) {
     }
 }
 
+function fog(ctx,w,h,env,k) {
+    const U=TUNING.ultFx;
+    const d=Math.min(w,h)*U.fogSize;
+    const A=U.fogAlpha*env;
+    const sides=[[0,0,w,d,0,0,0,d],[0,h-d,w,d,0,h,0,h-d],[0,0,d,h,0,0,d,0],[w-d,0,d,h,w,0,w-d,0]];
+    for (const s of sides) {
+        const g=ctx.createLinearGradient(s[4],s[5],s[6],s[7]);
+        g.addColorStop(0,rgba('paper',A));
+        g.addColorStop(1,rgba('paper',0));
+        ctx.fillStyle=g;
+        ctx.fillRect(s[0],s[1],s[2],s[3]);
+    }
+    for (let i=0;i<U.fogPuffs;i++) {
+        const side=i%4;
+        const q=(hash1(i+1700)+k*(0.15+hash1(i+1720)*0.2))%1;
+        const r=d*(0.6+hash1(i+1710)*0.8);
+        const o=d*0.2*Math.sin(k*6+i);
+        const x=side<2?q*w:(side===2?o:w-o);
+        const y=side<2?(side===0?o:h-o):q*h;
+        const g=ctx.createRadialGradient(x,y,0,x,y,r);
+        g.addColorStop(0,rgba(i%3?'paper':'farGray',A*0.6));
+        g.addColorStop(1,rgba('paper',0));
+        ctx.fillStyle=g;
+        ctx.fillRect(x-r,y-r,r*2,r*2);
+    }
+}
+
 export class UltCutin {
     constructor() {
         this.active=null;
@@ -788,7 +797,9 @@ export class UltCutin {
 
     play(card,onFire=null,info={}) {
         const U=TUNING.ultFx;
-        this.active={p:info.params||{},last:info.last||null,card,id:card.def.id,name:t(card.def.nameKey)+(card.upgraded?'+':''),t:0,dur:settings.reducedMotion?U.calmTime:U.time,onFire,fired:false};
+        const src=info.echo||card;
+        const name=t(src.def.nameKey)+(src.upgraded?'+':'');
+        this.active={p:info.params||{},echo:!!info.echo,card:src,id:src.def.id,name:info.echo?t('ult.echoName',{name}):name,t:0,dur:settings.reducedMotion?U.calmTime:U.time,onFire,fired:false};
     }
 
     holding() {
@@ -854,6 +865,9 @@ export class UltCutin {
                 EXTRAS[a.id](ctx,w,h,k,cy,{...a,art});
             }
             ctx.globalAlpha=1;
+        }
+        if (a.echo) {
+            fog(ctx,w,h,env,k);
         }
         const hitK=seg(k,U.impact,U.impact+0.1);
         if (!calm&&hitK>0&&hitK<1) {

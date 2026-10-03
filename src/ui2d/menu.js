@@ -2033,7 +2033,6 @@ export class RunSummary {
         this.detail=false;
         this.detailT=0;
         this.dPage=0;
-        this.detailButton=null;
     }
 
     detailRows() {
@@ -2042,16 +2041,47 @@ export class RunSummary {
         return log.map((q,i)=>{
             const e=i+1<log.length?log[i+1].s:s;
             const name=q.node==='boss'?t('hud.bossPage'):q.node==='overtime'?t('summary.overtime'):q.node==='endless'?t('summary.endlessPage'):t('node.'+q.node);
-            const page=q.node==='overtime'||q.node==='endless'?t('summary.pageN',{n:i+1}):(q.node==='boss'?t('summary.actBoss',{act:q.act+1}):t('summary.actPage',{act:q.act+1,page:q.index+1}));
             const sub=q.game?t('event.'+q.game+'.title'):'';
-            return {page,name,sub,kills:e.kills-q.s.kills,damage:Math.round(e.damage-q.s.damage),cards:e.cards-q.s.cards,time:e.time-q.s.time,score:e.score-q.s.score};
+            const group=q.node==='overtime'?'overtime':q.node==='endless'?'endless':'act'+q.act;
+            const label=q.node==='overtime'?t('summary.overtime'):q.node==='endless'?t('summary.endlessPage'):t('summary.actN',{n:q.act+1});
+            const page=q.node==='overtime'||q.node==='endless'?i+1:q.index+1;
+            return {group,label,page:t('summary.pageN',{n:page}),name,sub,kills:e.kills-q.s.kills,cards:e.cards-q.s.cards,time:e.time-q.s.time,dealt:Math.round((e.dealt||0)-(q.s.dealt||0)),taken:Math.round((e.taken||0)-(q.s.taken||0)),score:e.score-q.s.score,total:e.score};
         });
+    }
+
+    detailItems() {
+        const out=[];
+        let last=null;
+        for (const r of this.detailRows()) {
+            if (r.group!==last) {
+                out.push({head:true,label:r.label});
+                last=r.group;
+            }
+            out.push(r);
+        }
+        return out;
+    }
+
+    drawerTop() {
+        const D=TUNING.summaryUi.drawer;
+        const h=this.height;
+        const peek=h<600?D.peekSmall:D.peek;
+        const full=h*D.frac;
+        return h-peek-(full-peek)*EASE.easeOutCubic(this.detailT);
+    }
+
+    drawerRect() {
+        const D=TUNING.summaryUi.drawer;
+        const pw=Math.min(D.maxW,this.width-24);
+        return {x:this.width/2-pw/2,w:pw};
     }
 
     down(x,y) {
         if (!this.open) {
             return false;
         }
+        const dr=this.drawerRect();
+        const top=this.drawerTop();
         if (this.detail) {
             for (const q of this.detailHits||[]) {
                 if (inRect(q,x,y)) {
@@ -2059,10 +2089,12 @@ export class RunSummary {
                     return true;
                 }
             }
-            this.detail=false;
+            if (y<top||x<dr.x||x>dr.x+dr.w) {
+                this.detail=false;
+            }
             return true;
         }
-        if (this.detailButton&&this.t>1.6&&inRect(this.detailButton,x,y)) {
+        if (this.t>1.6&&y>=top&&x>=dr.x&&x<=dr.x+dr.w) {
             this.detail=true;
             this.dPage=0;
             return true;
@@ -2093,7 +2125,7 @@ export class RunSummary {
         if (this.open) {
             this.t+=dt;
         }
-        this.detailT=Math.max(0,Math.min(1,this.detailT+(this.detail?dt:-dt)/0.25));
+        this.detailT=Math.max(0,Math.min(1,this.detailT+(this.detail?dt:-dt)/TUNING.summaryUi.drawer.time));
         this.closeK=Math.max(0,this.closeK-dt/TUNING.ui.closeTime);
     }
 
@@ -2406,7 +2438,7 @@ export class RunSummary {
             ['kills',s.kills],
             ['cards',s.cards],
             ['bosses',s.bosses],
-            ['damage',s.damage],
+            ['damage',s.taken??s.damage],
             ['time',mm+':'+(ss<10?'0':'')+ss]
         ];
         const cols=w<520?3:6;
@@ -2513,14 +2545,13 @@ export class RunSummary {
         }
         const bw=small?140:180;
         const bh=small?42:52;
-        const by=Math.min(h-bh-10,y+(small?2:8));
+        const D=U.drawer;
+        const by=Math.min(h-bh-(small?D.peekSmall:D.peek)-12,y+(small?2:8));
         const bg=14;
-        const x0=w/2-(bw*3+bg*2)/2;
-        this.detailButton={x:x0,y:by,w:bw,h:bh};
-        this.button={x:x0+bw+bg,y:by,w:bw,h:bh};
-        this.menuButton={x:x0+(bw+bg)*2,y:by,w:bw,h:bh};
+        const x0=w/2-(bw*2+bg)/2;
+        this.button={x:x0,y:by,w:bw,h:bh};
+        this.menuButton={x:x0+bw+bg,y:by,w:bw,h:bh};
         const ba=(T-1.3)/0.35;
-        drawButton(ctx,this.detailButton,t('summary.details'),v,ba+0.15,inRect(this.detailButton,this.hx??-1,this.hy??-1),small?16:19);
         drawButton(ctx,this.button,t('summary.restart'),v,ba,inRect(this.button,this.hx??-1,this.hy??-1),small?17:20);
         drawButton(ctx,this.menuButton,t('summary.menu'),v,ba-0.15,inRect(this.menuButton,this.hx??-1,this.hy??-1),small?17:20,true);
         if (s.newBest) {
@@ -2529,9 +2560,7 @@ export class RunSummary {
         if (this.gradeInfo) {
             this.drawGradeInfo(ctx,this.gradeInfo.x,this.gradeInfo.y,v);
         }
-        if (this.detailT>0) {
-            this.drawDetail(ctx,v);
-        }
+        this.drawDetail(ctx,v,T);
     }
 
     drawCelebrate(ctx,T,v) {
@@ -2592,101 +2621,218 @@ export class RunSummary {
         ctx.restore();
     }
 
-    drawDetail(ctx,v) {
+    tornPaper(ctx,x,y,w,h,seed) {
+        ctx.beginPath();
+        ctx.moveTo(x+(hash1(seed)-0.5)*4,h+20);
+        ctx.lineTo(x-3,y+8);
+        let xx=x;
+        let i=0;
+        while (xx<x+w) {
+            const step=8+hash1(seed+i*5)*26;
+            xx=Math.min(x+w,xx+step);
+            const deep=hash1(seed+i*11)>0.8?14:0;
+            const jag=(hash1(seed+i*7)-0.5)*16+(i%2?6:-5)+deep;
+            ctx.lineTo(xx,y+jag);
+            i++;
+        }
+        ctx.lineTo(x+w+3,y+6);
+        ctx.lineTo(x+w+(hash1(seed+1)-0.5)*4,h+20);
+        ctx.closePath();
+    }
+
+    drawDetail(ctx,v,T) {
         const w=this.width;
         const h=this.height;
         const small=h<600;
-        const k=EASE.easeOutBack(this.detailT);
-        const rows=this.detailRows();
-        const pw=Math.min(860,w-30);
-        const ph=Math.min(h-30,small?h-20:560);
-        const px=w/2-pw/2;
-        const py=h/2-ph/2;
-        const rh=small?22:28;
-        const head=small?62:84;
-        const per=Math.max(1,Math.floor((ph-head-(small?50:64))/rh));
-        const pages=Math.max(1,Math.ceil(rows.length/per));
-        this.dPage=Math.max(0,Math.min(pages-1,this.dPage));
+        const D=TUNING.summaryUi.drawer;
+        const k=this.detailT;
+        const ek=EASE.easeOutCubic(k);
+        const appear=Math.max(0,Math.min(1,(T-1.5)/0.4));
+        if (appear<=0) {
+            this.detailHits=[];
+            return;
+        }
+        const {x:px,w:pw}=this.drawerRect();
+        const peek=small?D.peekSmall:D.peek;
+        const top=this.drawerTop()+(1-EASE.easeOutBack(appear))*peek*1.4;
+        const hov=!this.detail&&(this.hy??-1)>=top&&(this.hx??-1)>=px&&(this.hx??-1)<=px+pw;
+        const bob=this.detail?0:Math.sin(time.real*3)*2-(hov?4:0);
+        const py=top+bob;
         this.detailHits=[];
         ctx.save();
-        ctx.globalAlpha=this.detailT;
-        ctx.fillStyle=rgba('ink',0.3);
-        ctx.fillRect(0,0,w,h);
-        ctx.translate(w/2,h/2);
-        ctx.scale(0.9+0.1*k,0.9+0.1*k);
-        ctx.translate(-w/2,-h/2);
+        if (k>0) {
+            ctx.fillStyle=rgba('ink',0.28*ek);
+            ctx.fillRect(0,0,w,h);
+        }
+        ctx.save();
+        ctx.translate(4,6);
+        this.tornPaper(ctx,px,py,pw,h,5100);
+        ctx.fillStyle=rgba('ink',0.18);
+        ctx.fill();
+        ctx.restore();
+        this.tornPaper(ctx,px,py,pw,h,5100);
         ctx.fillStyle=PALETTE.paper;
-        ctx.fillRect(px,py,pw,ph);
-        drawShape(ctx,sketchRect(px,py,pw,ph,{width:2.2,seed:978}),PALETTE.ink,v);
+        ctx.fill();
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=1.6;
+        ctx.stroke();
+        ctx.save();
+        ctx.clip();
+        ctx.strokeStyle=rgba('farGray',0.7);
+        ctx.lineWidth=1;
+        for (let yy=py+peek;yy<h;yy+=24) {
+            ctx.beginPath();
+            ctx.moveTo(px,yy);
+            ctx.lineTo(px+pw,yy);
+            ctx.stroke();
+        }
+        const head=small?D.headSmall:D.head;
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?18:24)+'px '+FONT;
-        ctx.textAlign='left';
+        ctx.font='bold '+(small?16:20)+'px '+FONT;
+        ctx.textAlign='center';
         ctx.textBaseline='middle';
-        ctx.fillText(t('summary.detailTitle'),px+22,py+(small?20:30));
-        const cols=[['page',0.03,'left'],['name',0.2,'left'],['kills',0.52,'right'],['damage',0.64,'right'],['cards',0.74,'right'],['time',0.85,'right'],['score',0.97,'right']];
-        const hy=py+head-rh*0.6;
-        ctx.font='bold '+(small?11:13)+'px '+FONT;
+        const ty=py+peek*0.5;
+        ctx.fillText((k>0.5?t('summary.detailTitle'):t('summary.details'))+' '+(this.detail?'▾':'▴'),w/2,ty);
+        ctx.font=(small?'10px ':'12px ')+FONT;
         ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='right';
+        ctx.fillText(this.detail?t('summary.detailBack'):t('summary.detailHint'),px+pw-16,ty);
+        if (k>0) {
+            this.drawDetailTable(ctx,v,px,py+head,pw,h-(py+head),small);
+        }
+        ctx.restore();
+        ctx.restore();
+    }
+
+    drawDetailTable(ctx,v,px,y0,pw,avail,small) {
+        const D=TUNING.summaryUi.drawer;
+        const w=this.width;
+        const h=this.height;
+        const rh=small?D.rowSmall:D.row;
+        const foot=small?D.footSmall:D.foot;
+        const gap=D.actGap;
+        const items=this.detailItems();
+        const cols=[['page',0.02,'left'],['name',0.11,'left'],['kills',0.42,'right'],['cards',0.5,'right'],['time',0.58,'right'],['dealt',0.68,'right'],['taken',0.77,'right'],['score',0.875,'right'],['total',0.98,'right']];
+        const fs=Math.max(9,Math.min(small?12:14,pw/62));
+        const hy=y0+rh*0.4;
+        ctx.font='bold '+Math.round(fs-1)+'px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textBaseline='middle';
         for (const [key,f,al] of cols) {
             ctx.textAlign=al;
-            ctx.fillText(t('summary.col.'+key),px+pw*f,hy);
+            ctx.fillText(t('summary.col.'+key),px+pw*f,hy,pw*0.1);
         }
         ctx.strokeStyle=PALETTE.ink;
         ctx.lineWidth=1.2;
         ctx.beginPath();
-        ctx.moveTo(px+14,hy+rh*0.5);
-        ctx.lineTo(px+pw-14,hy+rh*0.5);
+        ctx.moveTo(px+12,hy+rh*0.5);
+        ctx.lineTo(px+pw-12,hy+rh*0.5);
         ctx.stroke();
-        const list=rows.slice(this.dPage*per,this.dPage*per+per);
-        list.forEach((r,i)=>{
-            const y=py+head+i*rh+rh*0.3;
-            if (i%2===0) {
-                ctx.fillStyle=rgba('farGray',0.35);
-                ctx.fillRect(px+14,y-rh/2,pw-28,rh);
+        const body=avail-rh-foot;
+        const pages=[];
+        let cur=[];
+        let used=0;
+        let lastHead=null;
+        for (const it of items) {
+            let ih=it.head?rh*0.8+(cur.length>0?gap:0):rh;
+            if (used+ih>body&&cur.length>0) {
+                pages.push(cur);
+                cur=[];
+                used=0;
+                ih=it.head?rh*0.8:rh;
+                if (!it.head&&lastHead) {
+                    cur.push(lastHead);
+                    used+=rh*0.8;
+                }
             }
-            const vals={page:r.page,name:r.name+(r.sub?'・'+r.sub:''),kills:String(r.kills),damage:String(r.damage),cards:String(r.cards),time:Math.round(r.time)+'s',score:(r.score>0?'+':'')+r.score};
-            ctx.font=(small?'12px ':'14px ')+FONT;
+            if (it.head) {
+                lastHead=it;
+            }
+            cur.push(it);
+            used+=ih;
+        }
+        if (cur.length>0) {
+            pages.push(cur);
+        }
+        const nP=Math.max(1,pages.length);
+        this.dPage=Math.max(0,Math.min(nP-1,this.dPage));
+        let y=hy+rh*0.5;
+        let alt=0;
+        const list=pages[this.dPage]||[];
+        for (let i=0;i<list.length;i++) {
+            const it=list[i];
+            if (it.head) {
+                if (i>0) {
+                    y+=gap/2;
+                    ctx.strokeStyle=rgba('ink',0.55);
+                    ctx.lineWidth=1;
+                    ctx.setLineDash([6,4]);
+                    ctx.beginPath();
+                    ctx.moveTo(px+12,y);
+                    ctx.lineTo(px+pw-12,y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    y+=gap/2;
+                }
+                ctx.font='bold '+Math.round(fs)+'px '+FONT;
+                ctx.fillStyle=PALETTE.red;
+                ctx.textAlign='left';
+                ctx.fillText(it.label,px+pw*0.02,y+rh*0.4);
+                y+=rh*0.8;
+                alt=0;
+                continue;
+            }
+            const cy=y+rh*0.5;
+            if (alt%2===0) {
+                ctx.fillStyle=rgba('farGray',0.35);
+                ctx.fillRect(px+12,y+1,pw-24,rh-2);
+            }
+            alt++;
+            const vals={page:it.page,name:it.name+(it.sub?'・'+it.sub:''),kills:String(it.kills),cards:String(it.cards),time:Math.round(it.time)+'s',dealt:String(it.dealt),taken:String(it.taken),score:(it.score>0?'+':'')+it.score,total:String(it.total)};
             for (const [key,f,al] of cols) {
                 ctx.textAlign=al;
-                ctx.fillStyle=key==='score'?(r.score<0?PALETTE.red:PALETTE.ink):(key==='page'?PALETTE.nearGray:PALETTE.ink);
-                ctx.fillText(vals[key],px+pw*f,y,key==='name'?pw*0.3:pw*0.16);
+                ctx.font=(key==='total'?'bold ':'')+Math.round(fs)+'px '+FONT;
+                let col=PALETTE.ink;
+                if (key==='page') {
+                    col=PALETTE.nearGray;
+                }
+                else if (key==='score'&&it.score<0||key==='taken'&&it.taken>0) {
+                    col=PALETTE.red;
+                }
+                ctx.fillStyle=col;
+                ctx.fillText(vals[key],px+pw*f,cy,key==='name'?pw*0.29:pw*0.085);
             }
-        });
-        const by=py+ph-(small?40:52);
-        const bh=small?32:40;
-        const close={x:w/2-70,y:by,w:140,h:bh};
-        drawButton(ctx,close,t('summary.detailClose'),v,1,inRect(close,this.hx??-1,this.hy??-1),small?14:16);
-        const closeAct=()=>{
-            this.detail=false;
-        };
-        this.detailHits.push({...close,act:closeAct});
-        if (pages>1) {
-            const prev={x:close.x-120,y:by,w:100,h:bh};
-            const next={x:close.x+close.w+20,y:by,w:100,h:bh};
+            y+=rh;
+        }
+        if (items.length===0) {
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.textAlign='center';
+            ctx.font=Math.round(fs)+'px '+FONT;
+            ctx.fillText(t('summary.noDetail'),w/2,hy+rh*2);
+        }
+        if (nP>1) {
+            const bh=small?28:34;
+            const by=h-foot+(foot-bh)/2;
+            const prev={x:w/2-120,y:by,w:100,h:bh};
+            const next={x:w/2+20,y:by,w:100,h:bh};
             if (this.dPage>0) {
                 drawButton(ctx,prev,'‹ '+t('summary.prev'),v,1,inRect(prev,this.hx??-1,this.hy??-1),small?13:15);
             }
-            if (this.dPage<pages-1) {
+            if (this.dPage<nP-1) {
                 drawButton(ctx,next,t('summary.next')+' ›',v,1,inRect(next,this.hx??-1,this.hy??-1),small?13:15);
             }
             const prevAct=()=>{
                 this.dPage=Math.max(0,this.dPage-1);
             };
             const nextAct=()=>{
-                this.dPage=Math.min(pages-1,this.dPage+1);
+                this.dPage=Math.min(nP-1,this.dPage+1);
             };
             this.detailHits.push({...prev,act:prevAct},{...next,act:nextAct});
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='12px '+FONT;
             ctx.textAlign='right';
-            ctx.fillText((this.dPage+1)+' / '+pages,px+pw-22,py+(small?20:30));
+            ctx.fillText((this.dPage+1)+' / '+nP,px+pw-16,by+bh/2);
         }
-        if (rows.length===0) {
-            ctx.fillStyle=PALETTE.nearGray;
-            ctx.textAlign='center';
-            ctx.fillText(t('summary.noDetail'),w/2,py+ph/2);
-        }
-        ctx.restore();
     }
 }
 
@@ -4071,7 +4217,7 @@ export class TrainingMenu extends Panel {
             this.dd.open=true;
         },'mdd');
         this.ddInfos.map={r:mr,list:maps,cur:mi};
-        const pv={x:cx,y:y+22,w:cw,h:mh-34};
+        const pv={x:cx,y:y+22,w:cw,h:mh-58};
         ctx.save();
         ctx.translate(pv.x+pv.w/2,pv.y+pv.h/2);
         ctx.scale(1+mp*0.08,1+mp*0.08);
@@ -5279,12 +5425,17 @@ export class WeaponView extends Panel {
         const cx=x+w/2;
         const cy=y+h/2;
         const s=h/150;
-        for (let k=-2;k<=2;k++) {
-            const id=pool[((step+k)%pool.length+pool.length)%pool.length];
-            const px=cx+(k-f)*h*0.55;
-            const a=Math.max(0,1-Math.abs(k-f)*0.45);
-            ctx.globalAlpha=a;
-            drawWeaponIcon(ctx,id,px,cy,s*(k===0?1.2-f*0.3:0.8),v,false);
+        const e=EASE.easeInOutCubic(f);
+        const items=[];
+        for (let k=-2;k<=3;k++) {
+            const dp=k-e;
+            items.push({k,dp,id:pool[((step+k)%pool.length+pool.length)%pool.length]});
+        }
+        items.sort((p,q)=>Math.abs(q.dp)-Math.abs(p.dp));
+        for (const q of items) {
+            const near=Math.max(0,1-Math.abs(q.dp));
+            ctx.globalAlpha=Math.max(0,1-Math.abs(q.dp)*0.45);
+            drawWeaponIcon(ctx,q.id,cx+q.dp*h*0.55,cy,s*(0.8+0.45*near*near),v,false);
         }
         ctx.globalAlpha=1;
         ctx.strokeStyle=PALETTE.red;
@@ -5909,8 +6060,8 @@ export class ChoicePanel extends Panel {
             ctx.font=C.descSize+'px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
             ctx.textBaseline='top';
-            const dl=wrapText(ctx,t(dk,o),r.w-C.textPad*2);
-            for (let k=0;k<dl.length&&k<4;k++) {
+            const dl=t(dk,o).split('\n').flatMap(q=>wrapText(ctx,q,r.w-C.textPad*2));
+            for (let k=0;k<dl.length&&k<C.descMax;k++) {
                 ctx.fillText(dl[k],r.w/2,C.iconY+C.cardIconR+44+k*C.descLine);
             }
             if (o.disabled) {

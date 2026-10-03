@@ -3,7 +3,7 @@ import {PALETTE} from './data/palette.js';
 import {TUNING} from './data/tuning.js';
 import {LEVELS} from './data/levels.js';
 import {ENEMIES} from './data/enemies.js';
-import {t} from './data/strings.js';
+import {t,setTouchText} from './data/strings.js';
 import {createLoop,time} from './core/loop.js';
 import {Input} from './core/input.js';
 import {CameraRig} from './core/cameraRig.js';
@@ -205,14 +205,66 @@ function boot() {
     const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene},TUNING);
     ctx.dangerRings=dangerRings;
     ctx.weaponSys=weaponSys;
+    const swings=[];
+    const updateSwings=dt=>{
+        const S=TUNING.brushSwing;
+        for (let i=swings.length-1;i>=0;i--) {
+            const s=swings[i];
+            const r0=s.r;
+            s.v*=Math.exp(-WB.brush.drag*dt);
+            s.r+=s.v*dt;
+            s.life-=dt;
+            const inArc=(px,pz,pad)=>{
+                const dx=px-s.x;
+                const dz=pz-s.z;
+                const d=Math.hypot(dx,dz);
+                if (d<=pad+S.start) {
+                    return d;
+                }
+                let da=Math.atan2(dz,dx)-s.a;
+                da=Math.atan2(Math.sin(da),Math.cos(da));
+                return d>=r0-pad-S.band&&d<=s.r+pad&&Math.abs(da)<=s.fan/2+Math.atan2(pad,Math.max(d,0.3))?d:-1;
+            };
+            for (const e of enemies.list) {
+                if (!e.alive||e.state==='spawn'||s.hit.has(e)) {
+                    continue;
+                }
+                const d=inArc(e.pos.x,e.pos.z,e.def.radius);
+                if (d<0) {
+                    continue;
+                }
+                s.hit.add(e);
+                const PW=s.W;
+                const tier=PW.tiers.find(q=>d<=q[0]);
+                const m=e.damageMult(e.pos.x,e.pos.z);
+                const nx=(e.pos.x-s.x)/(d||1);
+                const nz=(e.pos.z-s.z)/(d||1);
+                enemies.damage(e,(tier?tier[1]:PW.damage)*m,nx,nz,false,m>1);
+            }
+            enemyBullets.killWhere((bx,bz)=>inArc(bx,bz,S.bulletPad)>=0,(bx,bz)=>particles.burst(bx,1,bz,2,{color:'farGray',speed:[1,3],up:[1,2]}));
+            if (s.life<=0) {
+                swings.splice(i,1);
+            }
+        }
+    };
     ctx.onBrush=(x,z,a,fan)=>{
         const PW=player.W;
+        swings.push({x,z,a,fan,r:TUNING.brushSwing.start,v:PW.bulletSpeed,life:PW.bulletLife,hit:new Set(),W:PW});
         strokes.spawn(x,z,a,fan,PW.bulletSpeed,WB.brush.drag,PW.bulletLife);
         for (let i=0;i<5;i++) {
             const an=a+(Math.random()-0.5)*fan;
             particles.burst(x+Math.cos(an)*0.8,1,z+Math.sin(an)*0.8,1,{color:'ink',dirX:Math.cos(an),dirZ:Math.sin(an),cone:0.4,speed:[3,7],up:[0.5,2],size:[0.08,0.16],life:[0.3,0.5]});
         }
         fx.cameraShake(0.05);
+    };
+    const clearCompassBullets=()=>{
+        const C=weaponSys.compass;
+        const R=TUNING.brushSwing.compassClear;
+        for (let i=0;i<C.n;i++) {
+            const cx=C.x[i];
+            const cz=C.z[i];
+            enemyBullets.killWhere((bx,bz)=>(bx-cx)*(bx-cx)+(bz-cz)*(bz-cz)<R*R,(bx,bz)=>particles.burst(bx,1,bz,2,{color:'farGray',speed:[1,3],up:[1,2]}));
+        }
     };
     ctx.onBeam=(x,z,dx,dz,PW)=>{
         const B=PW.beam;
@@ -447,6 +499,8 @@ function boot() {
         mouseScreen:()=>input.lastDevice==='mouse'&&input.mouse.inside?uiMouse():null,
         execute:(card,target)=>{
             if (card.def.rarity==='rare') {
+                const echo=card.def.id==='echo'?effects.lastUlt:null;
+                const tg=echo?{...target,echo:hand.stickTarget(echo,0,0,0)}:target;
                 fx.cutin=true;
                 hand.cancelTargeting();
                 input.mouse.down=false;
@@ -456,8 +510,8 @@ function boot() {
                     audio.play('ultHit');
                     fx.cameraShake(TUNING.ultFx.hitShake);
                     fx.fovPunch(TUNING.ultFx.hitFov);
-                    effects.run(card,target);
-                },{params:cardParams(card),last:effects.lastPlay?effects.lastPlay.card:null});
+                    effects.run(card,tg);
+                },{params:cardParams(echo||card),echo});
                 return;
             }
             effects.run(card,target);
@@ -526,6 +580,9 @@ function boot() {
     const dmgNums=new DamageNumbers();
     enemies.onDamage=(e,dmg,crit)=>{
         dmgNums.spawn(e.pos.x,e.def.height*0.9,e.pos.z,dmg,crit,beamMerge?TUNING.beam.mergeTime:0);
+        if (run.stats) {
+            run.stats.dealt+=dmg;
+        }
         if (run.mode==='training') {
             trainStats.total+=dmg;
             trainStats.max=Math.max(trainStats.max,dmg);
@@ -607,15 +664,6 @@ function boot() {
             particles.burst(p.pos.x,1.2,p.pos.z,TUNING.equip.particles,{color:'ink',speed:[2,5],up:[2,5],size:[0.08,0.16]});
         }
     };
-    weaponSys.brush.onHit=(x,z,r,dmg,vx,vz,sys,i)=>{
-        const PW=player.W;
-        if (PW.tiers) {
-            const d=Math.hypot(x-sys.sx[i],z-sys.sz[i]);
-            const tier=PW.tiers.find(q=>d<=q[0]);
-            dmg*=(tier?tier[1]:PW.damage)/PW.damage;
-        }
-        return hitEnemies(x,z,r,dmg,vx,vz,sys,i);
-    };
     weaponSys.compass.onReturn=(x,z,caught,struck)=>{
         if (!struck&&player.W.missCut) {
             player.cdT*=player.W.missCut;
@@ -637,7 +685,7 @@ function boot() {
         fx.cameraShake(W.recoilTrauma*(PW.kick||1));
         fx.fovPunch(W.recoilFov*(PW.kick||1));
     };
-    player.events.onHurt=p=>{
+    player.events.onHurt=(p,dx,dz,dmg)=>{
         if (run.mode==='training') {
             trainStats.hurt++;
             trainStats.hurtT=1;
@@ -649,6 +697,7 @@ function boot() {
         bleed=Math.min(1,bleed+DF.bleed);
         if (run.stats) {
             run.stats.damage++;
+            run.stats.taken+=dmg;
         }
         particles.burst(p.pos.x,1.0,p.pos.z,PT.redHurt,{color:'red',speed:[2,6],up:[2,6],size:[0.08,0.16]});
     };
@@ -921,6 +970,7 @@ function boot() {
             audio.play('page',0.6);
         },
         npcUsed:(i,sealed)=>npcs.markUsed(i,sealed),
+        npcSay:(i,text)=>npcs.say(i,text,TUNING.worldMarks.sayTime),
         dealDeck:()=>{
             resumePlay();
             hand.setShown(true);
@@ -959,11 +1009,11 @@ function boot() {
             return player.hp-before;
         },
         hurt:n=>{
+            const before=player.hp;
             player.hp=Math.max(1,player.hp-n);
+            run.stats.taken+=before-player.hp;
         },
-        addInk:n=>{
-            ink.add(n);
-        },
+        addInk:n=>ink.addOver(n),
         transition:mid=>{
             audio.play('page');
             transition.run(mid);
@@ -1028,6 +1078,7 @@ function boot() {
                     pendingLevel=null;
                 }
                 else {
+                    effects.lastUlt=null;
                     run.start(startIds(),run.mode);
                 }
             });
@@ -1135,6 +1186,7 @@ function boot() {
         }
         resetTrainStats();
         deck.provider=mode==='training'?trainProvider:null;
+        effects.lastUlt=null;
         run.start(startIds(),mode);
         if (mode==='training') {
             openPicker(true);
@@ -1932,6 +1984,8 @@ function boot() {
             s.update(dt,room);
         }
         strokes.update(dt);
+        updateSwings(dt);
+        clearCompassBullets();
         updateBeam(dt);
         homingBullets.update(dt,room);
         lobs.update(dt);
@@ -1986,6 +2040,7 @@ function boot() {
         }
     }
     function render(dt,alpha) {
+        setTouchText(input.lastDevice==='touch');
         fx.update(dt);
         tweens.update(dt*time.timeScale,dt);
         setBoilSeed(time.boilIndex);

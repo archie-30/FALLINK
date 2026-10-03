@@ -83,8 +83,6 @@ export class BulletSystem {
         this.struck=new Uint8Array(cap);
         this.el=new Float32Array(cap);
         this.spd=new Float32Array(cap);
-        this.sx=new Float32Array(cap);
-        this.sz=new Float32Array(cap);
         this.drag=o.drag||0;
         this.spin=o.spin||0;
         this.hidden=!!o.hidden;
@@ -152,8 +150,8 @@ export class BulletSystem {
             return -1;
         }
         const i=this.n++;
-        this.x[i]=this.ox[i]=this.sx[i]=x;
-        this.z[i]=this.oz[i]=this.sz[i]=z;
+        this.x[i]=this.ox[i]=x;
+        this.z[i]=this.oz[i]=z;
         this.vx[i]=dx*speed;
         this.vz[i]=dz*speed;
         this.life[i]=life;
@@ -194,8 +192,6 @@ export class BulletSystem {
         this.struck[i]=this.struck[j];
         this.el[i]=this.el[j];
         this.spd[i]=this.spd[j];
-        this.sx[i]=this.sx[j];
-        this.sz[i]=this.sz[j];
         this.hits.copyWithin(i*6,j*6,j*6+6);
         const K2=this.K*2;
         this.hist.copyWithin(i*K2,j*K2,j*K2+K2);

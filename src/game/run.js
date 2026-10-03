@@ -39,7 +39,7 @@ export class Run {
         this.report=null;
         const ids=mode==='training'?unlockedCards(effectiveLevel()):(startDeck||STARTING_DECK);
         this.deckList=ids.map(id=>({id,upgraded:false}));
-        this.stats={kills:0,cards:0,damage:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0,log:[]};
+        this.stats={kills:0,cards:0,damage:0,taken:0,dealt:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0,log:[]};
         this.enter();
     }
 
@@ -80,14 +80,15 @@ export class Run {
         if (this.training()&&this.trainGame) {
             const list=PEACE_LAYOUTS.event;
             const plan=this.planGame(list[Math.floor(this.rng.next()*list.length)],'test',this.trainGame);
-            plan.exits=[{kind:'back'},{kind:'games'}];
+            plan.exits=[{kind:'back'},{kind:'games'},{kind:'home'}];
             plan.trainGame=true;
             this.plan=plan;
-            this.exitsOpen=false;
             this.director=null;
             this.timer=0;
             this.room=this.hooks.enterRoom(plan,this.deckList);
             this.state='peace';
+            this.exitsOpen=true;
+            this.hooks.openDoors(true);
             this.npcUsed=plan.npcs.map(()=>false);
             this.hooks.banner('peace',this);
             return this.room;
@@ -169,7 +170,7 @@ export class Run {
 
     logPage(plan) {
         const S=this.stats;
-        S.log.push({act:plan.act,index:plan.index,node:plan.boss?'boss':plan.overtime?'overtime':(this.mode==='endless'?'endless':(plan.node||'battle')),game:plan.game||plan.event||null,hp:this.hooks.hp(),s:{kills:S.kills,damage:S.damage,cards:S.cards,time:S.time,score:S.score}});
+        S.log.push({act:plan.act,index:plan.index,node:plan.boss?'boss':plan.overtime?'overtime':(this.mode==='endless'?'endless':(plan.node||'battle')),game:plan.game||plan.event||null,hp:this.hooks.hp(),s:{kills:S.kills,damage:S.damage,taken:S.taken,dealt:S.dealt,cards:S.cards,time:S.time,score:S.score}});
     }
 
     planPeace(node) {
@@ -206,6 +207,7 @@ export class Run {
         }
         if (node==='shop') {
             plan.bought={};
+            this.stockShop(plan);
         }
         return plan;
     }
@@ -247,6 +249,8 @@ export class Run {
 
     gameDone(ok) {
         const p=this.plan;
+        const lines=ok?MINIGAMES.winLines:MINIGAMES.loseLines;
+        this.hooks.npcSay(0,t(lines[Math.floor(this.rng.next()*lines.length)]));
         this.state='node';
         const effects=p.trainGame?[]:this.prize(ok);
         this.withReport({key:ok?'report.gameWin':'report.gameLose',params:{name:'event.'+p.game+'.title'}},fin=>{
@@ -599,7 +603,14 @@ export class Run {
             return true;
         }
         if (p.node==='shop') {
-            this.openShop();
+            if (i>0) {
+                this.buyItem(i);
+                return true;
+            }
+            this.npcUsed[0]=true;
+            this.hooks.npcUsed(0);
+            this.hooks.npcSay(0,t('shop.greet'));
+            done();
             return true;
         }
         if (p.node==='treasure') {
@@ -655,54 +666,76 @@ export class Run {
         return pick;
     }
 
-    openShop() {
+    stockShop(plan) {
+        const S=NOTEBOOK.shop;
+        const k=plan.npcs[0];
+        const side=Math.abs(k.x)>=S.shelfSideMin;
+        const dir=k.x>0?-1:1;
+        const cx=Math.max(-S.shelfClampX,Math.min(S.shelfClampX,k.x));
+        const z=side?Math.min(S.shelfMaxZ,k.z+S.shelfSideZ):Math.min(S.shelfMaxZ,k.z+S.shelfZ);
+        plan.shopItems=this.shopOffer();
+        plan.shopItems.forEach((id,i)=>{
+            const it=S.items[id];
+            const x=side?k.x+dir*(S.shelfStart+i*S.shelfGap):cx+(i-(plan.shopItems.length-1)/2)*S.shelfGap;
+            plan.npcs.push({model:'item',item:id,label:t('shop.'+id),price:it.price,x,z});
+        });
+        const L=plan.layout;
+        const own=L.props.filter(q=>!L.decor.includes(q));
+        plan.layout={...L,props:own.filter(q=>plan.npcs.slice(1).every(n=>Math.hypot(q.x-n.x,q.z-n.z)>S.shelfClear)).concat(L.decor)};
+    }
+
+    shopBlocked(id) {
+        if (id==='upgrade'||id==='upgrade2') {
+            return this.upgradable().length===0;
+        }
+        return id==='remove'&&this.deckList.length<=NOTEBOOK.minDeck;
+    }
+
+    buyItem(i) {
         const S=NOTEBOOK.shop;
         const p=this.plan;
-        if (!p.shopItems) {
-            p.shopItems=this.shopOffer();
+        const id=p.npcs[i].item;
+        const it=S.items[id];
+        if (this.stats.score<it.price) {
+            this.hooks.npcSay(0,t('shop.poor'));
+            this.state='peace';
+            return;
         }
-        const score=this.stats.score;
-        const block=id=>(id==='upgrade'||id==='upgrade2')?this.upgradable().length===0:(id==='remove'?this.deckList.length<=NOTEBOOK.minDeck:false);
-        const opt=id=>{
-            const it=S.items[id];
-            return {id,price:it.price,n:it.n||0,disabled:!!p.bought[id]||score<it.price||block(id),reason:p.bought[id]?'bought':(score<it.price?'poor':null)};
-        };
-        const opts=p.shopItems.map(opt).concat([{id:'leave'}]);
-        this.hooks.openChoice({kind:'shop',score,options:opts},k=>{
-            const id=opts[k].id;
-            if (id==='leave') {
-                this.backToPeace();
-                return;
-            }
-            const it=S.items[id];
-            p.bought[id]=true;
-            this.stats.score-=it.price;
-            this.note('note.paid',{n:it.price});
-            const back=()=>this.backToPeace();
-            if (id==='buy'||id==='rare') {
-                const kind=id==='rare'?'rare':'mixed';
-                this.state='reward';
-                this.hooks.openReward([{kind,cards:this.rewardChoices(kind,null,S.cards)}],this.deckCounts(),cards=>this.takeCards(cards,back),true);
-            }
-            else if (id==='upgrade') {
-                this.pickUpgrade(back);
-            }
-            else if (id==='remove') {
-                this.hooks.openDeckPick('remove',this.deckList,i=>{
-                    const cid=this.deckList[i].id;
-                    this.deckList.splice(i,1);
-                    this.note('note.removed',{},cid);
-                    this.hooks.cardFx('remove',cid,back);
-                });
-            }
-            else if (id==='patch'||id==='bigPatch') {
-                this.note('note.healed',{n:this.hooks.heal(it.n)});
-                back();
-            }
-            else {
-                this.applyEffects([[it.effect,it.n]],back);
-            }
-        });
+        if (this.shopBlocked(id)) {
+            this.hooks.npcSay(0,t('shop.cant'));
+            this.state='peace';
+            return;
+        }
+        p.bought[id]=true;
+        this.npcUsed[i]=true;
+        this.hooks.npcUsed(i,true);
+        this.hooks.npcSay(0,t('shop.thanks'));
+        this.stats.score-=it.price;
+        this.note('note.paid',{n:it.price});
+        const back=()=>this.backToPeace();
+        if (id==='buy'||id==='rare') {
+            const kind=id==='rare'?'rare':'mixed';
+            this.state='reward';
+            this.hooks.openReward([{kind,cards:this.rewardChoices(kind,null,S.cards)}],this.deckCounts(),cards=>this.takeCards(cards,back),true);
+        }
+        else if (id==='upgrade') {
+            this.pickUpgrade(back);
+        }
+        else if (id==='remove') {
+            this.hooks.openDeckPick('remove',this.deckList,k=>{
+                const cid=this.deckList[k].id;
+                this.deckList.splice(k,1);
+                this.note('note.removed',{},cid);
+                this.hooks.cardFx('remove',cid,back);
+            });
+        }
+        else if (id==='patch'||id==='bigPatch') {
+            this.note('note.healed',{n:this.hooks.heal(it.n)});
+            back();
+        }
+        else {
+            this.applyEffects([[it.effect,it.n]],back);
+        }
     }
 
     upgradable() {
@@ -747,8 +780,8 @@ export class Run {
             cont();
         }
         else if (kind==='ink') {
-            this.hooks.addInk(arg);
-            this.note('note.ink',{n:arg});
+            const got=this.hooks.addInk(arg);
+            this.note(got>0?'note.ink':'note.inkFull',{n:arg});
             cont();
         }
         else if (kind==='score') {

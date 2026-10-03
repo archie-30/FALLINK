@@ -5,6 +5,8 @@ export const MINIGAMES={
     start:[0,4.6],
     winScore:200,
     swapChoices:3,
+    winLines:['mg.say.win1','mg.say.win2','mg.say.win3'],
+    loseLines:['mg.say.lose1','mg.say.lose2','mg.say.lose3','mg.say.lose4'],
     rewards:[
         [3,[['score',500]]],
         [2,[['score',800]]],
@@ -42,7 +44,7 @@ export const MINIGAMES={
         plane:{model:'plane',pad:[0,3.6],padR:1.1,throws:3,binR:1.05,min:4,max:12,meterRate:[1.1,1.35,1.6],fly:0.9,binZ:[-4.6,-2.2],binX:6.5},
         maze:{model:'ruler',cols:8,rows:5,cell:2.5,x0:-10,z0:-6.25,time:[26,23,20],wall:0.32,wallH:1.0,host:[-11,-6.9]},
         rhythm:{model:'metronome',lanes:[-3.6,0,3.6],z:1.4,pad:1.25,count:[10,12,14],gap:[1.0,0.85,0.72],fall:1.4,miss:[3,3,2],lead:1.2},
-        shadow:{model:'ghost',marks:6,len:[3,4,5],speed:6,minGap:3.2,markR:0.9,pause:0.35},
+        shadow:{model:'ghost',marks:6,len:[3,4,5],speed:6,minGap:3.2,markR:0.9,pause:0.35,trail:90,trailR:0.4,trailGap:0.28,trailLife:2},
         marble:{model:'marble',r:0.45,time:[30,28,26],holes:[3,4,5],holeR:0.85,goalR:1.0,kick:6,fric:1.1,bounce:0.6},
         cups:{model:'mug',counts:[[3,3,4],[3,4,5],[4,5,5]],spacing:3.0,z:-1.2,padZ:1.2,pad:1.0,swaps:[5,7,9],swapT:[0.55,0.45,0.38],peek:1.2,dwell:0.6,lift:1.4}
     }

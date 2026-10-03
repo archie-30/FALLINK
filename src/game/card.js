@@ -91,7 +91,7 @@ export class CardEffects {
         this.bladeMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.62,0.06,3),toonMaterial({light:'paper',mid:'farGray',dark:'midGray'}));
         this.bladeMesh.visible=false;
         this.g.scene.add(this.bladeMesh);
-        this.lastPlay=null;
+        this.lastUlt=null;
         this.mines=[];
         const mg=new THREE.SphereGeometry(0.42,10,6,0,Math.PI*2,0,Math.PI/2);
         const mm=unlitMaterial({color:'ink',jitter:0.02});
@@ -111,7 +111,6 @@ export class CardEffects {
         this.timers.length=0;
         this.sweeps.length=0;
         this.bladeMesh.visible=false;
-        this.lastPlay=null;
         this.eraserMesh.visible=false;
         this.eraserLine.visible=false;
         this.redrawLine.visible=false;
@@ -279,8 +278,8 @@ export class CardEffects {
         if (params.duration&&!TUNING.hud.timerSkip.includes(card.def.id)) {
             this.timers.push({id:card.def.id,left:params.duration,full:params.duration});
         }
-        if (card.id!=='echo') {
-            this.lastPlay={card,target};
+        if (card.def.rarity==='rare'&&card.def.id!=='echo') {
+            this.lastUlt=card;
         }
     }
 
@@ -783,16 +782,20 @@ export class CardEffects {
         g.fx.fovPunch(1.2);
     }
 
-    echo() {
+    echo(target) {
         const g=this.g;
-        const lp=this.lastPlay;
+        const u=this.lastUlt;
         g.fx.flash('paper',0.2,0.35);
-        if (!lp) {
+        if (!u) {
             g.ink.add(this.E.echoFallbackInk);
             return;
         }
         g.rings.spawn(g.player.pos.x,g.player.pos.z,2,'red',0.35);
-        lp.card.def.effect(this,lp.target,cardParams(lp.card));
+        const params=cardParams(u);
+        u.def.effect(this,target.echo||target,params);
+        if (params.duration&&!this.T.hud.timerSkip.includes(u.def.id)) {
+            this.timers.push({id:u.def.id,left:params.duration,full:params.duration});
+        }
     }
 
     inkStorm(duration,damage,every) {
@@ -1009,7 +1012,7 @@ export class CardEffects {
     freezeAll(duration) {
         const g=this.g;
         for (const e of g.enemies.list) {
-            e.stun(duration);
+            e.stun(duration,true);
         }
         g.enemyBullets.frozen=Math.max(g.enemyBullets.frozen,duration);
         g.fx.hitStop(80,true);

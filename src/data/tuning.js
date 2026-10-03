@@ -281,6 +281,7 @@ export const TUNING={
         stampTime:0.35,
         countTime:0.9,
         xpTime:1.2,
+        drawer:{peek:52,peekSmall:40,frac:0.8,maxW:900,time:0.3,actGap:10,head:52,headSmall:40,foot:46,footSmall:38,row:27,rowSmall:21},
         grade:{
             story:[['S',35000],['A',20000],['B',10000],['C',4000],['D',-1]],
             endless:[['S',60000],['A',30000],['B',15000],['C',5000],['D',-1]]
@@ -291,10 +292,10 @@ export const TUNING={
     doors:{width:2.4,height:1.9,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
     minigame:{endDelay:0.9,bellShake:0.18,tilesSearch:4000,popTime:0.35,popGap:0.04,wallRise:0.5,wallGap:0.03,wallSink:0.5},
     npc:{bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
-    worldMarks:{subH:22,subMaxW:340,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14},
+    worldMarks:{sayFont:17,sayLift:46,sayTime:3.2,sayMargin:12,sayTop:170,sayLeft:190,subH:22,subMaxW:340,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
     hand:{showTime:0.55,hideOffset:260},
-    choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
+    choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,descMax:5,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:70},
     settingsUi:{
         twoColMin:600,
@@ -375,7 +376,10 @@ export const TUNING={
         slow:0.35,
         slowTime:0.55,
         bandY:0.7,
-        motifY:0.4
+        motifY:0.4,
+        fogSize:0.3,
+        fogAlpha:0.9,
+        fogPuffs:28
     },
     weaponUi:{
         valueW:84,
@@ -485,6 +489,7 @@ export const TUNING={
         pickupHeal:1
     },
     bossTempo:1.15,
+    brushSwing:{start:0.4,band:0.35,bulletPad:0.3,compassClear:0.75},
     bossDrop:{
         interval:[9,14],
         first:6,
