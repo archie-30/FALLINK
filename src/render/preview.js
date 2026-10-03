@@ -171,9 +171,10 @@ export class Preview {
                 this.showSector(p.x,p.z,base,params.angle,params.range,color);
                 return;
             }
+            const lead=card.def.mode==='dash'?TUNING.effects.dashLead:0;
             for (let i=0;i<count&&i<this.lines.length;i++) {
                 const a=count>1?base+(i/(count-1)-0.5)*spread:base;
-                this.setLine(this.lines[i],p.x,p.z,Math.cos(a),Math.sin(a),len,color);
+                this.setLine(this.lines[i],p.x+Math.cos(a)*lead,p.z+Math.sin(a)*lead,Math.cos(a),Math.sin(a),len,color);
             }
             return;
         }

@@ -221,8 +221,13 @@ export class Input {
             this.mouse.inside=true;
             this.lastDevice='mouse';
         }
-        else if (this.lastDevice!=='touch'&&this.onFirstTouch) {
-            this.onFirstTouch();
+        else {
+            if (this.lastDevice!=='touch'&&this.onFirstTouch) {
+                this.onFirstTouch();
+            }
+            if (this.ui&&this.ui.clearHover) {
+                this.ui.clearHover();
+            }
         }
         if (e.pointerType!=='mouse'&&this.canStick&&this.canStick()) {
             const sk=this.skillAt(x,y);
@@ -302,12 +307,12 @@ export class Input {
             this.ui.move(x/this.uiScale,y/this.uiScale,e.pointerId,e.pointerType);
             return;
         }
-        if (e.pointerType==='mouse'&&this.ui) {
-            this.ui.hover(x/this.uiScale,y/this.uiScale);
-        }
         if (e.pointerType==='mouse') {
-            if (this.lastDevice!=='mouse'&&Math.hypot(x-this.mouse.x,y-this.mouse.y)<2) {
+            if (this.lastDevice!=='mouse'&&Math.hypot(x-this.mouse.x,y-this.mouse.y)<TUNING.input.mouseWake) {
                 return;
+            }
+            if (this.ui) {
+                this.ui.hover(x/this.uiScale,y/this.uiScale);
             }
             this.lastDevice='mouse';
             this.mouse.x=x;
@@ -399,6 +404,9 @@ export class Input {
     }
 
     pointerUp(e) {
+        if (e.pointerType!=='mouse'&&this.ui&&this.ui.clearHover) {
+            this.ui.clearHover();
+        }
         if (this.uiPointers.has(e.pointerId)) {
             this.uiPointers.delete(e.pointerId);
             const [x,y]=this.local(e);

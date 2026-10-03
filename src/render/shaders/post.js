@@ -23,6 +23,7 @@ uniform float uLineScale;
 uniform vec3 uInk;
 uniform vec2 uPaperOff;
 uniform vec2 uGrain;
+uniform float uLineGrain;
 uniform float uInvert;
 uniform sampler2D tFx;
 uniform float uBleed;
@@ -60,7 +61,7 @@ void main() {
     vec2 px=mix(uLine.x,uLine.y,fade)*uPx*uLineScale/uRes;
     float edge=edgeAt(uv+off,px);
     float grain=texture2D(tPaper,(gl_FragCoord.xy-uPaperOff)/(uGrain.y*uPx)).r;
-    edge*=mix(1.0,uLine.z,fade)*(0.55+0.45*grain);
+    edge*=mix(1.0,uLine.z,fade)*(1.0-uLineGrain+uLineGrain*grain);
     vec3 col=texture2D(tColor,uv).rgb;
     float fillMask=1.0;
     if (uDrawIn<1.0) {

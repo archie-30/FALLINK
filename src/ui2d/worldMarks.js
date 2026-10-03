@@ -170,6 +170,7 @@ export class WorldMarks {
                 this.drawSpeech(ctx,p,n.say,v);
             }
         }
+        let focused=-1;
         for (let i=0;i<npcs.list.length;i++) {
             const n=npcs.list[i];
             if (n.used||!game.run.canInteract(i)) {
@@ -177,8 +178,7 @@ export class WorldMarks {
             }
             game.project(n.x,n.h+W.npcLift,n.z,p);
             if (npcs.focus===i&&doors.focus<0) {
-                const sub=n.item?t('shop.'+n.item+'.desc',{price:n.price,n:SHOP.items[n.item].n||0}):null;
-                this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+(n.label||t('npc.'+n.model)),v,2320+i,sub);
+                focused=i;
             }
             else if (n.item) {
                 const poor=game.run.stats.score<n.price;
@@ -201,6 +201,12 @@ export class WorldMarks {
                 ctx.font='bold 26px '+FONT;
                 ctx.fillText('!',p.x,y);
             }
+        }
+        if (focused>=0) {
+            const n=npcs.list[focused];
+            game.project(n.x,n.h+W.npcLift,n.z,p);
+            const sub=n.item?t('shop.'+n.item+'.desc',{price:n.price,n:SHOP.items[n.item].n||0}):null;
+            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+(n.label||t('npc.'+n.model)),v,2320+focused,sub);
         }
         ctx.restore();
     }

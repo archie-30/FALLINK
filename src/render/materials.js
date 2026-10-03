@@ -1,6 +1,7 @@
 import*as THREE from 'three';
 import {PALETTE} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
+import {device} from '../core/settings.js';
 import {TOON_VERT,TOON_FRAG,HULL_VERT,HULL_FRAG,UNLIT_VERT,UNLIT_FRAG,SHADOW_VERT,SHADOW_FRAG} from './shaders/toon.js';
 import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,STAMP_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG} from './shaders/fx.js';
 
@@ -154,7 +155,7 @@ export function toonMaterial(opts={}) {
 
 export function hullMaterial(opts={}) {
     const color=opts.color||'ink';
-    const width=opts.width??TUNING.outline.hullWidth;
+    const width=opts.width??TUNING.outline.hullWidth*(device.mobile?TUNING.outline.mobileHull:1);
     const jitter=opts.jitter??0;
     const key='hull|'+color+'|'+width+'|'+jitter;
     if (!opts.unique&&cache.has(key)) {

@@ -2,6 +2,7 @@ import {PALETTE,rgba} from '../data/palette.js';
 import {t} from '../data/strings.js';
 import {TUNING} from '../data/tuning.js';
 import {time} from '../core/loop.js';
+import {device} from '../core/settings.js';
 import {EASE} from '../core/easing.js';
 import {CARD_W,CARD_H,drawCost,rareBorderPath,drawCardTooltip} from './cardView.js';
 import {sketchRect,sketchLine,drawShape} from './sketch.js';
@@ -35,9 +36,17 @@ export class RewardView {
         return this.groups.length>1;
     }
 
+    touchBig() {
+        return device.mobile;
+    }
+
     scale() {
+        const R=TUNING.reward;
         const s=Math.max(0.9,Math.min(1.6,this.height/620));
         if (!this.dual()) {
+            if (this.touchBig()) {
+                return Math.min(s*R.touchScale,(this.height*R.touchH)/CARD_H,(this.width*R.touchW)/(CARD_W*1.22*this.items.length));
+            }
             return s;
         }
         return Math.min(s,(this.width-80)/(CARD_W*5.6));
@@ -362,12 +371,13 @@ export class RewardView {
         if (this.hover>=0&&!this.picked&&this.t>0.6) {
             const it=this.items[this.hover];
             const left=it.x<w/2;
-            const ox=CARD_W*s*0.55+150;
+            const ox=CARD_W*s*0.55+TUNING.reward.tipW*(this.touchBig()?TUNING.reward.touchTip:1)/2+12;
             let tx=left?it.x-ox:it.x+ox;
             if (dual) {
                 tx=it.x;
             }
-            drawCardTooltip(ctx,it.card,tx,dual?it.y-CARD_H*s*0.55-8:it.y+CARD_H*s*0.45);
+            const big=this.touchBig()&&!dual;
+            drawCardTooltip(ctx,it.card,tx,dual?it.y-CARD_H*s*0.55-8:it.y+CARD_H*s*0.45,TUNING.reward.tipW,big?TUNING.reward.touchTip:1);
         }
     }
 }

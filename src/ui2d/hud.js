@@ -10,37 +10,6 @@ import {ACTS} from '../data/levels.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
-export const DESKTOP_KEYS=[
-    ['legend.move.key','legend.move'],
-    ['legend.aim.key','legend.aim'],
-    ['legend.fire.key','legend.fire'],
-    ['legend.reload.key','legend.reload'],
-    ['legend.dash.key','legend.dash'],
-    ['legend.card.key','legend.card'],
-    ['legend.drag.key','legend.drag'],
-    ['legend.draw.key','legend.draw'],
-    ['legend.discard.key','legend.discard'],
-    ['legend.cancel.key','legend.cancel'],
-    ['legend.deck.key','legend.deck'],
-    ['legend.interact.key','legend.interact'],
-    ['legend.quality.key','legend.quality'],
-    ['legend.debug.key','legend.debug'],
-    ['legend.pause.key','legend.pause']
-];
-
-export const TOUCH_KEYS=[
-    ['legend.touch.move.key','legend.touch.move'],
-    ['legend.touch.aim.key','legend.touch.aim'],
-    ['legend.touch.dash.key','legend.touch.dash'],
-    ['legend.touch.card.key','legend.touch.card'],
-    ['legend.touch.drag.key','legend.touch.drag'],
-    ['legend.touch.draw.key','legend.touch.draw'],
-    ['legend.touch.deck.key','legend.touch.deck'],
-    ['legend.touch.interact.key','legend.touch.interact'],
-    ['legend.touch.pause.key','legend.touch.pause'],
-    ['legend.touch.debug.key','legend.touch.debug']
-];
-
 function wobblyLine(ctx,x1,y1,x2,y2,seed,amp=0.8) {
     drawShape(ctx,sketchLine(x1,y1,x2,y2,{width:ctx.lineWidth*1.1,jitter:amp,seed,overshoot:1.5}),ctx.strokeStyle);
 }

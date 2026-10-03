@@ -92,12 +92,16 @@ export const SOUNDS={
     },
     death:{
         gap:1,
-        gain:0.6,
-        rev:0.4,
+        gain:0.75,
+        rev:0.65,
         layers:[
-            {kind:'tone',wave:'triangle',f0:392,f1:131,dur:1.2,attack:0.02,gain:0.3,sweep:1.1},
-            {kind:'tone',wave:'sine',f0:196,f1:65,dur:1.3,gain:0.25,sweep:1.2},
-            {kind:'noise',dur:0.5,gain:0.25,filter:{type:'bandpass',f0:2400,f1:600,q:1.2}}
+            {kind:'tone',wave:'sine',f0:120,f1:30,dur:2.0,attack:0.006,gain:0.5,sweep:1.6},
+            {kind:'tone',wave:'sine',f0:523,dur:2.8,attack:0.004,gain:0.1},
+            {kind:'tone',wave:'sine',f0:1444,dur:1.8,attack:0.004,gain:0.05},
+            {kind:'tone',wave:'sine',f0:2205,dur:1.2,attack:0.004,gain:0.025},
+            {kind:'tone',wave:'triangle',f0:196,f1:185,dur:2.6,attack:0.35,gain:0.07,sweep:2.4,trem:{rate:3,depth:0.6}},
+            {kind:'noise',dur:0.35,gain:0.22,filter:{type:'bandpass',f0:3000,f1:500,q:0.9}},
+            {kind:'noise',dur:1.6,delay:0.15,attack:0.6,gain:0.08,filter:{type:'lowpass',f0:900,f1:200,q:0.7,time:1.5}}
         ]
     },
     clear:{

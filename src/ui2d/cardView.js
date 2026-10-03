@@ -859,35 +859,38 @@ export function cardFacts(card,withDesc=true) {
     return out;
 }
 
-export function drawCardTooltip(ctx,card,x,y,maxW=270) {
-    const pad=14;
+export function drawCardTooltip(ctx,card,x,y,maxW=270,k=1) {
+    const pad=14*k;
+    const W=maxW*k;
+    const f=n=>Math.round(n*k)+'px '+FONT;
     ctx.save();
-    ctx.font='13px '+FONT;
-    const lines=wrapText(ctx,cardDesc(card),maxW-pad*2);
-    const h=pad*2+26+18+lines.length*19;
-    let bx=x-maxW/2;
+    ctx.font=f(13);
+    const lines=wrapText(ctx,cardDesc(card),W-pad*2);
+    const lh=19*k;
+    const h=pad*2+44*k+lines.length*lh;
+    let bx=x-W/2;
     let by=y-h;
-    bx=Math.max(8,Math.min(ctx.canvas.width/(ctx.getTransform().a||1)-maxW-8,bx));
+    bx=Math.max(8,Math.min(ctx.canvas.width/(ctx.getTransform().a||1)-W-8,bx));
     by=Math.max(8,by);
     ctx.fillStyle=rgba('paper',0.97);
-    ctx.fillRect(bx,by,maxW,h);
-    drawShape(ctx,sketchRect(bx,by,maxW,h,{width:1.8,seed:1601}),card.def.rarity==='rare'?PALETTE.red:PALETTE.ink);
+    ctx.fillRect(bx,by,W,h);
+    drawShape(ctx,sketchRect(bx,by,W,h,{width:1.8,seed:1601}),card.def.rarity==='rare'?PALETTE.red:PALETTE.ink);
     ctx.fillStyle=PALETTE.ink;
-    ctx.font='bold 17px '+FONT;
+    ctx.font='bold '+f(17);
     ctx.textAlign='left';
     ctx.textBaseline='top';
     ctx.fillText(cardName(card),bx+pad,by+pad);
-    ctx.font='bold 13px '+FONT;
+    ctx.font='bold '+f(13);
     ctx.textAlign='right';
-    ctx.fillText(t('tooltip.cost',{cost:cardCost(card)}),bx+maxW-pad,by+pad+3);
+    ctx.fillText(t('tooltip.cost',{cost:cardCost(card)}),bx+W-pad,by+pad+3*k);
     ctx.textAlign='left';
-    ctx.font='12px '+FONT;
+    ctx.font=f(12);
     ctx.fillStyle=card.def.rarity==='rare'?PALETTE.red:PALETTE.nearGray;
-    ctx.fillText(card.def.rarity==='rare'?t('type.ult'):t('type.'+card.def.type),bx+pad,by+pad+24);
+    ctx.fillText(card.def.rarity==='rare'?t('type.ult'):t('type.'+card.def.type),bx+pad,by+pad+24*k);
     ctx.fillStyle=PALETTE.ink;
-    ctx.font='13px '+FONT;
+    ctx.font=f(13);
     for (let i=0;i<lines.length;i++) {
-        ctx.fillText(lines[i],bx+pad,by+pad+44+i*19);
+        ctx.fillText(lines[i],bx+pad,by+pad+44*k+i*lh);
     }
     ctx.restore();
 }

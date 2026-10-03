@@ -50,10 +50,52 @@ export const music={
         this.ctx=ctx;
         this.noise=noise;
         this.out=ctx.createGain();
-        this.out.connect(out);
+        this.filter=ctx.createBiquadFilter();
+        this.filter.type='lowpass';
+        this.filter.frequency.value=MUSIC.death.open;
+        this.out.connect(this.filter);
+        this.filter.connect(out);
         for (const k in MUSIC.tracks) {
             this.songs[k]=compose(MUSIC.tracks[k]);
         }
+    },
+
+    death() {
+        const c=this.ctx;
+        if (!c||this.halted) {
+            return;
+        }
+        const D=MUSIC.death;
+        const now=c.currentTime;
+        this.halted=true;
+        const f=this.filter.frequency;
+        f.cancelScheduledValues(now);
+        f.setValueAtTime(f.value,now);
+        f.exponentialRampToValueAtTime(D.cut,now+D.time);
+        this.filter.Q.setTargetAtTime(D.q,now,D.time/3);
+        const g=this.out.gain;
+        g.cancelScheduledValues(now);
+        g.setValueAtTime(g.value,now);
+        g.linearRampToValueAtTime(D.gain,now+D.time);
+    },
+
+    recover() {
+        const c=this.ctx;
+        if (!c||!this.halted) {
+            return;
+        }
+        const D=MUSIC.death;
+        const now=c.currentTime;
+        this.halted=false;
+        const f=this.filter.frequency;
+        f.cancelScheduledValues(now);
+        f.setValueAtTime(f.value,now);
+        f.exponentialRampToValueAtTime(D.open,now+D.back);
+        this.filter.Q.setTargetAtTime(MUSIC.voices.pad.q,now,D.back/3);
+        const g=this.out.gain;
+        g.cancelScheduledValues(now);
+        g.setValueAtTime(g.value,now);
+        g.linearRampToValueAtTime(this.ducked?MUSIC.duck:1,now+D.back);
     },
 
     setDuck(on) {
@@ -70,7 +112,11 @@ export const music={
             return;
         }
         if (!this.cur||this.cur.name!==name) {
+            this.recover();
             this.switchTo(name);
+        }
+        if (this.halted) {
+            return;
         }
         const p=this.cur;
         const st=60/p.tr.bpm/4;

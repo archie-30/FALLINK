@@ -30,7 +30,7 @@ export const NOTEBOOK={
         shelfMaxZ:2.4,
         shelfGap:2.6,
         shelfClampX:6.5,
-        shelfClear:2.2,
+        shelfClear:2.2,frontW:4.5,frontBack:1,frontDepth:6,
         items:{
             buy:{price:600},
             rare:{price:1100},
@@ -45,6 +45,7 @@ export const NOTEBOOK={
     },
     supply:[['heal',1],['ink',3],['score',300]],
     chests:['rare','supply','mimic'],
+    fxNotes:['note.upgraded','note.removed','note.downgraded'],
     badNotes:['mg.lose','note.hurt','note.removed','note.scoreLoss','note.downgraded','note.eliteNext','gacha.broken','chest.mimic','challenge.failed'],
     events:[
         {

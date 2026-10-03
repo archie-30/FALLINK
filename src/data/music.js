@@ -3,6 +3,7 @@ export const MUSIC={
     fade:1.6,
     duck:0.4,
     duckTime:0.35,
+    death:{open:20000,cut:320,q:4,time:1.4,gain:0.45,back:1.2},
     gain:0.8,
     reverb:0.18,
     scales:{
