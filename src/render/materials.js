@@ -3,7 +3,7 @@ import {PALETTE} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {device} from '../core/settings.js';
 import {TOON_VERT,TOON_FRAG,HULL_VERT,HULL_FRAG,UNLIT_VERT,UNLIT_FRAG,SHADOW_VERT,SHADOW_FRAG} from './shaders/toon.js';
-import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,STAMP_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG} from './shaders/fx.js';
+import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,STAMP_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG,COUNT_FRAG} from './shaders/fx.js';
 
 const colorCache={};
 
@@ -408,6 +408,23 @@ export function trapMaterial(color,noFill=false) {
         fragmentShader:TRAP_FRAG,
         uniforms:fxUniforms(extra),
         defines:noFill?{NO_FILL:''}:{},
+        transparent:true,
+        depthTest:false,
+        depthWrite:false
+    });
+}
+
+export function countdownMaterial(color) {
+    const extra={
+        uColor:{value:pal(color).clone()},
+        uFrac:{value:1},
+        uAlpha:{value:0},
+        uR:{value:1}
+    };
+    return new THREE.ShaderMaterial({
+        vertexShader:LINE_VERT,
+        fragmentShader:COUNT_FRAG,
+        uniforms:fxUniforms(extra),
         transparent:true,
         depthTest:false,
         depthWrite:false
