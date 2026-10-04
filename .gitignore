@@ -1,0 +1,16 @@
+node_modules/
+www/
+
+# Android build output and local config
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/
+*.iml
+
+# Signing keys: NEVER commit these
+*.jks
+*.keystore
+keystore.properties
