@@ -481,6 +481,9 @@ function boot() {
         audio.play('card');
         closePicker(true);
     }
+    function modalShown() {
+        return trainingMenu.shown()||pauseMenu.shown()||trainingPicker.shown()||settingsMenu.shown()||codex.shown();
+    }
     function openTrainingMenu() {
         hand.cancelTargeting();
         audio.play('ui');
@@ -1892,7 +1895,7 @@ function boot() {
             if (type!=='mouse'&&marks.hitPrompt(x,y)&&tryInteract()) {
                 return true;
             }
-            if (resumeT>0) {
+            if (resumeT>0||modalShown()) {
                 return true;
             }
             return hand.down(x,y,id,type,button);
@@ -1925,6 +1928,9 @@ function boot() {
                 trainingPicker.move(x,y);
                 return;
             }
+            if (modalShown()) {
+                return;
+            }
             hand.move(x,y,id,type);
         },
         up:(x,y,id,type,button)=>{
@@ -1935,6 +1941,10 @@ function boot() {
             levelView.up();
             skinEditor.up(x,y);
             trainingPicker.up(x,y);
+            if (modalShown()) {
+                hand.cancelTargeting();
+                return;
+            }
             hand.up(x,y,id,type,button);
         },
         hover:(x,y)=>{
@@ -2053,7 +2063,7 @@ function boot() {
         trainingPicker.wheel(dy);
         skinEditor.wheel(dy);
     };
-    input.canStick=()=>!popup.open&&!coach.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.canStick=()=>!modalShown()&&!popup.open&&!coach.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     let skillToggle=false;
     let skillQuick=false;
     input.onSkill=(type,slot,vx,vy,mag,moved)=>{
@@ -2136,6 +2146,8 @@ function boot() {
         }
     });
     const autoPause=()=>{
+        input.resetPointers();
+        hand.cancelTargeting();
         if (game.mode==='play'&&!pauseMenu.open&&!trainingMenu.open&&!trainingPicker.open&&!fx.cutin) {
             openPause();
         }

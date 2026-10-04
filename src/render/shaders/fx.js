@@ -429,8 +429,8 @@ void main() {
     }
     vec2 c=vUv*2.0-1.0;
     float r=length(c);
-    float w=0.14/uR;
-    if (abs(r-(1.0-w*1.6))>w*0.5) {
+    float w=0.17/uR;
+    if (abs(r-(1.0-0.44/uR))>w*0.5) {
         discard;
     }
     float a=fract(0.25-atan(c.y,c.x)/6.2831853);
@@ -438,6 +438,6 @@ void main() {
         gl_FragColor=vec4(uColor,uAlpha);
         return;
     }
-    gl_FragColor=vec4(uColor,uAlpha*0.16);
+    gl_FragColor=vec4(uColor,uAlpha*0.14);
 }
 `;
