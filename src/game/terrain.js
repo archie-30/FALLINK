@@ -444,6 +444,7 @@ class Zones {
         m.scale.set(r,1,r);
         m.frustumCulled=false;
         m.material.uniforms.uR.value=r;
+        m.renderOrder=3;
         this.fxScene.add(m);
         return m;
     }
@@ -527,7 +528,7 @@ class Zones {
         m.scale.set(r,1,r);
         m.frustumCulled=false;
         this.fxScene.add(m);
-        this.list.push({type:'puddle',x,z,r,slow,t:0,life:duration,fade,mesh:m,cd:this.countdown(x,z,r,'red')});
+        this.list.push({type:'puddle',x,z,r,slow,t:0,life:duration,fade,mesh:m,cd:this.countdown(x,z,r,'ink')});
     }
 
     fadeOf(zn) {
@@ -611,7 +612,7 @@ class Zones {
             if (zn.cd) {
                 const u=zn.cd.material.uniforms;
                 u.uFrac.value=Math.max(0,1-zn.t/zn.life);
-                u.uAlpha.value=Math.min(1,zn.t/0.3,(zn.life-zn.t)/0.3)*0.85;
+                u.uAlpha.value=Math.min(1,zn.t/0.3,(zn.life-zn.t)/0.3);
             }
             if (zn.type==='puddle'&&zn.mesh) {
                 const u=zn.mesh.material.uniforms;
