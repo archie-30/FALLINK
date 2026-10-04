@@ -12,7 +12,7 @@
 | 標籤建議 | 動作、射擊、卡牌、Roguelike、單機 |
 | 價格 | 免費（第一版無廣告、無內購） |
 | 隱私權政策網址 | `https://archie-30.github.io/INKRAGE/privacy.html`（**合併到 `main` 後才會上線**）【待你確認】 |
-| 聯絡信箱 | 【待你確認：填你要公開的信箱，同時也要填入 `privacy.html`】 |
+| 聯絡信箱 | `passer0012@gmail.com`（已填入 `privacy.html`；Play Console 的「開發者聯絡資訊」也要填同一個） |
 
 ## 繁體中文（zh-TW）
 
@@ -122,4 +122,4 @@ No sign-in, no personal data collected, no ads.
 ## 其他必填項目
 - 目標受眾：建議選 **13 歲以上** 或 **全年齡但非專為兒童設計**（選「專為兒童」會觸發 Families 政策，需要額外審核）。
 - 新個人開發者帳號：正式上架前需先做**封閉測試**（約 12 位以上測試者、連續 14 天）。
-- 每次上傳新版本，`android/app/build.gradle` 的 `versionCode` 必須加 1。
+- 版本號自動跟遊戲版本走（見 `ANDROID.md`）：執行 `npm run sync` 後，`versionCode` 會隨遊戲版本變大；同版本重複上傳時把 `package.json` 的 `androidBuild` 加 1。
