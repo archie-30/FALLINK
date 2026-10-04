@@ -12,7 +12,7 @@
 | 標籤建議 | 動作、射擊、卡牌、Roguelike、單機 |
 | 價格 | 免費（第一版無廣告、無內購） |
 | 隱私權政策網址 | `https://archie-30.github.io/INKRAGE/privacy.html`（**合併到 `main` 後才會上線**）【待你確認】 |
-| 聯絡信箱 | 【待你確認：填你要公開的信箱，同時也要填入 `privacy.html`】 |
+| 聯絡信箱 | `passer0012@gmail.com`（已填入 `privacy.html`；Play Console 的「開發者聯絡資訊」也要填同一個） |
 
 ## 繁體中文（zh-TW）
 

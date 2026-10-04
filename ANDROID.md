@@ -31,3 +31,7 @@ npm run sync
 - 若要**重複上傳同一個遊戲版本**（例如只是重新打包），把 `package.json` 的 `androidBuild` 加 1（0～9），再執行 `npm run sync`。
 - Build → Generate Signed App Bundle，產出 AAB。
 - 簽署金鑰（.jks）請另外備份，不要放進 GitHub。
+
+## 上架 / 封閉測試
+完整步驟（金鑰、Release 測試、Play Console 表單、封閉測試與申請正式版）見 [`store/closed-testing-guide.md`](store/closed-testing-guide.md)。
+Release 簽署設定：複製 `android/keystore.properties.example` 為 `android/keystore.properties` 並填入你的金鑰資訊（該檔案已被 git 忽略）。
