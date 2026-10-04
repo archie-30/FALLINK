@@ -1416,7 +1416,7 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'tf',
-            dmg:{kind:'hit',n:1},
+            dmg:{kind:'hit',n:2},
             period:3.6,
             draw(S,k) {
                 const cx=8;
@@ -1437,27 +1437,29 @@ export const ENEMY_ATTACKS={
         {
             key:'blank',
             dmg:{kind:'hit',n:1},
-            period:3.8,
+            period:4,
             draw(S,k) {
-                const C=2.4;
-                const x0=4;
-                const y0=1;
-                const safe=[2,6];
-                const order=[0,4,8,1,5,3,7];
-                const pc=seg(k,0.2,0.35);
-                S.player(lerp(x0+C*1.5,x0+C*0.5,pc),lerp(y0+C*1.5,y0+C*2.5,pc),0);
-                S.enemy('exam',14,PY,{size:2});
+                const cw=3.6;
+                const ch=2.7;
+                const x0=0.8;
+                const y0=0.45;
+                const safe=[2,4,11];
+                const order=[0,7,9,1,10,5,3,8,6];
+                const pc=seg(k,0.15,0.35);
+                S.player(lerp(x0+cw*1.5,x0+cw*0.5,pc),lerp(y0+ch*0.5,y0+ch*1.5,pc),0);
                 const a=seg(k,0.03,0.12)*(1-seg(k,0.88,0.96));
-                for (let i=0;i<4;i++) {
-                    S.line(x0+i*C,y0,x0+i*C,y0+C*3,PALETTE.red,0.06,a);
-                    S.line(x0,y0+i*C,x0+C*3,y0+i*C,PALETTE.red,0.06,a);
+                for (let i=0;i<=4;i++) {
+                    S.line(x0+i*cw,y0,x0+i*cw,y0+ch*3,PALETTE.red,0.06,a);
+                }
+                for (let i=0;i<=3;i++) {
+                    S.line(x0,y0+i*ch,x0+cw*4,y0+i*ch,PALETTE.red,0.06,a);
                 }
                 for (const c of safe) {
-                    S.ring(x0+(c%3)*C+C/2,y0+Math.floor(c/3)*C+C/2,C*0.3,PALETTE.ink,0.12,a);
+                    S.ring(x0+(c%4)*cw+cw/2,y0+Math.floor(c/4)*ch+ch/2,ch*0.3,PALETTE.ink,0.12,a);
                 }
                 order.forEach((c,i)=>{
-                    const f=seg(k,0.4+i*0.05,0.43+i*0.05)*(1-seg(k,0.85,0.95));
-                    S.rect(x0+(c%3)*C+0.1,y0+Math.floor(c/3)*C+0.1,C-0.2,C-0.2,PALETTE.ink,0.85*f);
+                    const f=seg(k,0.4+i*0.04,0.43+i*0.04)*(1-seg(k,0.85,0.95));
+                    S.rect(x0+(c%4)*cw+0.1,y0+Math.floor(c/4)*ch+0.1,cw-0.2,ch-0.2,PALETTE.ink,0.85*f);
                 });
             }
         },
@@ -1538,22 +1540,29 @@ export const ENEMY_ATTACKS={
             draw(S,k) {
                 const cx=9;
                 S.player(PX,PY,0);
-                const broken=seg(k,0.7,0.74);
-                S.enemy('bookFinal',cx,PY,{size:2.4,flash:broken>0&&broken<1?1:0});
+                S.enemy('bookFinal',cx,PY,{size:2.4});
                 const marks=[[cx+3.6,1.6],[cx+3.6,7.4],[cx-1.8,1]];
-                const shield=seg(k,0.05,0.15)*(1-broken);
-                S.ring(cx,PY,1.7,PALETTE.red,0.1,shield);
+                const all=seg(k,0.7,0.74);
+                S.text('50%',cx,PY-2.4,16,PALETTE.red,seg(k,0.25,0.3)*(1-all));
                 marks.forEach(([x,y],i)=>{
-                    const hit=0.3+i*0.13;
+                    const f=seg(k,0.05,0.22);
+                    const lx=lerp(cx,x,f);
+                    const ly=lerp(PY,y,f)-Math.sin(f*Math.PI)*2;
+                    const hit=0.35+i*0.12;
                     const gone=seg(k,hit+0.08,hit+0.11);
-                    const a=seg(k,0.08,0.16)*(1-gone);
-                    S.line(x,y,cx,PY,PALETTE.red,0.05,a*0.8,[0.2,0.15]);
-                    S.rect(x-0.22,y-0.7,0.44,1.3,PALETTE.ink,a);
-                    S.rect(x-0.24,y-0.2,0.48,0.14,PALETTE.red,a);
+                    const a=(f>0?1:0)*(1-gone);
+                    if (f>=1) {
+                        S.line(x,y,cx,PY,PALETTE.red,0.05,a*0.8,[0.2,0.15]);
+                    }
+                    S.rect(lx-0.22,ly-0.7,0.44,1.3,PALETTE.ink,a);
+                    S.rect(lx-0.24,ly-0.2,0.48,0.14,PALETTE.red,a);
                     S.stream(PX+0.9,PY,x,y,k,hit-0.1,hit+0.08,0.05,0.1);
                     S.burst(x,y,1,seg(k,hit+0.08,hit+0.25),PALETTE.red);
                 });
-                S.text('×3',cx,PY-2.4,18,PALETTE.red,broken*(1-seg(k,0.95,1)));
+                for (let q=0;q<5;q++) {
+                    const a=Math.PI+(q/4-0.5)*0.8;
+                    S.fly(cx,PY,cx+Math.cos(a)*7,PY+Math.sin(a)*7,k,0.3,0.55,'enemy');
+                }
             }
         },
         {

@@ -78,6 +78,16 @@ export class Decals {
             this.items.push({mesh:m,age:0,size:1,active:false});
         }
         this.next=0;
+        this.limit=capacity;
+    }
+
+    setLimit(n) {
+        this.limit=Math.max(1,Math.min(this.items.length,n));
+        this.next=this.next%this.limit;
+        for (let i=this.limit;i<this.items.length;i++) {
+            this.items[i].active=false;
+            this.items[i].mesh.visible=false;
+        }
     }
 
     clear() {
@@ -89,7 +99,7 @@ export class Decals {
 
     spawn(x,z,size,color='red',old='darkRed') {
         const it=this.items[this.next];
-        this.next=(this.next+1)%this.items.length;
+        this.next=(this.next+1)%this.limit;
         it.active=true;
         it.age=0;
         it.size=size;

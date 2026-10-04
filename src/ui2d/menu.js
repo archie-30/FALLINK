@@ -1497,7 +1497,7 @@ export class SettingsMenu extends Panel {
     }
 }
 
-const FOE_LIST=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','scissorMinion','compass','eraserMonster'];
+const FOE_LIST=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','compass','eraserMonster'];
 
 const BOSS_LIST=['inkBottle','scissors','book','exam','bookFinal'];
 
@@ -2027,11 +2027,6 @@ export class Codex extends Panel {
                     cx+=cw+6;
                 }
                 ctx.textBaseline='top';
-            }
-            if (seen) {
-                ctx.fillStyle=hv?PALETTE.red:PALETTE.midGray;
-                ctx.font='12px '+FONT;
-                ctx.fillText(t('codex.clickEnemy'),tx,y+86);
             }
             ctx.restore();
         }

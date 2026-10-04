@@ -36,6 +36,15 @@ uniform vec3 uPaperCol;
 uniform vec2 uDeath;
 varying vec2 vUv;
 float edgeAt(vec2 uv,vec2 px) {
+    #ifdef FAST_EDGE
+    vec4 b=texture2D(tGBuf,uv+vec2(0.0,px.y));
+    vec4 d=texture2D(tGBuf,uv+vec2(-px.x,0.0));
+    vec4 e=texture2D(tGBuf,uv);
+    vec4 f=texture2D(tGBuf,uv+vec2(px.x,0.0));
+    vec4 h=texture2D(tGBuf,uv+vec2(0.0,-px.y));
+    vec4 gx=(f-d)*4.0;
+    vec4 gy=(b-h)*4.0;
+    #else
     vec4 a=texture2D(tGBuf,uv+vec2(-px.x,px.y));
     vec4 b=texture2D(tGBuf,uv+vec2(0.0,px.y));
     vec4 c=texture2D(tGBuf,uv+vec2(px.x,px.y));
@@ -47,6 +56,7 @@ float edgeAt(vec2 uv,vec2 px) {
     vec4 i=texture2D(tGBuf,uv+vec2(px.x,-px.y));
     vec4 gx=(c+2.0*f+i)-(a+2.0*d+g);
     vec4 gy=(a+2.0*b+c)-(g+2.0*h+i);
+    #endif
     float de=length(vec2(gx.w,gy.w))/max(e.w,0.0001);
     float ne=length(gx.xyz)+length(gy.xyz);
     return max(smoothstep(uEdge.x,uEdge.y,de),smoothstep(uEdge.z,uEdge.w,ne));
@@ -55,10 +65,14 @@ void main() {
     vec2 uv=vUv;
     float depth=texture2D(tGBuf,uv).w*uFar;
     float fade=smoothstep(uLineFade.x,uLineFade.y,depth);
+    #ifdef NO_WOBBLE
+    vec2 off=vec2(0.0);
+    #else
     vec2 nuv=uv*uBoil.z*vec2(uRes.x/uRes.y,1.0)+uBoilSeed*vec2(0.37,0.61);
     vec2 n=texture2D(tNoise,nuv).rg-0.5;
     float calm=step(texture2D(tColor,uv).a,0.75);
     vec2 off=n*2.0*mix(uBoil.x,uBoil.y,fade)*uPx/uRes*(1.0-calm);
+    #endif
     vec2 px=mix(uLine.x,uLine.y,fade)*uPx*uLineScale/uRes;
     float edge=edgeAt(uv+off,px);
     float grain=texture2D(tPaper,(gl_FragCoord.xy-uPaperOff)/(uGrain.y*uPx)).r;

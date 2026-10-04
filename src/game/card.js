@@ -759,7 +759,6 @@ export class CardEffects {
     inkField(x,z,radius,duration,dps) {
         const g=this.g;
         this.sweeps.push({type:'field',t:0,dur:duration,x,z,r:radius,dps,tick:0,ring:0});
-        g.room.zones.addTimer(x,z,radius,duration);
         g.decals.spawn(x,z,radius*2.1,'ink','midGray');
         g.particles.burst(x,0.3,z,16,{speed:[1,radius*1.6],up:[2,5],size:[0.08,0.14]});
         g.fx.cameraShake(0.12);

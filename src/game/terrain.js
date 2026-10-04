@@ -457,10 +457,6 @@ class Zones {
         this.list.push({type:'slow',x,z,r,slow,t:0,life:duration,mesh:m,cd:this.countdown(x,z,r,'ink')});
     }
 
-    addTimer(x,z,r,duration) {
-        this.list.push({type:'timer',x,z,r,t:0,life:duration,mesh:null,cd:this.countdown(x,z,r,'ink')});
-    }
-
     addTrail(player,dps,duration) {
         const geo=new THREE.BufferGeometry();
         const cap=40;
@@ -522,7 +518,7 @@ class Zones {
     }
 
     addPuddle(x,z,r,duration,slow) {
-        this.list.push({type:'puddle',x,z,r,slow,t:0,life:duration,mesh:null,cd:this.countdown(x,z,r,'red')});
+        this.list.push({type:'puddle',x,z,r,slow,t:0,life:duration,mesh:null});
     }
 
     addPrint(x,z,r,duration,fade,slow) {

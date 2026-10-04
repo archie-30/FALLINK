@@ -534,7 +534,7 @@ export class Hud {
             ctx.fillStyle=PALETTE.ink;
             ctx.font='bold 14px '+FONT;
             ctx.textAlign='center';
-            const tag=boss.evolving?t('boss.evolving'):(boss.evolved?t('boss.form2'):'');
+            const tag=boss.evolving?t('boss.evolving'):(boss.guarded?t('boss.guard'):(boss.evolved?t('boss.form2'):''));
             ctx.fillStyle=boss.evolved||boss.evolving?PALETTE.red:PALETTE.ink;
             ctx.fillText(t(boss.def.nameKey)+tag,w/2,y);
             ctx.fillStyle=rgba('paper',0.8);

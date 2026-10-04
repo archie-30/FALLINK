@@ -10,7 +10,7 @@ import {CameraRig} from './core/cameraRig.js';
 import {createScene} from './core/scene.js';
 import {tweens} from './core/tween.js';
 import {fx} from './core/fx.js';
-import {detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device,TRAINING_DEFAULTS} from './core/settings.js';
+import {detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device,TRAINING_DEFAULTS,TRAINING_SPAWN} from './core/settings.js';
 import {Renderer} from './render/renderer.js';
 import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial,shared,dissolveVariant} from './render/materials.js';
 import {Particles,MuzzleFlashes,Rings} from './render/particles.js';
@@ -1337,7 +1337,10 @@ function boot() {
             player.setWeapon('pen');
         }
         if (mode==='training') {
-            Object.assign(settings.training,JSON.parse(JSON.stringify(TRAINING_DEFAULTS)),{weapon:player.weaponId});
+            for (const k of TRAINING_SPAWN) {
+                settings.training[k]=JSON.parse(JSON.stringify(TRAINING_DEFAULTS[k]));
+            }
+            settings.training.weapon=player.weaponId;
         }
         resetTrainStats();
         deck.provider=mode==='training'?trainProvider:(mode==='tutorial'?tutProvider:null);
@@ -1757,6 +1760,7 @@ function boot() {
         textures.hatch.needsUpdate=true;
         setShadowQuality(q.hatchedShadow);
         particles.setLimit(q.particles);
+        decals.setLimit(q.decals);
         renderFlags.hulls=q.hulls!==false;
         player.root.traverse(o=>{
             if (o.name==='hull') {
