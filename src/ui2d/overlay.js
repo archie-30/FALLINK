@@ -102,7 +102,7 @@ export class Overlay {
             }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
             game.coach.touch=input.lastDevice==='touch';
-            game.coach.drawStrip(ctx);
+            game.coach.drawStrip(ctx,game.art);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
             game.ultCutin.draw(ctx,this.width,this.height,game.art);
             this.hud.drawPause(ctx,this.width);
@@ -138,7 +138,7 @@ export class Overlay {
         if (game.mode!=='play') {
             game.summary.draw(ctx);
         }
-        if (!game.codex.open&&!game.settingsMenu.open) {
+        if (!(game.codex.open&&game.codex.t>TUNING.codex.open.fade)&&!game.settingsMenu.open) {
             game.mainMenu.draw(ctx);
         }
         game.levelView.draw(ctx);

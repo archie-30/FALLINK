@@ -580,6 +580,19 @@ export class Player {
         return out;
     }
 
+    muzzleLeft(out) {
+        const W=TUNING.weapon;
+        const c=Math.cos(this.aimYaw);
+        const sn=Math.sin(this.aimYaw);
+        out.x=this.pos.x-W.muzzleSide*c+W.muzzleForward*sn;
+        out.z=this.pos.z+W.muzzleSide*sn+W.muzzleForward*c;
+        return out;
+    }
+
+    beamAngle(mx,mz) {
+        return this.dualT>0?this.fireAngle(this.pos.x,this.pos.z):this.fireAngle(mx,mz);
+    }
+
     faceDir(dx,dz) {
         this.aimDirX=dx;
         this.aimDirZ=dz;
@@ -643,19 +656,18 @@ export class Player {
     fire(ctx,aim) {
         const mp=this.muzzlePoint(this._mp||(this._mp={x:0,z:0}));
         this.lastAim=aim;
+        const ang=this.W.beam?this.beamAngle(mp.x,mp.z):null;
         if (this.dualT>0) {
-            const W=TUNING.weapon;
-            const c=Math.cos(this.aimYaw);
-            const sn=Math.sin(this.aimYaw);
-            this.fireFrom(ctx,this.pos.x-W.muzzleSide*c+W.muzzleForward*sn,this.pos.z+W.muzzleSide*sn+W.muzzleForward*c);
+            const lp=this.muzzleLeft(this._lp||(this._lp={x:0,z:0}));
+            this.fireFrom(ctx,lp.x,lp.z,ang);
             this.dualKick=1;
         }
-        this.fireFrom(ctx,mp.x,mp.z);
+        this.fireFrom(ctx,mp.x,mp.z,ang);
     }
 
-    fireFrom(ctx,mx,mz) {
+    fireFrom(ctx,mx,mz,ang=null) {
         const W=this.W;
-        const base=this.fireAngle(mx,mz);
+        const base=ang??this.fireAngle(mx,mz);
         let dx;
         let dz;
         if (W.swing) {

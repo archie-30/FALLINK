@@ -14,7 +14,7 @@ import {ENEMIES} from '../data/enemies.js';
 import {ENDLESS,TRAINING_MAPS,TRAINING,LAYOUTS} from '../data/levels.js';
 import {fmtInk} from './hud.js';
 import {CARD_ANIMS,ENEMY_ATTACKS,WEAPON_ANIMS,TUTOR_ANIMS,drawStage} from './codexAnim.js';
-import {TUTOR_STEPS} from '../game/tutorial.js';
+import {TUTOR_STEPS,goalNeed} from '../game/tutorial.js';
 import {WEAPONS,WEAPON_ORDER,weaponUnlocked,unlockedWeapons,RANDOM_WEAPON} from '../data/weapons.js';
 import {VERSION} from '../data/version.js';
 import {MINIGAMES} from '../data/minigames.js';
@@ -2282,13 +2282,28 @@ export class Codex extends Panel {
         if (!this.shown()) {
             return;
         }
+        const C=TUNING.codex.open;
+        const w=this.width;
+        const h=this.height;
+        const k=EASE.easeOutCubic(Math.min(1,this.t/C.time));
+        ctx.fillStyle=rgba('paper',Math.min(0.97,this.t/C.fade));
+        ctx.fillRect(0,0,w,h);
+        ctx.save();
+        ctx.globalAlpha*=Math.min(1,this.t/C.fade);
+        const sc=C.scale+(1-C.scale)*k;
+        ctx.translate(w/2,h/2+(1-k)*C.rise);
+        ctx.scale(sc,sc);
+        ctx.translate(-w/2,-h/2);
+        this.drawBody(ctx,art);
+        ctx.restore();
+    }
+
+    drawBody(ctx,art) {
         this.layout();
         this.clampScroll();
         const w=this.width;
         const h=this.height;
         const v=time.boilIndex;
-        ctx.fillStyle=rgba('paper',Math.min(0.97,this.t*4));
-        ctx.fillRect(0,0,w,h);
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold '+(this.compact?24:32)+'px '+FONT;
         ctx.textAlign=this.compact?'left':'center';
@@ -5147,15 +5162,15 @@ export class Coach extends Panel {
         return out;
     }
 
-    task(step,need) {
+    task(step) {
         this.hide();
-        this.strip={step,count:0,need,pulse:0,stamp:-1,t:0};
+        this.strip={step,counts:{},pulse:{},stamp:-1,t:0};
     }
 
-    progress(n) {
+    progress(kind,n) {
         if (this.strip) {
-            this.strip.count=n;
-            this.strip.pulse=1;
+            this.strip.counts[kind]=n;
+            this.strip.pulse[kind]=1;
         }
     }
 
@@ -5241,7 +5256,9 @@ export class Coach extends Panel {
         const s=this.strip;
         if (s) {
             s.t+=dt;
-            s.pulse=Math.max(0,s.pulse-dt*3);
+            for (const k in s.pulse) {
+                s.pulse[k]=Math.max(0,s.pulse[k]-dt*3);
+            }
             if (s.stamp>=0) {
                 s.stamp+=dt;
             }
@@ -5289,6 +5306,11 @@ export class Coach extends Panel {
             keycap(ctx,0,-42,112,32,t('tut.key.space'),f>0.3&&f<0.42);
             return;
         }
+        if (kind==='deck') {
+            const f=(k%4.2)/4.2;
+            keycap(ctx,0,-42,64,32,t('tut.key.tab'),f>0.14&&f<0.24);
+            return;
+        }
         if (kind==='cards') {
             const on=Math.floor(k/0.9)%2;
             keycap(ctx,0,-42,32,32,'1',on===0);
@@ -5328,6 +5350,17 @@ export class Coach extends Panel {
             ctx.fill();
             ctx.strokeStyle=PALETTE.ink;
             ctx.stroke();
+            return;
+        }
+        if (kind==='deck') {
+            const f=(k%4.2)/4.2;
+            const p=f>0.14&&f<0.24;
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillRect(cx-14,cy-20+(p?2:0),28,40);
+            ctx.fillStyle=rgba('ink',0.3);
+            ctx.beginPath();
+            ctx.arc(cx+6,cy+8,p?14:10,0,Math.PI*2);
+            ctx.fill();
             return;
         }
         if (kind==='dash') {
@@ -5417,11 +5450,11 @@ export class Coach extends Panel {
         }
     }
 
-    drawIllus(ctx,step,x,y,w,h,art,v) {
+    drawIllus(ctx,step,x,y,w,h,art,v,ctl=true) {
         const anim=COACH_ANIMS[step.anim];
         if (anim) {
             drawStage(ctx,x,y,w,h,anim,this.animT,v);
-            if (step.ctl) {
+            if (step.ctl&&ctl) {
                 this.drawControl(ctx,step.ctl,x+10,y+h-8,w);
             }
             return;
@@ -5559,11 +5592,134 @@ export class Coach extends Panel {
             ctx.fillText(t('tut.endNote'),0,0);
             ctx.restore();
         }
+        else if (step.draw==='deck') {
+            this.drawDeckIllus(ctx,x,y,w,h,art,v);
+        }
         ctx.restore();
         drawShape(ctx,sketchRect(x,y,w,h,{width:1.8,seed:1960}),PALETTE.ink,v);
+        if (step.ctl&&ctl) {
+            this.drawControl(ctx,step.ctl,x+10,y+h-8,w);
+        }
     }
 
-    drawStrip(ctx) {
+    drawDeckIllus(ctx,x,y,w,h,art,v) {
+        const k=(this.animT%4.2)/4.2;
+        const cl=q=>Math.max(0,Math.min(1,q));
+        const s=Math.min(w/420,h/236);
+        const px=x+w*0.62;
+        const py=y+h*0.8;
+        const bw=30*s;
+        const bh=42*s;
+        const press=cl((k-0.14)/0.06)*(1-cl((k-0.2)/0.06));
+        for (let i=2;i>=0;i--) {
+            ctx.fillStyle=i===0?PALETTE.ink:PALETTE.nearGray;
+            ctx.fillRect(px-bw/2+i*3*s,py-bh/2-i*3*s+press*3,bw,bh);
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=1.5;
+            ctx.strokeRect(px-bw/2+i*3*s,py-bh/2-i*3*s+press*3,bw,bh);
+        }
+        if (press>0) {
+            ctx.strokeStyle=rgba('red',press);
+            ctx.lineWidth=2;
+            ctx.beginPath();
+            ctx.arc(px,py,bh*(0.6+press*0.5),0,Math.PI*2);
+            ctx.stroke();
+        }
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font='bold '+Math.round(11*s+2)+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='top';
+        ctx.fillText(t('deck.draw'),px,py+bh/2+4);
+        const open=EASE.easeOutCubic(cl((k-0.22)/0.12))*(1-cl((k-0.9)/0.08));
+        const cards=TUTORIAL_DECK.slice(0,5);
+        const pw=w*0.86;
+        const ph=h*0.6;
+        const ox=x+w*0.07;
+        const oy=y+h*0.06+(1-open)*h*0.4;
+        let tip=null;
+        if (open>0) {
+            ctx.save();
+            ctx.globalAlpha*=open;
+            ctx.fillStyle=rgba('paper',0.97);
+            ctx.fillRect(ox,oy,pw,ph);
+            drawShape(ctx,sketchRect(ox,oy,pw,ph,{width:1.8,seed:2480}),PALETTE.ink,v);
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold '+Math.round(13*s+2)+'px '+FONT;
+            ctx.textAlign='left';
+            ctx.textBaseline='top';
+            ctx.fillText(t('deck.viewer'),ox+10,oy+6);
+            const ch=ph*0.66;
+            const cw=ch*118/164;
+            const gap=(pw-20-cw*cards.length)/(cards.length-1);
+            for (let i=0;i<cards.length;i++) {
+                const cx=ox+10+i*(cw+gap);
+                const cy=oy+ph-ch-10;
+                ctx.drawImage(art.face(createCard(cards[i]),v),cx,cy,cw,ch);
+                if (i===1&&k>0.45) {
+                    ctx.strokeStyle=PALETTE.red;
+                    ctx.lineWidth=2.5;
+                    ctx.strokeRect(cx-3,cy-3,cw+6,ch+6);
+                    tip={x:cx+cw+8,y:cy+ch*0.2,card:createCard(cards[i])};
+                }
+            }
+            ctx.restore();
+        }
+        if (tip&&open>0.9) {
+            const tw=w*0.36;
+            const th=h*0.3;
+            const q=EASE.easeOutBack(cl((k-0.45)/0.08));
+            ctx.save();
+            ctx.translate(tip.x,tip.y);
+            ctx.scale(q,q);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.fillRect(0,0,tw,th);
+            drawShape(ctx,sketchRect(0,0,tw,th,{width:1.8,seed:2490}),PALETTE.red,v);
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold '+Math.round(13*s+2)+'px '+FONT;
+            ctx.textAlign='left';
+            ctx.textBaseline='top';
+            ctx.fillText(cardName(tip.card),8,6,tw-16);
+            ctx.fillStyle=rgba('midGray',0.8);
+            for (let i=0;i<3;i++) {
+                ctx.fillRect(8,th*0.42+i*th*0.18,(tw-16)*(i===2?0.6:1),th*0.07);
+            }
+            ctx.restore();
+        }
+        const lerpP=(a,b,f)=>[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];
+        const start=[x+w*0.9,y+h*0.95];
+        const card=[ox+10+(pw-20)*0.3,oy+ph*0.7];
+        let cur=lerpP(start,[px,py],EASE.easeInOutCubic(cl(k/0.14)));
+        if (k>0.3) {
+            cur=lerpP([px,py],card,EASE.easeInOutCubic(cl((k-0.3)/0.14)));
+        }
+        if (this.touch) {
+            ctx.fillStyle=rgba('ink',0.35);
+            ctx.beginPath();
+            ctx.arc(cur[0],cur[1],9*s+3,0,Math.PI*2);
+            ctx.fill();
+            return;
+        }
+        ctx.save();
+        ctx.translate(cur[0],cur[1]);
+        ctx.scale(s*1.2,s*1.2);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=1.6;
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.lineTo(0,17);
+        ctx.lineTo(4.5,13);
+        ctx.lineTo(8,20);
+        ctx.lineTo(10.5,19);
+        ctx.lineTo(7,12);
+        ctx.lineTo(12,12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    drawStrip(ctx,art) {
         const s=this.strip;
         if (!s) {
             return;
@@ -5571,20 +5727,19 @@ export class Coach extends Panel {
         const S=TUNING.tutorial.strip;
         const sm=this.small();
         const v=time.boilIndex;
+        const goals=s.step.goals;
+        const lh=sm?S.lineSmall:S.line;
         const w=Math.min(sm?S.wSmall:S.w,this.width-24);
-        const h=sm?S.hSmall:S.h;
+        const h=(sm?S.hSmall:S.h)+(goals.length-1)*lh;
         const x=this.width/2-w/2;
         const y=S.top-(1-EASE.easeOutBack(Math.min(1,s.t/0.35)))*(h+S.top);
         ctx.save();
         ctx.fillStyle=rgba('paper',0.95);
         ctx.fillRect(x,y,w,h);
         drawShape(ctx,sketchRect(x,y,w,h,{width:2,seed:2410}),PALETTE.ink,v);
-        const ih=h-12;
+        const ih=Math.min(h-12,(sm?S.hSmall:S.h)-12);
         const iw=Math.min(sm?S.illusSmall:S.illus,ih*16/9);
-        const anim=COACH_ANIMS[s.step.anim];
-        if (anim) {
-            drawStage(ctx,x+6,y+6,iw,ih,anim,this.animT,v);
-        }
+        this.drawIllus(ctx,s.step,x+6,y+(h-ih)/2,iw,ih,art,v,false);
         const tx=x+iw+16;
         const tw=x+w-tx-10;
         ctx.textAlign='left';
@@ -5592,21 +5747,31 @@ export class Coach extends Panel {
         ctx.fillStyle=PALETTE.red;
         ctx.font='bold '+(sm?15:13)+'px '+FONT;
         ctx.fillText(t('tut.practice',{n:this.index+1,total:PRACTICE})+'　'+t('tut.'+s.step.key+'.title'),tx,y+(sm?6:9),tw);
-        ctx.fillStyle=PALETTE.ink;
-        fitText(ctx,t('tut.'+s.step.key+'.goal',{n:s.need}),tx,y+(sm?28:30),tw,sm?20:18,'bold ');
-        const pr=sm?8:7;
-        for (let i=0;i<s.need;i++) {
-            const px=tx+pr+i*(pr*2+8);
-            const py=y+h-(sm?15:15);
-            const on=i<s.count;
-            const sc=on&&i===s.count-1?1+s.pulse*0.6:1;
-            ctx.fillStyle=on?PALETTE.red:rgba('paper',1);
-            ctx.beginPath();
-            ctx.arc(px,py,pr*sc,0,Math.PI*2);
-            ctx.fill();
-            ctx.strokeStyle=on?PALETTE.darkRed:PALETTE.ink;
-            ctx.lineWidth=1.8;
-            ctx.stroke();
+        const pr=sm?7:6;
+        for (let gi=0;gi<goals.length;gi++) {
+            const g=goals[gi];
+            const need=goalNeed(g);
+            const cnt=s.counts[g]||0;
+            const gy=y+(sm?30:30)+gi*lh;
+            const pw=need*(pr*2+6);
+            const ok=cnt>=need;
+            ctx.textAlign='left';
+            ctx.textBaseline='top';
+            ctx.fillStyle=ok?PALETTE.midGray:PALETTE.ink;
+            fitText(ctx,t('tut.goal.'+g,{n:need}),tx,gy,tw-pw-10,sm?18:16,'bold ');
+            for (let i=0;i<need;i++) {
+                const px=x+w-14-pr-(need-1-i)*(pr*2+6);
+                const py=gy+(sm?10:9);
+                const on=i<cnt;
+                const sc=on&&i===cnt-1?1+(s.pulse[g]||0)*0.6:1;
+                ctx.fillStyle=on?PALETTE.red:rgba('paper',1);
+                ctx.beginPath();
+                ctx.arc(px,py,pr*sc,0,Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle=on?PALETTE.darkRed:PALETTE.ink;
+                ctx.lineWidth=1.8;
+                ctx.stroke();
+            }
         }
         if (s.stamp>=0) {
             const q=EASE.easeOutBack(Math.min(1,s.stamp/0.25));
@@ -5704,10 +5869,13 @@ export class Coach extends Panel {
             ty+=sm?2:6;
             ctx.fillStyle=PALETTE.red;
             ctx.font='bold '+(sm?19:18)+'px '+FONT;
-            const goal=t('tut.goalLabel')+t('tut.'+step.key+'.goal',{n:TUNING.tutorial.need[step.key]});
-            for (const ln of wrapText(ctx,goal,tw)) {
-                ctx.fillText(ln,tx,ty);
-                ty+=lh;
+            ctx.fillText(t('tut.goalLabel'),tx,ty);
+            ty+=lh;
+            for (const g of step.goals) {
+                for (const ln of wrapText(ctx,'✓ '+t('tut.goal.'+g,{n:goalNeed(g)}),tw-16)) {
+                    ctx.fillText(ln,tx+16,ty);
+                    ty+=lh;
+                }
             }
         }
         const n=TUTOR_STEPS.length;

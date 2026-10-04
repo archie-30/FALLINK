@@ -762,14 +762,23 @@ export const CARD_ANIMS={
         }
     },
     dualWield:{
-        period:2.8,
+        period:3.4,
         draw(S,k) {
-            S.player(PX,PY,0,{pens:2,kick:k>0.15&&k<0.8?(Math.floor(k*50)%2)*0.5:0});
-            S.stream(PX+0.9,PY-0.3,12,3.3,k,0.15,0.75,0.04,0.12);
-            S.stream(PX+0.9,PY+0.3,12,5.7,k,0.17,0.77,0.04,0.12);
-            S.target('doodle',12,3.3,k,0.8);
-            S.target('blob',12,5.7,k,0.84);
-            S.text('×2',PX,PY-1.3,15,PALETTE.ink,seg(k,0.1,0.18)*(1-seg(k,0.8,0.9)));
+            const on=k>0.1&&k<0.78;
+            const pop=seg(k,0.06,0.12)*(1-seg(k,0.12,0.2));
+            S.player(PX,PY,0,{pens:on?2:1,flash:pop,kick:k>0.18&&k<0.7?(Math.floor(k*50)%2)*0.5:0});
+            S.stream(PX+0.9,PY-0.3,12,3.3,k,0.18,0.68,0.04,0.12);
+            S.stream(PX+0.9,PY+0.3,12,5.7,k,0.2,0.7,0.04,0.12);
+            S.target('doodle',12,3.3,k,0.72);
+            S.target('blob',12,5.7,k,0.75);
+            S.text(t('card.dualWield.name'),PX+0.4,PY-1.4,Math.max(9,S.s*0.7),PALETTE.red,seg(k,0.08,0.14)*(1-seg(k,0.7,0.78)));
+            const toss=seg(k,0.78,0.95);
+            if (toss>0&&toss<1) {
+                const x=PX-0.3-toss*2.2;
+                const y=PY+0.3-Math.sin(toss*Math.PI)*2.4+toss*1.6;
+                const a=toss*Math.PI*3;
+                S.line(x-Math.cos(a)*0.4,y-Math.sin(a)*0.4,x+Math.cos(a)*0.4,y+Math.sin(a)*0.4,PALETTE.ink,0.17,1-seg(k,0.9,0.95));
+            }
         }
     },
     pin:{

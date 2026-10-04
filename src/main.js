@@ -192,6 +192,7 @@ function boot() {
     weaponSys.compass.target=player.renderPos;
     const strokes=new BrushStrokes(fxScene,'ink');
     const beam=new Beam(fxScene,'marker','paper');
+    const beamL=new Beam(fxScene,'marker','paper');
     const beamHit={x:0,z:0,depth:0};
     let beamMerge=false;
     function beamReach(x,z,dx,dz,max) {
@@ -491,6 +492,7 @@ function boot() {
             pauseMenu.hide();
         }
         deckView.show();
+        tutNotify('deck');
         fx.paused=true;
     }
     function closeDeck() {
@@ -540,6 +542,7 @@ function boot() {
                     fx.cameraShake(TUNING.ultFx.hitShake);
                     fx.fovPunch(TUNING.ultFx.hitFov);
                     effects.run(card,tg);
+                    tutNotify('ult');
                 },{params:cardParams(echo||card),echo});
                 return;
             }
@@ -547,10 +550,13 @@ function boot() {
             audio.play(card.def.id==='pencilWall'?'wall':(card.def.type==='terrain'?'erase':'card'));
         },
         openDeck,
+        onCancel:()=>tutNotify('cancel'),
         showKeys:()=>input.lastDevice==='mouse'&&!device.mobile,
         onPlayStart:card=>{
             hand.idleT=0;
-            tutNotify(card&&isUlt(card.id)?'ult':'card');
+            if (card&&!isUlt(card.id)) {
+                tutNotify('card');
+            }
             audio.play('card');
             if (run.stats) {
                 run.stats.cards++;
@@ -677,7 +683,7 @@ function boot() {
             fx.cameraShake(1.0);
             enemyBullets.killWhere(()=>true,null);
             for (const o of enemies.list.slice()) {
-                enemies.damage(o,99999,0,0,true);
+                enemies.slay(o);
             }
         }
         else {
@@ -821,18 +827,29 @@ function boot() {
         return shardList;
     }
     const beamMp={x:0,z:0};
+    const beamMpL={x:0,z:0};
     function updateBeam(dt) {
         const PW=player.W;
         if (PW.beam&&player.beamT>0&&player.hp>0) {
             player.muzzlePoint(beamMp);
-            const a=player.fireAngle(beamMp.x,beamMp.z);
+            const a=player.beamAngle(beamMp.x,beamMp.z);
             const r=beamReach(beamMp.x,beamMp.z,Math.cos(a),Math.sin(a),PW.beam.range);
             beam.set(true,beamMp.x,beamMp.z,Math.cos(a),Math.sin(a),r.len,PW.beam.width);
+            if (player.dualT>0) {
+                player.muzzleLeft(beamMpL);
+                const rl=beamReach(beamMpL.x,beamMpL.z,Math.cos(a),Math.sin(a),PW.beam.range);
+                beamL.set(true,beamMpL.x,beamMpL.z,Math.cos(a),Math.sin(a),rl.len,PW.beam.width);
+            }
+            else {
+                beamL.set(false);
+            }
         }
         else {
             beam.set(false);
+            beamL.set(false);
         }
         beam.update(dt);
+        beamL.update(dt);
     }
 
     function clearWorld() {
@@ -846,6 +863,7 @@ function boot() {
         }
         strokes.clear();
         beam.clear();
+        beamL.clear();
         homingBullets.clear();
         lobs.clear();
         particles.clear();
@@ -952,11 +970,11 @@ function boot() {
             audio.play('page',1.2);
             coach.intro(step,i);
         },
-        task:(step,need)=>coach.task(step,need),
-        progress:(n,need,pad)=>{
-            coach.progress(n,need);
+        task:step=>coach.task(step),
+        progress:(kind,n,pad)=>{
+            coach.progress(kind,n);
             audio.play('ui',1.2+n*0.1);
-            if (pad) {
+            if (kind==='pad'&&pad) {
                 particles.burst(pad.x,0.4,pad.z,14,{color:'red',speed:[2,5],up:[2,5],size:[0.08,0.16]});
                 rings.spawn(pad.x,pad.z,pad.r*1.6,'red',0.4);
             }
@@ -1249,6 +1267,9 @@ function boot() {
         ctx.room=r;
         effects.g.room=r;
         player.enterRoom(new THREE.Vector3(0,0,1.5));
+        if (run.tutorial()) {
+            equipWeapon();
+        }
         player.resetPose();
         player.aimYaw=0.6;
         enemies.hpMult=1;
@@ -1284,6 +1305,9 @@ function boot() {
         ink.value=TUNING.ink.start;
         trainFixed=[];
         equipWeapon(mode!=='training');
+        if (mode==='tutorial') {
+            player.setWeapon('pen');
+        }
         if (mode==='training') {
             settings.training.weapon=player.weaponId;
         }
@@ -1377,6 +1401,15 @@ function boot() {
         settingsMenu.show();
     }
     function settingsChanged(key) {
+        if (key==='reduced') {
+            if (settings.reducedMotion) {
+                settings.jitterPrev=settings.jitter;
+                settings.jitter=0;
+            }
+            else {
+                settings.jitter=settings.jitterPrev??1;
+            }
+        }
         if (key==='full') {
             if (settings.fullscreen) {
                 requestFullscreen();
@@ -1773,7 +1806,7 @@ function boot() {
                 return true;
             }
             if (deckView.open) {
-                if (!deckView.tap(x,y,type)) {
+                if (!(type==='mouse'?deckView.tap(x,y,type):deckView.press(x,y))) {
                     closeDeck();
                 }
                 return true;
@@ -1805,6 +1838,10 @@ function boot() {
                 codex.move(x,y);
                 return;
             }
+            if (deckView.open&&deckView.drag) {
+                deckView.move(x,y);
+                return;
+            }
             if (levelView.open) {
                 levelView.move(x,y);
                 return;
@@ -1820,6 +1857,7 @@ function boot() {
             hand.move(x,y,id,type);
         },
         up:(x,y,id,type,button)=>{
+            deckView.up();
             summary.up();
             settingsMenu.up();
             codex.up(x,y);
@@ -1931,11 +1969,13 @@ function boot() {
         }
         if (hand.targetView||hand.press) {
             hand.cancelTargeting();
+            tutNotify('cancel');
             return;
         }
         openPause();
     };
     input.onWheel=dy=>{
+        deckView.wheel(dy);
         codex.wheel(dy);
         summary.wheel(dy);
         levelView.wheel(dy);
@@ -1949,6 +1989,7 @@ function boot() {
         if (type==='cancel') {
             skillQuick=false;
             hand.cancelTargeting();
+            tutNotify('cancel');
             audio.play('ui',0.7);
             return;
         }
@@ -1977,6 +2018,7 @@ function boot() {
         }
         if (!moved&&skillToggle) {
             hand.cancelTargeting();
+            tutNotify('cancel');
         }
     };
     input.onAimRelease=(vx,vy,mag,tap)=>{
@@ -2271,6 +2313,9 @@ function boot() {
     }
     function render(dt,alpha) {
         probeFps(dt);
+        if (run.tutorial()&&((deckView.open&&deckView.hovered())||(pauseMenu.open&&hand.hover))) {
+            tutNotify('detail');
+        }
         tickResume(dt);
         gameUi.resumeT=resumeT;
         setTouchText(input.lastDevice==='touch');
@@ -2294,6 +2339,7 @@ function boot() {
         }
         strokes.render(alpha);
         beam.render();
+        beamL.render();
         homingBullets.render(alpha);
         lobs.render(alpha);
         particles.render();
@@ -2303,7 +2349,10 @@ function boot() {
         const touchCast=input.lastDevice==='touch'&&!!hand.targetView;
         input.aimForCard=touchCast;
         const sd=input.skillDrag();
-        if (sd&&touchCast) {
+        if (sd&&touchCast&&!sd.cancel&&hand.targetView.card.def.targeting==='aura'&&sd.mag>=TUNING.input.skill.auraCast) {
+            hand.stickCast(sd.vx,sd.vy,sd.mag,false);
+        }
+        else if (sd&&touchCast) {
             hand.stickAim(sd.vx,sd.vy,sd.mag,true,true);
         }
         else {

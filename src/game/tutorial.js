@@ -3,17 +3,22 @@ import {TUTORIAL_ULT} from '../data/cards.js';
 import {createCard} from './card.js';
 
 export const TUTOR_STEPS=[
-    {key:'move',goal:'pad',anim:'move',ctl:'move'},
-    {key:'shoot',goal:'kill',anim:'shoot',ctl:'shoot',foes:'dummy'},
-    {key:'dash',goal:'dodge',anim:'dodge',ctl:'dash',foes:'sprayer'},
-    {key:'cards',goal:'card',anim:'cards',ctl:'cards',foes:'dummy',hand:true},
-    {key:'ult',goal:'ult',anim:'ult',ctl:'ult',foes:'dummy',hand:true,ult:true},
+    {key:'move',goals:['pad'],anim:'move',ctl:'move'},
+    {key:'shoot',goals:['kill'],anim:'shoot',ctl:'shoot',foes:'dummy'},
+    {key:'dash',goals:['dodge'],anim:'dodge',ctl:'dash',foes:'sprayer'},
+    {key:'cards',goals:['card','cancel'],anim:'cards',ctl:'cards',foes:'dummy',hand:true},
+    {key:'deck',goals:['deck','detail'],draw:'deck',ctl:'deck',hand:true},
+    {key:'ult',goals:['ult'],anim:'ult',ctl:'ult',foes:'dummy',hand:true,ult:true,hold:true},
     {key:'rules',info:true,draw:'goal'},
     {key:'warn',info:true,anim:'warn'},
     {key:'upgrade',info:true,draw:'merge',merge:true},
     {key:'unlock',info:true,draw:'unlock'},
     {key:'end',info:true,draw:'end'}
 ];
+
+export function goalNeed(kind) {
+    return TUNING.tutorial.need[kind];
+}
 
 export class TutorialDirector {
     constructor(hooks,room) {
@@ -28,7 +33,7 @@ export class TutorialDirector {
         this.index=-1;
         this.phase='wait';
         this.timer=TUNING.tutorial.startDelay;
-        this.count=0;
+        this.counts={};
         this.pad=null;
         this.slots=[];
     }
@@ -41,17 +46,12 @@ export class TutorialDirector {
         return TUTOR_STEPS[this.index]||null;
     }
 
-    need() {
-        const s=this.step();
-        return s&&!s.info?TUNING.tutorial.need[s.key]:0;
-    }
-
     next() {
         if (this.index>=TUTOR_STEPS.length-1) {
             return;
         }
         this.index++;
-        this.count=0;
+        this.counts={};
         this.phase='intro';
         this.pad=null;
         this.hooks.intro(this.step(),this.index);
@@ -65,7 +65,7 @@ export class TutorialDirector {
         }
         this.phase='task';
         this.slots=[];
-        if (s.goal==='pad') {
+        if (s.goals.includes('pad')) {
             this.placePad();
         }
         if (s.foes==='dummy') {
@@ -79,23 +79,32 @@ export class TutorialDirector {
         if (s.hand) {
             this.hooks.showHand(!!s.ult);
         }
-        this.hooks.task(s,this.need());
+        this.hooks.task(s);
     }
 
     placePad() {
         const T=TUNING.tutorial;
-        const p=T.pads[this.count%T.pads.length];
+        const p=T.pads[(this.counts.pad||0)%T.pads.length];
         this.pad={x:p[0],z:p[1],r:T.padR,t:0};
+    }
+
+    met() {
+        return this.step().goals.every(g=>(this.counts[g]||0)>=goalNeed(g));
     }
 
     notify(kind) {
         const s=this.step();
-        if (this.phase!=='task'||!s||s.goal!==kind) {
+        if (this.phase!=='task'||!s||!s.goals.includes(kind)||(this.counts[kind]||0)>=goalNeed(kind)) {
             return;
         }
-        this.count++;
-        this.hooks.progress(this.count,this.need(),this.pad);
-        if (this.count>=this.need()) {
+        this.counts[kind]=(this.counts[kind]||0)+1;
+        this.hooks.progress(kind,this.counts[kind],this.pad);
+        if (this.met()) {
+            if (s.hold) {
+                this.phase='hold';
+                this.timer=TUNING.tutorial.holdTime;
+                return;
+            }
             this.complete();
         }
         else if (kind==='pad') {
@@ -111,8 +120,7 @@ export class TutorialDirector {
         this.slots=[];
         for (const sl of list) {
             if (sl.e&&sl.e.alive) {
-                sl.e.immortal=false;
-                this.enemies.damage(sl.e,TUNING.tutorial.clearDamage,0,0,true);
+                this.enemies.slay(sl.e);
             }
         }
         this.hooks.done(this.step());
@@ -124,6 +132,13 @@ export class TutorialDirector {
             this.timer-=dt;
             if (this.timer<=0) {
                 this.next();
+            }
+            return;
+        }
+        if (this.phase==='hold') {
+            this.timer-=dt;
+            if (this.timer<=0) {
+                this.complete();
             }
             return;
         }
