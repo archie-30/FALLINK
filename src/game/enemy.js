@@ -2854,7 +2854,7 @@ class Exam extends Enemy {
                     T.hit=true;
                     ctx.fx.cameraShake(0.3);
                     if (this.inWrong(p.pos.x,p.pos.z)) {
-                        p.hurt(1,T.axis==='x'?-T.wrong:0,T.axis==='z'?-T.wrong:0);
+                        p.hurt(d.tf.damage,T.axis==='x'?-T.wrong:0,T.axis==='z'?-T.wrong:0);
                     }
                 }
                 done=this.stateT>=d.tf.live;
@@ -2867,8 +2867,8 @@ class Exam extends Enemy {
                     const c=B.queue.shift();
                     B.filled.push({c,t:0});
                     const r=this.cellRect(c);
-                    ctx.particles.burst(r.x+B.C/2,0.3,r.z+B.C/2,6,{color:'ink',speed:[1,4],up:[1,3]});
-                    if (p.pos.x>r.x&&p.pos.x<r.x+B.C&&p.pos.z>r.z&&p.pos.z<r.z+B.C) {
+                    ctx.particles.burst(r.x+B.cw/2,0.3,r.z+B.ch/2,8,{color:'ink',speed:[1,5],up:[1,3]});
+                    if (p.pos.x>r.x&&p.pos.x<r.x+B.cw&&p.pos.z>r.z&&p.pos.z<r.z+B.ch) {
                         p.hurt(1,0,1);
                     }
                 }
@@ -2894,6 +2894,11 @@ class Exam extends Enemy {
                     this.kick=1;
                 }
                 done=this.volley>=(P2?T.volleys2:T.volleys);
+            }
+            if (done&&d.plain.includes(this.pattern)) {
+                this.setState('move');
+                this.patternT=rng.range(d.questionGap[0],d.questionGap[1]);
+                return;
             }
             if (done) {
                 if (this.pattern==='tf') {
@@ -2945,11 +2950,14 @@ class Exam extends Enemy {
         const d=this.def;
         const B=d.blank;
         const b=ctx.room.bounds;
-        const C=B.cell;
-        const p=ctx.player;
-        const x0=Math.max(b.minX+0.3,Math.min(b.maxX-0.3-C*3,p.pos.x-C*1.5));
-        const z0=Math.max(b.minZ+0.3,Math.min(b.maxZ-0.3-C*3,p.pos.z-C*1.5));
-        const all=[0,1,2,3,4,5,6,7,8];
+        const cols=B.cols;
+        const rows=B.rows;
+        const cw=(b.maxX-b.minX-0.4)/cols;
+        const ch=(b.maxZ-b.minZ-0.4)/rows;
+        const all=[];
+        for (let i=0;i<cols*rows;i++) {
+            all.push(i);
+        }
         for (let i=all.length-1;i>0;i--) {
             const j=Math.floor(rng.next()*(i+1));
             const q=all[i];
@@ -2957,13 +2965,21 @@ class Exam extends Enemy {
             all[j]=q;
         }
         const n=P2?B.safe2:B.safe;
-        this.blank={x0,z0,C,safe:all.slice(0,n),queue:all.slice(n),filled:[]};
+        const fill=all.slice(n);
+        for (let i=fill.length-1;i>0;i--) {
+            const j=Math.floor(rng.next()*(i+1));
+            const q=fill[i];
+            fill[i]=fill[j];
+            fill[j]=q;
+        }
+        this.blank={x0:b.minX+0.2,z0:b.minZ+0.2,cw,ch,cols,rows,safe:all.slice(0,n),queue:fill,filled:[]};
+        this.askDur=P2?B.ask2:B.ask;
         this.tele=null;
     }
 
     cellRect(c) {
         const B=this.blank;
-        return {x:B.x0+(c%3)*B.C,z:B.z0+Math.floor(c/3)*B.C};
+        return {x:B.x0+(c%B.cols)*B.cw,z:B.z0+Math.floor(c/B.cols)*B.ch};
     }
 
     essayTick(dt,ctx) {
@@ -3071,17 +3087,19 @@ class Exam extends Enemy {
         }
         const B=this.blank;
         if (B&&this.pattern==='blank'&&(this.state==='ask'||this.state==='attack')) {
-            for (let i=0;i<4;i++) {
-                red(B.x0+i*B.C,B.z0,B.x0+i*B.C,B.z0+B.C*3,0.12);
-                red(B.x0,B.z0+i*B.C,B.x0+B.C*3,B.z0+i*B.C,0.12);
+            for (let i=0;i<=B.cols;i++) {
+                red(B.x0+i*B.cw,B.z0,B.x0+i*B.cw,B.z0+B.ch*B.rows,0.14);
+            }
+            for (let i=0;i<=B.rows;i++) {
+                red(B.x0,B.z0+i*B.ch,B.x0+B.cw*B.cols,B.z0+i*B.ch,0.14);
             }
             for (const c of B.safe) {
                 const r=this.cellRect(c);
-                circ(r.x+B.C/2,r.z+B.C/2,B.C*0.32,0.22,1);
+                circ(r.x+B.cw/2,r.z+B.ch/2,Math.min(B.cw,B.ch)*0.3,0.3,1);
             }
             for (const f of B.filled) {
                 const r=this.cellRect(f.c);
-                ink(r.x+0.1,r.z+B.C/2,r.x+B.C-0.1,r.z+B.C/2,B.C-0.2,Math.max(0,1-Math.max(0,f.t-d.blank.fill*0.6)/(d.blank.fill*0.4)));
+                ink(r.x+0.1,r.z+B.ch/2,r.x+B.cw-0.1,r.z+B.ch/2,B.ch-0.2,Math.max(0,1-Math.max(0,f.t-d.blank.fill*0.6)/(d.blank.fill*0.4)));
             }
         }
         const E=d.essay;
@@ -3147,7 +3165,11 @@ class Bookmark extends Enemy {
         this.manual=true;
         this.vel.set(0,0,0);
         const h=this.host;
-        if (!h||!h.alive||!h.sealed) {
+        if (!h||!h.alive) {
+            ctx.enemyMgr.slay(this);
+            return;
+        }
+        if (!h.guarded) {
             this.tele=null;
             return;
         }
@@ -3178,51 +3200,83 @@ class BookFinal extends Book {
         const ink=this.inkMat();
         const red=unlitMaterial({color:'red'});
         this.pen=new THREE.Group();
-        const nib=this.hullify(new THREE.Mesh(geo('qtNib',()=>new THREE.ConeGeometry(0.62,1.5,4)),head));
+        const nib=this.hullify(new THREE.Mesh(geo('qtNib',()=>new THREE.ConeGeometry(0.46,1.05,4)),head));
         nib.rotation.x=Math.PI;
         nib.rotation.y=Math.PI/4;
-        nib.position.y=0.75;
+        nib.position.y=0.52;
         this.pen.add(nib);
-        const slit=new THREE.Mesh(geo('qtSlit',()=>new THREE.BoxGeometry(0.05,0.9,0.66)),ink);
-        slit.position.y=0.65;
+        const slit=new THREE.Mesh(geo('qtSlit',()=>new THREE.BoxGeometry(0.04,0.62,0.5)),ink);
+        slit.position.y=0.42;
         this.pen.add(slit);
-        const grip=this.hullify(new THREE.Mesh(geo('qtGrip',()=>new THREE.CylinderGeometry(0.62,0.55,0.9,10)),limb));
-        grip.position.y=1.9;
+        const hole=new THREE.Mesh(geo('qtHole',()=>new THREE.SphereGeometry(0.09,8,6)),red);
+        hole.position.set(0,0.78,0.3);
+        this.pen.add(hole);
+        const grip=this.hullify(new THREE.Mesh(geo('qtGrip',()=>new THREE.CylinderGeometry(0.5,0.42,0.55,12)),limb));
+        grip.position.y=1.32;
         this.pen.add(grip);
-        const barrel=this.hullify(new THREE.Mesh(geo('qtBarrel',()=>new THREE.CylinderGeometry(0.75,0.68,3.0,10)),body));
-        barrel.position.y=3.85;
+        const barrel=this.hullify(new THREE.Mesh(geo('qtBarrel',()=>new THREE.CylinderGeometry(0.6,0.56,1.55,12)),body));
+        barrel.position.y=2.35;
         this.pen.add(barrel);
-        const band=new THREE.Mesh(geo('qtBand',()=>new THREE.TorusGeometry(0.78,0.1,6,14)),red);
-        band.rotation.x=Math.PI/2;
-        band.position.y=3.0;
-        this.pen.add(band);
-        const clip=this.hullify(new THREE.Mesh(geo('qtClip',()=>new THREE.BoxGeometry(0.16,2.2,0.18)),limb));
-        clip.position.set(0,4.1,-0.86);
-        this.pen.add(clip);
-        const top=this.hullify(new THREE.Mesh(geo('qtTop',()=>new THREE.SphereGeometry(0.72,10,6)),body));
-        top.position.y=5.35;
-        top.scale.y=0.55;
-        this.pen.add(top);
-        for (const sx of [-1,1]) {
-            const e=new THREE.Mesh(geo('qtEye',()=>new THREE.BoxGeometry(0.42,0.08,0.06)),ink);
-            e.position.set(sx*0.3,4.2,0.74);
-            e.rotation.z=sx*0.35;
-            this.pen.add(e);
+        const ringG=geo('qtRing',()=>new THREE.TorusGeometry(0.6,0.05,6,16));
+        for (const y of [1.62,3.05]) {
+            const r=new THREE.Mesh(ringG,ink);
+            r.rotation.x=Math.PI/2;
+            r.position.y=y;
+            this.pen.add(r);
         }
+        const band=new THREE.Mesh(geo('qtBand',()=>new THREE.TorusGeometry(0.62,0.08,6,16)),red);
+        band.rotation.x=Math.PI/2;
+        band.position.y=2.85;
+        this.pen.add(band);
+        const gauge=new THREE.Mesh(geo('qtWindow',()=>new THREE.BoxGeometry(0.22,0.7,0.06)),ink);
+        gauge.position.set(0.5,2.2,0.3);
+        gauge.rotation.y=1.0;
+        this.pen.add(gauge);
+        const top=this.hullify(new THREE.Mesh(geo('qtTop',()=>new THREE.SphereGeometry(0.58,12,8,0,Math.PI*2,0,Math.PI/2)),limb));
+        top.position.y=3.12;
+        top.scale.y=0.6;
+        this.pen.add(top);
+        const clip=this.hullify(new THREE.Mesh(geo('qtClip',()=>new THREE.BoxGeometry(0.14,1.3,0.12)),head));
+        clip.position.set(0,2.55,-0.66);
+        this.pen.add(clip);
+        const clipEnd=new THREE.Mesh(geo('qtClipEnd',()=>new THREE.SphereGeometry(0.11,8,6)),head);
+        clipEnd.position.set(0,1.9,-0.66);
+        this.pen.add(clipEnd);
+        for (const sx of [-1,1]) {
+            const e=new THREE.Mesh(geo('qtEye',()=>new THREE.BoxGeometry(0.3,0.07,0.05)),ink);
+            e.position.set(sx*0.22,2.55,0.58);
+            e.rotation.z=sx*0.4;
+            this.pen.add(e);
+            const pu=new THREE.Mesh(geo('qtPupil',()=>new THREE.SphereGeometry(0.06,6,4)),ink);
+            pu.position.set(sx*0.2,2.4,0.58);
+            this.pen.add(pu);
+        }
+        const mouth=new THREE.Mesh(geo('qtMouth',()=>new THREE.BoxGeometry(0.3,0.05,0.05)),ink);
+        mouth.position.set(0,2.12,0.6);
+        this.pen.add(mouth);
         this.crown=new THREE.Group();
-        const sp=geo('bfSpike',()=>new THREE.ConeGeometry(0.2,0.6,5));
+        const sp=geo('qtSpike',()=>new THREE.ConeGeometry(0.13,0.42,5));
         for (let i=0;i<5;i++) {
-            const a=i/5*Math.PI*2;
+            const an=i/5*Math.PI*2;
             const m=new THREE.Mesh(sp,red);
-            m.position.set(Math.cos(a)*0.55,5.8,Math.sin(a)*0.55);
+            m.position.set(Math.cos(an)*0.36,3.62,Math.sin(an)*0.36);
             this.crown.add(m);
         }
         this.pen.add(this.crown);
-        this.mark=new THREE.Mesh(geo('qtMark',()=>new THREE.TorusGeometry(0.75,0.08,6,16)),red);
+        this.orbs=new THREE.Group();
+        for (let i=0;i<3;i++) {
+            const an=i/3*Math.PI*2;
+            const d=new THREE.Mesh(geo('qtDrop',()=>new THREE.SphereGeometry(0.15,8,6)),ink);
+            d.position.set(Math.cos(an)*1.05,1.1,Math.sin(an)*1.05);
+            d.scale.y=1.5;
+            this.orbs.add(d);
+        }
+        this.pen.add(this.orbs);
+        this.mark=new THREE.Mesh(geo('qtMark',()=>new THREE.TorusGeometry(0.55,0.07,6,16)),red);
         this.mark.rotation.x=Math.PI/2;
-        this.mark.position.y=1.45;
+        this.mark.position.y=1.0;
         this.pen.add(this.mark);
-        this.pen.position.y=0.9;
+        this.pen.position.y=0.5;
         this.body.add(this.pen);
     }
 
@@ -3232,11 +3286,10 @@ class BookFinal extends Book {
         this.bombs=[];
         this.hz=[];
         this.sweep=null;
-        this.sealed=false;
-        this.shielded=false;
+        this.guarded=false;
+        this.pending=0;
         this.marks=[];
-        this.sealT=0;
-        this.sealAtk=0;
+        this.restN=0;
     }
 
     hide() {
@@ -3257,19 +3310,19 @@ class BookFinal extends Book {
         return this.evolved?2:(this.hp<this.maxHp*2/3?1:0);
     }
 
-    onEvolveStart(ctx) {
+    onEvolveStart() {
         this.hz=[];
         this.sweep=null;
         this.bombs=[];
-        if (this.sealed) {
-            this.unseal(ctx,false);
-            this.setState('move');
-        }
         this.page=2;
     }
 
+    onEvolved(ctx) {
+        this.seal(ctx);
+    }
+
     damageMult() {
-        return this.state==='rest'||this.state==='broken'?this.def.weakMult:1;
+        return this.state==='rest'?this.def.weakMult:1;
     }
 
     choose() {
@@ -3369,53 +3422,50 @@ class BookFinal extends Book {
         }
     }
 
-    seal(ctx) {
-        const S=this.def.seal;
-        this.sealed=true;
-        this.shielded=true;
-        this.sealT=0;
-        this.sealAtk=S.attackEvery*0.6;
-        this.tele=null;
-        this.bombs=[];
-        this.setState('sealed');
-        this.marks=[];
-        const n=S.marks[Math.min(S.marks.length-1,this.page-1)];
-        const b=ctx.room.bounds;
-        const a0=rng.range(0,Math.PI*2);
-        for (let i=0;i<n;i++) {
-            const a=a0+i/n*Math.PI*2;
-            const x=Math.max(b.minX+1.5,Math.min(b.maxX-1.5,this.pos.x+Math.cos(a)*S.radius));
-            const z=Math.max(b.minZ+1.5,Math.min(b.maxZ-1.5,this.pos.z+Math.sin(a)*S.radius));
-            const m=ctx.enemyMgr.spawn('bookmark',x,z,{hpMult:1});
-            m.host=this;
-            this.marks.push(m);
-        }
-        this.say={text:t('bookFinal.seal'),t:0,dur:2.2,keep:true};
-        ctx.fx.cameraShake(0.4);
+    guardMult() {
+        return this.guarded?this.def.seal.guard:1;
     }
 
-    unseal(ctx,broken) {
+    seal(ctx) {
         const S=this.def.seal;
-        this.sealed=false;
-        this.shielded=false;
-        this.tele=null;
-        for (const m of this.marks) {
-            if (m.alive) {
-                ctx.enemyMgr.slay(m);
-            }
-        }
+        this.guarded=true;
         this.marks=[];
-        if (broken) {
-            this.setState('broken');
+        this.pending=S.marks;
+        const b=ctx.room.bounds;
+        const a0=rng.range(0,Math.PI*2);
+        for (let i=0;i<S.marks;i++) {
+            const a=a0+i/S.marks*Math.PI*2;
+            const x=Math.max(b.minX+1.5,Math.min(b.maxX-1.5,this.pos.x+Math.cos(a)*S.radius));
+            const z=Math.max(b.minZ+1.5,Math.min(b.maxZ-1.5,this.pos.z+Math.sin(a)*S.radius));
+            ctx.lobs.launch(this.pos.x,this.pos.z,x,z,S.flight,S.arc,(lx,lz)=>{
+                this.pending--;
+                if (!this.alive) {
+                    return;
+                }
+                const m=ctx.enemyMgr.spawn('bookmark',lx,lz,{hpMult:1,quick:true});
+                m.host=this;
+                this.marks.push(m);
+                ctx.fx.cameraShake(0.15);
+                ctx.particles.burst(lx,0.3,lz,8,{color:'ink',speed:[1,4],up:[2,4]});
+            });
+        }
+        this.say={text:t('bookFinal.seal'),t:0,dur:2.2,keep:true};
+        this.sqv+=3;
+    }
+
+    checkGuard() {
+        if (this.guarded&&this.pending<=0&&this.marks.every(m=>!m.alive)) {
+            this.guarded=false;
+            this.marks=[];
             this.say={text:t('bookFinal.broken'),t:0,dur:2,keep:true};
-            this.sqv+=5;
+            this.sqv+=4;
+            this.flashT=0.2;
         }
-        else {
-            this.hp=Math.min(this.maxHp,this.hp+this.maxHp*S.heal);
-            this.setState('move');
-            this.patternT=0.8;
-            this.say={text:t('bookFinal.healed'),t:0,dur:2,keep:true};
-        }
+    }
+
+    rest() {
+        this.restN=(this.restN||0)+1;
+        this.setState(this.restN%this.def.restEvery===0?'rest':'pause');
     }
 
     think(dt,ctx) {
@@ -3427,37 +3477,17 @@ class BookFinal extends Book {
             this.page=pg;
             if (pg===1) {
                 this.seal(ctx);
-                return;
             }
         }
         this.manual=true;
         this.vel.set(0,0,0);
         this.aimX=this.nx;
         this.aimZ=this.nz;
-        if (this.state==='sealed') {
-            const S=d.seal;
-            this.sealT+=dt;
-            if (!this.tele) {
-                this.teleRing(d.radius+0.6,0.4);
-            }
-            this.tele.t=Math.min(this.tele.t,0.3);
-            this.sealAtk-=dt;
-            if (this.sealAtk<=0&&this.hz.length===0) {
-                this.sealAtk=S.attackEvery;
-                this.addLines(ctx,S.lines,d.lines.warn);
-            }
-            if (this.marks.every(m=>!m.alive)) {
-                this.unseal(ctx,true);
-            }
-            else if (this.sealT>=S.time) {
-                this.unseal(ctx,false);
-            }
-            return;
-        }
-        if (this.state==='broken') {
-            if (this.stateT>=d.seal.stun) {
+        this.checkGuard();
+        if (this.state==='pause') {
+            if (this.stateT>=d.pauseTime) {
                 this.setState('move');
-                this.patternT=0.6;
+                this.patternT=rng.range(0.3,0.6);
             }
             return;
         }
@@ -3673,13 +3703,14 @@ class BookFinal extends Book {
 
     pose() {
         const tm=time.real;
-        const rest=this.state==='rest'||this.state==='broken';
+        const rest=this.state==='rest';
         const dash=this.pattern==='scribble'&&this.state==='attack';
         const lean=dash?0.55:(rest?0.4:Math.sin(tm*1.3)*0.08);
         this.pen.rotation.x+=(lean-this.pen.rotation.x)*0.4;
-        this.pen.rotation.y=this.sealed?tm*3:0;
-        this.pen.position.y=(rest?0.25:0.9)+Math.sin(tm*1.8)*0.12;
-        this.crown.rotation.y=tm*(this.sealed?2.4:0.6);
+        this.pen.position.y=(rest?0.1:0.5)+Math.sin(tm*1.8)*0.1;
+        this.orbs.rotation.y=tm*(this.guarded?3:1.2);
+        this.orbs.position.y=Math.sin(tm*2.4)*0.15;
+        this.crown.rotation.y=tm*(this.guarded?2.4:0.6);
         const pulse=rest?1.3+Math.sin(tm*14)*0.2:1;
         this.mark.scale.set(pulse,pulse,pulse);
     }
@@ -3813,6 +3844,9 @@ export class EnemyManager {
                 this.onBlock(e);
             }
             return false;
+        }
+        if (e.guardMult) {
+            dmg*=e.guardMult();
         }
         if (e.vulnT>0) {
             dmg*=e.vulnMult;

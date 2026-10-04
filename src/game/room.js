@@ -86,7 +86,7 @@ export class RoomDirector {
     }
 }
 
-const TRAIN_POOL=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','scissorMinion','compass','eraserMonster'];
+const TRAIN_POOL=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','compass','eraserMonster'];
 
 export class TrainingDirector {
     constructor(cfg,enemies,room,allow) {
