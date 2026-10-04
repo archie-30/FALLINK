@@ -1,4 +1,4 @@
-import {settings} from './settings.js';
+import {settings,device} from './settings.js';
 import {SOUNDS,AUDIO} from '../data/sounds.js';
 import {MUSIC} from '../data/music.js';
 import {music} from './music.js';
@@ -11,6 +11,7 @@ export const audio={
     wet:null,
     noise:null,
     last:{},
+    voices:0,
 
     unlock() {
         if (this.ctx) {
@@ -24,7 +25,7 @@ export const audio={
             return;
         }
         try {
-            this.ctx=new AC();
+            this.ctx=new AC({latencyHint:'playback'});
         }
         catch (e) {
             this.ctx=null;
@@ -35,6 +36,9 @@ export const audio={
         const comp=c.createDynamicsCompressor();
         comp.threshold.value=AUDIO.compThreshold;
         comp.ratio.value=AUDIO.compRatio;
+        comp.knee.value=AUDIO.compKnee;
+        comp.attack.value=AUDIO.compAttack;
+        comp.release.value=AUDIO.compRelease;
         this.master.connect(comp);
         comp.connect(c.destination);
         this.sfx=c.createGain();
@@ -48,7 +52,7 @@ export const audio={
         for (let i=0;i<len;i++) {
             d[i]=Math.random()*2-1;
         }
-        const rl=Math.floor(c.sampleRate*AUDIO.reverbTime);
+        const rl=Math.floor(c.sampleRate*AUDIO.reverbTime*(device.mobile?0.55:1));
         const ir=c.createBuffer(2,rl,c.sampleRate);
         for (let ch=0;ch<2;ch++) {
             const q=ir.getChannelData(ch);
@@ -155,7 +159,18 @@ export const audio={
         if (this.last[name]!==undefined&&now-this.last[name]<def.gap) {
             return;
         }
+        if (this.voices>=AUDIO.maxVoices) {
+            return;
+        }
         this.last[name]=now;
+        this.voices++;
+        let tail=0;
+        for (const L of def.layers) {
+            tail=Math.max(tail,(L.delay||0)+L.dur+0.1);
+        }
+        setTimeout(()=>{
+            this.voices=Math.max(0,this.voices-1);
+        },tail*1000);
         const bus=c.createGain();
         bus.gain.value=def.gain??1;
         bus.connect(this.sfx);

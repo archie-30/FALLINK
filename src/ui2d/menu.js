@@ -636,6 +636,8 @@ const MUTE_KEYS=['volume','music','sfx','jitter'];
 
 const LANGS=['zh','en'];
 
+// the packaged app is already fullscreen, so the browser fullscreen row is hidden there
+const settingKeys=()=>device.native?SETTING_KEYS.filter(k=>k!=='full'):SETTING_KEYS;
 const TOUCH_SETTING_KEYS=['stickSize','stickX','stickY','aimRing','skillSize'];
 
 const SLIDERS={volume:'volume',music:'musicVol',sfx:'sfxVol',jitter:'jitter',stickSize:'stickSize',stickX:'stickX',stickY:'stickY',aimRing:'aimRing',skillSize:'skillSize'};
@@ -655,7 +657,7 @@ export class SettingsMenu extends Panel {
     }
 
     keys() {
-        return this.page==='touch'?TOUCH_SETTING_KEYS:SETTING_KEYS;
+        return this.page==='touch'?TOUCH_SETTING_KEYS:settingKeys();
     }
 
     closePage() {
@@ -793,7 +795,7 @@ export class SettingsMenu extends Panel {
         }
         const w=this.width;
         const h=this.height;
-        const keys=SETTING_KEYS;
+        const keys=settingKeys();
         const avail=h-190;
         const cols=w>=TUNING.settingsUi.twoColMin?2:1;
         const per=Math.ceil(keys.length/cols);
@@ -1176,6 +1178,7 @@ export class SettingsMenu extends Panel {
         }
         ctx.restore();
         if (!touch) {
+            this.drawPrivacy(ctx,v);
             this.drawLang(ctx,v);
         }
         if (this.info&&this.t>0.35&&!this.pw.open) {
@@ -1191,6 +1194,35 @@ export class SettingsMenu extends Panel {
         const L=TUNING.settingsUi.lang;
         const w=Math.min(L.w,P.w*0.4);
         return {x:P.x+P.w-w-L.pad,y:P.y+L.pad,w,h:L.h};
+    }
+
+    privBox() {
+        const P=this.panel;
+        const L=TUNING.settingsUi.lang;
+        const b=this.langBox();
+        const w=92;
+        const x=b.x-8-w;
+        if (x>=P.x+130) {
+            return {x,y:b.y,w,h:b.h};
+        }
+        return {x:b.x+b.w-w,y:b.y+b.h+6,w,h:b.h};
+    }
+
+    drawPrivacy(ctx,v) {
+        const b=this.privBox();
+        const a=Math.min(1,this.t*4);
+        ctx.save();
+        ctx.globalAlpha*=a;
+        const hv=inRect(b,this.hx??-1,this.hy??-1);
+        ctx.fillStyle=hv?rgba('farGray',0.95):PALETTE.paper;
+        ctx.fillRect(b.x,b.y,b.w,b.h);
+        drawShape(ctx,sketchRect(b.x,b.y,b.w,b.h,{width:1.8,seed:1491}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 14px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('settings.privacy'),b.x+b.w/2,b.y+b.h/2+1,b.w-12);
+        ctx.restore();
     }
 
     drawLang(ctx,v) {
@@ -1290,6 +1322,10 @@ export class SettingsMenu extends Panel {
             if (this.actions.select) {
                 this.actions.select();
             }
+            return true;
+        }
+        if (inRect(this.privBox(),x,y)) {
+            this.actions.privacy();
             return true;
         }
         return false;
@@ -7010,9 +7046,10 @@ export class InfoPopup extends Panel {
         this.body='';
     }
 
-    open2(title,body) {
+    open2(title,body,link) {
         this.title=title;
         this.body=body;
+        this.link=link||null;
         this.show();
     }
 
@@ -7020,10 +7057,20 @@ export class InfoPopup extends Panel {
         const w=this.width;
         const h=this.height;
         const pw=Math.min(500,w-32);
-        const ph=Math.min(h-24,260);
+        const ph=Math.min(h-24,this.link?320:260);
         this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
+        if (this.link) {
+            const gap=12;
+            const bw=Math.min(200,(pw-56-gap)/2);
+            const bx=w/2-(bw*2+gap)/2;
+            this.okBtn={x:bx,y:this.P.y+ph-66,w:bw,h:48};
+            this.linkBtn={x:bx+bw+gap,y:this.P.y+ph-66,w:bw,h:48};
+            this.buttons=[this.okBtn,this.linkBtn];
+            return;
+        }
         const bw=Math.min(200,pw-60);
         this.okBtn={x:w/2-bw/2,y:this.P.y+ph-66,w:bw,h:48};
+        this.linkBtn=null;
         this.buttons=[this.okBtn];
     }
 
@@ -7034,6 +7081,9 @@ export class InfoPopup extends Panel {
         this.layout();
         if (inRect(this.okBtn,x,y)) {
             this.actions.close();
+        }
+        else if (this.linkBtn&&inRect(this.linkBtn,x,y)) {
+            this.actions.link(this.link.url);
         }
         return true;
     }
@@ -7073,6 +7123,9 @@ export class InfoPopup extends Panel {
         }
         ctx.restore();
         drawButton(ctx,this.okBtn,t('notice.ok'),v,(this.t-0.15)/0.3,this.hoverIdx===0,18);
+        if (this.linkBtn) {
+            drawButton(ctx,this.linkBtn,this.link.label,v,(this.t-0.22)/0.3,this.hoverIdx===1,16);
+        }
     }
 }
 

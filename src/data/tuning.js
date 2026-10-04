@@ -652,7 +652,7 @@ export const TUNING={
         high:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:4,particles:500,fastEdge:false,wobble:true,decals:24}
     },
     pixelRatioCap:{
-        mobile:2.0,
+        mobile:1.5,
         desktop:2.0,
         ui:2.0
     },

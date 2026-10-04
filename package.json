@@ -1,0 +1,23 @@
+{
+    "name": "inkrage",
+    "version": "0.9.17",
+    "private": true,
+    "description": "INKRAGE - hand-drawn 3D shooter x deckbuilder",
+    "type": "module",
+    "scripts": {
+        "build:web": "node scripts/build-web.mjs",
+        "sync": "node scripts/build-web.mjs && cap sync android",
+        "open": "cap open android"
+    },
+    "engines": {
+        "node": ">=22"
+    },
+    "dependencies": {
+        "@capacitor/android": "^8.5.2",
+        "@capacitor/core": "^8.5.2"
+    },
+    "devDependencies": {
+        "@capacitor/cli": "^8.5.2",
+        "playwright-core": "^1.63.0"
+    }
+}

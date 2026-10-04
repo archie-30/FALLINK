@@ -1517,8 +1517,13 @@ function boot() {
         close:()=>{
             audio.play('ui');
             popup.hide();
+        },
+        link:url=>{
+            audio.play('ui');
+            window.open(url,'_blank');
         }
     });
+    const PRIVACY_URL='https://archie-30.github.io/INKRAGE/privacy.html';
     let lastDev='mouse';
     let devSeen=false;
     function checkDevice() {
@@ -1690,6 +1695,10 @@ function boot() {
     };
     const settingsMenu=new SettingsMenu({
         changed:settingsChanged,
+        privacy:()=>{
+            audio.play('ui');
+            popup.open2(t('privacy.title'),t('privacy.body'),{label:t('privacy.open'),url:PRIVACY_URL});
+        },
         tutorial:()=>{
             settingsMenu.hide();
             startGame('tutorial');
@@ -2055,6 +2064,24 @@ function boot() {
         }
         openPause();
     };
+    // Android back button (called from MainActivity). Returns true when the game used it,
+    // false when the system may close the app (second back press within 2 s on the idle main menu).
+    let lastExitBack=-1e9;
+    window.__inkrageBack=()=>{
+        const idleMenu=game.mode==='menu'&&!popup.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open;
+        if (idleMenu) {
+            const now=performance.now();
+            if (now-lastExitBack<2000) {
+                return false;
+            }
+            lastExitBack=now;
+            overlay.hud.toast(t('exit.again'),'exit.again');
+            audio.play('ui',0.7);
+            return true;
+        }
+        input.onEscape();
+        return true;
+    };
     input.onWheel=dy=>{
         deckView.wheel(dy);
         codex.wheel(dy);
@@ -2155,6 +2182,9 @@ function boot() {
     document.addEventListener('visibilitychange',()=>{
         if (document.hidden) {
             autoPause();
+        }
+        else if (device.native) {
+            audio.unlock();
         }
     });
     window.addEventListener('blur',autoPause);
@@ -2574,13 +2604,17 @@ function boot() {
     }
     warmShaders();
     enterMenu();
+    if (device.native) {
+        // the app's WebView allows audio without a tap, so the menu music can start right away
+        audio.unlock();
+    }
     if (!settings.langChosen) {
         langPick.show();
     }
     else if (!settings.tutorialSeen) {
         startGame('tutorial');
     }
-    if (!device.fullscreen) {
+    if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
     window.INKRAGE={langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
