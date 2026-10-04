@@ -1,6 +1,7 @@
 import {PALETTE,rgba} from '../data/palette.js';
 import {ENEMY_ICONS} from './enemyIcons.js';
 import {sketchRect,drawShape} from './sketch.js';
+import {t} from '../data/strings.js';
 
 const SW=16;
 const SH=9;
@@ -519,36 +520,6 @@ export const CARD_ANIMS={
                     S.bullet(x,y,'enemy',1-gone);
                 }
             }
-        }
-    },
-    eraseCover:{
-        period:3,
-        draw(S,k) {
-            S.player(PX,PY,0);
-            const e=seg(k,0.15,0.45);
-            const bx=8;
-            if (e<1) {
-                const c=S.ctx;
-                c.save();
-                c.beginPath();
-                c.rect(bx-0.9,PY-1.3+2.6*e,1.8,2.6*(1-e));
-                c.clip();
-                S.box(bx,PY,1.6,2.4);
-                c.restore();
-                if (e>0) {
-                    const zz=[];
-                    for (let i=0;i<8;i++) {
-                        zz.push([bx-0.8+(i%2)*1.6,PY-1.2+2.6*e+i*0.08-0.4]);
-                    }
-                    S.path(zz,PALETTE.farGray,0.18,0.8);
-                }
-            }
-            for (let i=0;i<8;i++) {
-                const f=seg(k,0.2+i*0.03,0.5+i*0.03);
-                S.circle(bx+(hash(i)-0.5)*2+f*(hash(i+9)-0.5)*2,PY+(hash(i+3)-0.5)*2+f*1.5,0.1,PALETTE.farGray,f>0&&f<1?1-f:0);
-            }
-            S.stream(PX+0.9,PY,12,PY,k,0.55,0.8,0.05,0.12);
-            S.target('compass',12,PY,k,0.84);
         }
     },
     trap:{
@@ -1779,6 +1750,73 @@ export const ENEMY_ATTACKS={
             }
         }
     ]
+};
+
+export const TUTOR_ANIMS={
+    move:{
+        period:4.2,
+        draw(S,k) {
+            const pts=[[PX,PY],[6.5,2.2],[12.5,6.4],[10,2.4]];
+            const legs=[[0.06,0.3],[0.36,0.6],[0.66,0.9]];
+            let x=pts[0][0];
+            let y=pts[0][1];
+            let ang=0;
+            let walk=false;
+            for (let i=0;i<3;i++) {
+                if (k<legs[i][0]) {
+                    continue;
+                }
+                const f=inOut(seg(k,legs[i][0],legs[i][1]));
+                x=lerp(pts[i][0],pts[i+1][0],f);
+                y=lerp(pts[i][1],pts[i+1][1],f);
+                ang=Math.atan2(pts[i+1][1]-pts[i][1],pts[i+1][0]-pts[i][0]);
+                walk=walk||f<1;
+            }
+            for (let i=0;i<3;i++) {
+                const p=pts[i+1];
+                const done=seg(k,legs[i][1],legs[i][1]+0.05);
+                const active=k<legs[i][1]&&(i===0||k>=legs[i-1][1]);
+                if (!active&&done<=0) {
+                    continue;
+                }
+                S.ring(p[0],p[1],0.85,PALETTE.red,0.1,done>0?1-done*0.6:1,[0.3,0.2]);
+                if (done>0) {
+                    S.circle(p[0],p[1],0.85*done,PALETTE.red,0.15);
+                    S.text('✓',p[0],p[1],Math.max(9,S.s*0.8),PALETTE.red,done);
+                }
+                if (active) {
+                    S.text('▼',p[0],p[1]-1.4+Math.sin(k*40)*0.15,Math.max(7,S.s*0.55),PALETTE.red);
+                }
+            }
+            S.player(x,y-(walk?Math.abs(Math.sin(k*90))*0.12:0),ang);
+        }
+    },
+    dodge:{
+        period:3.2,
+        draw(S,k) {
+            const ex=13.5;
+            const px=7;
+            const y0=6.8;
+            const y1=2.3;
+            const d0=0.34;
+            const d1=0.42;
+            S.tele(ex-1,PY,1,PY,seg(k,0.02,0.1)*(1-seg(k,0.12,0.16)));
+            for (const s of [0.14,0.2,0.26,0.32,0.38,0.44]) {
+                S.fly(ex-1,PY,0.4,PY,k,s,s+0.3,'enemy');
+            }
+            S.enemy('sprayer',ex,PY,{});
+            const f=easeOut(seg(k,d0,d1));
+            const fade=1-seg(k,d1,d1+0.18);
+            if (f>0) {
+                for (let g=1;g<=3;g++) {
+                    S.player(px,lerp(y0,y1,Math.max(0,f-g*0.22)),-Math.PI/2,{ghost:true,alpha:0.55*(1-g/4)*fade});
+                }
+            }
+            S.player(px,lerp(y0,y1,f),-Math.PI/2,{flash:f>0&&f<1?1:0});
+            const tx=seg(k,d0+0.02,d0+0.08)*(1-seg(k,0.78,0.86));
+            S.text(t('tut.invuln'),px+2.2,PY,Math.max(9,S.s*0.8),PALETTE.red,tx);
+        }
+    }
 };
 
 export function drawStage(ctx,x,y,w,h,anim,t,v) {

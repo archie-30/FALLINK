@@ -38,7 +38,7 @@ export const WEAPONS={
         refund:{max:15,streak:2,wait:0.1},
         reloadTime:1.2,
         damage:15,
-        tiers:[[1.7,30],[3.2,20]],
+        bands:[30,20,15],
         bulletSpeed:17,
         bulletLife:0.5,
         spread:0,

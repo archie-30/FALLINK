@@ -57,6 +57,7 @@ export class Player {
         this.hasteMult=1;
         this.rapidMult=1;
         this.dualT=0;
+        this.dropDual(true);
         this.reflectT=0;
         this.W={...TUNING.weapon,...WEAPONS.pen};
         this.weaponId='pen';
@@ -483,6 +484,10 @@ export class Player {
         if (this.weaponLook) {
             this.weaponLook(this.weaponId);
         }
+        if (this.gunL&&!this.gunL.userData.drop) {
+            this.dropDual(true);
+            this.equipDual();
+        }
         if (this.events&&this.events.onEquip) {
             this.events.onEquip(this);
         }
@@ -553,6 +558,12 @@ export class Player {
             return false;
         }
         if (this.isInvulnerable()) {
+            if ((this.dashT>0||this.dashIT>0)&&!this.dodged) {
+                this.dodged=true;
+                if (this.events.onDodge) {
+                    this.events.onDodge(this);
+                }
+            }
             return false;
         }
         const l=Math.hypot(vx,vz)||1;
@@ -630,11 +641,20 @@ export class Player {
     }
 
     fire(ctx,aim) {
-        const W=this.W;
         const mp=this.muzzlePoint(this._mp||(this._mp={x:0,z:0}));
-        const mx=mp.x;
-        const mz=mp.z;
         this.lastAim=aim;
+        if (this.dualT>0) {
+            const W=TUNING.weapon;
+            const c=Math.cos(this.aimYaw);
+            const sn=Math.sin(this.aimYaw);
+            this.fireFrom(ctx,this.pos.x-W.muzzleSide*c+W.muzzleForward*sn,this.pos.z+W.muzzleSide*sn+W.muzzleForward*c);
+            this.dualKick=1;
+        }
+        this.fireFrom(ctx,mp.x,mp.z);
+    }
+
+    fireFrom(ctx,mx,mz) {
+        const W=this.W;
         const base=this.fireAngle(mx,mz);
         let dx;
         let dz;
@@ -652,14 +672,9 @@ export class Player {
         else {
             const sys=ctx.weaponSys[W.sys]||ctx.playerBullets;
             const n=W.pellets||1;
-            const lanes=this.dualT>0?[-W.dualOffset,W.dualOffset]:[0];
             for (let p=0;p<n;p++) {
                 const a=base+(n>1?(p/(n-1)-0.5)*W.fan:0)+(Math.random()*2-1)*W.spread;
-                const cx=Math.cos(a);
-                const cz=Math.sin(a);
-                for (const o of lanes) {
-                    sys.spawn(mx-cz*o,mz+cx*o,cx,cz,W.bulletSpeed,W.damage,W.bulletLife);
-                }
+                sys.spawn(mx,mz,Math.cos(a),Math.sin(a),W.bulletSpeed,W.damage,W.bulletLife);
             }
         }
         dx=Math.cos(base);
@@ -709,6 +724,7 @@ export class Player {
             this.vel.set(dx*P.dashSpeed,0,dz*P.dashSpeed);
             this.dashT=P.dashTime;
             this.dashIT=P.dashIframe;
+            this.dodged=false;
             this.dashCd=P.dashCooldown;
             this.moveYaw=Math.atan2(dx,dz);
             this.stv+=P.dashStretch;
@@ -792,7 +808,18 @@ export class Player {
         }
         this.updateHeat(dt,input.isFiring()&&this.reloadT<=0&&this.ammo>0);
         this.rapidT=Math.max(0,this.rapidT-dt);
+        const wasDual=this.dualT>0;
         this.dualT=Math.max(0,this.dualT-dt);
+        this.dualDt=dt;
+        if (this.dualT>0&&!this.gunL) {
+            this.equipDual();
+        }
+        if (wasDual&&this.dualT<=0) {
+            this.dropDual();
+            if (this.events.onDualEnd) {
+                this.events.onDualEnd(this);
+            }
+        }
         this.reflectT=Math.max(0,this.reflectT-dt);
         if (this.burstLeft>0&&this.hp>0&&this.reloadT<=0) {
             this.burstT-=dt;
@@ -862,6 +889,67 @@ export class Player {
             this.gun.scale.setScalar(1);
         }
         this.poseArm(swing);
+        this.dualKick=Math.max(0,(this.dualKick||0)-TUNING.dualPose.kickDecay*Math.min(0.1,this.dualDt||0));
+        this.poseDual();
+    }
+
+    equipDual() {
+        if (this.gunL) {
+            return;
+        }
+        this.gunL=this.gun.clone();
+        this.gunL.userData.at=time.real;
+        this.body.add(this.gunL);
+    }
+
+    dropDual(now=false) {
+        const g=this.gunL;
+        if (!g) {
+            return;
+        }
+        if (now) {
+            this.body.remove(g);
+            this.gunL=null;
+            return;
+        }
+        if (g.userData.drop===undefined) {
+            g.userData.drop=time.real;
+        }
+    }
+
+    poseDual() {
+        const g=this.gunL;
+        if (!g) {
+            return;
+        }
+        const D=TUNING.dualPose;
+        const src=this.gun;
+        g.visible=src.visible;
+        g.position.set(-src.position.x,src.position.y,src.position.z+(this.dualKick||0)*D.kick);
+        g.rotation.set(src.rotation.x,-src.rotation.y,-src.rotation.z);
+        g.scale.copy(src.scale);
+        this.arms[0].rotation.x=this.arms[1].rotation.x;
+        this.arms[0].rotation.z=-this.arms[1].rotation.z;
+        const e=Math.min(1,(time.real-g.userData.at)/D.equip);
+        if (e<1) {
+            const k=EASE.easeOutBack(e);
+            g.scale.multiplyScalar(Math.max(0.01,k));
+            g.rotation.z-=(1-e)*Math.PI*2;
+            g.position.y+=Math.sin(e*Math.PI)*D.lift;
+        }
+        if (g.userData.drop!==undefined) {
+            const q=Math.min(1,(time.real-g.userData.drop)/D.drop);
+            g.position.x-=q*D.toss;
+            g.position.y+=Math.sin(q*Math.PI)*D.lift-q*q*D.fall;
+            g.rotation.z+=q*Math.PI*D.spin;
+            g.scale.multiplyScalar(Math.max(0.01,1-q*q));
+            const rest=-0.15;
+            this.arms[0].rotation.x*=1-EASE.easeOutCubic(q);
+            this.arms[0].rotation.z=this.arms[0].rotation.z+(rest-this.arms[0].rotation.z)*EASE.easeOutCubic(q);
+            if (q>=1) {
+                this.dropDual(true);
+            }
+        }
     }
 
     poseArm(swing) {

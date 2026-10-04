@@ -174,27 +174,6 @@ const ICONS={
         drawShape(ctx,sketchRect(-18,-9,38,18,{width:1.8,seed:120,overshoot:1}),PALETTE.ink,v);
         ctx.restore();
     },
-    eraseCover(ctx,v,cx,cy) {
-        ctx.fillStyle=PALETTE.midGray;
-        ctx.fillRect(cx-30,cy-16,26,32);
-        drawShape(ctx,sketchRect(cx-30,cy-16,26,32,{width:2,seed:130}),PALETTE.ink,v);
-        ctx.setLineDash([3,4]);
-        ctx.strokeStyle=PALETTE.midGray;
-        ctx.lineWidth=1.5;
-        ctx.strokeRect(cx-4,cy-16,26,32);
-        ctx.setLineDash([]);
-        const r=new RNG(131);
-        for (let i=0;i<8;i++) {
-            dot(ctx,cx+r.range(0,34),cy+r.range(-18,18),r.range(1,2.2),PALETTE.midGray);
-        }
-        ctx.save();
-        ctx.translate(cx+20,cy-18);
-        ctx.rotate(0.6);
-        ctx.fillStyle=PALETTE.paper;
-        ctx.fillRect(-12,-7,24,14);
-        drawShape(ctx,sketchRect(-12,-7,24,14,{width:1.5,seed:132,overshoot:1}),PALETTE.ink,v);
-        ctx.restore();
-    },
     trap(ctx,v,cx,cy) {
         drawShape(ctx,hatchFill([[cx-24,cy],[cx-17,cy-17],[cx,cy-24],[cx+17,cy-17],[cx+24,cy],[cx+17,cy+17],[cx,cy+24],[cx-17,cy+17]],{spacing:5,seed:140,width:0.9}),PALETTE.midGray,v);
         drawShape(ctx,sketchCircle(cx,cy,27,{width:2.4,seed:141}),PALETTE.ink,v);

@@ -1,11 +1,12 @@
 import {ACTS,ENDLESS,TRAINING,LAYOUTS,PEACE_LAYOUTS,PEACE_VARY} from '../data/levels.js';
 import {settings} from '../core/settings.js';
-import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS} from '../data/cards.js';
+import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS,TUTORIAL_DECK} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
 import {progress,effectiveLevel,trainable} from '../core/progress.js';
 import {RNG} from '../core/rng.js';
 import {planRoom,planEndless} from './level.js';
 import {RoomDirector,TrainingDirector} from './room.js';
+import {TutorialDirector} from './tutorial.js';
 import {createCard} from './card.js';
 import {NOTEBOOK} from '../data/notebook.js';
 import {MINIGAMES} from '../data/minigames.js';
@@ -37,7 +38,7 @@ export class Run {
         this.exitsOpen=false;
         this.ambushAfter=null;
         this.report=null;
-        const ids=mode==='training'?unlockedCards(effectiveLevel()):(startDeck||STARTING_DECK);
+        const ids=mode==='training'?unlockedCards(effectiveLevel()):(mode==='tutorial'?TUTORIAL_DECK:(startDeck||STARTING_DECK));
         this.deckList=ids.map(id=>({id,upgraded:false}));
         this.stats={kills:0,cards:0,damage:0,taken:0,dealt:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0,log:[]};
         this.enter();
@@ -57,6 +58,10 @@ export class Run {
 
     training() {
         return this.mode==='training';
+    }
+
+    tutorial() {
+        return this.mode==='tutorial';
     }
 
     notebook() {
@@ -92,6 +97,18 @@ export class Run {
             this.npcUsed=plan.npcs.map(()=>false);
             this.hooks.banner('peace',this);
             return this.room;
+        }
+        if (this.tutorial()) {
+            const T=TRAINING;
+            const layout={...T.layout,props:T.layout.props.filter(q=>!T.solid.includes(q.type))};
+            this.plan={act:0,index:0,training:true,tutorial:true,boss:false,layoutKey:'training',layout,hpMult:1,waves:[],exits:[{kind:'home'}],barrels:0,crates:0};
+            const room=this.hooks.enterRoom(this.plan,this.deckList);
+            this.director=new TutorialDirector(this.hooks.tutorial,room);
+            this.state='combat';
+            this.exitsOpen=false;
+            this.timer=0;
+            this.hooks.tutorial.enter(this.director);
+            return room;
         }
         if (this.training()) {
             const T=TRAINING;
@@ -355,7 +372,7 @@ export class Run {
     }
 
     canExit() {
-        return this.exitsOpen&&(this.state==='exit'||this.state==='peace'||(this.training()&&this.state==='combat'));
+        return this.exitsOpen&&(this.state==='exit'||this.state==='peace'||((this.training()||this.tutorial())&&this.state==='combat'));
     }
 
     useExit(i) {
@@ -436,7 +453,7 @@ export class Run {
     }
 
     quit() {
-        if (this.training()) {
+        if (this.training()||this.tutorial()) {
             this.state='idle';
             return false;
         }
@@ -936,7 +953,7 @@ export class Run {
             for (const e of this.director.events) {
                 this.hooks.onSpawn(e);
             }
-            if (this.training()) {
+            if (this.training()||this.tutorial()) {
                 return;
             }
             this.trackChallenge(dt,player);

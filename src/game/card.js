@@ -418,20 +418,6 @@ export class CardEffects {
         g.fx.fovPunch(0.8);
     }
 
-    eraseCover(x,z,radius) {
-        const g=this.g;
-        const room=g.room;
-        const piece=room.nearestErasable(x,z,radius);
-        if (!piece) {
-            g.particles.burst(x,0.4,z,10,{color:'farGray',speed:[1,3],up:[2,4],size:[0.08,0.14]});
-            return;
-        }
-        room.erasePiece(piece,g.player.pos.x,g.player.pos.z,this.T.terrain.eraseTime);
-        g.fx.cameraShake(0.2);
-        g.particles.burst(piece.x,0.8,piece.z,16,{color:'farGray',speed:[1,4],up:[2,5],size:[0.08,0.16],life:[0.5,0.9]});
-        g.particles.burst(piece.x,0.8,piece.z,8,{color:'paper',speed:[1,3],up:[2,5],size:[0.08,0.14],life:[0.5,0.9]});
-    }
-
     trapCircle(x,z,radius,duration,slow) {
         const g=this.g;
         g.room.zones.addSlow(x,z,radius,duration,slow);
@@ -1044,6 +1030,12 @@ export class CardEffects {
         const g=this.g;
         g.ink.add(inkGain);
         this.sweeps.push({type:'redraw',t:0,dur:this.E.redrawTime});
+        if (g.redrawRoom) {
+            g.redrawRoom(this.E.redrawTime*this.E.redrawDraw);
+        }
+        if (g.room&&g.room.restoreProps) {
+            g.room.restoreProps();
+        }
         g.fx.flash('paper',0.25,0.5);
         g.fx.cameraShake(0.3);
         g.fx.fovPunch(1.5);

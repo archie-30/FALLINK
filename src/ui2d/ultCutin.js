@@ -286,6 +286,35 @@ const MOTIFS={
             }
         }
     },
+    dualWield:{
+        back(ctx,w,h,k,cy) {
+            const e=EASE.easeOutBack(seg(k,0.05,0.4));
+            const L=h*0.5;
+            for (const side of [-1,1]) {
+                ctx.save();
+                ctx.translate(w/2+side*(1-e)*w*0.6,cy);
+                ctx.rotate(side*(0.55+(1-e)*0.6));
+                ctx.fillStyle=PALETTE.farGray;
+                ctx.fillRect(-h*0.04,-L*0.55,h*0.08,L*0.8);
+                ctx.fillStyle=side<0?PALETTE.red:PALETTE.ink;
+                ctx.beginPath();
+                ctx.moveTo(-h*0.04,L*0.25);
+                ctx.lineTo(h*0.04,L*0.25);
+                ctx.lineTo(0,L*0.45);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle=PALETTE.ink;
+                ctx.lineWidth=3;
+                ctx.strokeRect(-h*0.04,-L*0.55,h*0.08,L*0.8);
+                ctx.restore();
+            }
+            const q=seg(k,0.3,0.6);
+            for (let i=0;i<10;i++) {
+                const a=i/10*Math.PI*2;
+                splat(ctx,w/2+Math.cos(a)*h*0.3*q,cy+Math.sin(a)*h*0.22*q,h*0.012,q,i%2?PALETTE.red:PALETTE.ink,640+i);
+            }
+        }
+    },
     giantPen:{
         back(ctx,w,h,k,cy) {
             const e=EASE.easeInOutCubic(seg(k,0.05,0.55));

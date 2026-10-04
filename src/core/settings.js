@@ -19,7 +19,8 @@ export const settings={
     fpsAuto:true,
     musicVol:0.55,
     sfxVol:0.8,
-    mute:{volume:false,music:false,sfx:false},
+    jitter:1,
+    mute:{volume:false,music:false,sfx:false,jitter:false},
     stickSize:0.45,
     stickX:0.45,
     stickY:0.4,
@@ -92,7 +93,8 @@ export function pixelRatio() {
 }
 
 export function boilScale() {
-    return settings.reducedMotion?TUNING.reducedMotion.boil:1;
+    const j=settings.mute&&settings.mute.jitter?0:(settings.jitter??1);
+    return (settings.reducedMotion?TUNING.reducedMotion.boil:1)*j;
 }
 
 export function shakeScale() {

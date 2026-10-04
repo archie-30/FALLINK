@@ -64,7 +64,7 @@ export class WorldMarks {
         this.prompt={x:x-W.touchPad,y:y-W.touchPad,w:bw+W.touchPad*2,h:bh+W.touchPad*2};
     }
 
-    drawSpeech(ctx,p,q,v) {
+    drawSpeech(ctx,p,q,v,foe=false) {
         const W=TUNING.worldMarks;
         const k=Math.min(1,q.t/0.25,(q.dur-q.t)/0.3);
         const e=EASE.easeOutBack(Math.min(1,q.t/0.3));
@@ -89,7 +89,7 @@ export class WorldMarks {
             ctx.fill();
         }
         ctx.fillRect(-bw/2,-bh/2,bw,bh);
-        drawShape(ctx,sketchRect(-bw/2,-bh/2,bw,bh,{width:2,seed:2380}),PALETTE.ink,v);
+        drawShape(ctx,sketchRect(-bw/2,-bh/2,bw,bh,{width:2,seed:2380}),foe?PALETTE.red:PALETTE.ink,v);
         if (tail) {
             ctx.strokeStyle=PALETTE.ink;
             ctx.lineWidth=2;
@@ -99,10 +99,43 @@ export class WorldMarks {
             ctx.lineTo(8,bh/2);
             ctx.stroke();
         }
-        ctx.fillStyle=PALETTE.ink;
+        ctx.fillStyle=foe?PALETTE.red:PALETTE.ink;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(q.text,0,1);
+        ctx.restore();
+    }
+
+    drawPad(ctx,game,pad) {
+        const p=this.p;
+        const n=TUNING.worldMarks.padSegs;
+        const pulse=1+Math.sin(pad.t*5)*0.06;
+        const grow=EASE.easeOutBack(Math.min(1,pad.t/0.35));
+        ctx.save();
+        ctx.beginPath();
+        for (let i=0;i<=n;i++) {
+            const a=i/n*Math.PI*2;
+            game.project(pad.x+Math.cos(a)*pad.r*pulse*grow,0.05,pad.z+Math.sin(a)*pad.r*pulse*grow,p);
+            if (i===0) {
+                ctx.moveTo(p.x,p.y);
+            }
+            else {
+                ctx.lineTo(p.x,p.y);
+            }
+        }
+        ctx.fillStyle=rgba('red',0.16);
+        ctx.fill();
+        ctx.strokeStyle=PALETTE.red;
+        ctx.lineWidth=3;
+        ctx.setLineDash([10,7]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        game.project(pad.x,TUNING.worldMarks.padLift,pad.z,p);
+        const bob=Math.sin(pad.t*6)*5;
+        ctx.fillStyle=PALETTE.red;
+        ctx.font='bold 16px '+FONT;
+        ctx.fillText(t('tut.padHere'),p.x,p.y-22+bob);
+        ctx.fillText('▼',p.x,p.y+bob);
         ctx.restore();
     }
 
@@ -116,6 +149,10 @@ export class WorldMarks {
         ctx.save();
         ctx.textAlign='center';
         ctx.textBaseline='middle';
+        const dir=game.run.tutorial()?game.run.director:null;
+        if (dir&&dir.pad) {
+            this.drawPad(ctx,game,dir.pad);
+        }
         const D=TUNING.doors;
         const doors=game.doors;
         for (const d of doors.list) {
@@ -162,6 +199,12 @@ export class WorldMarks {
         if (mp) {
             game.project(mp.x,mp.y,mp.z,p);
             this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t(mp.key),v,2360);
+        }
+        for (const e of game.enemies.list) {
+            if (e.say&&e.alive) {
+                game.project(e.renderPos.x,e.def.height*(e.elite?TUNING.elite.scale:1)+TUNING.taunt.lift,e.renderPos.z,p);
+                this.drawSpeech(ctx,p,e.say,v,true);
+            }
         }
         const npcs=game.npcs;
         for (const n of npcs.list) {

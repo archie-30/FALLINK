@@ -29,7 +29,7 @@ function geo(key,make) {
 }
 
 function mat(tone) {
-    return toonMaterial(TONES[tone]);
+    return toonMaterial({...TONES[tone],calm:true});
 }
 
 function stampTex(text) {
@@ -940,140 +940,100 @@ const GAMES={
             return {key:'mg.pairs.info',params:{n:g.done,total:g.cards.length/2,m:Math.max(0,g.a(g.P.miss)-g.miss)}};
         }
     },
-    mines:{
+    rain:{
         setup(g) {
             const P=g.P;
-            const C=P.cols;
-            const R=P.rows;
-            g.x0=-C*P.w/2;
-            g.z0=-R*P.d/2;
-            const m=g.a(P.mines);
-            let mines=null;
-            for (let tries=0;tries<80&&!mines;tries++) {
-                const cand=new Set(g.shuffle([...Array(C*(R-1)).keys()]).slice(0,m));
-                if (this.passable(C,R,cand)) {
-                    mines=cand;
-                }
-            }
-            g.mines=mines||new Set();
-            g.tiles=[];
-            for (let r=0;r<R;r++) {
-                for (let c=0;c<C;c++) {
-                    const k=r*C+c;
-                    const x=g.x0+(c+0.5)*P.w;
-                    const z=g.z0+(r+0.5)*P.d;
-                    const tile=g.flat(P.w-0.12,P.d-0.12,'cover',x,z,0.05);
-                    let near=0;
-                    for (let dr=-1;dr<=1;dr++) {
-                        for (let dc=-1;dc<=1;dc++) {
-                            const rr=r+dr;
-                            const cc=c+dc;
-                            if ((dr||dc)&&rr>=0&&cc>=0&&rr<R&&cc<C&&g.mines.has(rr*C+cc)) {
-                                near++;
-                            }
-                        }
-                    }
-                    g.tiles.push({tile,x,z,near,mine:g.mines.has(k),open:false});
-                }
-            }
-            g.flat(C*P.w+0.2,R*P.d+0.2,'dark',0,0,0.02);
-            for (let c=0;c<C;c++) {
-                this.reveal(g,(R-1)*C+c);
-            }
-            g.flag=g.cyl(0.05,0.05,1.6,'dark',0,0.8,g.z0-1.2);
-            g.box(0.7,0.45,0.04,'accent',0.35,1.35,g.z0-1.2);
-        },
-        passable(C,R,mines) {
-            const seen=new Set();
-            const q=[];
-            for (let c=0;c<C;c++) {
-                const k=(R-1)*C+c;
-                seen.add(k);
-                q.push(k);
-            }
-            while (q.length) {
-                const k=q.shift();
-                const r=Math.floor(k/C);
-                const c=k%C;
-                if (r===0) {
-                    return true;
-                }
-                for (const [dr,dc] of [[-1,0],[0,-1],[0,1],[1,0]]) {
-                    const rr=r+dr;
-                    const cc=c+dc;
-                    const n=rr*C+cc;
-                    if (rr>=0&&cc>=0&&rr<R&&cc<C&&!mines.has(n)&&!seen.has(n)) {
-                        seen.add(n);
-                        q.push(n);
-                    }
-                }
-            }
-            return false;
-        },
-        reveal(g,k) {
-            const q=g.tiles[k];
-            if (q.open||q.mine) {
-                return;
-            }
-            q.open=true;
-            q.tile.material=mat('light');
-            if (q.near>0) {
-                g.stamp(String(q.near),1.5,q.near>=3?'red':'ink',q.x,q.z,0.1);
-                return;
-            }
-            const C=g.P.cols;
-            const r=Math.floor(k/C);
-            const c=k%C;
-            for (let dr=-1;dr<=1;dr++) {
-                for (let dc=-1;dc<=1;dc++) {
-                    const rr=r+dr;
-                    const cc=c+dc;
-                    if ((dr||dc)&&rr>=0&&cc>=0&&rr<g.P.rows&&cc<C) {
-                        this.reveal(g,rr*C+cc);
-                    }
-                }
+            g.drops=[];
+            for (let i=0;i<P.pool;i++) {
+                const sh=g.disc(1,'dark',0,0,0.05);
+                const rg=g.ring(1,'accent',0,0);
+                const b=g.ball(0.42,'ink',0,0,0);
+                sh.visible=false;
+                rg.visible=false;
+                b.visible=false;
+                g.drops.push({sh,rg,b,x:0,z:0,t:0,on:false});
             }
         },
         begin(g) {
-            g.place(0,-g.z0+1.4);
-            g.timer(g.a(g.P.time));
+            const P=g.P;
+            g.place(0,0);
+            g.next=P.firstDelay;
+            g.hits=0;
+            g.dur=g.a(P.time);
+        },
+        idle(g,dt) {
+            for (const q of g.drops) {
+                if (!q.on&&q.fade>0) {
+                    q.fade=Math.max(0,q.fade-dt*g.P.splatFade);
+                    q.sh.scale.setScalar(Math.max(0.01,q.r*q.fade));
+                    q.sh.visible=q.fade>0;
+                }
+            }
         },
         tick(g,dt,pl) {
             const P=g.P;
-            if (pl.pos.z<g.z0-0.7) {
+            if (g.t>=g.dur) {
                 g.win();
                 return;
             }
-            const c=Math.floor((pl.pos.x-g.x0)/P.w);
-            const r=Math.floor((pl.pos.z-g.z0)/P.d);
-            if (c<0||r<0||c>=P.cols||r>=P.rows) {
-                return;
+            const R=g.a(P.radius);
+            const warn=g.a(P.warn);
+            g.next-=dt;
+            if (g.next<=0) {
+                g.next=g.a(P.every)*(1-P.speedUp*g.t/g.dur);
+                const n=g.r()<g.a(P.double)?2:1;
+                for (let k=0;k<n;k++) {
+                    const q=g.drops.find(o=>!o.on&&!(o.fade>0));
+                    if (!q) {
+                        break;
+                    }
+                    const aim=k===0&&g.r()<P.aim;
+                    const A=P.area;
+                    q.x=aim?Math.max(-A[0],Math.min(A[0],pl.pos.x+g.range(-P.near,P.near))):g.range(-A[0],A[0]);
+                    q.z=aim?Math.max(-A[1],Math.min(A[1],pl.pos.z+g.range(-P.near,P.near))):g.range(-A[1],A[1]);
+                    q.t=0;
+                    q.on=true;
+                    q.r=R;
+                    q.sh.material=mat('dark');
+                    q.sh.visible=true;
+                    q.rg.visible=true;
+                    q.b.visible=true;
+                    q.rg.position.set(q.x,0.06,q.z);
+                    q.rg.scale.setScalar(R);
+                }
             }
-            const k=r*P.cols+c;
-            const q=g.tiles[k];
-            if (q.mine) {
-                q.tile.material=mat('ink');
-                g.stamp('✕',1.8,'red',q.x,q.z,0.1);
-                g.burst(q.x,q.z,'ink',30,0.4);
-                g.burst(q.x,q.z,'red',12,0.4);
-                g.lose();
-                return;
-            }
-            if (!q.open) {
-                this.reveal(g,k);
-                g.sound('draw',1.2);
-            }
-        },
-        teardown(g) {
-            for (let k=0;k<g.tiles.length;k++) {
-                const q=g.tiles[k];
-                if (q.mine&&!q.open) {
-                    q.tile.material=mat('ink');
+            for (const q of g.drops) {
+                if (!q.on) {
+                    continue;
+                }
+                q.t+=dt;
+                const k=Math.min(1,q.t/warn);
+                q.sh.position.set(q.x,0.05,q.z);
+                q.sh.scale.setScalar(Math.max(0.01,R*k));
+                q.b.position.set(q.x,P.height*(1-k*k)+0.4,q.z);
+                if (k<1) {
+                    continue;
+                }
+                q.on=false;
+                q.fade=1;
+                q.b.visible=false;
+                q.rg.visible=false;
+                q.sh.material=mat('ink');
+                g.burst(q.x,q.z,'ink',14,0.4);
+                g.sound('drop',0.9+g.r()*0.3);
+                if (g.inside(pl,q.x,q.z,R)) {
+                    g.hits++;
+                    g.burst(pl.pos.x,pl.pos.z,'red',12,1.0);
+                    g.say(pl.pos.x,pl.pos.z,'mg.rain.hit');
+                    if (g.hits>g.a(P.hits)) {
+                        g.lose();
+                        return;
+                    }
                 }
             }
         },
         info(g) {
-            return {key:'mg.mines.info'};
+            return {key:'mg.rain.info',params:{s:Math.max(0,Math.ceil((g.dur||0)-g.t)),n:Math.max(0,g.a(g.P.hits)-g.hits)}};
         }
     },
     dice:{

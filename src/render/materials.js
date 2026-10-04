@@ -76,7 +76,7 @@ export function toonMaterial(opts={}) {
     const jitter=opts.jitter??0;
     const shift=opts.shift??0;
     const grid=opts.grid||null;
-    const fxKey=(opts.reveal?'r':'')+(opts.dissolve?'d':'')+(opts.ghost?'g':'')+(opts.yreveal?'y':'');
+    const fxKey=(opts.reveal?'r':'')+(opts.dissolve?'d':'')+(opts.ghost?'g':'')+(opts.yreveal?'y':'')+(opts.calm?'c':'');
     const key='toon|'+light+'|'+mid+'|'+dark+'|'+jitter+'|'+shift+'|'+(grid?grid.join(','):'')+'|'+fxKey+'|'+(opts.side??0);
     if (!opts.unique&&cache.has(key)) {
         return cache.get(key);
@@ -104,6 +104,7 @@ export function toonMaterial(opts={}) {
         uFlash:{value:0},
         uFlashColor:{value:pal('ink').clone()},
         uAlpha:{value:opts.alpha??1},
+        uCalm:{value:opts.calm?TUNING.boil.calmMark:0},
         uHatch:{value:new THREE.Vector2(1,0)},
         uInk:{value:pal('ink').clone()},
         uSoftNormal:{value:opts.softNormal??0}
