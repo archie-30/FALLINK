@@ -218,7 +218,7 @@ export class UpgradeView {
                 ctx.fillStyle=PALETTE.nearGray;
                 const c0=cardCost(it.base);
                 const c1=cardCost(it.up);
-                const text=it.rare?t('upgrade.rare',{from:c0,to:c1}):(c0!==c1?t('upgrade.normal',{from:c0,to:c1})+'　':'')+cardDesc(it.up);
+                const text=it.rare?t('upgrade.rare',{from:c0,to:c1}):(c0!==c1?t('upgrade.normal',{from:c0,to:c1})+t('ui.gap'):'')+cardDesc(it.up);
                 const lines=wrapText(ctx,text,colW);
                 for (let i=0;i<lines.length;i++) {
                     ctx.fillText(lines[i],x,ty+32*s+i*22*s);

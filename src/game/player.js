@@ -654,6 +654,7 @@ export class Player {
     }
 
     fire(ctx,aim) {
+        this.shots=(this.shots||0)+1;
         const mp=this.muzzlePoint(this._mp||(this._mp={x:0,z:0}));
         this.lastAim=aim;
         const ang=this.W.beam?this.beamAngle(mp.x,mp.z):null;

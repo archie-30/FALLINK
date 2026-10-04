@@ -193,12 +193,12 @@ export class WorldMarks {
         if (doors.focus>=0&&game.run.canExit()) {
             const d=doors.list[doors.focus];
             game.project(d.x,D.height+W.enterLift,d.z-d.t-D.alcove*0.5,p);
-            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t('door.enter',{name:exitLabel(d.exit)}),v,2340,t('intro.'+(d.exit.kind==='node'?d.exit.node:d.exit.kind)));
+            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+t('ui.gap')+t('door.enter',{name:exitLabel(d.exit)}),v,2340,t('intro.'+(d.exit.kind==='node'?d.exit.node:d.exit.kind)));
         }
         const mp=game.minis.prompt(game.player);
         if (mp) {
             game.project(mp.x,mp.y,mp.z,p);
-            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+t(mp.key),v,2360);
+            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+t('ui.gap')+t(mp.key),v,2360);
         }
         for (const e of game.enemies.list) {
             if (e.say&&e.alive) {
@@ -249,7 +249,7 @@ export class WorldMarks {
             const n=npcs.list[focused];
             game.project(n.x,n.h+W.npcLift,n.z,p);
             const sub=n.item?t('shop.'+n.item+'.desc',{price:n.price,n:SHOP.items[n.item].n||0}):null;
-            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+'　'+(n.label||t('npc.'+n.model)),v,2320+focused,sub);
+            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+t('ui.gap')+(n.label||t('npc.'+n.model)),v,2320+focused,sub);
         }
         ctx.restore();
     }

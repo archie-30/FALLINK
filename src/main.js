@@ -3,7 +3,7 @@ import {PALETTE} from './data/palette.js';
 import {TUNING} from './data/tuning.js';
 import {LEVELS} from './data/levels.js';
 import {ENEMIES} from './data/enemies.js';
-import {t,setTouchText} from './data/strings.js';
+import {t,setTouchText,setLang} from './data/strings.js';
 import {createLoop,time} from './core/loop.js';
 import {Input} from './core/input.js';
 import {CameraRig} from './core/cameraRig.js';
@@ -29,7 +29,7 @@ import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects,createCard,cardParams} from './game/card.js';
 import {STARTING_DECK,ALL_CARDS,CARDS,isUlt,unlockedCards,TUTORIAL_MERGE} from './data/cards.js';
-import {progress,loadProgress,addXp,markSeen,godMode,effectiveLevel,xpToNext,resetLevel} from './core/progress.js';
+import {progress,loadProgress,addXp,markSeen,markBeaten,godMode,effectiveLevel,xpToNext,resetLevel} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -39,7 +39,7 @@ import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
-import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView} from './ui2d/menu.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
 import {DEFAULT_SKIN} from './data/skins.js';
 import {EASE} from './core/easing.js';
@@ -94,8 +94,16 @@ async function requestFullscreen() {
 }
 
 function boot() {
+    function applyLang() {
+        setLang(settings.lang);
+        document.documentElement.lang=settings.lang==='en'?'en':'zh-Hant';
+    }
     detectDevice();
     loadSettings();
+    if (!settings.langChosen&&settings.tutorialSeen) {
+        settings.langChosen=true;
+    }
+    applyLang();
     loadProgress();
     applyTheme();
     settings.aimGuide=settings.aimAssist;
@@ -463,7 +471,7 @@ function boot() {
             hand.onDraw(card);
             names.push(t(card.def.nameKey)+(upgraded?'+':''));
         }
-        overlay.hud.toast(t('training.picked',{name:names.join('、')}));
+        overlay.hud.toast(t('training.picked',{name:names.join(t('ui.list'))}));
         audio.play('card');
         closePicker(true);
     }
@@ -664,6 +672,9 @@ function boot() {
         }
         tutNotify('kill');
         audio.play(e.def.boss?'boss':'kill',0.8+Math.random()*0.4);
+        if (e.def.boss&&run.mode!=='training'&&run.mode!=='tutorial') {
+            markBeaten(e.type);
+        }
         fx.hitStop(F.hitStopKill,true);
         fx.cameraShake(F.shakeKill);
         fx.fovPunch(F.fovKill);
@@ -947,6 +958,9 @@ function boot() {
         },
         onEnd:ok=>run.gameDone(ok)
     });
+    function endlessAP(i) {
+        return {act:Math.floor(i/ENDLESS.bossEvery)+1,page:i%ENDLESS.bossEvery+1};
+    }
     function tutNotify(kind) {
         if (run.tutorial()&&run.director&&run.director.notify) {
             run.director.notify(kind);
@@ -1010,7 +1024,7 @@ function boot() {
                 overlay.hud.banner(t('training.title'),t('training.sub'),2.2);
             }
             else if (kind==='peace') {
-                const sub=p.game?t('event.'+p.game+'.title')+'　｜　'+t('peace.game'):p.event?t('event.'+p.event+'.title')+'　｜　'+t(p.block?'peace.block':'peace.sub'):t('peace.'+p.node);
+                const sub=p.game?t('event.'+p.game+'.title')+t('ui.sep')+t('peace.game'):p.event?t('event.'+p.event+'.title')+t('ui.sep')+t(p.block?'peace.block':'peace.sub'):t('peace.'+p.node);
                 overlay.hud.banner(t('node.'+p.node),sub,2.4);
             }
             else if (kind==='ambush') {
@@ -1018,10 +1032,10 @@ function boot() {
                 overlay.hud.banner(t('run.ambush'),t('run.ambushSub'),1.8);
             }
             else if (kind==='boss') {
-                overlay.hud.banner(t('run.bossTitle',{name:t('enemy.'+p.bossType)}),p.endless?t('run.endlessBossSub'):t('run.bossSub',{act:p.act+1}),2.6);
+                overlay.hud.banner(t('run.bossTitle',{name:t('enemy.'+p.bossType)}),p.endless?t('run.endlessBossSub',endlessAP(p.index)):t('run.bossSub',{act:p.act+1}),2.6);
             }
             else {
-                const title=p.overtime?t('run.overtimeTitle',{page:p.otPage+1}):p.endless?t('run.endlessTitle',{page:p.index+1}):t('run.roomTitle',{act:p.act+1,page:p.index+1});
+                const title=p.overtime?t('run.overtimeTitle',{page:p.otPage+1}):p.endless?t('run.endlessTitle',endlessAP(p.index)):t('run.roomTitle',{act:p.act+1,page:p.index+1});
                 const parts=[];
                 if (p.fresh) {
                     parts.push(t('run.newEnemy',{name:t('enemy.'+p.fresh)}));
@@ -1032,7 +1046,7 @@ function boot() {
                 if (p.challenge) {
                     parts.push(t('challenge.'+p.challenge.id,p.challenge));
                 }
-                overlay.hud.banner(title,parts.length>0?parts.join('　｜　'):t('run.roomSub'),parts.length>0?2.2+parts.length*0.6:2.0);
+                overlay.hud.banner(title,parts.length>0?parts.join(t('ui.sep')):t('run.roomSub'),parts.length>0?2.2+parts.length*0.6:2.0);
             }
         },
         onSpawn:e=>{
@@ -1344,18 +1358,18 @@ function boot() {
     const rnd=r=>r[0]+Math.random()*(r[1]-r[0]);
     function updateTaunts(dt) {
         const T=TUNING.taunt;
-        if (run.mode==='training'||game.mode!=='play') {
+        if (game.mode!=='play') {
             return;
         }
         for (const e of enemies.list) {
-            if (!e.alive||!(e.def.boss||e.elite)||e.state==='spawn') {
-                continue;
-            }
             if (e.say) {
                 e.say.t+=dt;
                 if (e.say.t>=e.say.dur) {
                     e.say=null;
                 }
+            }
+            if (run.mode==='training'||!e.alive||!(e.def.boss||e.elite)||e.state==='spawn'||(e.say&&e.say.keep)) {
+                continue;
             }
             if (e.tauntT===undefined) {
                 e.tauntT=rnd(T.first);
@@ -1376,7 +1390,15 @@ function boot() {
         pauseMenu.hide();
         input.mouse.down=false;
         input.dashQueued=false;
-        resumeT=coach.open||upgradeView.open?0:TUNING.ui.resumeCount;
+        resumeT=coach.open||upgradeView.open||!tense()?0:TUNING.ui.resumeCount;
+        if (resumeT<=0&&!coach.open&&!upgradeView.open) {
+            fx.paused=false;
+        }
+    }
+    function tense() {
+        const g=minis.g;
+        const timed=minis.running&&g&&!g.ended&&(g.limit>0||g.dur>0);
+        return run.state==='combat'||timed;
     }
     function tickResume(dt) {
         if (resumeT<=0) {
@@ -1406,6 +1428,10 @@ function boot() {
         settingsMenu.show();
     }
     function settingsChanged(key) {
+        if (key==='lang') {
+            applyLang();
+            art.cache.clear();
+        }
         if (key==='reduced') {
             if (settings.reducedMotion) {
                 settings.jitterPrev=settings.jitter;
@@ -1482,7 +1508,8 @@ function boot() {
     function checkDevice() {
         const d=input.lastDevice;
         if (d!==lastDev) {
-            overlay.hud.toast(t(d==='touch'?'device.touch':'device.mouse'));
+            const k=d==='touch'?'device.touch':'device.mouse';
+            overlay.hud.toast(t(k),k);
             if (d==='touch') {
                 hand.cancelTargeting();
             }
@@ -1500,6 +1527,23 @@ function boot() {
         back:()=>{
             audio.play('ui');
             weaponView.hide();
+        }
+    });
+    const langPick=new LangPicker({
+        choose:k=>{
+            audio.play('ui');
+            settings.lang=k;
+            applyLang();
+            art.cache.clear();
+        },
+        done:()=>{
+            audio.play('clear',1.2);
+            settings.langChosen=true;
+            saveSettings();
+            langPick.hide();
+            if (!settings.tutorialSeen) {
+                startGame('tutorial');
+            }
         }
     });
     const coach=new Coach({
@@ -1682,7 +1726,7 @@ function boot() {
         }
     });
     let pendingLevel=null;
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,weaponView,popup,choice,deckPick,levelUp];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,popup,choice,deckPick,levelUp];
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
@@ -1750,6 +1794,9 @@ function boot() {
                 input.lastDevice='touch';
             }
             checkDevice();
+            if (langPick.open) {
+                return langPick.down(x,y);
+            }
             if (levelUp.open) {
                 return levelUp.down(x,y);
             }
@@ -2042,6 +2089,10 @@ function boot() {
     };
     window.addEventListener('keydown',()=>audio.unlock());
     window.addEventListener('keydown',e=>{
+        if (langPick.open&&e.code==='Enter') {
+            langPick.confirm();
+            return;
+        }
         if (!coach.open||pauseMenu.open||upgradeView.open) {
             return;
         }
@@ -2092,7 +2143,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
+    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -2492,13 +2543,16 @@ function boot() {
     }
     warmShaders();
     enterMenu();
-    if (!settings.tutorialSeen) {
+    if (!settings.langChosen) {
+        langPick.show();
+    }
+    else if (!settings.tutorialSeen) {
         startGame('tutorial');
     }
     if (!device.fullscreen) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

@@ -27,6 +27,8 @@ export class Run {
         this.act=0;
         this.index=0;
         this.lastLayout=null;
+        this.lastTypes=[];
+        this.usedBosses=[];
         this.lastEvent=null;
         this.lastGames=[];
         this.lastPrize=null;
@@ -127,19 +129,19 @@ export class Run {
         }
         let plan;
         if (this.overtime) {
-            plan=planEndless(this.otIndex(),this.rng,this.lastLayout);
+            plan=planEndless(this.otIndex(),this.rng,this.lastLayout,this.planOpts());
             plan.overtime=true;
             plan.fresh=null;
             plan.otPage=this.otPage;
         }
         else if (this.mode==='endless') {
-            plan=planEndless(this.index,this.rng,this.lastLayout);
+            plan=planEndless(this.index,this.rng,this.lastLayout,this.planOpts());
         }
         else if (this.peaceNode()) {
             plan=this.planPeace(this.node);
         }
         else {
-            plan=planRoom(this.act,this.index,this.rng,this.lastLayout);
+            plan=planRoom(this.act,this.index,this.rng,this.lastLayout,this.planOpts());
         }
         if (!plan.peace&&!plan.boss&&this.notebook()) {
             if (this.node==='elite'||(this.node==='battle'&&this.eliteNext)) {
@@ -163,6 +165,12 @@ export class Run {
         plan.exits=this.makeExits();
         this.plan=plan;
         this.lastLayout=plan.layoutKey;
+        if (plan.types) {
+            this.lastTypes=plan.types;
+        }
+        if (plan.boss&&plan.bossType) {
+            this.usedBosses.push(plan.bossType);
+        }
         this.exitsOpen=false;
         this.ambushAfter=null;
         this.timer=0;
@@ -492,8 +500,16 @@ export class Run {
         return out;
     }
 
+    planOpts() {
+        return {used:this.usedBosses,beaten:progress.beaten,lastTypes:this.lastTypes};
+    }
+
     rewardPage() {
         const R=TUNING.reward;
+        if (this.mode==='endless'&&!this.overtime) {
+            const k=this.plan.index%ENDLESS.bossEvery;
+            return this.plan.boss||R.endlessPages.includes(k);
+        }
         return this.notebook()||this.plan.boss||this.plan.index%R.every===0;
     }
 

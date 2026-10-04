@@ -54,7 +54,7 @@ export class RoomDirector {
                     this.eliteWave=this.wave;
                     elite=true;
                 }
-                const e=this.enemies.spawn(s.type,x,z,{hpMult:this.plan.hpMult*(s.boss?this.plan.bossHp:1)*(elite?TUNING.elite.hp:1),elite});
+                const e=this.enemies.spawn(s.type,x,z,{hpMult:this.plan.hpMult*(s.boss?this.plan.bossHp:1)*(elite?TUNING.elite.hp:1),elite,tier:s.boss?this.plan.tier||0:0});
                 if (s.boss) {
                     this.boss=e;
                 }
@@ -86,7 +86,7 @@ export class RoomDirector {
     }
 }
 
-const TRAIN_POOL=['doodle','blob','sprayer','inkCloud','bird','compass','eraserMonster'];
+const TRAIN_POOL=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','scissorMinion','compass','eraserMonster'];
 
 export class TrainingDirector {
     constructor(cfg,enemies,room,allow) {

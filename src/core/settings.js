@@ -30,6 +30,8 @@ export const settings={
     godMode:false,
     fullscreen:true,
     tutorialSeen:false,
+    lang:'zh',
+    langChosen:false,
     weapon:'pen',
     lastWeapon:'',
     skin:{coat:'gray',limbs:'charcoal',hat:'charcoal',gear:'graphite',face:'paper',accent:'ink'},

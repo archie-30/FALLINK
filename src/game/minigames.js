@@ -5,6 +5,7 @@ import {MINIGAMES} from '../data/minigames.js';
 import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {RNG} from '../core/rng.js';
+import {t} from '../data/strings.js';
 
 const TONES={
     cover:{light:'farGray',mid:'midGray',dark:'nearGray'},
@@ -576,7 +577,7 @@ const GAMES={
             g.col.scale.y=0.001;
             g.level=0;
             g.padP=g.pad(0,P.padZ,P.pad,'dark');
-            g.stamp('倒',1.1,'ink',0,P.padZ,0.09);
+            g.stamp(t('mg.stamp.pour'),1.1,'ink',0,P.padZ,0.09);
         },
         begin(g) {
             g.place(0,MINIGAMES.start[1]);
@@ -1104,7 +1105,7 @@ const GAMES={
             g.die=die;
             g.pads=P.pads.map((x,i)=>{
                 const p=g.pad(x,P.padZ,P.pad,'dark');
-                g.stamp(i===0?'大':'小',1.6,i===0?'red':'ink',x,P.padZ,0.09);
+                g.stamp(i===0?t('mg.stamp.big'):t('mg.stamp.small'),1.6,i===0?'red':'ink',x,P.padZ,0.09);
                 g.stamp(i===0?'456':'123',0.9,'ink',x,P.padZ+P.pad+0.5,0.09);
                 p.big=i===0;
                 return p;
@@ -1163,7 +1164,7 @@ const GAMES={
             const P=g.P;
             const [px,pz]=P.pad;
             g.padP=g.pad(px,pz,P.padR,'dark');
-            g.stamp('丟',1.1,'ink',px,pz,0.09);
+            g.stamp(t('mg.stamp.throw'),1.1,'ink',px,pz,0.09);
             g.meter=new THREE.Group();
             g.meter.position.set(px+2.1,0,pz);
             g.add(g.meter);

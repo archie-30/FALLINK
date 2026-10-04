@@ -6,7 +6,7 @@ import {sketchRect,sketchLine,sketchPath,hatchFill,rectPoly,drawShape} from './s
 import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
 import {CARDS} from '../data/cards.js';
-import {ACTS} from '../data/levels.js';
+import {ACTS,ENDLESS} from '../data/levels.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -227,10 +227,10 @@ export class Hud {
         ctx.fillRect(r.x+26,r.y+13,5,20);
     }
 
-    toast(text) {
+    toast(text,key) {
         const H=TUNING.hud;
         this.toasts=(this.toasts||[]).filter(q=>q.text!==text);
-        this.toasts.push({text,t:H.toastTime});
+        this.toasts.push({text,key,t:H.toastTime});
         while (this.toasts.length>H.toastMax) {
             this.toasts.shift();
         }
@@ -250,14 +250,15 @@ export class Hud {
             q.t-=dt;
             const a=Math.max(0,Math.min(1,q.t/0.4,(H.toastTime-q.t)/0.2));
             ctx.globalAlpha=a;
-            const tw=ctx.measureText(q.text).width+28;
+            const tx=q.key?t(q.key):q.text;
+            const tw=ctx.measureText(tx).width+28;
             ctx.fillStyle=rgba('paper',0.92);
             ctx.fillRect(w/2-tw/2,y,tw,30);
             ctx.strokeStyle=PALETTE.ink;
             ctx.lineWidth=1.5;
             ctx.strokeRect(w/2-tw/2,y,tw,30);
             ctx.fillStyle=PALETTE.ink;
-            ctx.fillText(q.text,w/2,y+16);
+            ctx.fillText(tx,w/2,y+16);
             y+=36*Math.min(1,a*2);
         }
         ctx.restore();
@@ -486,7 +487,7 @@ export class Hud {
             ctx.font='bold 15px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='top';
-            ctx.fillText(p.trainGame?t('mg.test')+' · '+t('event.'+p.game+'.title'):p.overtime?t('run.overtimeInfo',{page:p.otPage+1}):t('run.endlessInfo',{page:p.index+1}),w/2,14);
+            ctx.fillText(p.trainGame?t('mg.test')+' · '+t('event.'+p.game+'.title'):p.overtime?t('run.overtimeInfo',{page:p.otPage+1}):t('run.endlessInfo',{act:Math.floor(p.index/ENDLESS.bossEvery)+1,page:p.index%ENDLESS.bossEvery+1}),w/2,14);
         }
         if (!run.training()) {
             this.drawScore(ctx,w,run.stats);
@@ -505,14 +506,14 @@ export class Hud {
         if (pz) {
             ctx.font='bold 15px '+FONT;
             ctx.fillStyle=PALETTE.red;
-            const tail=pz.params&&pz.params.s!==undefined?'　'+t('mg.time',{s:pz.params.s}):'';
+            const tail=pz.params&&pz.params.s!==undefined?t('ui.gap')+t('mg.time',{s:pz.params.s}):'';
             ctx.fillText(t(pz.key,pz.params)+tail,w/2,by+4);
         }
         const ch=p.challenge;
         if (ch&&(run.state==='combat'||run.state==='cleared')) {
             const fail=run.chFail;
             const left=ch.time?Math.max(0,Math.ceil(ch.time-run.chT)):0;
-            const txt=t('challenge.'+ch.id,ch)+(ch.time&&!fail?t('challenge.left',{n:left}):'')+'　'+t(fail?'challenge.markFail':'challenge.markOk');
+            const txt=t('challenge.'+ch.id,ch)+(ch.time&&!fail?t('challenge.left',{n:left}):'')+t('ui.gap')+t(fail?'challenge.markFail':'challenge.markOk');
             ctx.font='bold 13px '+FONT;
             ctx.fillStyle=fail?PALETTE.midGray:PALETTE.red;
             ctx.fillText(txt,w/2,by+18);

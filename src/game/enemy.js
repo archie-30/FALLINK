@@ -6,6 +6,7 @@ import {resolveCircle,clampToBounds,circleVs} from '../core/collision.js';
 import {EASE} from '../core/easing.js';
 import {RNG} from '../core/rng.js';
 import {time} from '../core/loop.js';
+import {t} from '../data/strings.js';
 
 const rng=new RNG(1234);
 const hitTmp={x:0,z:0,depth:0};
@@ -171,6 +172,8 @@ export class Enemy {
         this.vel.set(0,0,0);
         this.hp=d.hp*(o.hpMult||1);
         this.act=o.act||0;
+        this.tier=o.tier||0;
+        this.minionT=TUNING.bossScale.summonFirst;
         this.elite=!!o.elite;
         this.dummy=!!o.dummy;
         this.immortal=!!o.immortal;
@@ -267,6 +270,25 @@ export class Enemy {
         return 1;
     }
 
+    summonTick(dt,ctx) {
+        const B=TUNING.bossScale;
+        this.minionT-=dt;
+        if (this.minionT>0) {
+            return;
+        }
+        const k=Math.min(this.tier,B.summonEvery.length)-1;
+        this.minionT=B.summonEvery[k];
+        if (ctx.enemyMgr.list.length>=B.summonCap) {
+            return;
+        }
+        for (const type of B.minions[k]) {
+            const a=rng.range(0,Math.PI*2);
+            const e=ctx.enemyMgr.spawn(type,this.pos.x+Math.cos(a)*3.5,this.pos.z+Math.sin(a)*3.5,{});
+            ctx.particles.burst(e.pos.x,0.4,e.pos.z,8,{color:'midGray',speed:[1,4],up:[1,4]});
+        }
+        this.sqv+=2;
+    }
+
     colliders(ctx) {
         return ctx.room.colliders;
     }
@@ -325,6 +347,9 @@ export class Enemy {
         }
         else {
             this.think(dt,ctx);
+            if (d.boss&&this.tier>0&&ctx.enemyMgr) {
+                this.summonTick(dt,ctx);
+            }
         }
         this.slowT=Math.max(0,(this.slowT||0)-dt);
         const slow=(d.flying?1:ctx.room.zones.slowAt(this.pos.x,this.pos.z))*(this.slowT>0?this.slowMult:1);
@@ -397,7 +422,7 @@ export class Enemy {
             m.uniforms.uFlash.value=fl;
             m.uniforms.uRevealY.value=ry;
         }
-        this.hull.uniforms.uColor.value.copy(pal(fl?'paper':(this.elite?'darkRed':'ink')));
+        this.hull.uniforms.uColor.value.copy(pal(fl?'paper':(this.rage?'red':(this.elite?'darkRed':'ink'))));
         this.accent.visible=this.accentOn&&!spawning;
         if (this.accentOn) {
             this.accent.rotation.y=time.real*TUNING.accent.spin;
@@ -436,7 +461,7 @@ export class Enemy {
             else {
                 const r=this.ringMesh();
                 r.visible=true;
-                r.position.set(this.renderPos.x,0.05,this.renderPos.z);
+                r.position.set(tg.x??this.renderPos.x,0.05,tg.z??this.renderPos.z);
                 r.scale.set(tg.r,1,tg.r);
                 r.material.uniforms.uProgress.value=k;
                 r.material.uniforms.uAlpha.value=1;
@@ -1481,6 +1506,7 @@ class Scissors extends Enemy {
     }
 
     teleDash() {
+        this.trailN=0;
         this.dx=this.nx;
         this.dz=this.nz;
         this.setState('telegraph');
@@ -1543,8 +1569,12 @@ class Scissors extends Enemy {
                 this.vel.set(this.dx*d.dashSpeed,0,this.dz*d.dashSpeed);
                 this.trailT-=dt;
                 if (this.trailT<=0) {
-                    this.trailT=0.07;
-                    ctx.enemyBullets.spawn(this.pos.x,this.pos.z,-this.dz,this.dx,0.01,d.bulletDamage,2.4);
+                    const T=d.trail;
+                    this.trailT=T.every;
+                    this.trailN=(this.trailN||0)+1;
+                    const side=this.trailN%2?1:-1;
+                    const i=ctx.enemyBullets.spawn(this.pos.x,this.pos.z,0,0,0,d.bulletDamage,T.linger+T.life);
+                    ctx.enemyBullets.delay(i,T.linger+this.trailN*T.stagger,-this.dz*side*T.speed,this.dx*side*T.speed);
                 }
                 if (this.dist<d.radius+TUNING.player.radius+0.2) {
                     p.hurt(2,this.dx,this.dz);
@@ -1637,6 +1667,344 @@ class Scissors extends Enemy {
         this.hover.rotation.x=this.state==='stuck'?0.35:0;
         const pulse=this.state==='stuck'?1.3+Math.sin(time.real*16)*0.25:1;
         this.screw.scale.set(pulse,1,pulse);
+    }
+}
+
+const NO_COLS=[];
+
+class StampSoldier extends Enemy {
+    buildBody() {
+        const body=this.mat('body');
+        const head=this.mat('head');
+        const limb=this.mat('limb');
+        const ink=this.inkMat();
+        this.lift=new THREE.Group();
+        this.body.add(this.lift);
+        this.legs=[];
+        for (const sx of [-1,1]) {
+            const p=new THREE.Group();
+            p.position.set(sx*0.26,0.42,0);
+            const leg=this.hullify(new THREE.Mesh(geo('stLeg',()=>capsule(0.1,0.2)),limb));
+            leg.position.y=-0.2;
+            p.add(leg);
+            this.lift.add(p);
+            this.legs.push(p);
+        }
+        const pad=new THREE.Mesh(geo('stPad',()=>new THREE.BoxGeometry(1.08,0.12,0.84)),ink);
+        pad.position.y=0.5;
+        this.lift.add(pad);
+        this.block=this.hullify(new THREE.Mesh(geo('stBlock',()=>new THREE.BoxGeometry(1.12,0.5,0.88)),head));
+        this.block.position.y=0.8;
+        this.lift.add(this.block);
+        const handle=this.hullify(new THREE.Mesh(geo('stHandle',()=>new THREE.CylinderGeometry(0.18,0.26,0.62,8)),body));
+        handle.position.y=1.36;
+        this.lift.add(handle);
+        const knob=this.hullify(new THREE.Mesh(geo('stKnob',()=>new THREE.SphereGeometry(0.34,9,6)),body));
+        knob.position.y=1.8;
+        this.lift.add(knob);
+        const eg=geo('stEye',()=>new THREE.BoxGeometry(0.24,0.06,0.04));
+        for (const sx of [-1,1]) {
+            const e=new THREE.Mesh(eg,ink);
+            e.position.set(sx*0.22,0.86,0.45);
+            e.rotation.z=-sx*0.35;
+            this.lift.add(e);
+        }
+        this.hopY=0;
+    }
+
+    onReset() {
+        const d=this.def;
+        this.stampT=rng.range(d.firstStamp[0],d.firstStamp[1]);
+        this.strafeSign=rng.sign();
+        this.hops=0;
+        this.hopY=0;
+        this.sx=0;
+        this.sz=0;
+        this.tx=0;
+        this.tz=0;
+    }
+
+    colliders(ctx) {
+        return this.state==='attack'?NO_COLS:ctx.room.colliders;
+    }
+
+    canContact() {
+        return this.state!=='attack';
+    }
+
+    startStamp(ctx) {
+        const d=this.def;
+        const p=ctx.player;
+        let tx=p.pos.x+p.vel.x*d.lead;
+        let tz=p.pos.z+p.vel.z*d.lead;
+        let dx=tx-this.pos.x;
+        let dz=tz-this.pos.z;
+        const l=Math.hypot(dx,dz)||1;
+        if (l>d.jumpRange) {
+            tx=this.pos.x+dx/l*d.jumpRange;
+            tz=this.pos.z+dz/l*d.jumpRange;
+        }
+        const b=ctx.room.bounds;
+        this.tx=Math.max(b.minX+d.radius,Math.min(b.maxX-d.radius,tx));
+        this.tz=Math.max(b.minZ+d.radius,Math.min(b.maxZ-d.radius,tz));
+        this.hops++;
+        this.setState('telegraph');
+        this.tele={type:'ring',r:d.stampRadius,dur:d.crouch+d.jumpTime,t:0,x:this.tx,z:this.tz};
+        this.sqv-=3;
+    }
+
+    land(ctx) {
+        const d=this.def;
+        const p=ctx.player;
+        this.hopY=0;
+        this.tele=null;
+        this.vel.set(0,0,0);
+        this.sqv+=5;
+        ctx.fx.cameraShake(0.22);
+        ctx.particles.burst(this.pos.x,0.3,this.pos.z,12,{color:'ink',speed:[2,6],up:[1,4],size:[0.08,0.18]});
+        if (ctx.onInkDrop) {
+            ctx.onInkDrop(this.pos.x,this.pos.z,d.puddleRadius,d.puddleTime,d.puddleSlow);
+        }
+        const px=p.pos.x-this.pos.x;
+        const pz=p.pos.z-this.pos.z;
+        const pl=Math.hypot(px,pz)||1;
+        if (pl<d.stampRadius+TUNING.player.radius) {
+            p.hurt(d.stampDamage,px/pl,pz/pl);
+        }
+        if (this.elite) {
+            fireRing(ctx,this.pos.x,this.pos.z,d.eliteRing,rng.range(0,1),d.bulletSpeed,d.bulletDamage,d.bulletLife);
+        }
+        this.setState('land');
+    }
+
+    think(dt,ctx) {
+        const d=this.def;
+        if (this.state==='move') {
+            let push=0;
+            if (this.dist>d.range[1]) {
+                push=1;
+            }
+            else if (this.dist<d.range[0]) {
+                push=-1;
+            }
+            this.wx=this.nx*push-this.nz*this.strafeSign*d.strafe;
+            this.wz=this.nz*push+this.nx*this.strafeSign*d.strafe;
+            this.aimX=this.nx;
+            this.aimZ=this.nz;
+            this.stampT-=dt;
+            if (this.stampT<=0) {
+                this.hops=0;
+                this.startStamp(ctx);
+            }
+            return;
+        }
+        if (this.state==='telegraph') {
+            this.manual=true;
+            this.vel.multiplyScalar(Math.exp(-10*dt));
+            this.aimX=this.tx-this.pos.x;
+            this.aimZ=this.tz-this.pos.z;
+            if (this.stateT>=d.crouch) {
+                this.sx=this.pos.x;
+                this.sz=this.pos.z;
+                this.setState('attack');
+            }
+            return;
+        }
+        if (this.state==='attack') {
+            this.manual=true;
+            const f=Math.min(1,this.stateT/d.jumpTime);
+            this.vel.set((this.tx-this.sx)/d.jumpTime,0,(this.tz-this.sz)/d.jumpTime);
+            this.hopY=Math.sin(f*Math.PI)*d.jumpHeight;
+            if (f>=1) {
+                this.pos.x=this.tx;
+                this.pos.z=this.tz;
+                this.land(ctx);
+            }
+            return;
+        }
+        if (this.state==='land') {
+            this.manual=true;
+            this.vel.set(0,0,0);
+            const wait=this.elite?d.eliteLandStun:d.landStun;
+            if (this.stateT>=wait) {
+                if (this.elite&&this.hops<d.eliteHops) {
+                    this.startStamp(ctx);
+                    return;
+                }
+                this.setState('move');
+                this.stampT=rng.range(d.stampEvery[0],d.stampEvery[1]);
+            }
+        }
+    }
+
+    sync(alpha,dt) {
+        super.sync(alpha,dt);
+        this.lift.position.y=this.hopY;
+    }
+
+    pose() {
+        const s=this.speedFrac||0;
+        const air=this.state==='attack';
+        const sw=air?0.6:Math.sin(this.phase)*0.6*s;
+        this.legs[0].rotation.x=sw;
+        this.legs[1].rotation.x=air?-0.6:-sw;
+        this.block.rotation.z=this.state==='land'?Math.sin(time.real*30)*0.05:0;
+    }
+}
+
+class ScissorMinion extends Enemy {
+    buildBody() {
+        const body=this.mat('body');
+        const head=this.mat('head');
+        const limb=this.mat('limb');
+        const ink=this.inkMat();
+        this.hover=new THREE.Group();
+        this.hover.position.y=0.95;
+        this.blades=[];
+        for (const side of [-1,1]) {
+            const g=new THREE.Group();
+            const blade=this.hullify(new THREE.Mesh(geo('scBlade',bladeGeo),side<0?head:body));
+            blade.scale.setScalar(0.42);
+            blade.position.z=0.66;
+            g.add(blade);
+            const handle=this.hullify(new THREE.Mesh(geo('smHandle',()=>new THREE.TorusGeometry(0.24,0.07,6,10)),limb));
+            handle.rotation.x=Math.PI/2;
+            handle.position.set(side*0.12,0,-0.44);
+            g.add(handle);
+            this.hover.add(g);
+            this.blades.push(g);
+        }
+        for (const sx of [-1,1]) {
+            const e=new THREE.Mesh(geo('smEye',()=>new THREE.BoxGeometry(0.14,0.04,0.04)),ink);
+            e.position.set(sx*0.13,0.14,0.16);
+            e.rotation.z=-sx*0.4;
+            this.hover.add(e);
+        }
+        this.screw=new THREE.Mesh(geo('smScrew',()=>new THREE.CylinderGeometry(0.13,0.13,0.18,8)),unlitMaterial({color:'red'}));
+        this.screw.position.y=0.09;
+        this.hover.add(this.screw);
+        this.body.add(this.hover);
+    }
+
+    onReset() {
+        const d=this.def;
+        this.snipT=rng.range(d.firstSnip[0],d.firstSnip[1]);
+        this.strafeSign=rng.sign();
+        this.rage=false;
+        this.dx=0;
+        this.dz=1;
+    }
+
+    enrage() {
+        if (this.rage||!this.alive) {
+            return;
+        }
+        this.rage=true;
+        this.sqv+=4;
+        this.flashT=0.3;
+    }
+
+    startSnip(ctx,lead) {
+        const d=this.def;
+        const R=this.rage?d.rage:null;
+        this.dx=this.nx;
+        this.dz=this.nz;
+        this.setState('telegraph');
+        this.teleLine(this.dx,this.dz,d.telegraphLength,d.telegraph*(R?R.tele:1));
+        if (!lead) {
+            return;
+        }
+        for (const o of ctx.enemies) {
+            if (o!==this&&o.alive&&o.type==='scissorMinion'&&o.state==='move'&&o.stunT<=0&&!o.dummy&&Math.hypot(o.pos.x-this.pos.x,o.pos.z-this.pos.z)<d.pairRange) {
+                o.startSnip(ctx,false);
+                break;
+            }
+        }
+    }
+
+    think(dt,ctx) {
+        const d=this.def;
+        const R=this.rage?d.rage:null;
+        const p=ctx.player;
+        if (this.state==='move') {
+            let push=0;
+            if (this.dist>d.range[1]) {
+                push=1;
+            }
+            else if (this.dist<d.range[0]) {
+                push=-1;
+            }
+            const sp=R?R.speed:1;
+            this.wx=(this.nx*push-this.nz*this.strafeSign*d.strafe)*sp;
+            this.wz=(this.nz*push+this.nx*this.strafeSign*d.strafe)*sp;
+            this.aimX=this.nx;
+            this.aimZ=this.nz;
+            this.snipT-=dt/(R?R.every:1);
+            if (this.snipT<=0) {
+                this.startSnip(ctx,true);
+            }
+            return;
+        }
+        if (this.state==='telegraph') {
+            this.manual=true;
+            this.vel.multiplyScalar(Math.exp(-8*dt));
+            if (this.stateT<this.tele.dur*0.6) {
+                const lx=p.pos.x+p.vel.x*0.2-this.pos.x;
+                const lz=p.pos.z+p.vel.z*0.2-this.pos.z;
+                const ll=Math.hypot(lx,lz)||1;
+                this.dx=lx/ll;
+                this.dz=lz/ll;
+                this.tele.dx=this.dx;
+                this.tele.dz=this.dz;
+            }
+            this.aimX=this.dx;
+            this.aimZ=this.dz;
+            if (this.stateT>=this.tele.dur) {
+                this.tele=null;
+                this.setState('attack');
+            }
+            return;
+        }
+        if (this.state==='attack') {
+            this.manual=true;
+            const sp=d.dashSpeed*(R?R.dash:1);
+            this.vel.set(this.dx*sp,0,this.dz*sp);
+            const blocked=this.stateT>0.12&&this.speedFrac<0.3;
+            if (blocked||this.stateT>=d.dashTime) {
+                if (this.elite) {
+                    const base=Math.atan2(this.nz,this.nx);
+                    for (let i=0;i<d.eliteShots;i++) {
+                        const a=base+(i/(d.eliteShots-1)-0.5)*d.eliteSpread;
+                        ctx.enemyBullets.spawn(this.pos.x,this.pos.z,Math.cos(a),Math.sin(a),d.bulletSpeed,d.bulletDamage,d.bulletLife);
+                    }
+                }
+                this.vel.multiplyScalar(0.2);
+                this.setState('recover');
+            }
+            return;
+        }
+        if (this.state==='recover') {
+            this.manual=true;
+            this.vel.multiplyScalar(Math.exp(-10*dt));
+            if (this.stateT>=d.recover) {
+                this.setState('move');
+                this.snipT=rng.range(d.snipEvery[0],d.snipEvery[1]);
+            }
+        }
+    }
+
+    pose() {
+        let open=0.35+Math.sin(time.real*(this.rage?16:6))*0.12;
+        if (this.state==='telegraph') {
+            open=0.75;
+        }
+        else if (this.state==='attack') {
+            open=0.03;
+        }
+        this.blades[0].rotation.y=open;
+        this.blades[1].rotation.y=-open;
+        this.hover.position.y=0.95+Math.sin(time.real*4+this.phase)*0.08;
+        this.hover.rotation.z=this.rage?Math.sin(time.real*22)*0.12:0;
     }
 }
 
@@ -1850,7 +2218,370 @@ class Book extends Enemy {
     }
 }
 
-const CLASSES={doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkCloud:InkCloud,inkBottle:InkBottle,scissors:Scissors,book:Book};
+class Exam extends Enemy {
+    buildBody() {
+        const body=this.mat('body');
+        const head=this.mat('head');
+        const limb=this.mat('limb');
+        const ink=this.inkMat();
+        this.sheet=new THREE.Group();
+        this.sheet.position.y=2.3;
+        const paper=this.hullify(new THREE.Mesh(geo('exPaper',()=>new THREE.BoxGeometry(2.8,3.6,0.14)),head));
+        this.sheet.add(paper);
+        const lg=geo('exLine',()=>new THREE.BoxGeometry(1.9,0.07,0.04));
+        for (let i=0;i<5;i++) {
+            const l=new THREE.Mesh(lg,limb);
+            l.position.set(-0.2,0.7-i*0.45,0.09);
+            this.sheet.add(l);
+        }
+        const bg=geo('exBox',()=>new THREE.BoxGeometry(0.22,0.22,0.04));
+        for (let i=0;i<5;i++) {
+            const b=new THREE.Mesh(bg,body);
+            b.position.set(-1.1,0.7-i*0.45,0.09);
+            this.sheet.add(b);
+        }
+        for (const sx of [-1,1]) {
+            const e=new THREE.Mesh(geo('exEye',()=>new THREE.BoxGeometry(0.42,0.08,0.05)),ink);
+            e.position.set(sx*0.5,1.3,0.1);
+            e.rotation.z=sx*0.3;
+            this.sheet.add(e);
+        }
+        this.grade=new THREE.Mesh(geo('exGrade',()=>new THREE.TorusGeometry(0.42,0.07,6,16)),unlitMaterial({color:'red'}));
+        this.grade.position.set(0.9,1.25,0.12);
+        this.sheet.add(this.grade);
+        this.pen=new THREE.Group();
+        const shaft=this.hullify(new THREE.Mesh(geo('exPen',()=>new THREE.CylinderGeometry(0.12,0.12,1.6,8)),body));
+        this.pen.add(shaft);
+        const tip=new THREE.Mesh(geo('exTip',()=>new THREE.ConeGeometry(0.12,0.4,8)),unlitMaterial({color:'red'}));
+        tip.position.y=-1.0;
+        tip.rotation.x=Math.PI;
+        this.pen.add(tip);
+        this.pen.position.set(2.0,2.4,0.3);
+        this.pen.rotation.z=0.5;
+        this.body.add(this.sheet);
+        this.body.add(this.pen);
+    }
+
+    onReset() {
+        this.patternT=2.2;
+        this.pattern=null;
+        this.last=null;
+        this.volley=0;
+        this.fireAcc=0;
+        this.drops=[];
+        this.gradeA=[];
+        this.hpAsk=0;
+        this.shotsAsk=0;
+        this.coolT=0;
+        this.say=null;
+    }
+
+    damageMult() {
+        return this.state==='rest'?this.def.weakMult:1;
+    }
+
+    phase2() {
+        return this.hp<this.maxHp*0.5;
+    }
+
+    speak(key,dur) {
+        this.say={text:t(key),t:0,dur,keep:true};
+    }
+
+    choose() {
+        const list=['zone','quiet','grade','toss'];
+        let p=list[Math.floor(rng.next()*list.length)];
+        if (p===this.last) {
+            p=list[(list.indexOf(p)+1)%list.length];
+        }
+        this.last=p;
+        return p;
+    }
+
+    think(dt,ctx) {
+        const d=this.def;
+        const p=ctx.player;
+        this.aimX=this.nx;
+        this.aimZ=this.nz;
+        const P2=this.phase2();
+        if (this.state==='move') {
+            const want=this.dist>d.keep+2?1:(this.dist<d.keep-2?-1:0);
+            this.wx=this.nx*want-this.nz*0.4;
+            this.wz=this.nz*want+this.nx*0.4;
+            this.patternT-=dt*(P2?1.3:1);
+            if (this.patternT<=0) {
+                this.pattern=this.choose();
+                this.setState('ask');
+                this.speak('exam.q.'+this.pattern,d.askTime+1.4);
+                this.hpAsk=p.hp;
+                this.shotsAsk=p.shots||0;
+                if (this.pattern==='grade') {
+                    const n=P2?d.grade.lines2:d.grade.lines;
+                    this.teleLine(this.nx,this.nz,18,d.askTime,n,d.grade.spread);
+                }
+                else {
+                    this.teleRing(this.pattern==='quiet'?3.2:2.4,d.askTime);
+                }
+            }
+            return;
+        }
+        this.manual=true;
+        this.vel.multiplyScalar(Math.exp(-6*dt));
+        if (this.state==='ask') {
+            if (this.pattern==='grade'&&this.tele) {
+                this.gradeA=[];
+                const base=Math.atan2(this.tele.dz,this.tele.dx);
+                for (let i=0;i<this.tele.count;i++) {
+                    this.gradeA.push(base+(i/(this.tele.count-1)-0.5)*this.tele.spread);
+                }
+            }
+            if (this.stateT>=d.askTime) {
+                this.tele=null;
+                this.setState('attack');
+                this.volley=0;
+                this.fireAcc=0;
+                this.coolT=0;
+                this.shotsAsk=p.shots||0;
+                if (this.pattern==='zone') {
+                    const Z=d.zone;
+                    const n=P2?Z.count2:Z.count;
+                    this.drops=[];
+                    for (let i=0;i<n;i++) {
+                        const x=p.pos.x+(i===0?0:rng.range(-Z.spread,Z.spread));
+                        const z=p.pos.z+(i===0?0:rng.range(-Z.spread,Z.spread));
+                        const tt=Z.delay+i*Z.stagger;
+                        this.drops.push({x,z,t:tt});
+                        ctx.dangerRings.spawn(x,z,Z.r,'red',tt);
+                    }
+                }
+            }
+            return;
+        }
+        if (this.state==='attack') {
+            const sp=d.bulletSpeed*(P2?1.12:1);
+            let done=false;
+            if (this.pattern==='zone') {
+                const Z=d.zone;
+                for (let i=this.drops.length-1;i>=0;i--) {
+                    const q=this.drops[i];
+                    if (this.stateT>=q.t) {
+                        fireRing(ctx,q.x,q.z,Z.ring,rng.range(0,1),Z.speed,d.bulletDamage,Z.life);
+                        ctx.particles.burst(q.x,0.3,q.z,6,{color:'red',speed:[2,4],up:[2,4]});
+                        if (Math.hypot(p.pos.x-q.x,p.pos.z-q.z)<Z.r) {
+                            p.hurt(1,0,1);
+                        }
+                        this.drops.splice(i,1);
+                    }
+                }
+                done=this.drops.length===0;
+            }
+            else if (this.pattern==='quiet') {
+                const Q=d.quiet;
+                this.coolT-=dt;
+                if ((p.shots||0)>this.shotsAsk&&this.coolT<=0) {
+                    this.shotsAsk=p.shots;
+                    this.coolT=Q.cool;
+                    const n=P2?Q.shots2:Q.shots;
+                    const base=Math.atan2(this.nz,this.nx);
+                    for (let i=0;i<n;i++) {
+                        const a=base+(i/(n-1)-0.5)*Q.spread;
+                        ctx.enemyBullets.spawn(this.pos.x,this.pos.z,Math.cos(a),Math.sin(a),sp*1.2,d.bulletDamage,d.bulletLife);
+                    }
+                    this.speak('exam.cheat',0.9);
+                    this.kick=1;
+                }
+                this.shotsAsk=Math.max(this.shotsAsk,p.shots||0);
+                done=this.stateT>=Q.time;
+            }
+            else if (this.pattern==='grade') {
+                const G=d.grade;
+                this.fireAcc+=dt;
+                while (this.fireAcc>=G.every) {
+                    this.fireAcc-=G.every;
+                    for (const a of this.gradeA) {
+                        ctx.enemyBullets.spawn(this.pos.x+Math.cos(a)*1.6,this.pos.z+Math.sin(a)*1.6,Math.cos(a),Math.sin(a),sp*1.4,d.bulletDamage,d.bulletLife*0.5);
+                    }
+                }
+                done=this.stateT>=G.time;
+            }
+            else if (this.pattern==='toss') {
+                const T=d.toss;
+                this.fireAcc+=dt;
+                if (this.fireAcc>=T.every||this.volley===0) {
+                    this.fireAcc=0;
+                    const base=Math.atan2(this.nz,this.nx);
+                    for (let i=0;i<T.count;i++) {
+                        const a=base+(i/(T.count-1)-0.5)*T.spread;
+                        ctx.enemyBullets.spawn(this.pos.x,this.pos.z,Math.cos(a),Math.sin(a),T.speed,d.bulletDamage,d.bulletLife);
+                    }
+                    this.volley++;
+                    this.kick=1;
+                }
+                done=this.volley>=(P2?T.volleys2:T.volleys);
+            }
+            if (done) {
+                const ok=p.hp>=this.hpAsk;
+                this.setState(ok?'rest':'wrong');
+                this.speak(ok?'exam.right':'exam.wrong',ok?d.restTime:d.wrongTime+0.6);
+                this.sqv+=3;
+            }
+            return;
+        }
+        if (this.state==='rest'&&this.stateT>=d.restTime) {
+            this.setState('move');
+            this.patternT=rng.range(d.questionGap[0],d.questionGap[1]);
+        }
+        if (this.state==='wrong'&&this.stateT>=d.wrongTime) {
+            this.setState('move');
+            this.patternT=rng.range(d.questionGap[0],d.questionGap[1])*0.6;
+        }
+    }
+
+    pose() {
+        const rest=this.state==='rest';
+        this.sheet.position.y=2.3+Math.sin(time.real*1.6)*0.12;
+        this.sheet.rotation.x=rest?0.45:(this.state==='ask'?-0.1:0);
+        this.sheet.rotation.z=this.state==='wrong'?Math.sin(time.real*24)*0.06:0;
+        const pulse=rest?1.3+Math.sin(time.real*14)*0.2:1;
+        this.grade.scale.set(pulse,pulse,1);
+        this.pen.rotation.z=0.5+(this.state==='attack'?Math.sin(time.real*20)*0.4:0)-this.kick*0.3;
+    }
+}
+
+class BookFinal extends Book {
+    buildBody() {
+        super.buildBody();
+        const red=unlitMaterial({color:'red'});
+        for (const sx of [-1,1]) {
+            const r=new THREE.Mesh(geo('bfRibbon',()=>new THREE.BoxGeometry(0.16,0.05,3.4)),red);
+            r.position.set(sx*0.55,0.48,0);
+            this.stand.add(r);
+        }
+        this.crown=new THREE.Group();
+        const sp=geo('bfSpike',()=>new THREE.ConeGeometry(0.22,0.7,5));
+        for (let i=0;i<5;i++) {
+            const m=new THREE.Mesh(sp,red);
+            m.position.set((i-2)*0.5,0.9,-1.3);
+            this.crown.add(m);
+        }
+        this.stand.add(this.crown);
+    }
+
+    onReset() {
+        super.onReset();
+        this.page=0;
+        this.bombs=[];
+    }
+
+    pageOf() {
+        return this.hp<this.maxHp/3?2:(this.hp<this.maxHp*2/3?1:0);
+    }
+
+    choose(ctx) {
+        const list=['flip','mimicScatter','mimicBomb','wall','rain','slam'];
+        if (ctx.enemyMgr.list.length<5) {
+            list.push('summon');
+        }
+        if (this.page>=1) {
+            list.push('mimicBomb','flip');
+        }
+        if (this.page>=2) {
+            list.push('mimicScatter','rain');
+        }
+        let p=list[Math.floor(rng.next()*list.length)];
+        if (p===this.last) {
+            p=list[(list.indexOf(p)+1)%list.length];
+        }
+        this.last=p;
+        return p;
+    }
+
+    think(dt,ctx) {
+        const d=this.def;
+        const p=ctx.player;
+        const pg=this.pageOf();
+        if (pg!==this.page) {
+            this.page=pg;
+            this.say={text:t('bookFinal.page'+pg),t:0,dur:2,keep:true};
+            fireRing(ctx,this.pos.x,this.pos.z,24,0,5,d.bulletDamage,d.bulletLife);
+            ctx.fx.cameraShake(0.5);
+        }
+        if (this.state==='attack'&&['flip','mimicScatter','mimicBomb'].includes(this.pattern)) {
+            this.manual=true;
+            this.vel.set(0,0,0);
+            this.aimX=this.nx;
+            this.aimZ=this.nz;
+            const sp=1+this.page*0.08;
+            if (this.pattern==='flip') {
+                const F=d.flip;
+                this.fireAcc+=dt;
+                if (this.fireAcc>=F.every||this.volley===0) {
+                    this.fireAcc=0;
+                    fireRing(ctx,this.pos.x,this.pos.z,F.count+this.page*4,this.volley*0.16,F.speeds[this.volley%2]*sp,d.bulletDamage,d.bulletLife);
+                    this.volley++;
+                    ctx.fx.cameraShake(0.2);
+                    if (this.volley>=F.rings+this.page) {
+                        this.rest();
+                    }
+                }
+            }
+            else if (this.pattern==='mimicScatter') {
+                const M=d.mimicScatter;
+                this.fireAcc+=dt;
+                if (this.fireAcc>=M.every||this.volley===0) {
+                    this.fireAcc=0;
+                    const base=Math.atan2(this.nz,this.nx);
+                    for (let i=0;i<M.count;i++) {
+                        const a=base+(i/(M.count-1)-0.5)*M.spread;
+                        ctx.enemyBullets.spawn(this.pos.x+Math.cos(a)*2,this.pos.z+Math.sin(a)*2,Math.cos(a),Math.sin(a),M.speed*sp,d.bulletDamage,d.bulletLife);
+                    }
+                    this.volley++;
+                    if (this.volley>=M.volleys) {
+                        this.rest();
+                    }
+                }
+            }
+            else {
+                const B=d.mimicBomb;
+                if (this.volley===0) {
+                    this.volley=1;
+                    const n=this.page>=1?B.count2:B.count;
+                    this.bombs=[];
+                    for (let i=0;i<n;i++) {
+                        const x=p.pos.x+(i===0?0:rng.range(-5,5));
+                        const z=p.pos.z+(i===0?0:rng.range(-4,4));
+                        const tt=B.delay+i*B.stagger;
+                        this.bombs.push({x,z,t:tt});
+                        ctx.dangerRings.spawn(x,z,B.r,'red',tt);
+                    }
+                }
+                for (let i=this.bombs.length-1;i>=0;i--) {
+                    const q=this.bombs[i];
+                    if (this.stateT>=q.t) {
+                        fireRing(ctx,q.x,q.z,B.ring,rng.range(0,1),B.speed,d.bulletDamage,B.life);
+                        ctx.particles.burst(q.x,0.4,q.z,14,{color:'ink',speed:[3,7],up:[2,6],size:[0.1,0.22]});
+                        if (Math.hypot(p.pos.x-q.x,p.pos.z-q.z)<B.r) {
+                            p.hurt(1,0,1);
+                        }
+                        this.bombs.splice(i,1);
+                    }
+                }
+                if (this.bombs.length===0) {
+                    this.rest();
+                }
+            }
+            return;
+        }
+        super.think(dt,ctx);
+    }
+
+    pose() {
+        super.pose();
+        this.crown.rotation.y=time.real*0.6;
+    }
+}
+
+const CLASSES={stampSoldier:StampSoldier,scissorMinion:ScissorMinion,doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkCloud:InkCloud,inkBottle:InkBottle,scissors:Scissors,book:Book,exam:Exam,bookFinal:BookFinal};
 
 export class EnemyManager {
     constructor(parent,fxScene) {
@@ -1872,7 +2603,7 @@ export class EnemyManager {
             e=new C(type,ENEMIES[type],this.parent,this.fxScene);
             pool.push(e);
         }
-        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite,dummy:o.dummy,immortal:o.immortal});
+        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite,dummy:o.dummy,immortal:o.immortal,tier:o.tier||0});
         this.list.push(e);
         if (this.onSpawned) {
             this.onSpawned(e);
@@ -1905,7 +2636,7 @@ export class EnemyManager {
         const arr=this.list.slice();
         for (const e of arr) {
             if (e.alive) {
-                e.update(e.def.boss?dt*TUNING.bossTempo:dt,ctx);
+                e.update(e.def.boss?dt*TUNING.bossTempo*(1+e.tier*TUNING.bossScale.tempo):dt,ctx);
             }
         }
     }
@@ -1931,6 +2662,13 @@ export class EnemyManager {
         const i=this.list.indexOf(e);
         if (i>=0) {
             this.list.splice(i,1);
+        }
+        if (e.type==='scissorMinion'&&!clean) {
+            for (const o of this.list) {
+                if (o.type==='scissorMinion'&&o.alive) {
+                    o.enrage();
+                }
+            }
         }
         if (this.onKill) {
             this.onKill(e,dx,dz);

@@ -140,5 +140,54 @@ export const ENEMY_ICONS={
             drawShape(ctx,sketchLine(6,-1+i*8,24,-6+i*8,{width:1,seed:1786+i,overshoot:0}),PALETTE.midGray,v);
         }
         fillPoly(ctx,[[2,22],[8,22],[8,36],[5,32],[2,36]],PALETTE.red);
+    },
+    stampSoldier(ctx,v) {
+        fillPoly(ctx,rectPoly(-20,-4,40,18),PALETTE.paper);
+        fillPoly(ctx,rectPoly(-20,14,40,5),PALETTE.ink);
+        drawShape(ctx,sketchRect(-20,-4,40,18,{width:2,seed:1800}),PALETTE.ink,v);
+        fillPoly(ctx,[[-6,-4],[6,-4],[4,-22],[-4,-22]],PALETTE.nearGray);
+        drawShape(ctx,sketchPolygon([[-6,-4],[6,-4],[4,-22],[-4,-22]],{width:1.6,seed:1801,overshoot:1}),PALETTE.ink,v);
+        dot(ctx,0,-28,9,PALETTE.nearGray);
+        drawShape(ctx,sketchCircle(0,-28,9,{width:1.8,seed:1802}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(-12,2,-4,5,{width:2,seed:1803,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(12,2,4,5,{width:2,seed:1804,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(-8,19,-8,28,{width:3,seed:1805,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(8,19,8,28,{width:3,seed:1806,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchCircle(0,32,14,{width:1.2,seed:1807}),PALETTE.red,v);
+    },
+    scissorMinion(ctx,v) {
+        fillPoly(ctx,[[-2,2],[-18,-20],[-13,-22],[3,-2]],PALETTE.farGray);
+        fillPoly(ctx,[[2,2],[18,-20],[13,-22],[-3,-2]],PALETTE.midGray);
+        drawShape(ctx,sketchPolygon([[-2,2],[-18,-20],[-13,-22],[3,-2]],{width:1.5,seed:1810,overshoot:1}),PALETTE.ink,v);
+        drawShape(ctx,sketchPolygon([[2,2],[18,-20],[13,-22],[-3,-2]],{width:1.5,seed:1811,overshoot:1}),PALETTE.ink,v);
+        drawShape(ctx,sketchCircle(-8,16,7,{width:2.6,seed:1812}),PALETTE.ink,v);
+        drawShape(ctx,sketchCircle(8,16,7,{width:2.6,seed:1813}),PALETTE.ink,v);
+        dot(ctx,0,1,3,PALETTE.red);
+        drawShape(ctx,sketchLine(-26,-4,-34,-4,{width:1.4,seed:1814,overshoot:0}),PALETTE.red,v);
+        drawShape(ctx,sketchLine(26,-4,34,-4,{width:1.4,seed:1815,overshoot:0}),PALETTE.red,v);
+    },
+    exam(ctx,v) {
+        fillPoly(ctx,rectPoly(-22,-30,44,58),PALETTE.paper);
+        drawShape(ctx,sketchRect(-22,-30,44,58,{width:2,seed:1820}),PALETTE.ink,v);
+        for (let i=0;i<5;i++) {
+            drawShape(ctx,sketchRect(-17,-12+i*8,4,4,{width:1,seed:1821+i}),PALETTE.ink,v);
+            drawShape(ctx,sketchLine(-9,-10+i*8,14,-10+i*8,{width:1,seed:1826+i,overshoot:0}),PALETTE.midGray,v);
+        }
+        drawShape(ctx,sketchLine(-14,-22,-6,-19,{width:2,seed:1831,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(0,-19,8,-22,{width:2,seed:1832,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchCircle(12,-20,8,{width:2,seed:1833}),PALETTE.red,v);
+        drawShape(ctx,sketchLine(22,12,34,-6,{width:3.4,seed:1834,overshoot:0}),PALETTE.red,v);
+    },
+    bookFinal(ctx,v) {
+        fillPoly(ctx,[[0,-6],[-30,-18],[-30,18],[0,26]],PALETTE.nearGray);
+        fillPoly(ctx,[[0,-6],[30,-18],[30,18],[0,26]],PALETTE.nearGray);
+        drawShape(ctx,sketchPolygon([[0,-6],[-30,-18],[-30,18],[0,26]],{width:2,seed:1840,overshoot:1}),PALETTE.ink,v);
+        drawShape(ctx,sketchPolygon([[0,-6],[30,-18],[30,18],[0,26]],{width:2,seed:1841,overshoot:1}),PALETTE.ink,v);
+        for (let i=0;i<5;i++) {
+            fillPoly(ctx,[[-14+i*7,-16],[-11+i*7,-30],[-8+i*7,-16]],PALETTE.red);
+        }
+        drawShape(ctx,sketchLine(-22,0,-8,4,{width:2.4,seed:1842,overshoot:0}),PALETTE.red,v);
+        drawShape(ctx,sketchLine(22,0,8,4,{width:2.4,seed:1843,overshoot:0}),PALETTE.red,v);
+        fillPoly(ctx,[[2,22],[8,22],[8,36],[5,32],[2,36]],PALETTE.red);
     }
 };

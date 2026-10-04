@@ -314,12 +314,16 @@ export const TUNING={
     hand:{showTime:0.55,hideOffset:260},
     choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,descMax:5,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:124,btnH:44,lineH:21,maxLines:2},
+    langPick:{btnW:240,btnH:70,gap:24,y:0.42,goW:200,goH:52,goGap:70,noteGap:30},
     settingsUi:{
+        lang:{w:230,h:34,pad:14,item:36},
         devCode:'0012830',
         iconTap:20,
         pwErrDecay:1.6,
         pwPressDecay:5,
         muteR:13,
+        labelPad:34,
+        labelMin:12,
         muteGap:26,
         mutedAlpha:0.35,
         twoColMin:600,
@@ -420,7 +424,10 @@ export const TUNING={
         fogPuffs:28
     },
     weaponUi:{
-        valueW:84,
+        row:40,
+        rowS:30,
+        bar:9,
+        barS:7,
         randH:52,
         randHSmall:34,
         randStep:0.45,
@@ -531,11 +538,12 @@ export const TUNING={
         clear:1.4,
         center:-2.5,
         eliteStep:10,
-        bossSpots:[[0,-5.5],[-8,-5],[8,-5]],
+        bossSpots:[[0,-5.5],[-8,-5],[8,-5],[-9,1.5],[9,1.5]],
         bossClear:3.6,
         dpsWindow:5
     },
     reward:{
+        endlessPages:[0,2],
         touchScale:1.3,
         touchH:0.44,
         touchW:0.5,
@@ -574,6 +582,7 @@ export const TUNING={
         pickupHeal:1
     },
     bossTempo:1.15,
+    bossScale:{tempo:0.12,summonFirst:9,summonEvery:[16,11,8],summonCap:6,minions:[['doodle'],['doodle','bird'],['doodle','sprayer','bird']]},
     brushSwing:{start:0.4,band:0.35,bulletPad:0.3,compassClear:0.75},
     bossDrop:{
         interval:[9,14],

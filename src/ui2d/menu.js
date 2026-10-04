@@ -11,7 +11,7 @@ import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel,STARTING_DECK,unlockedCards,TUTORIAL
 import {progress,xpToNext,hasSeen,effectiveLevel,godMode,trainable} from '../core/progress.js';
 import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
 import {ENEMIES} from '../data/enemies.js';
-import {ENDLESS,TRAINING_MAPS,TRAINING,LAYOUTS} from '../data/levels.js';
+import {ENDLESS,TRAINING_MAPS,TRAINING,LAYOUTS,STORY_INTRO,ENEMY_ORDER,ACTS,FINAL_BOSS} from '../data/levels.js';
 import {fmtInk} from './hud.js';
 import {CARD_ANIMS,ENEMY_ATTACKS,WEAPON_ANIMS,TUTOR_ANIMS,drawStage} from './codexAnim.js';
 import {TUTOR_STEPS,goalNeed} from '../game/tutorial.js';
@@ -68,10 +68,9 @@ function drawButton(ctx,b,label,v,appear,hover,size=20,danger=false) {
     ctx.fillRect(-b.w/2,-b.h/2,b.w,b.h);
     drawShape(ctx,sketchRect(-b.w/2,-b.h/2,b.w,b.h,{width:hover?2.8:2,seed:Math.round(b.y)+label.length}),hover&&danger?PALETTE.red:PALETTE.ink,v);
     ctx.fillStyle=hover&&danger?PALETTE.darkRed:PALETTE.ink;
-    ctx.font='bold '+size+'px '+FONT;
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    ctx.fillText(label,0,1);
+    fitText(ctx,label,0,1,b.w-16,size,'bold ');
     ctx.restore();
 }
 
@@ -165,6 +164,20 @@ class Panel {
 
     up() {
     }
+}
+
+function firstSeen(id,e) {
+    if (e>0.5) {
+        return t('codex.first.elite');
+    }
+    if (id===FINAL_BOSS) {
+        return t('codex.first.final');
+    }
+    if (ENEMIES[id].boss) {
+        return t('codex.first.boss');
+    }
+    const g=STORY_INTRO[ENEMY_ORDER.indexOf(id)]||0;
+    return t('codex.firstAt',{act:Math.floor(g/ACTS[0].rooms)+1,page:g%ACTS[0].rooms+1});
 }
 
 function drawNewTag(ctx,b) {
@@ -624,6 +637,8 @@ const SEGS={quality:{opts:['low','mid','high'],label:k=>t('quality.'+k)},fps:{op
 
 const MUTE_KEYS=['volume','music','sfx','jitter'];
 
+const LANGS=['zh','en'];
+
 const TOUCH_SETTING_KEYS=['stickSize','stickX','stickY','aimRing','skillSize'];
 
 const SLIDERS={volume:'volume',music:'musicVol',sfx:'sfxVol',jitter:'jitter',stickSize:'stickSize',stickX:'stickX',stickY:'stickY',aimRing:'aimRing',skillSize:'skillSize'};
@@ -729,6 +744,7 @@ export class SettingsMenu extends Panel {
 
     show() {
         super.show();
+        this.langOpen=false;
         this.infoPin=null;
         this.pw={open:false,t:0,digits:'',err:0,press:null,pressT:0,hits:[]};
         this.page='main';
@@ -855,6 +871,9 @@ export class SettingsMenu extends Panel {
             if (!inRect(this.pw.box||{x:0,y:0,w:0,h:0},x,y)) {
                 this.pwKey('close');
             }
+            return true;
+        }
+        if (this.langDown(x,y)) {
             return true;
         }
         const icon=(this.icons||[]).find(q=>Math.hypot(x-q.x,y-q.y)<TUNING.settingsUi.iconTap);
@@ -1029,8 +1048,14 @@ export class SettingsMenu extends Panel {
             ctx.textAlign='left';
             ctx.fillStyle=PALETTE.ink;
             const label=t('settings.'+r.key);
+            const U=TUNING.settingsUi;
+            const lim=(MUTE_KEYS.includes(r.key)?this.muteX(r)-U.muteR:r.cx)-r.lx-U.labelPad;
+            const lw=ctx.measureText(label).width;
+            if (lw>lim) {
+                ctx.font=Math.max(U.labelMin,Math.floor(18*lim/lw))+'px '+FONT;
+            }
             ctx.fillText(label,r.lx,r.y);
-            const ix=r.lx+ctx.measureText(label).width+16;
+            const ix=r.lx+Math.min(lw,ctx.measureText(label).width)+16;
             const pin=this.infoPin&&this.infoPin.key===r.key;
             const over=pin||Math.hypot((this.hx??-99)-ix,(this.hy??-99)-r.y)<13;
             this.drawInfoIcon(ctx,ix,r.y,over,v);
@@ -1148,12 +1173,85 @@ export class SettingsMenu extends Panel {
             ctx.restore();
         }
         ctx.restore();
+        if (!touch) {
+            this.drawLang(ctx,v);
+        }
         if (this.info&&this.t>0.35&&!this.pw.open) {
             this.drawInfo(ctx,this.info,v);
         }
         if (this.pw.t>0) {
             this.drawPw(ctx,v);
         }
+    }
+
+    langBox() {
+        const P=this.panel;
+        const L=TUNING.settingsUi.lang;
+        const w=Math.min(L.w,P.w*0.4);
+        return {x:P.x+P.w-w-L.pad,y:P.y+L.pad,w,h:L.h};
+    }
+
+    drawLang(ctx,v) {
+        const L=TUNING.settingsUi.lang;
+        const b=this.langBox();
+        const a=Math.min(1,this.t*4);
+        ctx.save();
+        ctx.globalAlpha*=a;
+        const hv=inRect(b,this.hx??-1,this.hy??-1);
+        ctx.fillStyle=hv||this.langOpen?rgba('farGray',0.95):PALETTE.paper;
+        ctx.fillRect(b.x,b.y,b.w,b.h);
+        drawShape(ctx,sketchRect(b.x,b.y,b.w,b.h,{width:1.8,seed:1490}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 14px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('settings.lang')+t('ui.colon')+t('lang.'+settings.lang),b.x+10,b.y+b.h/2+1,b.w-34);
+        ctx.textAlign='right';
+        ctx.fillText(this.langOpen?'▲':'▼',b.x+b.w-10,b.y+b.h/2+1);
+        this.langHits=[];
+        if (this.langOpen) {
+            LANGS.forEach((k,i)=>{
+                const r={x:b.x,y:b.y+b.h+i*L.item,w:b.w,h:L.item};
+                const on=settings.lang===k;
+                const h2=inRect(r,this.hx??-1,this.hy??-1);
+                ctx.fillStyle=on?PALETTE.ink:(h2?rgba('farGray',0.95):PALETTE.paper);
+                ctx.fillRect(r.x,r.y,r.w,r.h);
+                ctx.strokeStyle=PALETTE.ink;
+                ctx.lineWidth=1.5;
+                ctx.strokeRect(r.x,r.y,r.w,r.h);
+                ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
+                ctx.textAlign='left';
+                ctx.fillText(t('lang.'+k),r.x+12,r.y+r.h/2+1);
+                this.langHits.push({...r,k});
+            });
+        }
+        ctx.restore();
+    }
+
+    langDown(x,y) {
+        if (this.page==='touch') {
+            return false;
+        }
+        if (this.langOpen) {
+            const hit=(this.langHits||[]).find(r=>inRect(r,x,y));
+            this.langOpen=false;
+            if (hit&&hit.k!==settings.lang) {
+                settings.lang=hit.k;
+                this.actions.changed('lang');
+            }
+            if (this.actions.select) {
+                this.actions.select();
+            }
+            return true;
+        }
+        if (inRect(this.langBox(),x,y)) {
+            this.langOpen=true;
+            if (this.actions.select) {
+                this.actions.select();
+            }
+            return true;
+        }
+        return false;
     }
 
     drawPw(ctx,v) {
@@ -1358,9 +1456,9 @@ export class SettingsMenu extends Panel {
     }
 }
 
-const FOE_LIST=['doodle','blob','sprayer','inkCloud','bird','compass','eraserMonster'];
+const FOE_LIST=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','scissorMinion','compass','eraserMonster'];
 
-const BOSS_LIST=['inkBottle','scissors','book'];
+const BOSS_LIST=['inkBottle','scissors','book','exam','bookFinal'];
 
 export class Codex extends Panel {
     constructor(actions) {
@@ -1759,7 +1857,7 @@ export class Codex extends Panel {
             ctx.textBaseline='top';
             ctx.fillStyle=c.def.rarity==='rare'?PALETTE.red:PALETTE.ink;
             ctx.font='bold '+(cmp?16:18)+'px '+FONT;
-            ctx.fillText(locked?'？？？':cardName(c),tx,4,tw);
+            ctx.fillText(locked?t('ui.unknown'):cardName(c),tx,4,tw);
             if (!locked&&!cmp) {
                 drawStarterTag(ctx,c.id,tx+ctx.measureText(cardName(c)).width+10,6,12,v);
             }
@@ -1854,7 +1952,7 @@ export class Codex extends Panel {
             ctx.textBaseline='top';
             ctx.fillStyle=boss?PALETTE.red:PALETTE.ink;
             ctx.font='bold 18px '+FONT;
-            ctx.fillText(seen?(el>0.5?t('hud.elite')+' ':'')+t('enemy.'+id)+(boss?'　'+t('codex.boss'):''):'？？？',tx,y+6);
+            ctx.fillText(seen?(el>0.5?t('hud.elite')+' ':'')+t('enemy.'+id)+(boss?t('ui.gap')+t('codex.boss'):''):t('ui.unknown'),tx,y+6);
             if (seen&&el>0.02) {
                 ctx.save();
                 ctx.globalAlpha*=el;
@@ -1866,7 +1964,7 @@ export class Codex extends Panel {
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='13px '+FONT;
             const full=seen?t('codex.'+id):t('codex.unseen');
-            const cut=full.indexOf('。');
+            const cut=full.search(/。|\. /);
             const lines=wrapText(ctx,cut>0?full.slice(0,cut):full,tw);
             for (let k=0;k<lines.length&&k<1;k++) {
                 ctx.fillText(lines[k]+(lines.length>1?'…':''),tx,y+32);
@@ -2013,7 +2111,7 @@ export class Codex extends Panel {
             [t('codex.stat.ink'),'+'+fmtInk(Math.round(inkV*2)/2),true],
             [t('codex.stat.type'),d.boss?t('codex.type.boss'):(d.flying?t('codex.type.fly'):t('codex.type.ground')),false],
             [t('codex.stat.score'),String(d.boss?ENDLESS.scoreBoss:score),true],
-            [t('codex.stat.first'),t(e>0.5?'codex.first.elite':'codex.first.'+id),e>0.5]
+            [t('codex.stat.first'),firstSeen(id,e),e>0.5]
         ];
         if (d.weakMult) {
             rows.push([t('codex.stat.weak'),t('codex.weak.'+id),false]);
@@ -2067,15 +2165,27 @@ export class Codex extends Panel {
         y+=6;
         const rows=this.enemyStats(id,e);
         const half=lw/2;
+        let col=0;
+        let row=0;
         for (let i=0;i<rows.length;i++) {
-            const cx=lx+(i%2)*half;
-            const cy=y+Math.floor(i/2)*C.rowH;
+            ctx.font='bold 13px '+FONT;
+            const wide=ctx.measureText(rows[i][1]).width>half*0.48;
+            if (wide&&col) {
+                col=0;
+                row++;
+            }
+            const cx=lx+col*half;
+            const cy=y+row*C.rowH;
             ctx.font='12px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
             ctx.fillText(rows[i][0],cx,cy,half*0.5);
-            ctx.font='bold 13px '+FONT;
             ctx.fillStyle=rows[i][2]&&e>0.5?PALETTE.red:PALETTE.ink;
-            ctx.fillText(rows[i][1],cx+half*0.5,cy,half*0.48);
+            fitText(ctx,rows[i][1],cx+half*0.5,cy,wide?lw-half*0.5:half*0.48,13,'bold ');
+            col=wide?2:col+1;
+            if (col>1) {
+                col=0;
+                row++;
+            }
         }
         const rx=lx+lw+18;
         const rw=P.x+P.w-20-rx;
@@ -2180,7 +2290,7 @@ export class Codex extends Panel {
         ctx.textBaseline='top';
         ctx.fillStyle=boss?PALETTE.red:PALETTE.ink;
         ctx.font='bold 28px '+FONT;
-        ctx.fillText(t('enemy.'+id)+(boss?'　'+t('codex.boss'):''),tx,y);
+        ctx.fillText(t('enemy.'+id)+(boss?t('ui.gap')+t('codex.boss'):''),tx,y);
         this.dToggle=null;
         ctx.font='14px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
@@ -2191,17 +2301,31 @@ export class Codex extends Panel {
         const rows=this.enemyStats(id,e);
         const sy=y+44+dl.length*19+6;
         const colW=Math.min(260,(P.x+P.w-40-tx)/2);
+        ctx.font='14px '+FONT;
+        const labW=Math.max(92,...rows.map(r=>ctx.measureText(r[0]).width+12));
+        let col=0;
+        let row=0;
         for (let i=0;i<rows.length;i++) {
-            const cx=tx+(i%2)*colW;
-            const cy=sy+Math.floor(i/2)*26;
+            ctx.font='bold 15px '+FONT;
+            const wide=ctx.measureText(rows[i][1]).width>colW-labW-8;
+            if (wide&&col) {
+                col=0;
+                row++;
+            }
+            const cx=tx+col*colW;
+            const cy=sy+row*26;
             ctx.font='14px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
             ctx.fillText(rows[i][0],cx,cy);
-            ctx.font='bold 15px '+FONT;
             ctx.fillStyle=rows[i][2]&&e>0.5?PALETTE.red:PALETTE.ink;
-            ctx.fillText(rows[i][1],cx+92,cy);
+            fitText(ctx,rows[i][1],cx+labW,cy,(wide?colW*2:colW)-labW-8,15,'bold ');
+            col=wide?2:col+1;
+            if (col>1) {
+                col=0;
+                row++;
+            }
         }
-        y=Math.max(y+170,sy+Math.ceil(rows.length/2)*26+8);
+        y=Math.max(y+170,sy+(row+(col?1:0))*26+8);
         ctx.fillStyle=PALETTE.midGray;
         ctx.font='12px '+FONT;
         ctx.fillText(t('codex.statNote'),tx,y-8);
@@ -2308,7 +2432,12 @@ export class Codex extends Panel {
         ctx.font='bold '+(this.compact?24:32)+'px '+FONT;
         ctx.textAlign=this.compact?'left':'center';
         ctx.textBaseline='middle';
-        ctx.fillText(t('menu.codex'),this.compact?20:w/2,this.compact?this.tabs[0].y+this.tabs[0].h/2:36);
+        if (this.compact) {
+            fitText(ctx,t('menu.codex'),20,this.tabs[0].y+this.tabs[0].h/2,this.tabs[0].x-28,24,'bold ');
+        }
+        else {
+            ctx.fillText(t('menu.codex'),w/2,36);
+        }
         this.drawFilter(ctx,v);
         const tl=[t('codex.normal'),t('codex.ult'),t('codex.enemies'),t('codex.bosses')];
         const ta=this.tabAnim;
@@ -2957,7 +3086,7 @@ export class RunSummary {
                 ctx.font=(small?'12px ':'14px ')+FONT;
                 ctx.fillStyle=PALETTE.nearGray;
                 ctx.textAlign='center';
-                ctx.fillText(t('summary.unlocked',{cards:pr.unlocked.join('、')}),w/2,y);
+                ctx.fillText(t('summary.unlocked',{cards:pr.unlocked.join(t('ui.list'))}),w/2,y);
                 y+=small?18:24;
             }
             ctx.globalAlpha=1;
@@ -5734,7 +5863,7 @@ export class Coach extends Panel {
         ctx.textBaseline='top';
         ctx.fillStyle=PALETTE.red;
         ctx.font='bold '+(sm?15:13)+'px '+FONT;
-        ctx.fillText(t('tut.practice',{n:this.index+1,total:PRACTICE})+'　'+t('tut.'+s.step.key+'.title'),tx,y+(sm?6:9),tw);
+        ctx.fillText(t('tut.practice',{n:this.index+1,total:PRACTICE})+t('ui.gap')+t('tut.'+s.step.key+'.title'),tx,y+(sm?6:9),tw);
         const pr=sm?7:6;
         ctx.save();
         ctx.globalAlpha*=s.stamp>=0?1-Math.min(1,s.stamp/0.2)*0.75:1;
@@ -5825,7 +5954,7 @@ export class Coach extends Panel {
         ctx.textBaseline='top';
         ctx.fillStyle=PALETTE.red;
         ctx.font='bold '+(sm?16:15)+'px '+FONT;
-        ctx.fillText(t('tut.title')+'　'+t('tut.stepOf',{n:this.index+1,total:TUTOR_STEPS.length}),P.x+pad,P.y+(sm?12:20));
+        ctx.fillText(t('tut.title')+t('ui.gap')+t('tut.stepOf',{n:this.index+1,total:TUTOR_STEPS.length}),P.x+pad,P.y+(sm?12:20));
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold '+(sm?28:32)+'px '+FONT;
         ctx.fillText(t('tut.'+step.key+'.title'),P.x+pad,P.y+(sm?34:44));
@@ -6435,7 +6564,7 @@ export class WeaponView extends Panel {
             ctx.fillStyle=locked?PALETTE.midGray:PALETTE.ink;
             ctx.textAlign='left';
             ctx.textBaseline='middle';
-            const tw=cw-ch*0.98-8;
+            const tw=cw-ch*0.98-14;
             fitText(ctx,t('weapon.'+id+'.name'),ch*0.98,ch*0.38,tw,small?15:19,'bold ');
             ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
             fitText(ctx,locked?t('codex.locked',{level:WEAPONS[id].unlock}):t('weapon.'+id+'.short'),ch*0.98,ch*0.66,tw,12,'');
@@ -6502,7 +6631,7 @@ export class WeaponView extends Panel {
         y+=small?6:10;
         const bw=dw*0.46;
         if (rnd) {
-            const names=unlockedWeapons(lv).map(id=>t('weapon.'+id+'.name')).join('、');
+            const names=unlockedWeapons(lv).map(id=>t('weapon.'+id+'.name')).join(t('ui.list'));
             ctx.fillStyle=PALETTE.ink;
             ctx.font='bold '+(small?12:14)+'px '+FONT;
             ctx.fillText(t('weapon.random.pool',{list:names}),dx,y);
@@ -6516,24 +6645,25 @@ export class WeaponView extends Panel {
         for (let i=0;i<WEAPON_STATS.length&&!rnd;i++) {
             const key=WEAPON_STATS[i];
             const bx=dx+(i%2)*(dw/2);
-            const byy=y+Math.floor(i/2)*(small?24:30);
+            const U=TUNING.weaponUi;
+            const byy=y+Math.floor(i/2)*(small?U.rowS:U.row);
             ctx.fillStyle=PALETTE.ink;
             ctx.font='bold 13px '+FONT;
             ctx.textAlign='left';
             ctx.textBaseline='middle';
-            ctx.fillText(t('weapon.stat.'+key),bx,byy+8);
-            ctx.font=(small?'11px ':'12px ')+FONT;
+            const lab=t('weapon.stat.'+key);
+            ctx.fillText(lab,bx,byy+6);
+            const vx=bx+ctx.measureText(lab).width+8;
             ctx.fillStyle=PALETTE.nearGray;
-            fitText(ctx,weaponValue(def,key),bx+34,byy+8,TUNING.weaponUi.valueW-6,small?11:12,'');
-            const lx=bx+34+TUNING.weaponUi.valueW;
-            const lw=bw-40-TUNING.weaponUi.valueW;
+            fitText(ctx,weaponValue(def,key),vx,byy+6,bw-(vx-bx),small?11:12,'');
+            const bh=small?U.barS:U.bar;
             for (let s=0;s<5;s++) {
                 const f=Math.max(0,Math.min(1,(this.bars[key]||0)-s));
-                const sx=lx+s*(lw/5);
+                const sx=bx+s*(bw/5);
                 ctx.fillStyle=rgba('farGray',0.7);
-                ctx.fillRect(sx,byy+2,lw/5-4,12);
+                ctx.fillRect(sx,byy+15,bw/5-4,bh);
                 ctx.fillStyle=key==='dmg'?PALETTE.red:PALETTE.ink;
-                ctx.fillRect(sx,byy+2,(lw/5-4)*f,12);
+                ctx.fillRect(sx,byy+15,(bw/5-4)*f,bh);
             }
         }
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?15:17);
@@ -6605,8 +6735,9 @@ export class WeaponView extends Panel {
         ctx.textBaseline='middle';
         const x0=r.h*1.25;
         fitText(ctx,t('weapon.random.name'),x0,r.h/2,r.w*0.3,small?15:19,'bold ');
+        const rx=x0+ctx.measureText(t('weapon.random.name')).width+12;
         ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
-        fitText(ctx,locked?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('weapon.random.short'),x0+(small?52:66),r.h/2+1,r.w-x0-(small?60:76)-(eq?58:0),12,'');
+        fitText(ctx,locked?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('weapon.random.short'),rx,r.h/2+1,r.w-rx-10-(eq?58:0),12,'');
         if (eq) {
             ctx.save();
             ctx.translate(r.w-10,r.h/2-10);
@@ -6818,7 +6949,7 @@ export class LevelUpView extends Panel {
             ctx.fillStyle=PALETTE.red;
             ctx.font='bold '+(small?15:18)+'px '+FONT;
             ctx.textAlign='center';
-            ctx.fillText(t('levelUp.weapons',{names:this.weapons.map(id=>t('weapon.'+id+'.name')).join('、')}),w/2,h*U.weaponY);
+            ctx.fillText(t('levelUp.weapons',{names:this.weapons.map(id=>t('weapon.'+id+'.name')).join(t('ui.list'))}),w/2,h*U.weaponY);
             ctx.globalAlpha=1;
         }
         if (tt>=this.doneAt()) {
@@ -7438,7 +7569,7 @@ export class DeckPicker extends Panel {
             ctx.fillStyle=this.mode==='remove'?PALETTE.red:PALETTE.ink;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            const line=(this.mode==='upgrade'?t('pick.upgrade.preview'):'')+cardName(shown)+'：'+cardDesc(shown);
+            const line=(this.mode==='upgrade'?t('pick.upgrade.preview'):'')+cardName(shown)+t('ui.colon')+cardDesc(shown);
             ctx.font='14px '+FONT;
             const lines=wrapText(ctx,line,Math.min(P.w-60,720)).slice(0,D.maxLines);
             const top=this.gridEnd+(this.okBtn.y-this.gridEnd-lines.length*D.lineH)/2;
@@ -7456,6 +7587,113 @@ export class DeckPicker extends Panel {
             ctx.textAlign='center';
             ctx.textBaseline='middle';
             ctx.fillText(t('pick.choose'),w/2,this.okBtn.y+D.btnH/2);
+        }
+        ctx.restore();
+    }
+}
+
+export class LangPicker extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.pick=null;
+        this.pickT=0;
+    }
+
+    show() {
+        super.show();
+        this.pick=null;
+        this.pickT=0;
+    }
+
+    layout() {
+        const L=TUNING.langPick;
+        const w=this.width;
+        const h=this.height;
+        const bw=Math.min(L.btnW,(w-60)/2);
+        const cy=h*L.y;
+        this.opts=LANGS.map((k,i)=>({k,x:w/2+(i===0?-bw-L.gap/2:L.gap/2),y:cy,w:bw,h:L.btnH}));
+        this.go={x:w/2-L.goW/2,y:cy+L.btnH+L.goGap,w:L.goW,h:L.goH};
+        this.buttons=this.opts.concat(this.pick?[this.go]:[]);
+    }
+
+    update(dt) {
+        super.update(dt);
+        if (this.pick) {
+            this.pickT+=dt;
+        }
+    }
+
+    down(x,y) {
+        if (!this.open) {
+            return false;
+        }
+        this.layout();
+        const o=this.opts.find(q=>inRect(q,x,y));
+        if (o) {
+            if (this.pick!==o.k) {
+                this.pick=o.k;
+                this.pickT=0;
+                this.actions.choose(o.k);
+            }
+            return true;
+        }
+        if (this.pick&&inRect(this.go,x,y)) {
+            this.actions.done(this.pick);
+        }
+        return true;
+    }
+
+    confirm() {
+        if (this.open&&this.pick) {
+            this.actions.done(this.pick);
+        }
+    }
+
+    draw(ctx) {
+        if (!this.shown()) {
+            return;
+        }
+        this.layout();
+        const w=this.width;
+        const h=this.height;
+        const v=time.boilIndex;
+        const a=Math.min(1,this.t*3);
+        ctx.save();
+        ctx.globalAlpha*=a;
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(0,0,w,h);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 30px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('game.title'),w/2,h*0.18);
+        ctx.font='bold 20px '+FONT;
+        ctx.fillText(t('langPick.title'),w/2,h*0.3);
+        this.opts.forEach((o,i)=>{
+            const on=this.pick===o.k;
+            const e=EASE.easeOutBack(Math.min(1,(this.t-0.1-i*0.08)/0.35));
+            if (e<=0) {
+                return;
+            }
+            ctx.save();
+            ctx.translate(o.x+o.w/2,o.y+o.h/2);
+            ctx.scale(e*(on?1.06:1),e*(on?1.06:1));
+            ctx.fillStyle=on?PALETTE.ink:(this.hoverIdx===i?rgba('farGray',0.95):rgba('paper',0.95));
+            ctx.fillRect(-o.w/2,-o.h/2,o.w,o.h);
+            drawShape(ctx,sketchRect(-o.w/2,-o.h/2,o.w,o.h,{width:on?3:2,seed:1600+i}),on?PALETTE.red:PALETTE.ink,v);
+            ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
+            ctx.font='bold 24px '+FONT;
+            ctx.fillText(t('lang.'+o.k),0,1);
+            ctx.restore();
+        });
+        if (this.pick) {
+            const q=EASE.easeOutCubic(Math.min(1,this.pickT/0.3));
+            ctx.globalAlpha*=q;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font='16px '+FONT;
+            ctx.fillText(t('langPick.note'),w/2,this.opts[0].y+this.opts[0].h+TUNING.langPick.noteGap);
+            drawButton(ctx,this.go,t('langPick.go'),v,q*1.2,this.hoverIdx===this.opts.length,20);
         }
         ctx.restore();
     }
