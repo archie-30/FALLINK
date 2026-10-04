@@ -122,4 +122,4 @@ No sign-in, no personal data collected, no ads.
 ## 其他必填項目
 - 目標受眾：建議選 **13 歲以上** 或 **全年齡但非專為兒童設計**（選「專為兒童」會觸發 Families 政策，需要額外審核）。
 - 新個人開發者帳號：正式上架前需先做**封閉測試**（約 12 位以上測試者、連續 14 天）。
-- 每次上傳新版本，`android/app/build.gradle` 的 `versionCode` 必須加 1。
+- 版本號自動跟遊戲版本走（見 `ANDROID.md`）：執行 `npm run sync` 後，`versionCode` 會隨遊戲版本變大；同版本重複上傳時把 `package.json` 的 `androidBuild` 加 1。

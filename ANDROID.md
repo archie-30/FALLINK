@@ -26,6 +26,8 @@ npm run sync
 再回 Android Studio 重新執行。
 
 ## 上架前
-- 每次上傳新版，`android/app/build.gradle` 的 `versionCode` 要加 1。
+- 版本號會自動跟著遊戲內的版本（`src/data/version.js`）：`npm run sync` 會把 `versionName`、`versionCode` 寫進 `android/app/build.gradle`。
+  例如遊戲 `v0.9.21` → `versionName "0.9.21"`、`versionCode 9210`。遊戲每升一版，`versionCode` 自然變大，Play 就接受上傳。
+- 若要**重複上傳同一個遊戲版本**（例如只是重新打包），把 `package.json` 的 `androidBuild` 加 1（0～9），再執行 `npm run sync`。
 - Build → Generate Signed App Bundle，產出 AAB。
 - 簽署金鑰（.jks）請另外備份，不要放進 GitHub。
