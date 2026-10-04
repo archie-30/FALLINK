@@ -4,6 +4,7 @@ const KEY='inkfall.settings.v1';
 
 export const device={
     mobile:false,
+    native:false,
     dpr:1,
     fullscreen:true
 };
@@ -48,8 +49,9 @@ export function detectDevice() {
     const ua=navigator.userAgent||'';
     device.mobile=coarse||(touch&&/Android|iPad|iPhone|Mobile|Tablet/i.test(ua));
     device.dpr=window.devicePixelRatio||1;
+    device.native=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
     const el=document.documentElement;
-    device.fullscreen=!!((document.fullscreenEnabled&&el.requestFullscreen)||(document.webkitFullscreenEnabled&&el.webkitRequestFullscreen));
+    device.fullscreen=!device.native&&!!((document.fullscreenEnabled&&el.requestFullscreen)||(document.webkitFullscreenEnabled&&el.webkitRequestFullscreen));
     return device;
 }
 

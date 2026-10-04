@@ -639,6 +639,8 @@ const MUTE_KEYS=['volume','music','sfx','jitter'];
 
 const LANGS=['zh','en'];
 
+// the packaged app is already fullscreen, so the browser fullscreen row is hidden there
+const settingKeys=()=>device.native?SETTING_KEYS.filter(k=>k!=='full'):SETTING_KEYS;
 const TOUCH_SETTING_KEYS=['stickSize','stickX','stickY','aimRing','skillSize'];
 
 const SLIDERS={volume:'volume',music:'musicVol',sfx:'sfxVol',jitter:'jitter',stickSize:'stickSize',stickX:'stickX',stickY:'stickY',aimRing:'aimRing',skillSize:'skillSize'};
@@ -658,7 +660,7 @@ export class SettingsMenu extends Panel {
     }
 
     keys() {
-        return this.page==='touch'?TOUCH_SETTING_KEYS:SETTING_KEYS;
+        return this.page==='touch'?TOUCH_SETTING_KEYS:settingKeys();
     }
 
     closePage() {
@@ -791,7 +793,7 @@ export class SettingsMenu extends Panel {
         }
         const w=this.width;
         const h=this.height;
-        const keys=SETTING_KEYS;
+        const keys=settingKeys();
         const avail=h-190;
         const cols=w>=TUNING.settingsUi.twoColMin?2:1;
         const per=Math.ceil(keys.length/cols);

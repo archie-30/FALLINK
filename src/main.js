@@ -2549,7 +2549,7 @@ function boot() {
     else if (!settings.tutorialSeen) {
         startGame('tutorial');
     }
-    if (!device.fullscreen) {
+    if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
     window.INKRAGE={langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};

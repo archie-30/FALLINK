@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>INKRAGE 隱私權政策 / Privacy Policy</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<style>
+:root {
+    --paper:#F2F0EB;
+    --ink:#1A1A1A;
+    --red:#D62828;
+    --soft:#5a5853;
+}
+* {
+    box-sizing:border-box;
+}
+html {
+    background:var(--paper);
+}
+body {
+    margin:0;
+    color:var(--ink);
+    background:
+        linear-gradient(90deg,transparent 47px,rgba(214,40,40,0.28) 47px,rgba(214,40,40,0.28) 49px,transparent 49px),
+        repeating-linear-gradient(0deg,transparent 0,transparent 31px,rgba(26,26,26,0.07) 31px,rgba(26,26,26,0.07) 32px),
+        var(--paper);
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",Arial,sans-serif;
+    line-height:1.85;
+    -webkit-font-smoothing:antialiased;
+}
+.wrap {
+    max-width:760px;
+    margin:0 auto;
+    padding:44px 20px 80px 64px;
+}
+header {
+    position:relative;
+    padding-bottom:18px;
+    margin-bottom:8px;
+    animation:drop 0.7s cubic-bezier(.2,.8,.3,1) both;
+}
+.logo {
+    display:flex;
+    align-items:center;
+    gap:14px;
+}
+.logo img {
+    width:56px;
+    height:56px;
+}
+h1 {
+    margin:0;
+    font-size:46px;
+    font-weight:900;
+    letter-spacing:2px;
+    line-height:1.1;
+}
+.sub {
+    margin:4px 0 0;
+    font-size:15px;
+    letter-spacing:2px;
+    color:var(--soft);
+}
+.rule {
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:6px;
+}
+h2 {
+    margin:34px 0 6px;
+    font-size:22px;
+    letter-spacing:1px;
+}
+h2 .tag {
+    display:inline-block;
+    margin-right:8px;
+    padding:0 8px;
+    background:var(--ink);
+    color:var(--paper);
+    font-size:15px;
+    letter-spacing:0;
+    transform:rotate(-2deg);
+}
+p,li {
+    margin:6px 0;
+    font-size:16px;
+}
+ul {
+    padding-left:22px;
+}
+.note {
+    position:relative;
+    margin:18px 0;
+    padding:14px 18px;
+    background:rgba(255,255,255,0.45);
+}
+.note::before,.lang a::before {
+    content:"";
+    position:absolute;
+    inset:0;
+    border:2px solid var(--ink);
+    filter:url(#boil);
+    pointer-events:none;
+}
+.note.red::before {
+    border-color:var(--red);
+}
+.lang {
+    display:flex;
+    gap:12px;
+    margin:18px 0 0;
+}
+.lang a {
+    position:relative;
+    padding:6px 18px;
+    color:var(--ink);
+    text-decoration:none;
+    font-weight:700;
+    transition:background 0.18s,color 0.18s,transform 0.18s;
+}
+.lang a:hover {
+    background:var(--ink);
+    color:var(--paper);
+    transform:rotate(-1.5deg);
+}
+.red-text {
+    color:var(--red);
+    font-weight:700;
+}
+.todo {
+    background:rgba(214,40,40,0.1);
+    padding:0 6px;
+    color:var(--red);
+}
+hr.split {
+    margin:56px 0 0;
+    border:0;
+    height:6px;
+    background:none;
+}
+footer {
+    margin-top:50px;
+    font-size:13px;
+    color:var(--soft);
+}
+@keyframes drop {
+    from {
+        opacity:0;
+        transform:translateY(-14px);
+    }
+    to {
+        opacity:1;
+        transform:none;
+    }
+}
+@media (max-width:560px) {
+    .wrap {
+        padding-left:60px;
+        padding-right:16px;
+    }
+    h1 {
+        font-size:36px;
+    }
+}
+@media (prefers-reduced-motion:reduce) {
+    header {
+        animation:none;
+    }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="boil" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="1">
+            <animate attributeName="seed" values="1;2;3;4;5;6" dur="0.9s" calcMode="discrete" repeatCount="indefinite"/>
+        </feTurbulence>
+        <feDisplacementMap in="SourceGraphic" scale="3.2"/>
+    </filter>
+    <filter id="boilRule" filterUnits="userSpaceOnUse" x="-10" y="-20" width="720" height="46">
+        <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="1">
+            <animate attributeName="seed" values="1;2;3;4;5;6" dur="0.9s" calcMode="discrete" repeatCount="indefinite"/>
+        </feTurbulence>
+        <feDisplacementMap in="SourceGraphic" scale="4"/>
+    </filter>
+</svg>
+
+<div class="wrap">
+<header>
+    <div class="logo">
+        <img src="./icon-192.png" alt="">
+        <div>
+            <h1>INKRAGE</h1>
+            <p class="sub">隱私權政策 · Privacy Policy</p>
+        </div>
+    </div>
+    <svg class="rule" viewBox="0 0 700 6" preserveAspectRatio="none" aria-hidden="true">
+        <g filter="url(#boilRule)">
+            <path d="M2 3 L698 3" stroke="#1A1A1A" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M600 3 L698 3" stroke="#D62828" stroke-width="3" fill="none" stroke-linecap="round"/>
+        </g>
+    </svg>
+    <nav class="lang">
+        <a href="#zh">繁體中文</a>
+        <a href="#en">English</a>
+    </nav>
+</header>
+
+<section id="zh">
+    <p>最後更新：2026 年 10 月 4 日</p>
+
+    <div class="note red">
+        <p class="red-text" style="margin:0">簡單來說：INKRAGE 不蒐集、不上傳、不販售你的任何個人資料。</p>
+    </div>
+
+    <h2><span class="tag">1</span>我們是誰</h2>
+    <p>INKRAGE（以下稱「本遊戲」）是由獨立開發者 archie-30 製作的單機遊戲。</p>
+
+    <h2><span class="tag">2</span>我們蒐集哪些資料</h2>
+    <p><b>沒有。</b>本遊戲：</p>
+    <ul>
+        <li>不需要註冊或登入帳號；</li>
+        <li>不蒐集姓名、電子郵件、電話、位置、通訊錄、照片或裝置識別碼等個人資料；</li>
+        <li>不使用任何數據分析、當機回報或追蹤工具；</li>
+        <li>目前不含廣告，也沒有應用程式內購買。</li>
+    </ul>
+
+    <h2><span class="tag">3</span>儲存在你裝置上的資料</h2>
+    <p>為了讓你下次繼續遊玩，本遊戲會把設定（音量、畫質、語言、操作偏好）、角色外觀、等級與解鎖進度、最高分儲存在<b>你自己的裝置</b>上。這些資料不會傳送給開發者或任何第三方，解除安裝遊戲或清除應用程式資料後就會一併刪除。</p>
+
+    <h2><span class="tag">4</span>網路與權限</h2>
+    <p>遊戲的所有內容都已包含在應用程式內，遊玩時不需要網路連線，也不會傳送任何資料。應用程式的技術框架（Capacitor）會在系統中宣告「網際網路」權限，但本遊戲並未使用它來傳輸個人資料。本遊戲不要求相機、麥克風、位置、儲存空間等其他敏感權限。</p>
+
+    <h2><span class="tag">5</span>第三方程式碼</h2>
+    <p>本遊戲使用開源繪圖函式庫 three.js（MIT 授權）與 Capacitor（MIT 授權），皆隨應用程式一同打包，不會在執行時連線到第三方伺服器。</p>
+
+    <h2><span class="tag">6</span>兒童</h2>
+    <p>本遊戲不會蒐集任何人（包含兒童）的個人資料。遊戲含有卡通風格的墨水射擊與輕微的奇幻暴力畫面，沒有血腥寫實內容。</p>
+
+    <h2><span class="tag">7</span>政策變更</h2>
+    <p>如果未來加入廣告、內購、雲端存檔或其他會處理資料的功能，我們會先更新本政策並在遊戲更新說明中告知。最新版本會公布在本頁面。</p>
+
+    <h2><span class="tag">8</span>聯絡我們</h2>
+    <p>若對本政策有任何疑問，請來信：<span class="todo">（請填入聯絡信箱）</span></p>
+</section>
+
+<hr class="split">
+
+<section id="en">
+    <h2 style="margin-top:0;font-size:30px">Privacy Policy</h2>
+    <p>Last updated: October 4, 2026</p>
+
+    <div class="note red">
+        <p class="red-text" style="margin:0">In short: INKRAGE does not collect, upload or sell any of your personal data.</p>
+    </div>
+
+    <h2><span class="tag">1</span>Who we are</h2>
+    <p>INKRAGE (the "Game") is a single-player game made by the independent developer archie-30.</p>
+
+    <h2><span class="tag">2</span>What data we collect</h2>
+    <p><b>None.</b> The Game:</p>
+    <ul>
+        <li>does not require an account or sign-in;</li>
+        <li>does not collect names, e-mail addresses, phone numbers, location, contacts, photos or device identifiers;</li>
+        <li>does not use analytics, crash-reporting or tracking tools;</li>
+        <li>currently contains no ads and no in-app purchases.</li>
+    </ul>
+
+    <h2><span class="tag">3</span>Data stored on your device</h2>
+    <p>So you can pick up where you left off, the Game stores your settings (volume, quality, language, control preferences), character appearance, level and unlock progress, and high scores <b>on your own device</b>. This data is never sent to the developer or to any third party, and it is deleted when you uninstall the Game or clear its app data.</p>
+
+    <h2><span class="tag">4</span>Network and permissions</h2>
+    <p>All of the Game's content is bundled in the app; no internet connection is needed to play and no data is transmitted. The app framework (Capacitor) declares the Android "Internet" permission, but the Game does not use it to transmit personal data. The Game does not request the camera, microphone, location, storage or any other sensitive permission.</p>
+
+    <h2><span class="tag">5</span>Third-party code</h2>
+    <p>The Game uses the open-source libraries three.js (MIT licence) and Capacitor (MIT licence). Both are bundled inside the app; the Game does not connect to third-party servers at runtime.</p>
+
+    <h2><span class="tag">6</span>Children</h2>
+    <p>The Game does not collect personal data from anyone, including children. It features cartoon-style ink shooting with mild fantasy violence and no realistic gore.</p>
+
+    <h2><span class="tag">7</span>Changes to this policy</h2>
+    <p>If we later add ads, in-app purchases, cloud saves or any other feature that handles data, we will update this policy first and mention it in the release notes. The latest version is always published on this page.</p>
+
+    <h2><span class="tag">8</span>Contact</h2>
+    <p>Questions about this policy: <span class="todo">(please fill in a contact e-mail)</span></p>
+</section>
+
+<footer>© 2026 archie-30 · INKRAGE</footer>
+</div>
+</body>
+</html>
