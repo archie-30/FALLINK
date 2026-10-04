@@ -1,7 +1,7 @@
 // Copies only the files the game needs into www/ (Capacitor's webDir).
 import {rmSync,mkdirSync,cpSync,existsSync} from 'node:fs';
 
-const FILES=['index.html','style.css','manifest.webmanifest','favicon.svg','icon-192.png'];
+const FILES=['index.html','style.css','manifest.webmanifest','favicon.svg','icon-192.png','icon-512.png'];
 const DIRS=['src','lib'];
 
 rmSync('www',{recursive:true,force:true});
