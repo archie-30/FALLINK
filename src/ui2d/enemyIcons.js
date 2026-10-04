@@ -179,15 +179,21 @@ export const ENEMY_ICONS={
         drawShape(ctx,sketchLine(22,12,34,-6,{width:3.4,seed:1834,overshoot:0}),PALETTE.red,v);
     },
     bookFinal(ctx,v) {
-        fillPoly(ctx,[[0,-6],[-30,-18],[-30,18],[0,26]],PALETTE.nearGray);
-        fillPoly(ctx,[[0,-6],[30,-18],[30,18],[0,26]],PALETTE.nearGray);
-        drawShape(ctx,sketchPolygon([[0,-6],[-30,-18],[-30,18],[0,26]],{width:2,seed:1840,overshoot:1}),PALETTE.ink,v);
-        drawShape(ctx,sketchPolygon([[0,-6],[30,-18],[30,18],[0,26]],{width:2,seed:1841,overshoot:1}),PALETTE.ink,v);
+        fillPoly(ctx,[[0,36],[-9,16],[9,16]],PALETTE.farGray);
+        drawShape(ctx,sketchPolygon([[0,36],[-9,16],[9,16]],{width:1.8,seed:1840,overshoot:1}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(0,34,0,22,{width:1.4,seed:1841,overshoot:0}),PALETTE.ink,v);
+        fillPoly(ctx,rectPoly(-10,4,20,12),PALETTE.midGray);
+        drawShape(ctx,sketchRect(-10,4,20,12,{width:1.6,seed:1842}),PALETTE.ink,v);
+        fillPoly(ctx,rectPoly(-11,-28,22,32),PALETTE.nearGray);
+        drawShape(ctx,hatchFill(rectPoly(-11,-28,22,32),{spacing:4,seed:1843,width:0.8}),PALETTE.ink,v);
+        drawShape(ctx,sketchRect(-11,-28,22,32,{width:2,seed:1844}),PALETTE.ink,v);
+        fillPoly(ctx,rectPoly(-12,2,24,3),PALETTE.red);
+        drawShape(ctx,sketchLine(13,-24,13,-2,{width:2.6,seed:1845,overshoot:0}),PALETTE.ink,v);
         for (let i=0;i<5;i++) {
-            fillPoly(ctx,[[-14+i*7,-16],[-11+i*7,-30],[-8+i*7,-16]],PALETTE.red);
+            fillPoly(ctx,[[-11+i*5,-28],[-8.5+i*5,-38],[-6+i*5,-28]],PALETTE.red);
         }
-        drawShape(ctx,sketchLine(-22,0,-8,4,{width:2.4,seed:1842,overshoot:0}),PALETTE.red,v);
-        drawShape(ctx,sketchLine(22,0,8,4,{width:2.4,seed:1843,overshoot:0}),PALETTE.red,v);
-        fillPoly(ctx,[[2,22],[8,22],[8,36],[5,32],[2,36]],PALETTE.red);
+        drawShape(ctx,sketchLine(-8,-16,-2,-13,{width:2.2,seed:1846,overshoot:0}),PALETTE.paper,v);
+        drawShape(ctx,sketchLine(8,-16,2,-13,{width:2.2,seed:1847,overshoot:0}),PALETTE.paper,v);
+        drawShape(ctx,sketchCircle(0,18,12,{width:1.4,seed:1848}),PALETTE.red,v);
     }
 };

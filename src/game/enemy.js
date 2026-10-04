@@ -56,6 +56,7 @@ export class Enemy {
         this.mats=[];
         this.hulls=[];
         this.lines=[];
+        this.strips=[];
         this.ring=null;
         this.tele=null;
         this.hull=hullMaterial({jitter:TUNING.boil.vertexJitter,unique:true});
@@ -209,6 +210,11 @@ export class Enemy {
         this.vulnMult=1;
         this.slowT=0;
         this.slowMult=1;
+        this.evolved=false;
+        this.evolving=false;
+        this.evoT=0;
+        this.shielded=false;
+        this.baseScale=d.scale*(this.elite?TUNING.elite.scale:1);
         this.root.visible=true;
         this.root.position.copy(this.pos);
         for (const l of this.lines) {
@@ -224,6 +230,7 @@ export class Enemy {
         this.alive=false;
         this.root.visible=false;
         this.tele=null;
+        this.hideStrips();
         for (const l of this.lines) {
             l.visible=false;
         }
@@ -259,6 +266,13 @@ export class Enemy {
         const F=TUNING.feel;
         const km=(this.def.knockMult??1)*(this.elite?TUNING.elite.knock:1);
         this.hp-=dmg;
+        const E=this.def.evolve;
+        if (E&&!this.evolved&&!this.evolving&&this.hp<this.maxHp*E.at) {
+            this.hp=this.maxHp*E.at;
+            this.evolving=true;
+            this.evoT=0;
+            this.shielded=true;
+        }
         this.flashT=F.flashTime;
         this.vel.x+=dx*F.knockback*km;
         this.vel.z+=dz*F.knockback*km;
@@ -268,6 +282,81 @@ export class Enemy {
 
     damageMult() {
         return 1;
+    }
+
+    onEvolveStart() {
+    }
+
+    onEvolved() {
+    }
+
+    evolveTick(dt,ctx) {
+        const E=this.def.evolve;
+        const V=TUNING.evolve;
+        this.manual=true;
+        this.vel.multiplyScalar(Math.exp(-10*dt));
+        this.tele=null;
+        if (this.evoT===0) {
+            this.onEvolveStart(ctx);
+            this.say={text:t('evolve.'+this.type),t:0,dur:E.time,keep:true};
+            ctx.fx.cameraShake(V.shake);
+        }
+        const before=this.evoT;
+        this.evoT+=dt;
+        this.spinning=true;
+        const k=Math.min(1,this.evoT/E.time);
+        this.yawGroup.scale.setScalar(this.baseScale*(1+V.grow*EASE.easeOutBack(k)));
+        if (Math.floor(this.evoT*V.pulse)!==Math.floor(before*V.pulse)) {
+            this.sqv+=3;
+            this.flashT=0.08;
+            ctx.particles.burst(this.pos.x,1.5,this.pos.z,10,{color:'red',speed:[3,8],up:[2,6]});
+        }
+        if (this.evoT>=E.time) {
+            this.evolving=false;
+            this.evolved=true;
+            this.shielded=false;
+            this.spinning=false;
+            this.sqv+=6;
+            ctx.fx.cameraShake(V.shake*1.5);
+            ctx.particles.burst(this.pos.x,1,this.pos.z,40,{color:'red',speed:[6,14],up:[2,8]});
+            this.onEvolved(ctx);
+            this.setState('move');
+            this.patternT=V.restart;
+        }
+    }
+
+    strip(i) {
+        while (this.strips.length<=i) {
+            const g=geo('line',()=>{
+                const q=new THREE.PlaneGeometry(1,1);
+                q.rotateX(-Math.PI/2);
+                q.translate(0.5,0,0);
+                return q;
+            });
+            const m=new THREE.Mesh(g,inkMaterial('ink'));
+            m.visible=false;
+            m.frustumCulled=false;
+            this.fxScene.add(m);
+            this.strips.push(m);
+        }
+        return this.strips[i];
+    }
+
+    putLine(m,ax,az,bx,bz,w) {
+        const dx=bx-ax;
+        const dz=bz-az;
+        const len=Math.hypot(dx,dz);
+        m.visible=true;
+        m.position.set(ax,0.05,az);
+        m.rotation.y=Math.atan2(-dz,dx);
+        m.scale.set(Math.max(0.01,len),1,w);
+        m.material.uniforms.uLength.value=len;
+    }
+
+    hideStrips(from=0) {
+        for (let i=from;i<this.strips.length;i++) {
+            this.strips[i].visible=false;
+        }
     }
 
     summonTick(dt,ctx) {
@@ -322,6 +411,9 @@ export class Enemy {
                 this.sqv+=2;
             }
             this.vel.multiplyScalar(Math.exp(-8*dt));
+        }
+        else if (this.evolving) {
+            this.evolveTick(dt,ctx);
         }
         else if (this.stunT>0) {
             this.stunT-=dt;
@@ -422,7 +514,7 @@ export class Enemy {
             m.uniforms.uFlash.value=fl;
             m.uniforms.uRevealY.value=ry;
         }
-        this.hull.uniforms.uColor.value.copy(pal(fl?'paper':(this.rage?'red':(this.elite?'darkRed':'ink'))));
+        this.hull.uniforms.uColor.value.copy(pal(fl?'paper':(this.rage||this.evolved?'red':(this.elite?'darkRed':'ink'))));
         this.accent.visible=this.accentOn&&!spawning;
         if (this.accentOn) {
             this.accent.rotation.y=time.real*TUNING.accent.spin;
@@ -1285,8 +1377,15 @@ class InkBottle extends Enemy {
     }
 
     phaseIndex() {
-        const f=this.hp/this.maxHp;
-        return f>0.66?0:(f>0.33?1:2);
+        return this.evolved?2:(this.hp/this.maxHp>0.75?0:1);
+    }
+
+    teleRoll(first) {
+        const R=this.def.roll;
+        this.setState('telegraph');
+        this.teleLine(this.nx,this.nz,14,first?R.tele:R.tele2);
+        this.rx=this.nx;
+        this.rz=this.nz;
     }
 
     damageMult(x,z) {
@@ -1305,7 +1404,7 @@ class InkBottle extends Enemy {
 
     choose() {
         const ph=this.phaseIndex();
-        const list=ph===0?['spiral','fan','spill']:(ph===1?['spiral','fan','ring','spill','summon']:['spiral','ring','fan','spill','summon','ring']);
+        const list=ph===0?['spiral','fan','spill']:(ph===1?['spiral','fan','ring','spill','summon']:['spiral','ring','fan','spill','roll','roll']);
         let p=list[Math.floor(rng.next()*list.length)];
         if (p===this.last&&list.length>1) {
             p=list[(list.indexOf(p)+1)%list.length];
@@ -1319,6 +1418,10 @@ class InkBottle extends Enemy {
         const ph=this.phaseIndex();
         this.spinning=true;
         this.weak.visible=true;
+        if (this.pattern==='roll'&&this.state!=='move') {
+            this.thinkRoll(dt,ctx);
+            return;
+        }
         const cx=-this.pos.x;
         const cz=-this.pos.z;
         const cl=Math.hypot(cx,cz);
@@ -1331,7 +1434,11 @@ class InkBottle extends Enemy {
             if (this.patternT<=0) {
                 this.pattern=this.choose();
                 this.setState('telegraph');
-                if (this.pattern==='fan') {
+                if (this.pattern==='roll') {
+                    this.rolls=0;
+                    this.teleRoll(true);
+                }
+                else if (this.pattern==='fan') {
                     this.teleLine(this.nx,this.nz,10,0.55,3,0.9);
                 }
                 else if (this.pattern==='spill') {
@@ -1422,13 +1529,72 @@ class InkBottle extends Enemy {
         }
     }
 
+    thinkRoll(dt,ctx) {
+        const R=this.def.roll;
+        const p=ctx.player;
+        this.spinning=false;
+        this.manual=true;
+        if (this.state==='telegraph') {
+            this.vel.multiplyScalar(Math.exp(-8*dt));
+            if (this.stateT<this.tele.dur*0.6) {
+                this.rx=this.nx;
+                this.rz=this.nz;
+                this.tele.dx=this.rx;
+                this.tele.dz=this.rz;
+            }
+            this.aimX=this.rx;
+            this.aimZ=this.rz;
+            if (this.stateT>=this.tele.dur) {
+                this.tele=null;
+                this.setState('attack');
+                this.dropT=0;
+                this.rollHit=false;
+            }
+            return;
+        }
+        if (this.state==='attack') {
+            this.aimX=this.rx;
+            this.aimZ=this.rz;
+            this.vel.set(this.rx*R.speed,0,this.rz*R.speed);
+            this.dropT-=dt;
+            if (this.dropT<=0) {
+                this.dropT=R.drop;
+                ctx.onPuddle(this.pos.x-this.rx*1.6,this.pos.z-this.rz*1.6,R.dropR,R.dropTime,this.def.puddleSlow);
+            }
+            const blocked=this.stateT>0.2&&this.speedFrac<0.3;
+            if (blocked||this.stateT>=R.time) {
+                this.rolls++;
+                ctx.fx.cameraShake(blocked?0.4:0.15);
+                if (this.rolls<R.count) {
+                    this.teleRoll(false);
+                }
+                else {
+                    this.vel.set(0,0,0);
+                    this.setState('dizzy');
+                }
+            }
+            return;
+        }
+        if (this.state==='dizzy') {
+            this.vel.multiplyScalar(Math.exp(-10*dt));
+            if (this.stateT>=R.dizzy) {
+                this.finish();
+            }
+        }
+    }
+
     finish() {
         this.setState('move');
         this.patternT=rng.range(this.def.patternGap[0],this.def.patternGap[1]);
     }
 
     pose() {
-        this.body.position.y=Math.sin(time.real*2)*0.05;
+        const roll=this.pattern==='roll'&&(this.state==='attack'||this.state==='dizzy');
+        this.tilt=(this.tilt||0)+((roll?1:0)-(this.tilt||0))*0.35;
+        this.rollSpin=(this.rollSpin||0)+(this.state==='attack'&&roll?0.5:0);
+        this.body.rotation.set(0,this.rollSpin,this.tilt*Math.PI/2,'ZYX');
+        this.body.position.x=this.tilt*2.2;
+        this.body.position.y=Math.sin(time.real*2)*0.05+this.tilt*1.6;
         const pulse=1+Math.sin(time.real*7)*0.15;
         this.weak.scale.set(pulse,pulse,1);
         this.cap.position.y+=(4.5-this.cap.position.y)*0.4;
@@ -1492,11 +1658,11 @@ class Scissors extends Enemy {
     }
 
     phase2() {
-        return this.hp<this.maxHp*0.5;
+        return this.evolved;
     }
 
     choose() {
-        const list=this.phase2()?['dash','snip','spin','dash']:['dash','snip','spin'];
+        const list=this.phase2()?['dash','snip','orbit','dash','orbit']:['dash','snip','spin'];
         let p=list[Math.floor(rng.next()*list.length)];
         if (p===this.last) {
             p=list[(list.indexOf(p)+1)%list.length];
@@ -1531,7 +1697,9 @@ class Scissors extends Enemy {
                 }
                 else {
                     this.setState('telegraph');
-                    this.teleRing(this.pattern==='spin'?3.4:2.6,0.6);
+                    this.teleRing(this.pattern==='spin'?3.4:2.6,this.pattern==='orbit'?d.orbit.tele:0.6);
+                    this.orbA=Math.atan2(this.pos.z-p.pos.z,this.pos.x-p.pos.x);
+                    this.orbDir=rng.sign();
                 }
             }
             return;
@@ -1585,7 +1753,7 @@ class Scissors extends Enemy {
                         ctx.fx.cameraShake(0.4);
                         ctx.particles.burst(this.pos.x+this.dx,1,this.pos.z+this.dz,12,{color:'midGray',speed:[2,6],up:[2,5]});
                     }
-                    if (this.phase2()&&this.dashes<1) {
+                    if (this.phase2()&&this.dashes<2) {
                         this.dashes++;
                         this.teleDash();
                     }
@@ -1614,6 +1782,31 @@ class Scissors extends Enemy {
                     if (this.volley>=(this.phase2()?5:4)) {
                         this.finish();
                     }
+                }
+            }
+            else if (this.pattern==='orbit') {
+                const O=d.orbit;
+                this.manual=true;
+                this.orbA+=this.orbDir*O.turn*dt;
+                const tx=p.pos.x+Math.cos(this.orbA)*O.r-this.pos.x;
+                const tz=p.pos.z+Math.sin(this.orbA)*O.r-this.pos.z;
+                const tl=Math.hypot(tx,tz)||1;
+                const v=Math.min(O.speed,tl*6);
+                this.vel.set(tx/tl*v,0,tz/tl*v);
+                this.aimX=this.nx;
+                this.aimZ=this.nz;
+                this.fireAcc+=dt;
+                if (this.fireAcc>=O.every) {
+                    this.fireAcc=0;
+                    const base=Math.atan2(this.nz,this.nx);
+                    for (let i=0;i<O.count;i++) {
+                        const a=base+(i/(O.count-1)-0.5)*O.spread;
+                        ctx.enemyBullets.spawn(this.pos.x,this.pos.z,Math.cos(a),Math.sin(a),sp,d.bulletDamage,d.bulletLife);
+                    }
+                    this.kick=1;
+                }
+                if (this.stateT>=O.time) {
+                    this.finish();
                 }
             }
             else if (this.pattern==='spin') {
@@ -1888,13 +2081,11 @@ class ScissorMinion extends Enemy {
     onReset() {
         const d=this.def;
         this.snipT=rng.range(d.firstSnip[0],d.firstSnip[1]);
+        this.strafeSign=rng.sign();
         this.rage=false;
-        this.partner=null;
-        this.lead=false;
-        this.pattern=null;
-        this.ang=rng.range(0,Math.PI*2);
-        this.dx=0;
-        this.dz=1;
+        this.cut=null;
+        this.sides=[];
+        this.si=0;
     }
 
     enrage() {
@@ -1902,141 +2093,94 @@ class ScissorMinion extends Enemy {
             return;
         }
         this.rage=true;
-        this.partner=null;
         this.sqv+=4;
         this.flashT=0.3;
     }
 
-    mate(ctx) {
-        const o=this.partner;
-        if (o&&o.alive&&o.partner===this) {
-            return o;
+    hide() {
+        super.hide();
+        this.drop();
+    }
+
+    colliders(ctx) {
+        return this.state==='cut'||this.state==='mark'?NO_COLS:ctx.room.colliders;
+    }
+
+    drop() {
+        const c=this.cut;
+        this.cut=null;
+        if (c&&c.owner===this) {
+            c.dead=true;
         }
-        this.partner=null;
-        if (this.rage) {
-            return null;
-        }
-        let best=null;
-        let bd=this.def.pairRange;
-        for (const q of ctx.enemies) {
-            if (q!==this&&q.alive&&q.type==='scissorMinion'&&!q.rage&&!q.dummy&&(!q.partner||!q.partner.alive)) {
-                const dd=Math.hypot(q.pos.x-this.pos.x,q.pos.z-this.pos.z);
-                if (dd<bd) {
-                    bd=dd;
-                    best=q;
-                }
+    }
+
+    corner(c,i) {
+        const k=((i%4)+4)%4;
+        return [[c.x0,c.z0],[c.x1,c.z0],[c.x1,c.z1],[c.x0,c.z1]][k];
+    }
+
+    startCut(ctx) {
+        const d=this.def;
+        const p=ctx.player;
+        const b=ctx.room.bounds;
+        const hw=this.elite?d.eliteRect[0]:d.rect[0];
+        const hh=this.elite?d.eliteRect[1]:d.rect[1];
+        const cx=Math.max(b.minX+hw+0.3,Math.min(b.maxX-hw-0.3,p.pos.x));
+        const cz=Math.max(b.minZ+hh+0.3,Math.min(b.maxZ-hh-0.3,p.pos.z));
+        const c={x0:cx-hw,x1:cx+hw,z0:cz-hh,z1:cz+hh,prog:[0,0,0,0],owner:this,dead:false,done:false,t:0,elite:this.elite};
+        let best=0;
+        let bd=1e9;
+        for (let i=0;i<4;i++) {
+            const q=this.corner(c,i);
+            const dd=Math.hypot(q[0]-this.pos.x,q[1]-this.pos.z);
+            if (dd<bd) {
+                bd=dd;
+                best=i;
             }
         }
-        if (best) {
-            this.partner=best;
-            best.partner=this;
-            this.lead=true;
-            best.lead=false;
-            best.ang=this.ang+Math.PI;
-        }
-        return best;
-    }
-
-    thread() {
-        const o=this.partner;
-        if (!o||!o.alive) {
-            return;
-        }
-        const dx=o.pos.x-this.pos.x;
-        const dz=o.pos.z-this.pos.z;
-        const l=Math.hypot(dx,dz)||1;
-        if (!this.tele) {
-            this.teleLine(dx/l,dz/l,0,this.def.threadTele);
-        }
-        this.tele.dx=dx/l;
-        this.tele.dz=dz/l;
-        this.tele.len=Math.max(0,l/2-this.def.radius-0.1);
-    }
-
-    startPinch() {
-        const o=this.partner;
-        for (const q of [this,o]) {
-            q.pattern='pinch';
-            q.tele=null;
-            q.setState('telegraph');
-            q.thread();
-        }
-    }
-
-    startThrow(ctx) {
-        const d=this.def;
-        this.pattern='throw';
-        this.dx=this.nx;
-        this.dz=this.nz;
-        this.setState('telegraph');
-        this.teleLine(this.dx,this.dz,d.throwRange,d.throwTele*(this.rage?d.rage.tele:1),this.elite?2:1,this.elite?d.eliteThrowSpread:0);
-    }
-
-    snap(ctx) {
-        const d=this.def;
-        const o=this.partner;
-        const mx=o?(this.pos.x+o.pos.x)/2:this.pos.x;
-        const mz=o?(this.pos.z+o.pos.z)/2:this.pos.z;
-        ctx.particles.burst(mx,1,mz,14,{color:'midGray',speed:[2,7],up:[2,5]});
-        ctx.fx.cameraShake(0.15);
-        if (this.elite||(o&&o.elite)) {
-            fireRing(ctx,mx,mz,d.eliteRing,rng.range(0,1),d.bulletSpeed,d.bulletDamage,d.bulletLife);
-        }
-        for (const q of [this,o]) {
-            if (q&&q.alive) {
-                q.tele=null;
-                q.vel.multiplyScalar(0.1);
-                q.setState('recover');
+        let mate=null;
+        for (const o of ctx.enemies) {
+            if (o!==this&&o.alive&&o.type==='scissorMinion'&&o.state==='move'&&!o.cut&&o.stunT<=0&&!o.dummy&&Math.hypot(o.pos.x-this.pos.x,o.pos.z-this.pos.z)<d.pairRange) {
+                mate=o;
+                break;
             }
         }
+        if (mate) {
+            this.assign(c,[best,best+1]);
+            mate.assign(c,[best+2,best+3]);
+        }
+        else {
+            this.assign(c,[best,best+1,best+2,best+3]);
+        }
     }
 
-    throwBlades(ctx) {
+    assign(c,sides) {
+        this.cut=c;
+        this.sides=sides.map(i=>((i%4)+4)%4);
+        this.si=0;
+        this.setState('mark');
+        this.sqv+=2;
+    }
+
+    cutSpeed() {
         const d=this.def;
-        const base=Math.atan2(this.dz,this.dx);
-        const n=this.elite?2:1;
-        const sp=d.throwSpeed*(this.rage?d.rage.dash:1);
-        const out=d.throwRange/sp;
-        for (let j=0;j<n;j++) {
-            const a=n>1?base+(j-0.5)*d.eliteThrowSpread:base;
-            const cx=Math.cos(a);
-            const cz=Math.sin(a);
-            for (let k=0;k<d.bladeDots;k++) {
-                const off=(k-(d.bladeDots-1)/2)*d.bladeGap;
-                const i=ctx.enemyBullets.spawn(this.pos.x-cz*off,this.pos.z+cx*off,cx,cz,sp,d.bulletDamage,out*2+0.3);
-                ctx.enemyBullets.redirect(i,out,-cx*sp,-cz*sp);
-            }
-        }
+        return d.cutSpeed*(this.rage?d.rage.speed:1);
     }
 
     think(dt,ctx) {
         const d=this.def;
         const R=this.rage?d.rage:null;
         const p=ctx.player;
-        const o=this.mate(ctx);
+        const c=this.cut;
+        if (c&&c.dead&&c.owner!==this) {
+            this.cut=null;
+            if (this.state==='mark'||this.state==='cut') {
+                this.setState('recover');
+            }
+        }
         if (this.state==='move') {
-            const sp=R?R.speed:1;
-            if (o) {
-                if (this.lead) {
-                    this.ang+=dt*d.orbit;
-                    o.ang=this.ang+Math.PI;
-                }
-                const tx=p.pos.x+Math.cos(this.ang)*d.flank-this.pos.x;
-                const tz=p.pos.z+Math.sin(this.ang)*d.flank-this.pos.z;
-                const tl=Math.hypot(tx,tz)||1;
-                const f=Math.min(1,tl/1.5);
-                this.wx=tx/tl*f*sp;
-                this.wz=tz/tl*f*sp;
-                this.aimX=this.nx;
-                this.aimZ=this.nz;
-                if (this.lead&&o.state==='move'&&o.stunT<=0) {
-                    this.snipT-=dt;
-                    const ready=tl<d.readyDist&&Math.hypot(p.pos.x+Math.cos(o.ang)*d.flank-o.pos.x,p.pos.z+Math.sin(o.ang)*d.flank-o.pos.z)<d.readyDist;
-                    if (this.snipT<=0&&(ready||this.snipT<-d.readyWait)) {
-                        this.startPinch();
-                    }
-                }
-                return;
+            if (c&&!ctx.enemies.some(o=>o!==this&&o.alive&&o.cut===c&&(o.state==='cut'||o.state==='mark'))) {
+                this.drop();
             }
             let push=0;
             if (this.dist>d.range[1]) {
@@ -2045,106 +2189,168 @@ class ScissorMinion extends Enemy {
             else if (this.dist<d.range[0]) {
                 push=-1;
             }
-            this.wx=(this.nx*push-this.nz*d.strafe)*sp;
-            this.wz=(this.nz*push+this.nx*d.strafe)*sp;
+            const sp=R?R.speed:1;
+            this.wx=(this.nx*push-this.nz*this.strafeSign*d.strafe)*sp;
+            this.wz=(this.nz*push+this.nx*this.strafeSign*d.strafe)*sp;
             this.aimX=this.nx;
             this.aimZ=this.nz;
             this.snipT-=dt/(R?R.every:1);
-            if (this.snipT<=0) {
-                this.startThrow(ctx);
+            if (this.snipT<=0&&!this.cut) {
+                this.startCut(ctx);
             }
             return;
         }
-        if (this.state==='telegraph') {
-            this.manual=true;
-            this.vel.multiplyScalar(Math.exp(-8*dt));
-            if (this.pattern==='pinch') {
-                if (!o) {
-                    this.tele=null;
-                    this.setState('recover');
-                    return;
-                }
-                this.thread();
-                this.aimX=o.pos.x-this.pos.x;
-                this.aimZ=o.pos.z-this.pos.z;
-                if (this.lead&&this.stateT>=d.threadTele) {
-                    this.hitDone=false;
-                    this.mx=(this.pos.x+o.pos.x)/2;
-                    this.mz=(this.pos.z+o.pos.z)/2;
-                    for (const q of [this,o]) {
-                        q.setState('attack');
-                        const ex=this.mx-q.pos.x;
-                        const ez=this.mz-q.pos.z;
-                        const el=Math.hypot(ex,ez)||1;
-                        q.dx=ex/el;
-                        q.dz=ez/el;
+        this.manual=true;
+        if (!c&&(this.state==='mark'||this.state==='cut')) {
+            this.setState('recover');
+            return;
+        }
+        if (this.state==='mark') {
+            const s0=this.sides[0];
+            const ca=this.corner(c,s0);
+            const ce=this.corner(c,s0+1);
+            const q=[ca[0]+(ce[0]-ca[0])*c.prog[s0],ca[1]+(ce[1]-ca[1])*c.prog[s0]];
+            const tx=q[0]-this.pos.x;
+            const tz=q[1]-this.pos.z;
+            const tl=Math.hypot(tx,tz);
+            const v=Math.min(d.runSpeed,tl/Math.max(dt,0.001));
+            this.vel.set(tx/(tl||1)*v,0,tz/(tl||1)*v);
+            this.aimX=tx;
+            this.aimZ=tz;
+            if ((tl<0.15&&this.stateT>=d.markMin)||this.stateT>=d.markMax) {
+                this.pos.x=q[0];
+                this.pos.z=q[1];
+                this.vel.set(0,0,0);
+                this.setState('cut');
+            }
+            return;
+        }
+        if (this.state==='cut') {
+            const side=this.sides[this.si];
+            const a=this.corner(c,side);
+            const e=this.corner(c,side+1);
+            const len=Math.hypot(e[0]-a[0],e[1]-a[1]);
+            c.prog[side]=Math.min(1,c.prog[side]+this.cutSpeed()*dt/len);
+            const f=c.prog[side];
+            const nx=a[0]+(e[0]-a[0])*f;
+            const nz=a[1]+(e[1]-a[1])*f;
+            this.vel.set((nx-this.pos.x)/Math.max(dt,0.001),0,(nz-this.pos.z)/Math.max(dt,0.001));
+            this.aimX=e[0]-a[0];
+            this.aimZ=e[1]-a[1];
+            if (f>=1) {
+                this.si++;
+                if (this.si>=this.sides.length) {
+                    this.vel.set(0,0,0);
+                    if (c.prog.every(q=>q>=1)) {
+                        this.setState('recover');
+                        if (!c.done) {
+                            this.snap(ctx,c);
+                        }
                     }
-                }
-                return;
-            }
-            if (this.stateT<this.tele.dur*0.5) {
-                this.dx=this.nx;
-                this.dz=this.nz;
-                this.tele.dx=this.dx;
-                this.tele.dz=this.dz;
-            }
-            this.aimX=this.dx;
-            this.aimZ=this.dz;
-            if (this.stateT>=this.tele.dur) {
-                this.tele=null;
-                this.throwBlades(ctx);
-                this.sqv+=3;
-                this.setState('recover');
-            }
-            return;
-        }
-        if (this.state==='attack') {
-            this.manual=true;
-            if (!o) {
-                this.tele=null;
-                this.vel.multiplyScalar(0.2);
-                this.setState('recover');
-                return;
-            }
-            this.vel.set(this.dx*d.dashSpeed,0,this.dz*d.dashSpeed);
-            this.thread();
-            if (this.lead) {
-                const ax=this.pos.x;
-                const az=this.pos.z;
-                const sx=o.pos.x-ax;
-                const sz=o.pos.z-az;
-                const l2=sx*sx+sz*sz||1;
-                const u=Math.max(0,Math.min(1,((p.pos.x-ax)*sx+(p.pos.z-az)*sz)/l2));
-                const qx=p.pos.x-(ax+sx*u);
-                const qz=p.pos.z-(az+sz*u);
-                if (!this.hitDone&&Math.hypot(qx,qz)<d.threadWidth+TUNING.player.radius) {
-                    this.hitDone=true;
-                    const ql=Math.hypot(qx,qz)||1;
-                    p.hurt(d.snipDamage,qx/ql,qz/ql);
-                }
-                if (Math.sqrt(l2)<d.radius*2+0.3||this.stateT>=d.dashTime) {
-                    this.snap(ctx);
+                    else if (ctx.enemies.some(o=>o!==this&&o.alive&&o.cut===c&&(o.state==='cut'||o.state==='mark'))) {
+                        this.setState('recover');
+                    }
+                    else {
+                        const left=[0,1,2,3].map(k=>(side+1+k)%4).filter(k=>c.prog[k]<1);
+                        this.sides=left;
+                        this.si=0;
+                        this.setState('mark');
+                    }
                 }
             }
             return;
         }
         if (this.state==='recover') {
-            this.manual=true;
             this.vel.multiplyScalar(Math.exp(-10*dt));
-            if (this.stateT>=d.recover*(R?R.tele:1)) {
+            if (this.stateT>=d.recover) {
                 this.setState('move');
                 this.snipT=rng.range(d.snipEvery[0],d.snipEvery[1]);
             }
         }
     }
 
+    snap(ctx,c) {
+        const d=this.def;
+        const p=ctx.player;
+        c.done=true;
+        c.t=0;
+        const cx=(c.x0+c.x1)/2;
+        const cz=(c.z0+c.z1)/2;
+        ctx.fx.cameraShake(0.25);
+        for (let i=0;i<4;i++) {
+            const q=this.corner(c,i);
+            ctx.particles.burst(q[0],0.3,q[1],5,{color:'midGray',speed:[2,5],up:[2,5]});
+        }
+        ctx.particles.burst(cx,0.5,cz,16,{color:'farGray',speed:[1,4],up:[4,8],size:[0.12,0.24]});
+        if (p.pos.x>c.x0&&p.pos.x<c.x1&&p.pos.z>c.z0&&p.pos.z<c.z1) {
+            p.hurt(d.cutDamage,0,1);
+        }
+        if (c.elite) {
+            for (let i=0;i<4;i++) {
+                const q=this.corner(c,i);
+                const base=Math.atan2(q[1]-cz,q[0]-cx)+Math.PI;
+                for (let k=-1;k<=1;k++) {
+                    const a=base+k*d.eliteSpread;
+                    ctx.enemyBullets.spawn(q[0],q[1],Math.cos(a),Math.sin(a),d.bulletSpeed,d.bulletDamage,d.bulletLife);
+                }
+            }
+        }
+        c.owner.cutFx=c;
+    }
+
+    sync(alpha,dt) {
+        super.sync(alpha,dt);
+        const d=this.def;
+        let li=4;
+        let si=0;
+        const c=this.cut&&this.cut.owner===this?this.cut:null;
+        if (c&&!c.done) {
+            for (let s=0;s<4;s++) {
+                const a=this.corner(c,s);
+                const e=this.corner(c,s+1);
+                const len=Math.hypot(e[0]-a[0],e[1]-a[1]);
+                const f=c.prog[s];
+                const n=Math.max(2,Math.floor(len/d.dash));
+                for (let k=0;k<n;k++) {
+                    const u0=k/n;
+                    const u1=(k+0.55)/n;
+                    if (u1<=f) {
+                        continue;
+                    }
+                    const s0=Math.max(u0,f);
+                    this.putLine(this.line(li++),a[0]+(e[0]-a[0])*s0,a[1]+(e[1]-a[1])*s0,a[0]+(e[0]-a[0])*u1,a[1]+(e[1]-a[1])*u1,0.18);
+                }
+                if (f>0) {
+                    const m=this.strip(si++);
+                    this.putLine(m,a[0],a[1],a[0]+(e[0]-a[0])*f,a[1]+(e[1]-a[1])*f,0.32);
+                    m.material.uniforms.uAlpha.value=1;
+                }
+            }
+        }
+        const fx=this.cutFx;
+        if (fx) {
+            fx.t+=dt;
+            const k=fx.t/d.pieceTime;
+            if (k>=1) {
+                this.cutFx=null;
+            }
+            else {
+                const m=this.strip(si++);
+                const cz=(fx.z0+fx.z1)/2;
+                this.putLine(m,fx.x0,cz,fx.x1,cz,(fx.z1-fx.z0)*(1-k*0.3));
+                m.material.uniforms.uAlpha.value=1-k;
+            }
+        }
+        this.hideStrips(si);
+    }
+
     pose() {
         let open=0.35+Math.sin(time.real*(this.rage?16:6))*0.12;
-        if (this.state==='telegraph') {
+        if (this.state==='mark') {
             open=0.75;
         }
-        else if (this.state==='attack') {
-            open=0.03;
+        else if (this.state==='cut') {
+            open=0.25+Math.sin(time.real*30)*0.25;
         }
         this.blades[0].rotation.y=open;
         this.blades[1].rotation.y=-open;
@@ -2200,6 +2406,7 @@ class Book extends Enemy {
         this.fireAcc=0;
         this.drops=[];
         this.yaw=0;
+        this.hopY=0;
     }
 
     damageMult() {
@@ -2207,7 +2414,24 @@ class Book extends Enemy {
     }
 
     phase2() {
-        return this.hp<this.maxHp*0.5;
+        return this.evolved;
+    }
+
+    colliders(ctx) {
+        return this.pattern==='glide'&&this.state==='attack'?NO_COLS:ctx.room.colliders;
+    }
+
+    canContact() {
+        return !(this.pattern==='glide'&&this.state==='attack');
+    }
+
+    glideTarget(ctx) {
+        const p=ctx.player;
+        const b=ctx.room.bounds;
+        const r=this.def.radius;
+        this.gx=Math.max(b.minX+r,Math.min(b.maxX-r,p.pos.x+p.vel.x*0.3));
+        this.gz=Math.max(b.minZ+r,Math.min(b.maxZ-r,p.pos.z+p.vel.z*0.3));
+        this.tele={type:'ring',r:this.def.glide.r,dur:this.def.glide.tele,t:0,x:this.gx,z:this.gz};
     }
 
     choose(ctx) {
@@ -2216,7 +2440,7 @@ class Book extends Enemy {
             list.push('summon');
         }
         if (this.phase2()) {
-            list.push('rain','wall');
+            list.push('glide','glide','rain');
         }
         let p=list[Math.floor(rng.next()*list.length)];
         if (p===this.last) {
@@ -2244,6 +2468,10 @@ class Book extends Enemy {
                 else if (this.pattern==='slam') {
                     this.teleRing(4,0.7);
                 }
+                else if (this.pattern==='glide') {
+                    this.hops=0;
+                    this.glideTarget(ctx);
+                }
                 else {
                     this.teleRing(2.6,0.5);
                 }
@@ -2251,11 +2479,17 @@ class Book extends Enemy {
             return;
         }
         if (this.state==='telegraph') {
+            if (this.pattern==='glide'&&this.stateT<this.tele.dur*0.5) {
+                this.glideTarget(ctx);
+                this.tele.t=this.stateT;
+            }
             if (this.stateT>=this.tele.dur) {
                 this.tele=null;
                 this.setState('attack');
                 this.volley=0;
                 this.fireAcc=0;
+                this.sx=this.pos.x;
+                this.sz=this.pos.z;
                 if (this.pattern==='rain') {
                     const n=this.phase2()?9:6;
                     this.drops=[];
@@ -2322,6 +2556,32 @@ class Book extends Enemy {
                     }
                 }
             }
+            else if (this.pattern==='glide') {
+                const G=d.glide;
+                const f=Math.min(1,this.stateT/G.time);
+                this.vel.set((this.gx-this.sx)/G.time,0,(this.gz-this.sz)/G.time);
+                this.hopY=Math.sin(f*Math.PI)*G.height;
+                if (f>=1) {
+                    this.pos.x=this.gx;
+                    this.pos.z=this.gz;
+                    this.vel.set(0,0,0);
+                    this.hopY=0;
+                    this.hops++;
+                    ctx.fx.cameraShake(0.4);
+                    ctx.particles.burst(this.pos.x,0.4,this.pos.z,18,{color:'ink',speed:[3,8],up:[2,5]});
+                    fireRing(ctx,this.pos.x,this.pos.z,G.ring,rng.range(0,1),G.speed,d.bulletDamage,d.bulletLife);
+                    if (Math.hypot(p.pos.x-this.pos.x,p.pos.z-this.pos.z)<G.r+TUNING.player.radius) {
+                        p.hurt(1,this.nx,this.nz);
+                    }
+                    if (this.hops<G.hops) {
+                        this.setState('telegraph');
+                        this.glideTarget(ctx);
+                    }
+                    else {
+                        this.rest();
+                    }
+                }
+            }
             else if (this.pattern==='summon') {
                 const types=['doodle','doodle','bird'];
                 for (let i=0;i<types.length;i++) {
@@ -2357,7 +2617,7 @@ class Book extends Enemy {
         }
         this.covers[0].rotation.z=ang;
         this.covers[1].rotation.z=-ang;
-        this.stand.position.y=0.6+Math.sin(time.real*1.8)*0.08;
+        this.stand.position.y=0.6+Math.sin(time.real*1.8)*0.08+(this.hopY||0);
         const pulse=this.state==='rest'?1.25+Math.sin(time.real*14)*0.2:1;
         this.mark.scale.set(pulse,1,1);
     }
@@ -2419,6 +2679,23 @@ class Exam extends Enemy {
         this.shotsAsk=0;
         this.coolT=0;
         this.say=null;
+        this.tf=null;
+        this.blank=null;
+        this.trail=[];
+        this.askDur=0;
+    }
+
+    onEvolveStart() {
+        this.tf=null;
+        this.blank=null;
+        this.drops=[];
+    }
+
+    hide() {
+        super.hide();
+        this.trail=[];
+        this.tf=null;
+        this.blank=null;
     }
 
     damageMult() {
@@ -2426,7 +2703,7 @@ class Exam extends Enemy {
     }
 
     phase2() {
-        return this.hp<this.maxHp*0.5;
+        return this.evolved;
     }
 
     speak(key,dur) {
@@ -2434,7 +2711,10 @@ class Exam extends Enemy {
     }
 
     choose() {
-        const list=['zone','quiet','grade','toss'];
+        const list=['zone','quiet','grade','toss','tf','blank'];
+        if (this.phase2()) {
+            list.push('essay','essay','tf','blank');
+        }
         let p=list[Math.floor(rng.next()*list.length)];
         if (p===this.last) {
             p=list[(list.indexOf(p)+1)%list.length];
@@ -2449,6 +2729,7 @@ class Exam extends Enemy {
         this.aimX=this.nx;
         this.aimZ=this.nz;
         const P2=this.phase2();
+        this.trailTick(dt,ctx);
         if (this.state==='move') {
             const want=this.dist>d.keep+2?1:(this.dist<d.keep-2?-1:0);
             this.wx=this.nx*want-this.nz*0.4;
@@ -2460,7 +2741,14 @@ class Exam extends Enemy {
                 this.speak('exam.q.'+this.pattern,d.askTime+1.4);
                 this.hpAsk=p.hp;
                 this.shotsAsk=p.shots||0;
-                if (this.pattern==='grade') {
+                this.askDur=d.askTime;
+                if (this.pattern==='tf') {
+                    this.startTf(ctx,P2);
+                }
+                else if (this.pattern==='blank') {
+                    this.startBlank(ctx,P2);
+                }
+                else if (this.pattern==='grade') {
                     const n=P2?d.grade.lines2:d.grade.lines;
                     this.teleLine(this.nx,this.nz,18,d.askTime,n,d.grade.spread);
                 }
@@ -2468,6 +2756,10 @@ class Exam extends Enemy {
                     this.teleRing(this.pattern==='quiet'?3.2:2.4,d.askTime);
                 }
             }
+            return;
+        }
+        if (this.state==='attack'&&this.pattern==='essay') {
+            this.essayTick(dt,ctx);
             return;
         }
         this.manual=true;
@@ -2480,7 +2772,14 @@ class Exam extends Enemy {
                     this.gradeA.push(base+(i/(this.tele.count-1)-0.5)*this.tele.spread);
                 }
             }
-            if (this.stateT>=d.askTime) {
+            if (this.pattern==='tf'&&this.tf.trick&&!this.tf.swapped&&this.stateT>=this.askDur*d.tf.swapAt) {
+                this.tf.swapped=true;
+                this.tf.wrong=-this.tf.wrong;
+                this.speak('exam.trick',1.2);
+                ctx.fx.cameraShake(0.3);
+                this.sqv+=3;
+            }
+            if (this.stateT>=this.askDur) {
                 this.tele=null;
                 this.setState('attack');
                 this.volley=0;
@@ -2549,6 +2848,38 @@ class Exam extends Enemy {
                 }
                 done=this.stateT>=G.time;
             }
+            else if (this.pattern==='tf') {
+                const T=this.tf;
+                if (!T.hit) {
+                    T.hit=true;
+                    ctx.fx.cameraShake(0.3);
+                    if (this.inWrong(p.pos.x,p.pos.z)) {
+                        p.hurt(1,T.axis==='x'?-T.wrong:0,T.axis==='z'?-T.wrong:0);
+                    }
+                }
+                done=this.stateT>=d.tf.live;
+            }
+            else if (this.pattern==='blank') {
+                const B=this.blank;
+                this.fireAcc+=dt;
+                if (B.queue.length&&this.fireAcc>=d.blank.every) {
+                    this.fireAcc=0;
+                    const c=B.queue.shift();
+                    B.filled.push({c,t:0});
+                    const r=this.cellRect(c);
+                    ctx.particles.burst(r.x+B.C/2,0.3,r.z+B.C/2,6,{color:'ink',speed:[1,4],up:[1,3]});
+                    if (p.pos.x>r.x&&p.pos.x<r.x+B.C&&p.pos.z>r.z&&p.pos.z<r.z+B.C) {
+                        p.hurt(1,0,1);
+                    }
+                }
+                for (const f of B.filled) {
+                    f.t+=dt;
+                }
+                done=B.queue.length===0&&B.filled.every(f=>f.t>=d.blank.fill);
+                if (done) {
+                    this.blank=null;
+                }
+            }
             else if (this.pattern==='toss') {
                 const T=d.toss;
                 this.fireAcc+=dt;
@@ -2565,6 +2896,9 @@ class Exam extends Enemy {
                 done=this.volley>=(P2?T.volleys2:T.volleys);
             }
             if (done) {
+                if (this.pattern==='tf') {
+                    this.tf=null;
+                }
                 const ok=p.hp>=this.hpAsk;
                 this.setState(ok?'rest':'wrong');
                 this.speak(ok?'exam.right':'exam.wrong',ok?d.restTime:d.wrongTime+0.6);
@@ -2582,6 +2916,189 @@ class Exam extends Enemy {
         }
     }
 
+    startTf(ctx,P2) {
+        const d=this.def;
+        const b=ctx.room.bounds;
+        const axis=rng.next()<0.5?'x':'z';
+        const c=axis==='x'?(b.minX+b.maxX)/2:(b.minZ+b.maxZ)/2;
+        this.tf={axis,c,wrong:rng.sign(),b:{minX:b.minX,maxX:b.maxX,minZ:b.minZ,maxZ:b.maxZ},trick:P2&&rng.next()<d.tf.swapChance,swapped:false,hit:false};
+        this.askDur=P2?d.tf.ask2:d.tf.ask;
+        this.tele=null;
+    }
+
+    inWrong(x,z) {
+        const T=this.tf;
+        const v=(T.axis==='x'?x:z)-T.c;
+        return v*T.wrong>0;
+    }
+
+    halfRect() {
+        const T=this.tf;
+        const b=T.b;
+        if (T.axis==='x') {
+            return T.wrong>0?{x0:T.c,x1:b.maxX,z0:b.minZ,z1:b.maxZ}:{x0:b.minX,x1:T.c,z0:b.minZ,z1:b.maxZ};
+        }
+        return T.wrong>0?{x0:b.minX,x1:b.maxX,z0:T.c,z1:b.maxZ}:{x0:b.minX,x1:b.maxX,z0:b.minZ,z1:T.c};
+    }
+
+    startBlank(ctx,P2) {
+        const d=this.def;
+        const B=d.blank;
+        const b=ctx.room.bounds;
+        const C=B.cell;
+        const p=ctx.player;
+        const x0=Math.max(b.minX+0.3,Math.min(b.maxX-0.3-C*3,p.pos.x-C*1.5));
+        const z0=Math.max(b.minZ+0.3,Math.min(b.maxZ-0.3-C*3,p.pos.z-C*1.5));
+        const all=[0,1,2,3,4,5,6,7,8];
+        for (let i=all.length-1;i>0;i--) {
+            const j=Math.floor(rng.next()*(i+1));
+            const q=all[i];
+            all[i]=all[j];
+            all[j]=q;
+        }
+        const n=P2?B.safe2:B.safe;
+        this.blank={x0,z0,C,safe:all.slice(0,n),queue:all.slice(n),filled:[]};
+        this.tele=null;
+    }
+
+    cellRect(c) {
+        const B=this.blank;
+        return {x:B.x0+(c%3)*B.C,z:B.z0+Math.floor(c/3)*B.C};
+    }
+
+    essayTick(dt,ctx) {
+        const d=this.def;
+        const E=d.essay;
+        const p=ctx.player;
+        this.manual=true;
+        this.vel.set(this.nx*E.speed,0,this.nz*E.speed);
+        this.dropT=(this.dropT||0)-dt;
+        if (this.dropT<=0) {
+            this.dropT=E.drop;
+            const last=this.trail[this.trail.length-1];
+            const pt={x:this.pos.x,z:this.pos.z,t:0,prev:last&&last.live?last:null,live:true};
+            this.trail.push(pt);
+        }
+        if (this.stateT>=E.time) {
+            const last=this.trail[this.trail.length-1];
+            if (last) {
+                last.live=false;
+            }
+            const ok=p.hp>=this.hpAsk;
+            this.setState(ok?'rest':'wrong');
+            this.speak(ok?'exam.right':'exam.wrong',ok?d.restTime:d.wrongTime+0.6);
+            this.sqv+=3;
+        }
+    }
+
+    trailTick(dt,ctx) {
+        const E=this.def.essay;
+        const p=ctx.player;
+        for (let i=this.trail.length-1;i>=0;i--) {
+            const q=this.trail[i];
+            q.t+=dt;
+            if (q.prev&&q.t>=E.arm&&q.t<E.arm+E.live) {
+                const sx=q.x-q.prev.x;
+                const sz=q.z-q.prev.z;
+                const l2=sx*sx+sz*sz||1;
+                const u=Math.max(0,Math.min(1,((p.pos.x-q.prev.x)*sx+(p.pos.z-q.prev.z)*sz)/l2));
+                if (Math.hypot(p.pos.x-(q.prev.x+sx*u),p.pos.z-(q.prev.z+sz*u))<E.width+TUNING.player.radius) {
+                    p.hurt(1,0,1);
+                }
+            }
+            if (q.t>=E.arm+E.live+0.4) {
+                this.trail.splice(i,1);
+                for (const o of this.trail) {
+                    if (o.prev===q) {
+                        o.prev=null;
+                    }
+                }
+            }
+        }
+    }
+
+    sync(alpha,dt) {
+        super.sync(alpha,dt);
+        const d=this.def;
+        let li=8;
+        let si=0;
+        const red=(ax,az,bx,bz,w)=>this.putLine(this.line(li++),ax,az,bx,bz,w);
+        const ink=(ax,az,bx,bz,w,a)=>{
+            const m=this.strip(si++);
+            this.putLine(m,ax,az,bx,bz,w);
+            m.material.uniforms.uAlpha.value=a;
+        };
+        const circ=(cx,cz,r,w,a)=>{
+            const n=12;
+            for (let i=0;i<n;i++) {
+                const a0=i/n*Math.PI*2;
+                const a1=(i+1.15)/n*Math.PI*2;
+                ink(cx+Math.cos(a0)*r,cz+Math.sin(a0)*r,cx+Math.cos(a1)*r,cz+Math.sin(a1)*r,w,a);
+            }
+        };
+        const T=this.tf;
+        if (T&&this.pattern==='tf'&&(this.state==='ask'||this.state==='attack')) {
+            const h=this.halfRect();
+            const b=T.b;
+            if (T.axis==='x') {
+                red(T.c,b.minZ,T.c,b.maxZ,0.18);
+            }
+            else {
+                red(b.minX,T.c,b.maxX,T.c,0.18);
+            }
+            if (this.state==='ask') {
+                red(h.x0+0.6,h.z0+0.6,h.x1-0.6,h.z1-0.6,0.35);
+                red(h.x0+0.6,h.z1-0.6,h.x1-0.6,h.z0+0.6,0.35);
+                const ox=T.axis==='x'?T.c-T.wrong*(b.maxX-b.minX)/4:(b.minX+b.maxX)/2;
+                const oz=T.axis==='z'?T.c-T.wrong*(b.maxZ-b.minZ)/4:(b.minZ+b.maxZ)/2;
+                circ(ox,oz,2.6,0.4,1);
+            }
+            else {
+                const a=Math.max(0,1-this.stateT/d.tf.live);
+                const n=d.tf.hatch;
+                for (let i=0;i<n;i++) {
+                    const f=(i+0.5)/n;
+                    if (T.axis==='x') {
+                        const x=h.x0+(h.x1-h.x0)*f;
+                        ink(x,h.z0,x,h.z1,(h.x1-h.x0)/n*0.9,a);
+                    }
+                    else {
+                        const z=h.z0+(h.z1-h.z0)*f;
+                        ink(h.x0,z,h.x1,z,(h.z1-h.z0)/n*0.9,a);
+                    }
+                }
+            }
+        }
+        const B=this.blank;
+        if (B&&this.pattern==='blank'&&(this.state==='ask'||this.state==='attack')) {
+            for (let i=0;i<4;i++) {
+                red(B.x0+i*B.C,B.z0,B.x0+i*B.C,B.z0+B.C*3,0.12);
+                red(B.x0,B.z0+i*B.C,B.x0+B.C*3,B.z0+i*B.C,0.12);
+            }
+            for (const c of B.safe) {
+                const r=this.cellRect(c);
+                circ(r.x+B.C/2,r.z+B.C/2,B.C*0.32,0.22,1);
+            }
+            for (const f of B.filled) {
+                const r=this.cellRect(f.c);
+                ink(r.x+0.1,r.z+B.C/2,r.x+B.C-0.1,r.z+B.C/2,B.C-0.2,Math.max(0,1-Math.max(0,f.t-d.blank.fill*0.6)/(d.blank.fill*0.4)));
+            }
+        }
+        const E=d.essay;
+        for (const q of this.trail) {
+            if (!q.prev) {
+                continue;
+            }
+            if (q.t<E.arm) {
+                red(q.prev.x,q.prev.z,q.x,q.z,0.14);
+            }
+            else {
+                ink(q.prev.x,q.prev.z,q.x,q.z,E.width*2,Math.max(0,Math.min(1,(E.arm+E.live+0.4-q.t)/0.4)));
+            }
+        }
+        this.hideStrips(si);
+    }
+
     pose() {
         const rest=this.state==='rest';
         this.sheet.position.y=2.3+Math.sin(time.real*1.6)*0.12;
@@ -2595,20 +3112,26 @@ class Exam extends Enemy {
 
 class Bookmark extends Enemy {
     buildBody() {
-        const red=this.mat('body');
-        const tag=this.mat('head');
+        const shell=this.mat('head');
+        const ink=this.mat('body');
         this.float=new THREE.Group();
-        this.float.position.y=0.4;
-        const rib=this.hullify(new THREE.Mesh(geo('bmRibbon',()=>new THREE.BoxGeometry(0.42,2.2,0.08)),red));
-        rib.position.y=1.1;
-        this.float.add(rib);
-        const tail=this.hullify(new THREE.Mesh(geo('bmTail',()=>new THREE.ConeGeometry(0.3,0.5,3)),red));
-        tail.rotation.z=Math.PI;
-        tail.position.y=-0.1;
-        this.float.add(tail);
-        const card=this.hullify(new THREE.Mesh(geo('bmTag',()=>new THREE.BoxGeometry(0.62,0.5,0.1)),tag));
-        card.position.y=2.35;
-        this.float.add(card);
+        this.float.position.y=0.5;
+        const tube=this.hullify(new THREE.Mesh(geo('ctTube',()=>new THREE.CylinderGeometry(0.38,0.38,1.7,10)),shell));
+        tube.position.y=1.1;
+        this.float.add(tube);
+        const fill=new THREE.Mesh(geo('ctFill',()=>new THREE.CylinderGeometry(0.3,0.3,1.2,10)),ink);
+        fill.position.set(0,0.95,0.1);
+        this.float.add(fill);
+        const cap=this.hullify(new THREE.Mesh(geo('ctCap',()=>new THREE.SphereGeometry(0.38,10,6)),shell));
+        cap.position.y=1.95;
+        this.float.add(cap);
+        const neck=this.hullify(new THREE.Mesh(geo('ctNeck',()=>new THREE.CylinderGeometry(0.22,0.3,0.4,8)),ink));
+        neck.position.y=0.1;
+        this.float.add(neck);
+        const band=new THREE.Mesh(geo('ctBand',()=>new THREE.TorusGeometry(0.4,0.06,6,12)),unlitMaterial({color:'red'}));
+        band.rotation.x=Math.PI/2;
+        band.position.y=1.5;
+        this.float.add(band);
         this.body.add(this.float);
     }
 
@@ -2649,22 +3172,58 @@ class Bookmark extends Enemy {
 
 class BookFinal extends Book {
     buildBody() {
-        super.buildBody();
+        const body=this.mat('body');
+        const head=this.mat('head');
+        const limb=this.mat('limb');
+        const ink=this.inkMat();
         const red=unlitMaterial({color:'red'});
+        this.pen=new THREE.Group();
+        const nib=this.hullify(new THREE.Mesh(geo('qtNib',()=>new THREE.ConeGeometry(0.62,1.5,4)),head));
+        nib.rotation.x=Math.PI;
+        nib.rotation.y=Math.PI/4;
+        nib.position.y=0.75;
+        this.pen.add(nib);
+        const slit=new THREE.Mesh(geo('qtSlit',()=>new THREE.BoxGeometry(0.05,0.9,0.66)),ink);
+        slit.position.y=0.65;
+        this.pen.add(slit);
+        const grip=this.hullify(new THREE.Mesh(geo('qtGrip',()=>new THREE.CylinderGeometry(0.62,0.55,0.9,10)),limb));
+        grip.position.y=1.9;
+        this.pen.add(grip);
+        const barrel=this.hullify(new THREE.Mesh(geo('qtBarrel',()=>new THREE.CylinderGeometry(0.75,0.68,3.0,10)),body));
+        barrel.position.y=3.85;
+        this.pen.add(barrel);
+        const band=new THREE.Mesh(geo('qtBand',()=>new THREE.TorusGeometry(0.78,0.1,6,14)),red);
+        band.rotation.x=Math.PI/2;
+        band.position.y=3.0;
+        this.pen.add(band);
+        const clip=this.hullify(new THREE.Mesh(geo('qtClip',()=>new THREE.BoxGeometry(0.16,2.2,0.18)),limb));
+        clip.position.set(0,4.1,-0.86);
+        this.pen.add(clip);
+        const top=this.hullify(new THREE.Mesh(geo('qtTop',()=>new THREE.SphereGeometry(0.72,10,6)),body));
+        top.position.y=5.35;
+        top.scale.y=0.55;
+        this.pen.add(top);
         for (const sx of [-1,1]) {
-            const r=new THREE.Mesh(geo('bfRibbon',()=>new THREE.BoxGeometry(0.16,0.05,3.4)),red);
-            r.position.set(sx*0.55,0.48,0);
-            this.stand.add(r);
+            const e=new THREE.Mesh(geo('qtEye',()=>new THREE.BoxGeometry(0.42,0.08,0.06)),ink);
+            e.position.set(sx*0.3,4.2,0.74);
+            e.rotation.z=sx*0.35;
+            this.pen.add(e);
         }
         this.crown=new THREE.Group();
-        const sp=geo('bfSpike',()=>new THREE.ConeGeometry(0.22,0.7,5));
+        const sp=geo('bfSpike',()=>new THREE.ConeGeometry(0.2,0.6,5));
         for (let i=0;i<5;i++) {
+            const a=i/5*Math.PI*2;
             const m=new THREE.Mesh(sp,red);
-            m.position.set((i-2)*0.5,0.9,-1.3);
+            m.position.set(Math.cos(a)*0.55,5.8,Math.sin(a)*0.55);
             this.crown.add(m);
         }
-        this.stand.add(this.crown);
-        this.strips=[];
+        this.pen.add(this.crown);
+        this.mark=new THREE.Mesh(geo('qtMark',()=>new THREE.TorusGeometry(0.75,0.08,6,16)),red);
+        this.mark.rotation.x=Math.PI/2;
+        this.mark.position.y=1.45;
+        this.pen.add(this.mark);
+        this.pen.position.y=0.9;
+        this.body.add(this.pen);
     }
 
     onReset() {
@@ -2695,7 +3254,18 @@ class BookFinal extends Book {
     }
 
     pageOf() {
-        return this.hp<this.maxHp/3?2:(this.hp<this.maxHp*2/3?1:0);
+        return this.evolved?2:(this.hp<this.maxHp*2/3?1:0);
+    }
+
+    onEvolveStart(ctx) {
+        this.hz=[];
+        this.sweep=null;
+        this.bombs=[];
+        if (this.sealed) {
+            this.unseal(ctx,false);
+            this.setState('move');
+        }
+        this.page=2;
     }
 
     damageMult() {
@@ -2708,7 +3278,7 @@ class BookFinal extends Book {
             list.push('wall','sweep');
         }
         if (this.page>=2) {
-            list.push('lines','mimicBomb');
+            list.push('scribble','scribble','lines');
         }
         let p=list[Math.floor(rng.next()*list.length)];
         if (p===this.last) {
@@ -2716,23 +3286,6 @@ class BookFinal extends Book {
         }
         this.last=p;
         return p;
-    }
-
-    strip(i) {
-        while (this.strips.length<=i) {
-            const g=geo('line',()=>{
-                const q=new THREE.PlaneGeometry(1,1);
-                q.rotateX(-Math.PI/2);
-                q.translate(0.5,0,0);
-                return q;
-            });
-            const m=new THREE.Mesh(g,inkMaterial('ink'));
-            m.visible=false;
-            m.frustumCulled=false;
-            this.fxScene.add(m);
-            this.strips.push(m);
-        }
-        return this.strips[i];
     }
 
     addLines(ctx,n,warn) {
@@ -2789,11 +3342,12 @@ class BookFinal extends Book {
                     ctx.particles.burst(h.ax+(h.bx-h.ax)*u,0.3,h.az+(h.bz-h.az)*u,3,{color:'ink',speed:[1,4],up:[2,4]});
                 }
             }
-            if (h.t>=h.warn&&h.t<h.warn+L.live&&!h.hit&&this.segHit(p,h.ax,h.az,h.bx,h.bz,L.width)) {
+            const live=h.live||L.live;
+            if (h.t>=h.warn&&h.t<h.warn+live&&!h.hit&&this.segHit(p,h.ax,h.az,h.bx,h.bz,L.width)) {
                 h.hit=true;
                 p.hurt(1,h.bx===h.ax?Math.sign(p.pos.x-h.ax)||1:0,h.bz===h.az?Math.sign(p.pos.z-h.az)||1:0);
             }
-            if (h.t>=h.warn+L.live+L.fade) {
+            if (h.t>=h.warn+live+L.fade) {
                 this.hz.splice(i,1);
             }
         }
@@ -2871,9 +3425,10 @@ class BookFinal extends Book {
         const pg=Math.max(this.page,this.pageOf());
         if (pg!==this.page) {
             this.page=pg;
-            this.say={text:t('bookFinal.page'+pg),t:0,dur:2,keep:true};
-            this.seal(ctx);
-            return;
+            if (pg===1) {
+                this.seal(ctx);
+                return;
+            }
         }
         this.manual=true;
         this.vel.set(0,0,0);
@@ -2917,6 +3472,12 @@ class BookFinal extends Book {
                 else if (this.pattern==='sweep') {
                     this.teleRing(d.sweep.inner,0.5);
                 }
+                else if (this.pattern==='scribble') {
+                    this.scribbles=0;
+                    this.teleLine(this.nx,this.nz,13,d.scribble.tele);
+                    this.dx=this.nx;
+                    this.dz=this.nz;
+                }
                 else {
                     this.teleRing(2.6,0.5);
                 }
@@ -2924,11 +3485,23 @@ class BookFinal extends Book {
             return;
         }
         if (this.state==='telegraph') {
+            if (this.pattern==='scribble'&&this.stateT<this.tele.dur*0.55) {
+                this.dx=this.nx;
+                this.dz=this.nz;
+                this.tele.dx=this.dx;
+                this.tele.dz=this.dz;
+            }
+            if (this.pattern==='scribble') {
+                this.aimX=this.dx;
+                this.aimZ=this.dz;
+            }
             if (this.stateT>=this.tele.dur) {
                 this.tele=null;
                 this.setState('attack');
                 this.volley=0;
                 this.fireAcc=0;
+                this.sx=this.pos.x;
+                this.sz=this.pos.z;
                 if (this.pattern==='lines') {
                     this.addLines(ctx,d.lines.count[this.page],d.lines.warn);
                 }
@@ -2950,6 +3523,31 @@ class BookFinal extends Book {
             else if (this.pattern==='sweep') {
                 if (!this.sweep) {
                     this.rest();
+                }
+            }
+            else if (this.pattern==='scribble') {
+                const S=d.scribble;
+                this.aimX=this.dx;
+                this.aimZ=this.dz;
+                this.vel.set(this.dx*S.speed,0,this.dz*S.speed);
+                if (rng.next()<0.6) {
+                    ctx.particles.burst(this.pos.x,0.3,this.pos.z,1,{color:'ink',speed:[0.5,2],up:[0.5,2]});
+                }
+                const blocked=this.stateT>0.15&&this.speedFrac<0.3;
+                if (blocked||this.stateT>=S.time) {
+                    this.vel.set(0,0,0);
+                    this.hz.push({ax:this.sx,az:this.sz,bx:this.pos.x,bz:this.pos.z,t:0,warn:0.12,hit:false,boom:false,live:S.live});
+                    this.scribbles++;
+                    ctx.fx.cameraShake(blocked?0.35:0.15);
+                    if (this.scribbles<S.count) {
+                        this.setState('telegraph');
+                        this.teleLine(this.nx,this.nz,13,S.tele2);
+                        this.dx=this.nx;
+                        this.dz=this.nz;
+                    }
+                    else {
+                        this.rest();
+                    }
                 }
             }
             else if (this.pattern==='mimicScatter') {
@@ -3041,7 +3639,7 @@ class BookFinal extends Book {
             else {
                 const m=this.strip(si++);
                 put(m,h.ax,h.az,h.bx,h.bz,L.width*2.2);
-                m.material.uniforms.uAlpha.value=Math.max(0,Math.min(1,1-(h.t-h.warn-L.live)/L.fade));
+                m.material.uniforms.uAlpha.value=Math.max(0,Math.min(1,1-(h.t-h.warn-(h.live||L.live))/L.fade));
             }
         }
         const w=this.sweep;
@@ -3065,19 +3663,25 @@ class BookFinal extends Book {
         }
     }
 
+    colliders(ctx) {
+        return ctx.room.colliders;
+    }
+
+    canContact() {
+        return true;
+    }
+
     pose() {
-        super.pose();
-        this.crown.rotation.y=time.real*(this.sealed?2.4:0.6);
-        if (this.sealed) {
-            this.covers[0].rotation.z=0.02;
-            this.covers[1].rotation.z=-0.02;
-        }
-        else if (this.state==='broken') {
-            this.covers[0].rotation.z=0.05;
-            this.covers[1].rotation.z=-0.05;
-            const pulse=1.25+Math.sin(time.real*14)*0.2;
-            this.mark.scale.set(pulse,1,1);
-        }
+        const tm=time.real;
+        const rest=this.state==='rest'||this.state==='broken';
+        const dash=this.pattern==='scribble'&&this.state==='attack';
+        const lean=dash?0.55:(rest?0.4:Math.sin(tm*1.3)*0.08);
+        this.pen.rotation.x+=(lean-this.pen.rotation.x)*0.4;
+        this.pen.rotation.y=this.sealed?tm*3:0;
+        this.pen.position.y=(rest?0.25:0.9)+Math.sin(tm*1.8)*0.12;
+        this.crown.rotation.y=tm*(this.sealed?2.4:0.6);
+        const pulse=rest?1.3+Math.sin(tm*14)*0.2:1;
+        this.mark.scale.set(pulse,pulse,pulse);
     }
 }
 

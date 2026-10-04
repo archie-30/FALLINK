@@ -11,7 +11,7 @@ import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel,STARTING_DECK,unlockedCards,TUTORIAL
 import {progress,xpToNext,hasSeen,effectiveLevel,godMode,trainable} from '../core/progress.js';
 import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
 import {ENEMIES} from '../data/enemies.js';
-import {ENDLESS,TRAINING_MAPS,TRAINING,LAYOUTS,STORY_INTRO,ENEMY_ORDER,ACTS,FINAL_BOSS} from '../data/levels.js';
+import {ENDLESS,TRAINING_MAPS,TRAINING,LAYOUTS,STORY_INTRO,ENEMY_ORDER,ACTS} from '../data/levels.js';
 import {fmtInk} from './hud.js';
 import {CARD_ANIMS,ENEMY_ATTACKS,WEAPON_ANIMS,TUTOR_ANIMS,drawStage} from './codexAnim.js';
 import {TUTOR_STEPS,goalNeed} from '../game/tutorial.js';
@@ -169,9 +169,6 @@ class Panel {
 function firstSeen(id,e) {
     if (e>0.5) {
         return t('codex.first.elite');
-    }
-    if (id===FINAL_BOSS) {
-        return t('codex.first.final');
     }
     if (ENEMIES[id].boss) {
         return t('codex.first.boss');

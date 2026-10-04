@@ -215,10 +215,8 @@ export const STORY_INTRO=[0,2,4,6,8,10,12,14,16];
 
 export const ROOM_TYPES=3;
 
-export const BOSS_POOL=['inkBottle','scissors','book','exam'];
+export const BOSS_POOL=['inkBottle','scissors','book','exam','bookFinal'];
 
-export const FINAL_BOSS='bookFinal';
-export const FINAL_MIN_TIER=1;
 
 export const PAIRED=['scissorMinion'];
 

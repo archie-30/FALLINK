@@ -2,7 +2,7 @@ import {ACTS,ENDLESS,TRAINING,LAYOUTS,PEACE_LAYOUTS,PEACE_VARY} from '../data/le
 import {settings} from '../core/settings.js';
 import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS,TUTORIAL_DECK} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
-import {progress,effectiveLevel,trainable} from '../core/progress.js';
+import {effectiveLevel,trainable} from '../core/progress.js';
 import {RNG} from '../core/rng.js';
 import {planRoom,planEndless} from './level.js';
 import {RoomDirector,TrainingDirector} from './room.js';
@@ -501,7 +501,7 @@ export class Run {
     }
 
     planOpts() {
-        return {used:this.usedBosses,beaten:progress.beaten,lastTypes:this.lastTypes};
+        return {used:this.usedBosses,lastTypes:this.lastTypes};
     }
 
     rewardPage() {
