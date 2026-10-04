@@ -2027,11 +2027,19 @@ function boot() {
         openPause();
     };
     // Android back button (called from MainActivity). Returns true when the game used it,
-    // false when the main menu is idle so the system may close the app.
+    // false when the system may close the app (second back press within 2 s on the idle main menu).
+    let lastExitBack=-1e9;
     window.__inkrageBack=()=>{
         const idleMenu=game.mode==='menu'&&!popup.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open;
         if (idleMenu) {
-            return false;
+            const now=performance.now();
+            if (now-lastExitBack<2000) {
+                return false;
+            }
+            lastExitBack=now;
+            overlay.hud.toast(t('exit.again'),'exit.again');
+            audio.play('ui',0.7);
+            return true;
         }
         input.onEscape();
         return true;

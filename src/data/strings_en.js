@@ -232,6 +232,7 @@ export const STRINGS_EN={
     'game.title':'INKRAGE',
     'device.touch':'Switched to touch controls',
     'device.mouse':'Switched to keyboard & mouse',
+    'exit.again':'Press back again to exit',
     'menu.subtitle':'Ink Rage · hand-drawn shooter × deckbuilder',
     'menu.start':'Notebook Mode',
     'menu.endless':'Endless Mode',
