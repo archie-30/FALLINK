@@ -1,9 +1,13 @@
 export const AUDIO={
-    masterGain:0.9,
+    masterGain:0.75,
     reverbTime:1.4,
     reverbDecay:3.2,
-    compThreshold:-14,
-    compRatio:4,
+    compThreshold:-12,
+    compRatio:12,
+    compKnee:6,
+    compAttack:0.002,
+    compRelease:0.2,
+    maxVoices:28,
     volumeTime:0.04
 };
 

@@ -54,7 +54,7 @@ export function detectDevice() {
 }
 
 export function loadSettings() {
-    settings.quality='high';
+    settings.quality=device.mobile?'mid':'high';
     if (window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches) {
         settings.reducedMotion=true;
     }
