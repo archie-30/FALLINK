@@ -2026,6 +2026,16 @@ function boot() {
         }
         openPause();
     };
+    // Android back button (called from MainActivity). Returns true when the game used it,
+    // false when the main menu is idle so the system may close the app.
+    window.__inkrageBack=()=>{
+        const idleMenu=game.mode==='menu'&&!popup.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open;
+        if (idleMenu) {
+            return false;
+        }
+        input.onEscape();
+        return true;
+    };
     input.onWheel=dy=>{
         deckView.wheel(dy);
         codex.wheel(dy);
@@ -2124,6 +2134,9 @@ function boot() {
     document.addEventListener('visibilitychange',()=>{
         if (document.hidden) {
             autoPause();
+        }
+        else if (device.native) {
+            audio.unlock();
         }
     });
     window.addEventListener('blur',autoPause);
@@ -2543,6 +2556,10 @@ function boot() {
     }
     warmShaders();
     enterMenu();
+    if (device.native) {
+        // the app's WebView allows audio without a tap, so the menu music can start right away
+        audio.unlock();
+    }
     if (!settings.langChosen) {
         langPick.show();
     }
