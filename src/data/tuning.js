@@ -410,7 +410,7 @@ export const TUNING={
         hitShake:0.9,
         hitFov:3,
         impact:0.26,
-        calmTime:0.8,
+        calmTime:1.4,
         slow:0.35,
         slowTime:0.55,
         bandY:0.7,

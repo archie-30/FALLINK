@@ -338,7 +338,7 @@ export class BulletSystem {
                 if (own&&col.passPlayer) {
                     continue;
                 }
-                if (this.boomerang&&col.piece&&col.piece.kind!=='border'&&col.piece.kind!=='door'&&col.piece.kind!=='target') {
+                if (this.boomerang&&col.piece&&(col.piece.kind==='barrel'||col.piece.kind==='crate')) {
                     continue;
                 }
                 if (circleVs(x,z,wr,col,hit)&&!(this.boomerang&&hit.x*this.vx[i]+hit.z*this.vz[i]>=0)) {
@@ -356,7 +356,11 @@ export class BulletSystem {
                 continue;
             }
             if (wall&&this.boomerang) {
-                wall=null;
+                if (this.onWall) {
+                    this.onWall(x,z,this.vx[i],this.vz[i],wall);
+                }
+                this.kill(i,true);
+                continue;
             }
             if (wall) {
                 if (this.onWall) {

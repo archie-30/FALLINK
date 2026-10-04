@@ -39,7 +39,7 @@ export const MINIGAMES={
         tiles:{model:'sharpener',cols:[5,5,6],rows:[3,4,4],blocks:[1,2,3],size:2.0,time:[22,26,28]},
         diff:{model:'notebook',cell:2.2,diffs:[3,3,4],miss:1,time:[30,27,24],dwell:0.6,gapX:4.6},
         pairs:{model:'gacha',cols:4,rows:2,gap:2.6,miss:[3,3,2],dwell:0.45,show:0.9},
-        rain:{model:'cloud',time:[18,20,22],every:[1.0,0.85,0.7],warn:[1.1,1.0,0.9],radius:[1.3,1.4,1.5],double:[0.15,0.25,0.35],hits:[2,2,1],pool:16,area:[9,5.2],aim:0.55,near:1.6,height:9,firstDelay:0.8,speedUp:0.35,splatFade:0.8},
+        rain:{model:'cloud',time:[18,20,22],every:[1.0,0.85,0.7],warn:[1.1,1.0,0.9],radius:[1.3,1.4,1.5],double:[0.15,0.25,0.35],hits:[2,2,1],pool:16,area:[9,5.2],aim:0.55,near:1.6,height:9,firstDelay:0.8,speedUp:0.55,warnUp:0.45,doubleUp:0.3,splatFade:0.8},
         dice:{model:'dice',pads:[-3.6,3.6],padZ:1.6,pad:1.25,dwell:0.8,roll:1.6,dieZ:-2.4,size:1.3},
         plane:{model:'plane',pad:[0,3.6],padR:1.1,throws:3,binR:1.05,min:4,max:12,meterRate:[1.1,1.35,1.6],fly:0.9,binZ:[-4.6,-2.2],binX:6.5},
         maze:{model:'ruler',cols:8,rows:5,cell:2.5,x0:-10,z0:-6.25,time:[26,23,20],wall:0.32,wallH:1.0,host:[-11,-6.9]},

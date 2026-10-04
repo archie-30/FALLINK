@@ -985,18 +985,32 @@ const GAMES={
                 }
             }
         },
+        clearDrops(g) {
+            for (const q of g.drops) {
+                if (q.on||q.fade>0) {
+                    g.burst(q.x,q.z,'farGray',4,0.3);
+                }
+                q.on=false;
+                q.fade=0;
+                q.sh.visible=false;
+                q.rg.visible=false;
+                q.b.visible=false;
+            }
+        },
         tick(g,dt,pl) {
             const P=g.P;
             if (g.t>=g.dur) {
+                this.clearDrops(g);
                 g.win();
                 return;
             }
             const R=g.a(P.radius);
-            const warn=g.a(P.warn);
+            const pr=Math.min(1,g.t/g.dur);
+            const warn=g.a(P.warn)*(1-P.warnUp*pr);
             g.next-=dt;
             if (g.next<=0) {
-                g.next=g.a(P.every)*(1-P.speedUp*g.t/g.dur);
-                const n=g.r()<g.a(P.double)?2:1;
+                g.next=g.a(P.every)*(1-P.speedUp*pr);
+                const n=g.r()<g.a(P.double)+P.doubleUp*pr?2:1;
                 for (let k=0;k<n;k++) {
                     const q=g.drops.find(o=>!o.on&&!(o.fade>0));
                     if (!q) {
@@ -1007,6 +1021,7 @@ const GAMES={
                     q.x=aim?Math.max(-A[0],Math.min(A[0],pl.pos.x+g.range(-P.near,P.near))):g.range(-A[0],A[0]);
                     q.z=aim?Math.max(-A[1],Math.min(A[1],pl.pos.z+g.range(-P.near,P.near))):g.range(-A[1],A[1]);
                     q.t=0;
+                    q.w=warn;
                     q.on=true;
                     q.r=R;
                     q.sh.material=mat('dark');
@@ -1022,7 +1037,7 @@ const GAMES={
                     continue;
                 }
                 q.t+=dt;
-                const k=Math.min(1,q.t/warn);
+                const k=Math.min(1,q.t/q.w);
                 q.sh.position.set(q.x,0.05,q.z);
                 q.sh.scale.setScalar(Math.max(0.01,R*k));
                 q.b.position.set(q.x,P.height*(1-k*k)+0.4,q.z);
@@ -1041,6 +1056,7 @@ const GAMES={
                     g.burst(pl.pos.x,pl.pos.z,'red',12,1.0);
                     g.say(pl.pos.x,pl.pos.z,'mg.rain.hit');
                     if (g.hits>g.a(P.hits)) {
+                        this.clearDrops(g);
                         g.lose();
                         return;
                     }
@@ -1280,8 +1296,11 @@ const GAMES={
             g.walls=walls;
             g.wallGroup=new THREE.Group();
             g.add(g.wallGroup);
+            g.floorGroup=new THREE.Group();
+            g.add(g.floorGroup);
+            g.floorGroup.visible=false;
             g.wallMeshes=walls.map(([x,z,w,d])=>{
-                g.flat(w,d,'dark',x,z,0.03);
+                g.flat(w,d,'dark',x,z,0.03,g.floorGroup);
                 return {m:g.box(w,P.wallH,d,'cover',x,P.wallH/2,z,g.wallGroup),x,z};
             });
             g.wallGroup.visible=false;
@@ -1321,6 +1340,7 @@ const GAMES={
         begin(g) {
             g.place(g.sp[0],g.sp[1]);
             g.wallGroup.visible=true;
+            g.floorGroup.visible=true;
             g.grow=0;
             g.sink=-1;
             g.solid(g.walls.map(([x,z,w,d])=>makeBox(x,z,w/2,d/2,0)));
@@ -1350,6 +1370,7 @@ const GAMES={
             }
             if (g.sink>=0&&!any) {
                 g.wallGroup.visible=false;
+                g.floorGroup.visible=false;
             }
         },
         tick(g,dt,pl) {

@@ -248,7 +248,10 @@ function boot() {
                 }
                 let da=Math.atan2(dz,dx)-s.a;
                 da=Math.atan2(Math.sin(da),Math.cos(da));
-                return d>=r0-pad-S.band&&d<=s.r+pad&&Math.abs(da)<=s.fan/2+Math.atan2(pad,Math.max(d,0.3))?d:-1;
+                if (!(d>=r0-pad-S.band&&d<=s.r+pad&&Math.abs(da)<=s.fan/2+Math.atan2(pad,Math.max(d,0.3)))) {
+                    return -1;
+                }
+                return beamReach(s.x,s.z,dx/d,dz/d,d).len<d-pad?-1:d;
             };
             for (const e of enemies.list) {
                 if (!e.alive||e.state==='spawn'||s.hit.has(e)) {
@@ -276,11 +279,12 @@ function boot() {
             }
         }
     };
+    const brushRay=(x,z,an,max)=>beamReach(x,z,Math.cos(an),Math.sin(an),max).len;
     ctx.onBrush=(x,z,a,fan)=>{
         const PW=player.W;
         const reach=TUNING.brushSwing.start+PW.bulletSpeed/WB.brush.drag*(1-Math.exp(-WB.brush.drag*PW.bulletLife));
         swings.push({x,z,a,fan,r:TUNING.brushSwing.start,v:PW.bulletSpeed,life:PW.bulletLife,hit:new Set(),W:PW,dealt:0,reach});
-        strokes.spawn(x,z,a,fan,PW.bulletSpeed,WB.brush.drag,PW.bulletLife);
+        strokes.spawn(x,z,a,fan,PW.bulletSpeed,WB.brush.drag,PW.bulletLife,brushRay);
         for (let i=0;i<5;i++) {
             const an=a+(Math.random()-0.5)*fan;
             particles.burst(x+Math.cos(an)*0.8,1,z+Math.sin(an)*0.8,1,{color:'ink',dirX:Math.cos(an),dirZ:Math.sin(an),cone:0.4,speed:[3,7],up:[0.5,2],size:[0.08,0.16],life:[0.3,0.5]});
@@ -1299,6 +1303,7 @@ function boot() {
     }
     function startGame(mode='story') {
         audio.play('ui');
+        coach.reset();
         mainMenu.hide();
         game.mode='play';
         player.hp=TUNING.player.maxHp;
@@ -2487,6 +2492,9 @@ function boot() {
     }
     warmShaders();
     enterMenu();
+    if (!settings.tutorialSeen) {
+        startGame('tutorial');
+    }
     if (!device.fullscreen) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }

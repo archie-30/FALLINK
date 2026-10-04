@@ -7,7 +7,7 @@ export const TUTOR_STEPS=[
     {key:'shoot',goals:['kill'],anim:'shoot',ctl:'shoot',foes:'dummy'},
     {key:'dash',goals:['dodge'],anim:'dodge',ctl:'dash',foes:'sprayer'},
     {key:'cards',goals:['card','cancel'],anim:'cards',ctl:'cards',foes:'dummy',hand:true},
-    {key:'deck',goals:['deck','detail'],draw:'deck',ctl:'deck',hand:true},
+    {key:'deck',goals:['deck','detail'],draw:'deck',hand:true},
     {key:'ult',goals:['ult'],anim:'ult',ctl:'ult',foes:'dummy',hand:true,ult:true,hold:true},
     {key:'rules',info:true,draw:'goal'},
     {key:'warn',info:true,anim:'warn'},
