@@ -887,7 +887,7 @@ export class UltCutin {
             speedLines(ctx,w,h,w/2,by,k,PALETTE.ink,77);
             ctx.globalAlpha=1;
         }
-        if (M&&!calm) {
+        if (M) {
             ctx.globalAlpha=1-EASE.easeInCubic(outK);
             M.back(ctx,w,h,k,cy);
             if (EXTRAS[a.id]) {

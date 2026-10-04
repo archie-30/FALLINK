@@ -4961,14 +4961,18 @@ export class TrainingMenu extends Panel {
             ctx.fillStyle=hv?rgba('red',0.1):rgba('paper',0.95);
             ctx.fillRect(-r.w/2,-r.h/2,r.w,r.h);
             drawShape(ctx,sketchRect(-r.w/2,-r.h/2,r.w,r.h,{width:hv?2:1.3,seed:1690+i}),hv?PALETTE.red:PALETTE.ink,v);
+            const ts=Math.min(r.h-12,r.w*0.45);
+            drawGameThumb(ctx,id,-r.w/2+6,-ts/2,ts,v,hv);
+            const tx=-r.w/2+ts+12+(r.w-ts-18)/2;
+            const tw=r.w-ts-20;
             ctx.fillStyle=hv?PALETTE.red:PALETTE.ink;
             ctx.font='bold '+(small?16:17)+'px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            ctx.fillText(t('event.'+id+'.title'),0,-r.h*0.12,r.w-10);
+            ctx.fillText(t('event.'+id+'.title'),tx,-r.h*0.12,tw);
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='13px '+FONT;
-            ctx.fillText(t('npc.'+MINIGAMES.games[id].model),0,r.h*0.22,r.w-10);
+            ctx.fillText(t('npc.'+MINIGAMES.games[id].model),tx,r.h*0.22,tw);
             ctx.restore();
             const act=()=>{
                 this.gamesOpen=false;
@@ -5306,11 +5310,6 @@ export class Coach extends Panel {
             keycap(ctx,0,-42,112,32,t('tut.key.space'),f>0.3&&f<0.42);
             return;
         }
-        if (kind==='deck') {
-            const f=(k%4.2)/4.2;
-            keycap(ctx,0,-42,64,32,t('tut.key.tab'),f>0.14&&f<0.24);
-            return;
-        }
         if (kind==='cards') {
             const on=Math.floor(k/0.9)%2;
             keycap(ctx,0,-42,32,32,'1',on===0);
@@ -5350,17 +5349,6 @@ export class Coach extends Panel {
             ctx.fill();
             ctx.strokeStyle=PALETTE.ink;
             ctx.stroke();
-            return;
-        }
-        if (kind==='deck') {
-            const f=(k%4.2)/4.2;
-            const p=f>0.14&&f<0.24;
-            ctx.fillStyle=PALETTE.ink;
-            ctx.fillRect(cx-14,cy-20+(p?2:0),28,40);
-            ctx.fillStyle=rgba('ink',0.3);
-            ctx.beginPath();
-            ctx.arc(cx+6,cy+8,p?14:10,0,Math.PI*2);
-            ctx.fill();
             return;
         }
         if (kind==='dash') {
@@ -5748,6 +5736,8 @@ export class Coach extends Panel {
         ctx.font='bold '+(sm?15:13)+'px '+FONT;
         ctx.fillText(t('tut.practice',{n:this.index+1,total:PRACTICE})+'　'+t('tut.'+s.step.key+'.title'),tx,y+(sm?6:9),tw);
         const pr=sm?7:6;
+        ctx.save();
+        ctx.globalAlpha*=s.stamp>=0?1-Math.min(1,s.stamp/0.2)*0.75:1;
         for (let gi=0;gi<goals.length;gi++) {
             const g=goals[gi];
             const need=goalNeed(g);
@@ -5773,11 +5763,12 @@ export class Coach extends Panel {
                 ctx.stroke();
             }
         }
+        ctx.restore();
         if (s.stamp>=0) {
             const q=EASE.easeOutBack(Math.min(1,s.stamp/0.25));
             const sc=1+(1-q)*1.5;
             ctx.save();
-            ctx.translate(x+w-(sm?50:60),y+h/2);
+            ctx.translate(tx+tw/2,y+h/2+(sm?6:4));
             ctx.rotate(-0.18);
             ctx.scale(sc,sc);
             ctx.globalAlpha=Math.min(1,s.stamp/0.12);
@@ -5895,6 +5886,304 @@ export class Coach extends Panel {
             this.drawConfetti(ctx);
         }
     }
+}
+
+function thumbLine(ctx,pts,color,w=2,close=false) {
+    ctx.strokeStyle=color;
+    ctx.lineWidth=w;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    for (let i=1;i<pts.length;i++) {
+        ctx.lineTo(pts[i][0],pts[i][1]);
+    }
+    if (close) {
+        ctx.closePath();
+    }
+    ctx.stroke();
+}
+
+function thumbDot(ctx,x,y,r,color,stroke=null) {
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+    if (stroke) {
+        ctx.strokeStyle=stroke;
+        ctx.lineWidth=0.02;
+        ctx.stroke();
+    }
+}
+
+function thumbText(ctx,str,x,y,size,color) {
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(0.01,0.01);
+    ctx.fillStyle=color;
+    ctx.font='bold '+Math.round(size*100)+'px '+FONT;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(str,0,0);
+    ctx.restore();
+}
+
+const GAME_THUMBS={
+    bells(ctx,T) {
+        const on=Math.floor(T*2)%4;
+        for (let i=0;i<4;i++) {
+            const x=-0.33+i*0.22;
+            const sw=i===on?Math.sin(T*14)*0.06:0;
+            ctx.save();
+            ctx.translate(x,-0.12);
+            ctx.rotate(sw);
+            ctx.fillStyle=i===on?PALETTE.red:PALETTE.paper;
+            ctx.beginPath();
+            ctx.moveTo(-0.05,0);
+            ctx.lineTo(0.05,0);
+            ctx.lineTo(0.09,0.22);
+            ctx.lineTo(-0.09,0.22);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=0.02;
+            ctx.stroke();
+            ctx.restore();
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=0.02;
+            ctx.beginPath();
+            ctx.ellipse(x,0.2,0.1,0.04,0,0,Math.PI*2);
+            ctx.stroke();
+        }
+    },
+    range(ctx,T) {
+        for (let r=3;r>=1;r--) {
+            thumbDot(ctx,0.12,0,r*0.09,r%2?PALETTE.paper:PALETTE.farGray,PALETTE.ink);
+        }
+        thumbDot(ctx,0.12,0,0.04,PALETTE.red);
+        const f=(T*0.8)%1;
+        thumbDot(ctx,-0.38+f*0.5,0.02-Math.sin(f*Math.PI)*0.15,0.035,PALETTE.ink);
+    },
+    trace(ctx,T) {
+        const pts=[];
+        for (let i=0;i<=20;i++) {
+            const u=i/20;
+            pts.push([-0.4+u*0.8,Math.sin(u*Math.PI*2)*0.18]);
+        }
+        ctx.setLineDash([0.05,0.04]);
+        thumbLine(ctx,pts,PALETTE.midGray,0.025);
+        ctx.setLineDash([]);
+        const u=(T*0.4)%1;
+        thumbLine(ctx,pts.slice(0,Math.max(2,Math.round(u*20)+1)),PALETTE.red,0.03);
+        thumbDot(ctx,-0.4+u*0.8,Math.sin(u*Math.PI*2)*0.18,0.045,PALETTE.ink);
+    },
+    push(ctx,T) {
+        ctx.strokeStyle=PALETTE.red;
+        ctx.lineWidth=0.025;
+        ctx.setLineDash([0.04,0.03]);
+        ctx.beginPath();
+        ctx.arc(0.25,0,0.14,0,Math.PI*2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const x=-0.2+((T*0.3)%1)*0.42;
+        ctx.fillStyle=PALETTE.farGray;
+        ctx.fillRect(x-0.1,-0.07,0.2,0.14);
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.strokeRect(x-0.1,-0.07,0.2,0.14);
+        thumbDot(ctx,x-0.18,0,0.05,PALETTE.midGray,PALETTE.ink);
+    },
+    pour(ctx,T) {
+        const lv=(T*0.25)%1;
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(-0.12,-0.28,0.24,0.5);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(-0.12,0.22-lv*0.5,0.24,lv*0.5);
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=0.025;
+        ctx.strokeRect(-0.12,-0.28,0.24,0.5);
+        thumbLine(ctx,[[-0.2,-0.14],[0.2,-0.14]],PALETTE.red,0.025);
+    },
+    tiles(ctx,T) {
+        const n=Math.floor(T*2)%9;
+        for (let i=0;i<9;i++) {
+            const x=-0.27+(i%3)*0.18;
+            const y=-0.27+Math.floor(i/3)*0.18;
+            ctx.fillStyle=i===4?PALETTE.paper:(i<=n?PALETTE.ink:PALETTE.paper);
+            ctx.fillRect(x,y,0.16,0.16);
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=0.015;
+            ctx.strokeRect(x,y,0.16,0.16);
+        }
+        thumbLine(ctx,[[-0.06,-0.06],[0.06,0.06]],PALETTE.red,0.03);
+        thumbLine(ctx,[[0.06,-0.06],[-0.06,0.06]],PALETTE.red,0.03);
+    },
+    diff(ctx,T) {
+        for (let k=0;k<2;k++) {
+            const x=k?0.03:-0.4;
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=0.02;
+            ctx.strokeRect(x,-0.2,0.37,0.4);
+            thumbDot(ctx,x+0.1,-0.06,0.04,PALETTE.midGray);
+            ctx.fillStyle=PALETTE.midGray;
+            ctx.fillRect(x+0.2,0.04,k?0.05:0.1,0.08);
+        }
+        if (Math.floor(T*1.5)%2) {
+            ctx.strokeStyle=PALETTE.red;
+            ctx.lineWidth=0.025;
+            ctx.beginPath();
+            ctx.arc(0.27,0.08,0.09,0,Math.PI*2);
+            ctx.stroke();
+        }
+    },
+    pairs(ctx,T) {
+        const up=Math.floor(T*1.2)%3;
+        for (let i=0;i<6;i++) {
+            const x=-0.33+(i%3)*0.24;
+            const y=-0.22+Math.floor(i/3)*0.25;
+            const face=i===up||i===up+3;
+            ctx.fillStyle=face?PALETTE.paper:PALETTE.ink;
+            ctx.fillRect(x,y,0.18,0.21);
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=0.015;
+            ctx.strokeRect(x,y,0.18,0.21);
+            if (face) {
+                thumbDot(ctx,x+0.09,y+0.105,0.04,PALETTE.red);
+            }
+        }
+    },
+    rain(ctx,T) {
+        ctx.fillStyle=PALETTE.midGray;
+        for (const [x,r] of [[-0.12,0.1],[0.02,0.13],[0.15,0.09]]) {
+            thumbDot(ctx,x,-0.24,r,PALETTE.midGray);
+        }
+        for (let i=0;i<3;i++) {
+            const f=(T*0.9+i*0.33)%1;
+            const x=-0.2+i*0.2;
+            ctx.fillStyle=rgba('ink',0.15+f*0.3);
+            ctx.beginPath();
+            ctx.ellipse(x,0.24,0.04+f*0.06,0.02+f*0.025,0,0,Math.PI*2);
+            ctx.fill();
+            thumbDot(ctx,x,-0.12+f*0.34,0.025,PALETTE.ink);
+        }
+    },
+    dice(ctx,T) {
+        const n=Math.floor(T*2)%6+1;
+        ctx.save();
+        ctx.rotate(Math.sin(T*3)*0.1);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(-0.17,-0.17,0.34,0.34);
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=0.025;
+        ctx.strokeRect(-0.17,-0.17,0.34,0.34);
+        const P={1:[[0,0]],2:[[-1,-1],[1,1]],3:[[-1,-1],[0,0],[1,1]],4:[[-1,-1],[1,-1],[-1,1],[1,1]],5:[[-1,-1],[1,-1],[0,0],[-1,1],[1,1]],6:[[-1,-1],[1,-1],[-1,0],[1,0],[-1,1],[1,1]]};
+        for (const [a,b] of P[n]) {
+            thumbDot(ctx,a*0.09,b*0.09,0.03,n===1?PALETTE.red:PALETTE.ink);
+        }
+        ctx.restore();
+    },
+    plane(ctx,T) {
+        const f=(T*0.5)%1;
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.fillRect(0.22,0.02,0.16,0.2);
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=0.02;
+        ctx.strokeRect(0.22,0.02,0.16,0.2);
+        const x=-0.35+f*0.6;
+        const y=0.05-Math.sin(f*Math.PI)*0.25;
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.rotate(-0.3+f*0.6);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.beginPath();
+        ctx.moveTo(0.1,0);
+        ctx.lineTo(-0.08,-0.06);
+        ctx.lineTo(-0.04,0);
+        ctx.lineTo(-0.08,0.06);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    },
+    maze(ctx,T) {
+        const L=[[[-0.3,-0.3],[0.3,-0.3],[0.3,0.3],[-0.3,0.3],[-0.3,-0.1]],[[-0.15,-0.3],[-0.15,0.1]],[[0,0.3],[0,-0.1],[0.15,-0.1]],[[0.15,0.15],[0.3,0.15]]];
+        for (const pts of L) {
+            thumbLine(ctx,pts,PALETTE.ink,0.035);
+        }
+        thumbText(ctx,'★',0.22,0.04,0.16,PALETTE.red);
+        thumbDot(ctx,-0.22,-0.2+Math.sin(T*2)*0.02,0.035,PALETTE.midGray,PALETTE.ink);
+    },
+    rhythm(ctx,T) {
+        for (let i=0;i<3;i++) {
+            const x=-0.25+i*0.25;
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=0.02;
+            ctx.beginPath();
+            ctx.ellipse(x,0.2,0.09,0.04,0,0,Math.PI*2);
+            ctx.stroke();
+            const f=(T*0.8+i*0.37)%1;
+            thumbText(ctx,'♪',x,-0.25+f*0.42,0.16,i===1?PALETTE.red:PALETTE.ink);
+        }
+    },
+    shadow(ctx,T) {
+        const x=Math.sin(T*1.6)*0.25;
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.beginPath();
+        ctx.arc(x,-0.08,0.1,Math.PI,0);
+        ctx.lineTo(x+0.1,0.08);
+        ctx.lineTo(x+0.05,0.04);
+        ctx.lineTo(x,0.08);
+        ctx.lineTo(x-0.05,0.04);
+        ctx.lineTo(x-0.1,0.08);
+        ctx.closePath();
+        ctx.fill();
+        for (const [mx,my] of [[-0.3,0.2],[0.05,0.24],[0.3,0.18]]) {
+            thumbLine(ctx,[[mx-0.04,my-0.04],[mx+0.04,my+0.04]],PALETTE.red,0.025);
+            thumbLine(ctx,[[mx+0.04,my-0.04],[mx-0.04,my+0.04]],PALETTE.red,0.025);
+        }
+    },
+    marble(ctx,T) {
+        for (const [x,y] of [[-0.2,-0.15],[0.25,0.1],[-0.05,0.22]]) {
+            thumbDot(ctx,x,y,0.07,PALETTE.ink);
+        }
+        const f=(T*0.5)%1;
+        thumbDot(ctx,-0.35+f*0.6,-0.1+Math.sin(f*Math.PI*2)*0.12,0.05,PALETTE.paper,PALETTE.ink);
+        thumbDot(ctx,0.3,-0.22,0.04,PALETTE.red);
+    },
+    cups(ctx,T) {
+        const sw=Math.sin(T*2)*0.5+0.5;
+        const xs=[-0.27+sw*0.27,0,0.27-sw*0.27];
+        thumbDot(ctx,0,0.16,0.035,PALETTE.red);
+        for (const x of xs) {
+            ctx.fillStyle=PALETTE.farGray;
+            ctx.beginPath();
+            ctx.moveTo(x-0.07,-0.12);
+            ctx.lineTo(x+0.07,-0.12);
+            ctx.lineTo(x+0.1,0.14);
+            ctx.lineTo(x-0.1,0.14);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=0.02;
+            ctx.stroke();
+        }
+    }
+};
+
+function drawGameThumb(ctx,id,x,y,s,v,hot) {
+    ctx.save();
+    ctx.fillStyle=hot?rgba('red',0.06):rgba('farGray',0.35);
+    ctx.fillRect(x,y,s,s);
+    drawShape(ctx,sketchRect(x,y,s,s,{width:1.2,seed:1700+id.length}),PALETTE.midGray,v);
+    ctx.beginPath();
+    ctx.rect(x,y,s,s);
+    ctx.clip();
+    ctx.translate(x+s/2,y+s/2);
+    ctx.scale(s,s);
+    ctx.lineCap='round';
+    ctx.lineJoin='round';
+    const f=GAME_THUMBS[id];
+    if (f) {
+        f(ctx,time.real);
+    }
+    ctx.restore();
 }
 
 function drawWeaponIcon(ctx,id,x,y,s,v,locked) {

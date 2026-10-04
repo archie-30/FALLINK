@@ -39,7 +39,7 @@ export class BrushStrokes {
         this.next=0;
     }
 
-    spawn(x,z,ang,fan,v0,drag,life) {
+    spawn(x,z,ang,fan,v0,drag,life,ray=null) {
         const it=this.items[this.next];
         this.next=(this.next+1)%this.items.length;
         it.active=true;
@@ -53,6 +53,13 @@ export class BrushStrokes {
         it.drag=drag;
         it.life=life;
         it.dir=Math.random()<0.5?1:-1;
+        const B=TUNING.brushStroke;
+        const far=B.muzzle+v0/drag*(1+B.thickGrow)+B.thickMin;
+        it.lim=it.lim||new Float32Array(SEG+1);
+        for (let j=0;j<=SEG;j++) {
+            const an=ang+(it.dir>0?j/SEG-0.5:0.5-j/SEG)*fan*B.arc;
+            it.lim[j]=ray?ray(x,z,an,far):far;
+        }
         it.mesh.material.uniforms.uSeed.value=Math.random()*10;
         it.mesh.visible=true;
     }
@@ -103,12 +110,15 @@ export class BrushStrokes {
                 const s=Math.sin(an);
                 const bow=Math.sin(u*Math.PI)*thick*B.bow;
                 const k=j*6;
-                p[k]=it.x+c*(inner+bow);
+                const lim=it.lim[j];
+                const ri=Math.min(inner+bow,lim);
+                const ro=Math.min(front+bow,lim);
+                p[k]=it.x+c*ri;
                 p[k+1]=B.height;
-                p[k+2]=it.z+s*(inner+bow);
-                p[k+3]=it.x+c*(front+bow);
+                p[k+2]=it.z+s*ri;
+                p[k+3]=it.x+c*ro;
                 p[k+4]=B.height;
-                p[k+5]=it.z+s*(front+bow);
+                p[k+5]=it.z+s*ro;
                 al[j*2]=a;
                 al[j*2+1]=a;
             }
