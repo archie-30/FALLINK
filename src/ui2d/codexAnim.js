@@ -1238,8 +1238,9 @@ export const ENEMY_ATTACKS={
                 const x=lerp(sx,tx,f);
                 const y=PY-Math.sin(f*Math.PI)*3;
                 const land=seg(k,0.55,0.6);
-                const pud=seg(k,0.55,0.65)*(1-seg(k,0.85,0.95));
-                S.circle(tx,PY,1.5*pud,PALETTE.ink,0.25*pud);
+                const pud=seg(k,0.55,0.62)*(1-seg(k,0.9,1));
+                S.circle(tx,PY,1.8*Math.min(1,pud*1.4),PALETTE.ink,0.3*pud);
+                S.ring(tx,PY,1.8,PALETTE.ink,0.06,0.6*pud,[0.2,0.16]);
                 S.enemy('stampSoldier',k<0.55?x:tx,k<0.55?y:PY,{size:1.8,sx:land>0&&land<1?1.3:1});
                 S.burst(tx,PY,2,seg(k,0.55,0.75),PALETTE.ink);
             }
@@ -1276,32 +1277,53 @@ export const ENEMY_ATTACKS={
         {
             key:'pinch',
             dmg:{kind:'hit',n:1},
-            period:3,
+            period:3.4,
             draw(S,k) {
                 const cx=8;
-                S.player(cx,PY,0,{flash:seg(k,0.55,0.58)*(1-seg(k,0.58,0.7))});
-                const tele=seg(k,0.1,0.35)*(1-seg(k,0.4,0.42));
-                const f=seg(k,0.42,0.6);
-                for (const [x0,y0] of [[3,1.5],[13,7.5]]) {
-                    S.tele(x0,y0,cx+(cx-x0)*0.6,PY+(PY-y0)*0.6,tele);
-                    S.enemy('scissorMinion',lerp(x0,cx+(cx-x0)*0.5,f),lerp(y0,PY+(PY-y0)*0.5,f),{size:1.3});
+                const step=seg(k,0.3,0.48);
+                const px=cx+step*2.2;
+                S.player(px,PY,0,{flash:0});
+                const go=seg(k,0.05,0.25);
+                const f=seg(k,0.55,0.68);
+                const ys=[lerp(1.2,0.9,go),lerp(7.6,8.1,go)];
+                const xs=[lerp(5,cx,go),lerp(11,cx,go)];
+                const thread=seg(k,0.25,0.4)*(1-seg(k,0.68,0.7));
+                const mid=(ys[0]+ys[1])/2;
+                const y0=lerp(ys[0],mid-0.55,f);
+                const y1=lerp(ys[1],mid+0.55,f);
+                if (thread>0) {
+                    S.line(cx,y0,cx,y1,PALETTE.red,0.1,thread,[0.3,0.18]);
                 }
-                S.num('-1',cx,PY-0.6,seg(k,0.58,0.9),PALETTE.red,16);
+                S.enemy('scissorMinion',xs[0],y0,{size:1.8});
+                S.enemy('scissorMinion',xs[1],y1,{size:1.8});
+                S.burst(cx,mid,1.6,seg(k,0.68,0.85),PALETTE.midGray);
+                S.text('✂',cx,mid-1.4,16,PALETTE.red,seg(k,0.68,0.72)*(1-seg(k,0.85,0.95)));
             }
         },
         {
             key:'rage',
-            dmg:{kind:'none',n:0},
-            period:3,
+            dmg:{kind:'bullet',n:1},
+            period:3.2,
             draw(S,k) {
-                S.player(PX,PY,0);
-                S.target('scissorMinion',10,2.5,k,0.15,{size:1.3});
-                const r=seg(k,0.3,0.4);
-                const sh=r>0?(Math.floor(k*60)%2)*0.1:0;
-                S.enemy('scissorMinion',11.5+sh,6.3,{size:1.3+r*0.3,flash:r>0&&r<1?1:0});
-                if (r>0) {
-                    S.ring(11.5,6.3,1.1,PALETTE.red,0.12,1);
-                    S.text('!!',11.5,4.6,18,PALETTE.red,r);
+                const ex=12.5;
+                const ey=3;
+                const dodge=seg(k,0.35,0.5);
+                S.player(PX+0.5,PY+dodge*1.8,0);
+                const sh=(Math.floor(k*60)%2)*0.08;
+                S.enemy('scissorMinion',ex+sh,ey,{size:1.4});
+                S.ring(ex,ey,1,PALETTE.red,0.1,1);
+                const tx=PX+0.5;
+                const ty=PY;
+                S.tele(ex,ey,tx,ty,seg(k,0.1,0.3),1-seg(k,0.38,0.4));
+                const out=seg(k,0.4,0.62);
+                const back=seg(k,0.62,0.84);
+                if (out>0&&back<1) {
+                    const f=back>0?1-back:out;
+                    const bx=lerp(ex,tx,f);
+                    const by=lerp(ey,ty,f);
+                    for (let i=-1;i<=1;i++) {
+                        S.bullet(bx+i*0.18,by-i*0.3,'enemy',1);
+                    }
                 }
             }
         }
@@ -1371,21 +1393,72 @@ export const ENEMY_ATTACKS={
     bookFinal:[
         {
             key:'flip',
-            dmg:{kind:'bullet',n:1},
-            period:3.2,
+            dmg:{kind:'hit',n:1},
+            period:3.4,
             draw(S,k) {
-                S.player(PX,PY,0);
-                const cx=11;
-                S.enemy('bookFinal',cx,PY);
-                for (let r=0;r<3;r++) {
-                    const f=seg(k,0.15+r*0.15,0.6+r*0.15);
-                    if (f>0&&f<1) {
-                        for (let i=0;i<14;i++) {
-                            const a=i/14*Math.PI*2+r*0.2;
-                            S.bullet(cx+Math.cos(a)*(1.8+f*7),PY+Math.sin(a)*(1.8+f*7),'enemy',1-f*0.6);
-                        }
+                const step=seg(k,0.25,0.42);
+                S.player(5+step*1.6,PY+step*1.4,0);
+                S.enemy('bookFinal',12.5,PY,{size:2.6});
+                const lines=[[0,PY,16,PY],[5,0,5,9],[0,1.6,16,1.6]];
+                lines.forEach((q,i)=>{
+                    const tk=seg(k,0.05+i*0.06,0.3+i*0.06);
+                    const live=seg(k,0.5,0.53)*(1-seg(k,0.75,0.85));
+                    const mx=(q[0]+q[2])/2;
+                    const my=(q[1]+q[3])/2;
+                    if (live<=0) {
+                        S.line(mx+(q[0]-mx)*tk,my+(q[1]-my)*tk,mx+(q[2]-mx)*tk,my+(q[3]-my)*tk,PALETTE.red,0.08,tk>0?1-seg(k,0.48,0.5):0);
                     }
+                    else {
+                        S.line(q[0],q[1],q[2],q[3],PALETTE.ink,0.45,live);
+                    }
+                });
+            }
+        },
+        {
+            key:'sweep',
+            dmg:{kind:'hit',n:1},
+            period:3.6,
+            draw(S,k) {
+                const cx=9.5;
+                const near=seg(k,0.15,0.35);
+                S.player(lerp(PX,cx-1.5,near),lerp(PY,PY+0.6,near),0);
+                S.enemy('bookFinal',cx,PY,{size:2.4});
+                S.ring(cx,PY,2.1,PALETTE.red,0.05,0.8*(1-seg(k,0.85,0.95)),[0.2,0.15]);
+                const a0=Math.PI*0.62;
+                const arc=2.6;
+                const tele=seg(k,0.05,0.25)*(1-seg(k,0.4,0.42));
+                for (const a of [a0,a0+arc]) {
+                    S.line(cx+Math.cos(a)*2.1,PY+Math.sin(a)*2.1,cx+Math.cos(a)*9,PY+Math.sin(a)*9,PALETTE.red,0.07,tele);
                 }
+                const f=seg(k,0.42,0.8);
+                if (f>0&&f<1) {
+                    const a=a0+arc*f;
+                    S.line(cx+Math.cos(a)*2.1,PY+Math.sin(a)*2.1,cx+Math.cos(a)*9,PY+Math.sin(a)*9,PALETTE.ink,0.4,1);
+                }
+            }
+        },
+        {
+            key:'seal',
+            dmg:{kind:'none',n:0},
+            period:4.4,
+            draw(S,k) {
+                const cx=9;
+                S.player(PX,PY,0);
+                const broken=seg(k,0.7,0.74);
+                S.enemy('bookFinal',cx,PY,{size:2.4,flash:broken>0&&broken<1?1:0});
+                const marks=[[cx+3.6,1.6],[cx+3.6,7.4],[cx-1.8,1]];
+                const shield=seg(k,0.05,0.15)*(1-broken);
+                S.ring(cx,PY,1.7,PALETTE.red,0.1,shield);
+                marks.forEach(([x,y],i)=>{
+                    const hit=0.3+i*0.13;
+                    const gone=seg(k,hit+0.08,hit+0.11);
+                    const a=seg(k,0.08,0.16)*(1-gone);
+                    S.line(x,y,cx,PY,PALETTE.red,0.05,a*0.8,[0.2,0.15]);
+                    S.rect(x-0.18,y-0.7,0.36,1.3,PALETTE.red,a);
+                    S.stream(PX+0.9,PY,x,y,k,hit-0.1,hit+0.08,0.05,0.1);
+                    S.burst(x,y,1,seg(k,hit+0.08,hit+0.25),PALETTE.red);
+                });
+                S.text('×3',cx,PY-2.4,18,PALETTE.red,broken*(1-seg(k,0.95,1)));
             }
         },
         {
@@ -1401,7 +1474,7 @@ export const ENEMY_ATTACKS={
                     S.burst(x,y,2,seg(k,0.5+i*0.05,0.7+i*0.05),PALETTE.ink);
                 });
                 for (let i=0;i<5;i++) {
-                    const a=Math.PI+(i/4-0.5)*0.9;
+                    const a=Math.PI+(i/4-0.5)*0.8;
                     S.fly(11,PY,11+Math.cos(a)*9,PY+Math.sin(a)*9,k,0.72,0.95,'enemy');
                 }
             }

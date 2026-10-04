@@ -745,6 +745,8 @@ export class SettingsMenu extends Panel {
     show() {
         super.show();
         this.langOpen=false;
+        this.langT=0;
+        this.langPick=0;
         this.infoPin=null;
         this.pw={open:false,t:0,digits:'',err:0,press:null,pressT:0,hits:[]};
         this.page='main';
@@ -760,6 +762,9 @@ export class SettingsMenu extends Panel {
     update(dt) {
         super.update(dt);
         this.pageT+=dt;
+        const LG=TUNING.settingsUi.lang;
+        this.langT=Math.max(0,Math.min(1,(this.langT||0)+(this.langOpen?dt/LG.openTime:-dt/LG.closeTime)));
+        this.langPick=Math.max(0,(this.langPick||0)-dt*LG.pickDecay);
         this.lvDone=Math.max(0,(this.lvDone||0)-dt);
         this.lvPulse=Math.max(0,(this.lvPulse||0)-dt*4);
         if (this.pw) {
@@ -1195,35 +1200,71 @@ export class SettingsMenu extends Panel {
         const L=TUNING.settingsUi.lang;
         const b=this.langBox();
         const a=Math.min(1,this.t*4);
+        const k=EASE.easeOutCubic(this.langT||0);
+        const pk=this.langPick||0;
         ctx.save();
         ctx.globalAlpha*=a;
         const hv=inRect(b,this.hx??-1,this.hy??-1);
+        ctx.save();
+        ctx.translate(b.x+b.w/2,b.y+b.h/2);
+        ctx.scale(1+pk*L.pop,1+pk*L.pop);
+        ctx.translate(-(b.x+b.w/2),-(b.y+b.h/2));
         ctx.fillStyle=hv||this.langOpen?rgba('farGray',0.95):PALETTE.paper;
         ctx.fillRect(b.x,b.y,b.w,b.h);
-        drawShape(ctx,sketchRect(b.x,b.y,b.w,b.h,{width:1.8,seed:1490}),PALETTE.ink,v);
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold 14px '+FONT;
+        drawShape(ctx,sketchRect(b.x,b.y,b.w,b.h,{width:hv||this.langOpen?2.2:1.8,seed:1490}),PALETTE.ink,v);
+        ctx.fillStyle=pk>0.1?PALETTE.red:PALETTE.ink;
         ctx.textAlign='left';
         ctx.textBaseline='middle';
-        ctx.fillText(t('settings.lang')+t('ui.colon')+t('lang.'+settings.lang),b.x+10,b.y+b.h/2+1,b.w-34);
-        ctx.textAlign='right';
-        ctx.fillText(this.langOpen?'▲':'▼',b.x+b.w-10,b.y+b.h/2+1);
+        fitText(ctx,t('settings.lang')+t('ui.colon')+t('lang.'+settings.lang),b.x+10,b.y+b.h/2+1,b.w-34,14,'bold ');
+        ctx.translate(b.x+b.w-14,b.y+b.h/2);
+        ctx.rotate(EASE.easeOutBack(this.langT||0)*Math.PI);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.beginPath();
+        ctx.moveTo(-6,-3);
+        ctx.lineTo(6,-3);
+        ctx.lineTo(0,4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
         this.langHits=[];
-        if (this.langOpen) {
-            LANGS.forEach((k,i)=>{
-                const r={x:b.x,y:b.y+b.h+i*L.item,w:b.w,h:L.item};
-                const on=settings.lang===k;
+        if (k>0) {
+            const full=L.item*LANGS.length;
+            const y0=b.y+b.h+3;
+            ctx.fillStyle=rgba('ink',0.12*k);
+            ctx.fillRect(b.x+4,y0+5,b.w,full*k);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(b.x-4,y0-2,b.w+8,full*k+4);
+            ctx.clip();
+            ctx.fillStyle=PALETTE.paper;
+            ctx.fillRect(b.x,y0,b.w,full);
+            drawShape(ctx,sketchRect(b.x,y0,b.w,full,{width:1.6,seed:1491}),PALETTE.ink,v);
+            LANGS.forEach((q,i)=>{
+                const r={x:b.x+3,y:y0+i*L.item+2,w:b.w-6,h:L.item-4};
+                const ik=Math.max(0,Math.min(1,((this.langT||0)-i*L.stagger)/(1-L.stagger*(LANGS.length-1))));
+                const on=settings.lang===q;
                 const h2=inRect(r,this.hx??-1,this.hy??-1);
-                ctx.fillStyle=on?PALETTE.ink:(h2?rgba('farGray',0.95):PALETTE.paper);
-                ctx.fillRect(r.x,r.y,r.w,r.h);
-                ctx.strokeStyle=PALETTE.ink;
-                ctx.lineWidth=1.5;
-                ctx.strokeRect(r.x,r.y,r.w,r.h);
-                ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
+                ctx.save();
+                ctx.globalAlpha*=ik;
+                ctx.translate(-(1-ik)*18,0);
+                if (on||h2) {
+                    ctx.fillStyle=on?rgba('ink',0.1):rgba('farGray',0.9);
+                    ctx.fillRect(r.x,r.y,r.w,r.h);
+                }
+                if (on) {
+                    ctx.fillStyle=PALETTE.red;
+                    ctx.fillRect(r.x,r.y+4,4,r.h-8);
+                }
+                ctx.fillStyle=on?PALETTE.red:PALETTE.ink;
+                ctx.font=(on||h2?'bold ':'')+'14px '+FONT;
                 ctx.textAlign='left';
-                ctx.fillText(t('lang.'+k),r.x+12,r.y+r.h/2+1);
-                this.langHits.push({...r,k});
+                ctx.fillText(t('lang.'+q),r.x+14+(h2?4:0),r.y+r.h/2+1);
+                ctx.restore();
+                if (this.langOpen) {
+                    this.langHits.push({...r,k:q});
+                }
             });
+            ctx.restore();
         }
         ctx.restore();
     }
@@ -1235,6 +1276,9 @@ export class SettingsMenu extends Panel {
         if (this.langOpen) {
             const hit=(this.langHits||[]).find(r=>inRect(r,x,y));
             this.langOpen=false;
+            if (hit) {
+                this.langPick=1;
+            }
             if (hit&&hit.k!==settings.lang) {
                 settings.lang=hit.k;
                 this.actions.changed('lang');
@@ -4466,7 +4510,7 @@ export class TrainingMenu extends Panel {
         this.gameHits=[];
     }
 
-    ddBox(ctx,dr,kind,label,icon,v,seed) {
+    ddBox(ctx,dr,kind,label,icon,v,seed,foe=null) {
         const wp=this.pop[kind]||0;
         const dhv=inRect(dr,this.hx,this.hy)||(this.dd.open&&this.dd.kind===kind);
         ctx.save();
@@ -4480,11 +4524,17 @@ export class TrainingMenu extends Panel {
         if (icon) {
             drawWeaponIcon(ctx,icon,dr.x+22,cy,0.3,v,false);
         }
+        if (foe) {
+            ctx.save();
+            ctx.translate(dr.x+22,cy+2);
+            ctx.scale(dr.h/96,dr.h/96);
+            ENEMY_ICONS[foe](ctx,v);
+            ctx.restore();
+        }
         ctx.fillStyle=wp>0.1?PALETTE.red:PALETTE.ink;
-        ctx.font='bold 14px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='middle';
-        ctx.fillText(label,dr.x+(icon?44:12),cy);
+        fitText(ctx,label,dr.x+(icon||foe?44:12),cy,dr.w-(icon||foe?44:12)-28,14,'bold ');
         ctx.save();
         ctx.translate(dr.x+dr.w-16,cy);
         ctx.rotate(this.dd.kind===kind?EASE.easeOutBack(this.dd.t)*Math.PI:0);
@@ -4609,10 +4659,6 @@ export class TrainingMenu extends Panel {
             this.anim[key]=(this.anim[key]??(c[key]?1:0))+(((c[key]?1:0))-(this.anim[key]??0))*k;
         }
         this.anim.refill=(this.anim.refill??(c.refill==='fixed'?0:1))+((c.refill==='fixed'?0:1)-(this.anim.refill??0))*k;
-        for (const id of BOSS_LIST) {
-            const on=(c.bosses||{})[id]>0?1:0;
-            this.anim['b'+id]=(this.anim['b'+id]??on)+(on-(this.anim['b'+id]??on))*k;
-        }
     }
 
     change(kind) {
@@ -4822,46 +4868,15 @@ export class TrainingMenu extends Panel {
         y+=rh*(1+TU.bossGap);
         rowStart();
         this.rowLabel(ctx,t('trainMenu.bosses'),lx,y);
-        const bosses=c.bosses||(c.bosses={});
-        const bw=Math.min(64,cw/3-6,rh*TU.bossH/0.84);
-        for (let i=0;i<BOSS_LIST.length;i++) {
-            const id=BOSS_LIST[i];
-            const ok=trainable(id);
-            const f=this.anim['b'+id]||0;
-            const r={x:cx+i*(bw+8),y:y-bw*0.42,w:bw,h:bw*0.84};
-            const key='b'+id;
-            const hv=ok&&this.fxBegin(ctx,key,r);
-            if (!ok) {
-                ctx.save();
-            }
-            ctx.fillStyle=rgba('red',0.16*f);
-            ctx.fillRect(r.x,r.y,r.w,r.h);
-            drawShape(ctx,sketchRect(r.x,r.y,r.w,r.h,{width:f>0.5||hv?2.4:1.3,seed:1680+i}),ok?(f>0.5?PALETTE.red:PALETTE.ink):PALETTE.farGray,v);
-            ctx.save();
-            ctx.globalAlpha*=ok?1:0.35;
-            ctx.translate(r.x+r.w/2,r.y+r.h/2);
-            const ks=r.h/72*(1+f*0.12);
-            ctx.scale(ks,ks);
-            ENEMY_ICONS[id](ctx,v);
-            ctx.restore();
-            if (f>0.02) {
-                ctx.fillStyle=PALETTE.red;
-                ctx.beginPath();
-                ctx.arc(r.x+r.w,r.y,9*f,0,Math.PI*2);
-                ctx.fill();
-                ctx.fillStyle=PALETTE.paper;
-                ctx.font='bold 11px '+FONT;
-                ctx.textAlign='center';
-                ctx.fillText('✓',r.x+r.w,r.y+1);
-            }
-            ctx.restore();
-            if (ok) {
-                add(r,()=>{
-                    bosses[id]=bosses[id]>0?0:1;
-                    this.change('foes');
-                },key);
-            }
-        }
+        const bl=['none'].concat(BOSS_LIST);
+        const bcur=BOSS_LIST.find(id=>(c.bosses||{})[id]>0)||'none';
+        const br={x:cx,y:y-16,w:cw,h:32};
+        this.ddBox(ctx,br,'boss',bcur==='none'?t('trainMenu.noBoss'):t('enemy.'+bcur),null,v,1680,bcur==='none'?null:bcur);
+        add(br,()=>{
+            this.dd.kind='boss';
+            this.dd.open=true;
+        },'bdd');
+        this.ddInfos.boss={r:br,list:bl,cur:bl.indexOf(bcur)};
         ctx.restore();
         const rx=px+colW+14;
         const rw=pw-colW-36;
@@ -5148,7 +5163,8 @@ export class TrainingMenu extends Panel {
             const ir={x:r.x+4,y:iy,w:r.w-8,h:ih};
             const ik=Math.max(0,Math.min(1,(this.dd.t-i*D.stagger)/(1-D.stagger*n+D.stagger)));
             const hv=inRect(ir,this.hx,this.hy);
-            const cur=kind==='map'?id===c.map:id===(c.weapon||'pen');
+            const ok=kind!=='boss'||id==='none'||trainable(id);
+            const cur=kind==='map'?id===c.map:(kind==='boss'?i===info.cur:id===(c.weapon||'pen'));
             ctx.save();
             ctx.globalAlpha*=ik;
             ctx.translate((1-ik)*-18,0);
@@ -5170,6 +5186,20 @@ export class TrainingMenu extends Panel {
                 ctx.translate(-(tr.x+tw/2),-(iy+ih/2));
                 drawMapPreview(ctx,id,c.props,tr,v,true);
             }
+            else if (kind==='boss') {
+                ctx.translate(ir.x+22,iy+ih/2+2);
+                ctx.rotate(hv&&ok?Math.sin(time.real*10)*0.12:0);
+                ctx.scale(1+pk*0.4,1+pk*0.4);
+                if (id==='none') {
+                    drawShape(ctx,sketchLine(-8,-8,8,8,{width:1.8,seed:1690}),PALETTE.midGray,v);
+                    drawShape(ctx,sketchLine(8,-8,-8,8,{width:1.8,seed:1691}),PALETTE.midGray,v);
+                }
+                else {
+                    ctx.globalAlpha*=ok?1:0.3;
+                    ctx.scale(ih/96,ih/96);
+                    ENEMY_ICONS[id](ctx,v);
+                }
+            }
             else {
                 ctx.translate(ir.x+22,iy+ih/2);
                 ctx.rotate(hv?Math.sin(time.real*10)*0.12:0);
@@ -5177,12 +5207,19 @@ export class TrainingMenu extends Panel {
                 drawWeaponIcon(ctx,id,0,0,0.28,v,false);
             }
             ctx.restore();
-            ctx.fillStyle=cur?PALETTE.red:PALETTE.ink;
+            ctx.fillStyle=cur?PALETTE.red:(ok?PALETTE.ink:PALETTE.midGray);
             ctx.font=(cur||hv?'bold ':'')+'14px '+FONT;
             ctx.textAlign='left';
             ctx.textBaseline='middle';
-            ctx.fillText(kind==='map'?t('map.'+id):t('weapon.'+id+'.name'),ir.x+(kind==='map'?ih*1.4+18:44),iy+ih/2);
-            if (kind!=='map') {
+            const nm=kind==='map'?t('map.'+id):(kind==='boss'?(id==='none'?t('trainMenu.noBoss'):(ok?t('enemy.'+id):t('ui.unknown'))):t('weapon.'+id+'.name'));
+            ctx.fillText(nm,ir.x+(kind==='map'?ih*1.4+18:44),iy+ih/2);
+            if (kind==='boss'&&!ok) {
+                ctx.fillStyle=PALETTE.nearGray;
+                ctx.font='11px '+FONT;
+                ctx.textAlign='right';
+                ctx.fillText(t('trainMenu.bossLocked'),ir.x+ir.w-6,iy+ih/2);
+            }
+            if (kind==='weapon') {
                 ctx.fillStyle=PALETTE.nearGray;
                 ctx.font='11px '+FONT;
                 ctx.textAlign='right';
@@ -5190,10 +5227,19 @@ export class TrainingMenu extends Panel {
             }
             ctx.restore();
             const act=()=>{
+                if (!ok) {
+                    return;
+                }
                 this.dd.pick=i;
                 this.dd.pickT=1;
                 this.pop[kind]=1;
-                if (kind==='map') {
+                if (kind==='boss') {
+                    if (i!==info.cur) {
+                        c.bosses=id==='none'?{}:{[id]:1};
+                        this.change('foes');
+                    }
+                }
+                else if (kind==='map') {
                     if (c.map!==id) {
                         c.map=id;
                         this.change('room');

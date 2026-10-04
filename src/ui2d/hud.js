@@ -475,10 +475,11 @@ export class Hud {
             return;
         }
         const p=run.plan;
+        const PB=TUNING.hud.progress;
         if (p.training) {
+            this.drawBossBar(ctx,w,enemies,TUNING.hud.trainBossY,false);
             return;
         }
-        const PB=TUNING.hud.progress;
         if (run.notebook()&&!p.overtime) {
             this.drawProgress(ctx,w,run);
         }
@@ -518,13 +519,18 @@ export class Hud {
             ctx.fillStyle=fail?PALETTE.midGray:PALETTE.red;
             ctx.fillText(txt,w/2,by+18);
         }
+        this.drawBossBar(ctx,w,enemies,by+4);
+    }
+
+    drawBossBar(ctx,w,enemies,y,hint=true) {
         const boss=enemies.boss();
         if (boss) {
+            ctx.textAlign='center';
+            ctx.textBaseline='top';
             const f=Math.max(0,boss.hp/boss.maxHp);
             this.bossShown+=(f-this.bossShown)*0.15;
             const bw=Math.min(520,w*0.45);
             const x=w/2-bw/2;
-            const y=by+4;
             ctx.fillStyle=PALETTE.ink;
             ctx.font='bold 14px '+FONT;
             ctx.textAlign='center';
@@ -538,9 +544,11 @@ export class Hud {
             for (const q of [0.33,0.66]) {
                 drawShape(ctx,sketchLine(x+bw*q,y+17,x+bw*q,y+37,{width:1.2,seed:732+q*10,overshoot:0}),PALETTE.nearGray);
             }
-            ctx.font='12px '+FONT;
-            ctx.fillStyle=PALETTE.red;
-            ctx.fillText(t('boss.hint.'+boss.type),w/2,y+40);
+            if (hint) {
+                ctx.font='12px '+FONT;
+                ctx.fillStyle=PALETTE.red;
+                ctx.fillText(t('boss.hint.'+boss.type),w/2,y+40);
+            }
         }
     }
 

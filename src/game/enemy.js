@@ -1,7 +1,7 @@
 import*as THREE from 'three';
 import {TUNING} from '../data/tuning.js';
 import {ENEMIES} from '../data/enemies.js';
-import {toonMaterial,hullMaterial,unlitMaterial,lineMaterial,trapMaterial,registerShadow,pal,renderFlags} from '../render/materials.js';
+import {toonMaterial,hullMaterial,unlitMaterial,lineMaterial,trapMaterial,inkMaterial,registerShadow,pal,renderFlags} from '../render/materials.js';
 import {resolveCircle,clampToBounds,circleVs} from '../core/collision.js';
 import {EASE} from '../core/easing.js';
 import {RNG} from '../core/rng.js';
@@ -1761,9 +1761,8 @@ class StampSoldier extends Enemy {
         this.vel.set(0,0,0);
         this.sqv+=5;
         ctx.fx.cameraShake(0.22);
-        ctx.particles.burst(this.pos.x,0.3,this.pos.z,12,{color:'ink',speed:[2,6],up:[1,4],size:[0.08,0.18]});
-        if (ctx.onInkDrop) {
-            ctx.onInkDrop(this.pos.x,this.pos.z,d.puddleRadius,d.puddleTime,d.puddleSlow);
+        if (ctx.onStampPrint) {
+            ctx.onStampPrint(this.pos.x,this.pos.z,d.stampRadius,d.puddleTime,d.puddleFade,d.puddleSlow);
         }
         const px=p.pos.x-this.pos.x;
         const pz=p.pos.z-this.pos.z;
@@ -1889,8 +1888,11 @@ class ScissorMinion extends Enemy {
     onReset() {
         const d=this.def;
         this.snipT=rng.range(d.firstSnip[0],d.firstSnip[1]);
-        this.strafeSign=rng.sign();
         this.rage=false;
+        this.partner=null;
+        this.lead=false;
+        this.pattern=null;
+        this.ang=rng.range(0,Math.PI*2);
         this.dx=0;
         this.dz=1;
     }
@@ -1900,24 +1902,109 @@ class ScissorMinion extends Enemy {
             return;
         }
         this.rage=true;
+        this.partner=null;
         this.sqv+=4;
         this.flashT=0.3;
     }
 
-    startSnip(ctx,lead) {
+    mate(ctx) {
+        const o=this.partner;
+        if (o&&o.alive&&o.partner===this) {
+            return o;
+        }
+        this.partner=null;
+        if (this.rage) {
+            return null;
+        }
+        let best=null;
+        let bd=this.def.pairRange;
+        for (const q of ctx.enemies) {
+            if (q!==this&&q.alive&&q.type==='scissorMinion'&&!q.rage&&!q.dummy&&(!q.partner||!q.partner.alive)) {
+                const dd=Math.hypot(q.pos.x-this.pos.x,q.pos.z-this.pos.z);
+                if (dd<bd) {
+                    bd=dd;
+                    best=q;
+                }
+            }
+        }
+        if (best) {
+            this.partner=best;
+            best.partner=this;
+            this.lead=true;
+            best.lead=false;
+            best.ang=this.ang+Math.PI;
+        }
+        return best;
+    }
+
+    thread() {
+        const o=this.partner;
+        if (!o||!o.alive) {
+            return;
+        }
+        const dx=o.pos.x-this.pos.x;
+        const dz=o.pos.z-this.pos.z;
+        const l=Math.hypot(dx,dz)||1;
+        if (!this.tele) {
+            this.teleLine(dx/l,dz/l,0,this.def.threadTele);
+        }
+        this.tele.dx=dx/l;
+        this.tele.dz=dz/l;
+        this.tele.len=Math.max(0,l/2-this.def.radius-0.1);
+    }
+
+    startPinch() {
+        const o=this.partner;
+        for (const q of [this,o]) {
+            q.pattern='pinch';
+            q.tele=null;
+            q.setState('telegraph');
+            q.thread();
+        }
+    }
+
+    startThrow(ctx) {
         const d=this.def;
-        const R=this.rage?d.rage:null;
+        this.pattern='throw';
         this.dx=this.nx;
         this.dz=this.nz;
         this.setState('telegraph');
-        this.teleLine(this.dx,this.dz,d.telegraphLength,d.telegraph*(R?R.tele:1));
-        if (!lead) {
-            return;
+        this.teleLine(this.dx,this.dz,d.throwRange,d.throwTele*(this.rage?d.rage.tele:1),this.elite?2:1,this.elite?d.eliteThrowSpread:0);
+    }
+
+    snap(ctx) {
+        const d=this.def;
+        const o=this.partner;
+        const mx=o?(this.pos.x+o.pos.x)/2:this.pos.x;
+        const mz=o?(this.pos.z+o.pos.z)/2:this.pos.z;
+        ctx.particles.burst(mx,1,mz,14,{color:'midGray',speed:[2,7],up:[2,5]});
+        ctx.fx.cameraShake(0.15);
+        if (this.elite||(o&&o.elite)) {
+            fireRing(ctx,mx,mz,d.eliteRing,rng.range(0,1),d.bulletSpeed,d.bulletDamage,d.bulletLife);
         }
-        for (const o of ctx.enemies) {
-            if (o!==this&&o.alive&&o.type==='scissorMinion'&&o.state==='move'&&o.stunT<=0&&!o.dummy&&Math.hypot(o.pos.x-this.pos.x,o.pos.z-this.pos.z)<d.pairRange) {
-                o.startSnip(ctx,false);
-                break;
+        for (const q of [this,o]) {
+            if (q&&q.alive) {
+                q.tele=null;
+                q.vel.multiplyScalar(0.1);
+                q.setState('recover');
+            }
+        }
+    }
+
+    throwBlades(ctx) {
+        const d=this.def;
+        const base=Math.atan2(this.dz,this.dx);
+        const n=this.elite?2:1;
+        const sp=d.throwSpeed*(this.rage?d.rage.dash:1);
+        const out=d.throwRange/sp;
+        for (let j=0;j<n;j++) {
+            const a=n>1?base+(j-0.5)*d.eliteThrowSpread:base;
+            const cx=Math.cos(a);
+            const cz=Math.sin(a);
+            for (let k=0;k<d.bladeDots;k++) {
+                const off=(k-(d.bladeDots-1)/2)*d.bladeGap;
+                const i=ctx.enemyBullets.spawn(this.pos.x-cz*off,this.pos.z+cx*off,cx,cz,sp,d.bulletDamage,out*2+0.3);
+                ctx.enemyBullets.redirect(i,out,-cx*sp,-cz*sp);
             }
         }
     }
@@ -1926,7 +2013,31 @@ class ScissorMinion extends Enemy {
         const d=this.def;
         const R=this.rage?d.rage:null;
         const p=ctx.player;
+        const o=this.mate(ctx);
         if (this.state==='move') {
+            const sp=R?R.speed:1;
+            if (o) {
+                if (this.lead) {
+                    this.ang+=dt*d.orbit;
+                    o.ang=this.ang+Math.PI;
+                }
+                const tx=p.pos.x+Math.cos(this.ang)*d.flank-this.pos.x;
+                const tz=p.pos.z+Math.sin(this.ang)*d.flank-this.pos.z;
+                const tl=Math.hypot(tx,tz)||1;
+                const f=Math.min(1,tl/1.5);
+                this.wx=tx/tl*f*sp;
+                this.wz=tz/tl*f*sp;
+                this.aimX=this.nx;
+                this.aimZ=this.nz;
+                if (this.lead&&o.state==='move'&&o.stunT<=0) {
+                    this.snipT-=dt;
+                    const ready=tl<d.readyDist&&Math.hypot(p.pos.x+Math.cos(o.ang)*d.flank-o.pos.x,p.pos.z+Math.sin(o.ang)*d.flank-o.pos.z)<d.readyDist;
+                    if (this.snipT<=0&&(ready||this.snipT<-d.readyWait)) {
+                        this.startPinch();
+                    }
+                }
+                return;
+            }
             let push=0;
             if (this.dist>d.range[1]) {
                 push=1;
@@ -1934,26 +2045,46 @@ class ScissorMinion extends Enemy {
             else if (this.dist<d.range[0]) {
                 push=-1;
             }
-            const sp=R?R.speed:1;
-            this.wx=(this.nx*push-this.nz*this.strafeSign*d.strafe)*sp;
-            this.wz=(this.nz*push+this.nx*this.strafeSign*d.strafe)*sp;
+            this.wx=(this.nx*push-this.nz*d.strafe)*sp;
+            this.wz=(this.nz*push+this.nx*d.strafe)*sp;
             this.aimX=this.nx;
             this.aimZ=this.nz;
             this.snipT-=dt/(R?R.every:1);
             if (this.snipT<=0) {
-                this.startSnip(ctx,true);
+                this.startThrow(ctx);
             }
             return;
         }
         if (this.state==='telegraph') {
             this.manual=true;
             this.vel.multiplyScalar(Math.exp(-8*dt));
-            if (this.stateT<this.tele.dur*0.6) {
-                const lx=p.pos.x+p.vel.x*0.2-this.pos.x;
-                const lz=p.pos.z+p.vel.z*0.2-this.pos.z;
-                const ll=Math.hypot(lx,lz)||1;
-                this.dx=lx/ll;
-                this.dz=lz/ll;
+            if (this.pattern==='pinch') {
+                if (!o) {
+                    this.tele=null;
+                    this.setState('recover');
+                    return;
+                }
+                this.thread();
+                this.aimX=o.pos.x-this.pos.x;
+                this.aimZ=o.pos.z-this.pos.z;
+                if (this.lead&&this.stateT>=d.threadTele) {
+                    this.hitDone=false;
+                    this.mx=(this.pos.x+o.pos.x)/2;
+                    this.mz=(this.pos.z+o.pos.z)/2;
+                    for (const q of [this,o]) {
+                        q.setState('attack');
+                        const ex=this.mx-q.pos.x;
+                        const ez=this.mz-q.pos.z;
+                        const el=Math.hypot(ex,ez)||1;
+                        q.dx=ex/el;
+                        q.dz=ez/el;
+                    }
+                }
+                return;
+            }
+            if (this.stateT<this.tele.dur*0.5) {
+                this.dx=this.nx;
+                this.dz=this.nz;
                 this.tele.dx=this.dx;
                 this.tele.dz=this.dz;
             }
@@ -1961,32 +2092,46 @@ class ScissorMinion extends Enemy {
             this.aimZ=this.dz;
             if (this.stateT>=this.tele.dur) {
                 this.tele=null;
-                this.setState('attack');
+                this.throwBlades(ctx);
+                this.sqv+=3;
+                this.setState('recover');
             }
             return;
         }
         if (this.state==='attack') {
             this.manual=true;
-            const sp=d.dashSpeed*(R?R.dash:1);
-            this.vel.set(this.dx*sp,0,this.dz*sp);
-            const blocked=this.stateT>0.12&&this.speedFrac<0.3;
-            if (blocked||this.stateT>=d.dashTime) {
-                if (this.elite) {
-                    const base=Math.atan2(this.nz,this.nx);
-                    for (let i=0;i<d.eliteShots;i++) {
-                        const a=base+(i/(d.eliteShots-1)-0.5)*d.eliteSpread;
-                        ctx.enemyBullets.spawn(this.pos.x,this.pos.z,Math.cos(a),Math.sin(a),d.bulletSpeed,d.bulletDamage,d.bulletLife);
-                    }
-                }
+            if (!o) {
+                this.tele=null;
                 this.vel.multiplyScalar(0.2);
                 this.setState('recover');
+                return;
+            }
+            this.vel.set(this.dx*d.dashSpeed,0,this.dz*d.dashSpeed);
+            this.thread();
+            if (this.lead) {
+                const ax=this.pos.x;
+                const az=this.pos.z;
+                const sx=o.pos.x-ax;
+                const sz=o.pos.z-az;
+                const l2=sx*sx+sz*sz||1;
+                const u=Math.max(0,Math.min(1,((p.pos.x-ax)*sx+(p.pos.z-az)*sz)/l2));
+                const qx=p.pos.x-(ax+sx*u);
+                const qz=p.pos.z-(az+sz*u);
+                if (!this.hitDone&&Math.hypot(qx,qz)<d.threadWidth+TUNING.player.radius) {
+                    this.hitDone=true;
+                    const ql=Math.hypot(qx,qz)||1;
+                    p.hurt(d.snipDamage,qx/ql,qz/ql);
+                }
+                if (Math.sqrt(l2)<d.radius*2+0.3||this.stateT>=d.dashTime) {
+                    this.snap(ctx);
+                }
             }
             return;
         }
         if (this.state==='recover') {
             this.manual=true;
             this.vel.multiplyScalar(Math.exp(-10*dt));
-            if (this.stateT>=d.recover) {
+            if (this.stateT>=d.recover*(R?R.tele:1)) {
                 this.setState('move');
                 this.snipT=rng.range(d.snipEvery[0],d.snipEvery[1]);
             }
@@ -2448,6 +2593,60 @@ class Exam extends Enemy {
     }
 }
 
+class Bookmark extends Enemy {
+    buildBody() {
+        const red=this.mat('body');
+        const tag=this.mat('head');
+        this.float=new THREE.Group();
+        this.float.position.y=0.4;
+        const rib=this.hullify(new THREE.Mesh(geo('bmRibbon',()=>new THREE.BoxGeometry(0.42,2.2,0.08)),red));
+        rib.position.y=1.1;
+        this.float.add(rib);
+        const tail=this.hullify(new THREE.Mesh(geo('bmTail',()=>new THREE.ConeGeometry(0.3,0.5,3)),red));
+        tail.rotation.z=Math.PI;
+        tail.position.y=-0.1;
+        this.float.add(tail);
+        const card=this.hullify(new THREE.Mesh(geo('bmTag',()=>new THREE.BoxGeometry(0.62,0.5,0.1)),tag));
+        card.position.y=2.35;
+        this.float.add(card);
+        this.body.add(this.float);
+    }
+
+    onReset() {
+        this.host=null;
+    }
+
+    canContact() {
+        return false;
+    }
+
+    think(dt,ctx) {
+        this.manual=true;
+        this.vel.set(0,0,0);
+        const h=this.host;
+        if (!h||!h.alive||!h.sealed) {
+            this.tele=null;
+            return;
+        }
+        const dx=h.pos.x-this.pos.x;
+        const dz=h.pos.z-this.pos.z;
+        const l=Math.hypot(dx,dz)||1;
+        if (!this.tele) {
+            this.teleLine(dx/l,dz/l,0,0.4);
+        }
+        this.tele.dx=dx/l;
+        this.tele.dz=dz/l;
+        this.tele.len=Math.max(0,l-h.def.radius-this.def.radius-0.2);
+        this.aimX=dx;
+        this.aimZ=dz;
+    }
+
+    pose() {
+        this.float.position.y=0.4+Math.sin(time.real*2.4+this.phase)*0.15;
+        this.float.rotation.y=time.real*0.8;
+    }
+}
+
 class BookFinal extends Book {
     buildBody() {
         super.buildBody();
@@ -2465,28 +2664,51 @@ class BookFinal extends Book {
             this.crown.add(m);
         }
         this.stand.add(this.crown);
+        this.strips=[];
     }
 
     onReset() {
         super.onReset();
         this.page=0;
         this.bombs=[];
+        this.hz=[];
+        this.sweep=null;
+        this.sealed=false;
+        this.shielded=false;
+        this.marks=[];
+        this.sealT=0;
+        this.sealAtk=0;
+    }
+
+    hide() {
+        super.hide();
+        this.hz=[];
+        this.sweep=null;
+        for (const m of this.strips) {
+            m.visible=false;
+        }
+        for (const q of this.marks||[]) {
+            if (q.alive) {
+                q.tele=null;
+            }
+        }
     }
 
     pageOf() {
         return this.hp<this.maxHp/3?2:(this.hp<this.maxHp*2/3?1:0);
     }
 
-    choose(ctx) {
-        const list=['flip','mimicScatter','mimicBomb','wall','rain','slam'];
-        if (ctx.enemyMgr.list.length<5) {
-            list.push('summon');
-        }
+    damageMult() {
+        return this.state==='rest'||this.state==='broken'?this.def.weakMult:1;
+    }
+
+    choose() {
+        const list=['lines','sweep','mimicBomb','mimicScatter'];
         if (this.page>=1) {
-            list.push('mimicBomb','flip');
+            list.push('wall','sweep');
         }
         if (this.page>=2) {
-            list.push('mimicScatter','rain');
+            list.push('lines','mimicBomb');
         }
         let p=list[Math.floor(rng.next()*list.length)];
         if (p===this.last) {
@@ -2496,33 +2718,238 @@ class BookFinal extends Book {
         return p;
     }
 
+    strip(i) {
+        while (this.strips.length<=i) {
+            const g=geo('line',()=>{
+                const q=new THREE.PlaneGeometry(1,1);
+                q.rotateX(-Math.PI/2);
+                q.translate(0.5,0,0);
+                return q;
+            });
+            const m=new THREE.Mesh(g,inkMaterial('ink'));
+            m.visible=false;
+            m.frustumCulled=false;
+            this.fxScene.add(m);
+            this.strips.push(m);
+        }
+        return this.strips[i];
+    }
+
+    addLines(ctx,n,warn) {
+        const L=this.def.lines;
+        const b=ctx.room.bounds;
+        const p=ctx.player;
+        const flip=rng.next()<0.5;
+        for (let j=0;j<n;j++) {
+            const horiz=(j%2===0)!==flip;
+            const off=j<2?0:rng.range(-L.spread,L.spread);
+            if (horiz) {
+                const z=Math.max(b.minZ+1,Math.min(b.maxZ-1,p.pos.z+off));
+                this.hz.push({ax:b.minX,az:z,bx:b.maxX,bz:z,t:-j*L.stagger,warn,hit:false,boom:false});
+            }
+            else {
+                const x=Math.max(b.minX+1,Math.min(b.maxX-1,p.pos.x+off));
+                this.hz.push({ax:x,az:b.minZ,bx:x,bz:b.maxZ,t:-j*L.stagger,warn,hit:false,boom:false});
+            }
+        }
+    }
+
+    segHit(p,ax,az,bx,bz,w) {
+        const sx=bx-ax;
+        const sz=bz-az;
+        const l2=sx*sx+sz*sz||1;
+        const u=Math.max(0,Math.min(1,((p.pos.x-ax)*sx+(p.pos.z-az)*sz)/l2));
+        const qx=p.pos.x-(ax+sx*u);
+        const qz=p.pos.z-(az+sz*u);
+        return Math.hypot(qx,qz)<w+TUNING.player.radius;
+    }
+
+    sweepSeg() {
+        const S=this.def.sweep;
+        const w=this.sweep;
+        const f=Math.max(0,Math.min(1,(w.t-w.warn)/w.dur));
+        const a=w.a0+w.dir*S.arc*EASE.easeInOutQuad(f);
+        const cx=Math.cos(a);
+        const cz=Math.sin(a);
+        return {ax:this.pos.x+cx*S.inner,az:this.pos.z+cz*S.inner,bx:this.pos.x+cx*S.outer,bz:this.pos.z+cz*S.outer,f};
+    }
+
+    tickHazards(dt,ctx) {
+        const L=this.def.lines;
+        const p=ctx.player;
+        for (let i=this.hz.length-1;i>=0;i--) {
+            const h=this.hz[i];
+            h.t+=dt;
+            if (h.t>=h.warn&&!h.boom) {
+                h.boom=true;
+                ctx.fx.cameraShake(0.18);
+                const n=6;
+                for (let k=0;k<n;k++) {
+                    const u=(k+0.5)/n;
+                    ctx.particles.burst(h.ax+(h.bx-h.ax)*u,0.3,h.az+(h.bz-h.az)*u,3,{color:'ink',speed:[1,4],up:[2,4]});
+                }
+            }
+            if (h.t>=h.warn&&h.t<h.warn+L.live&&!h.hit&&this.segHit(p,h.ax,h.az,h.bx,h.bz,L.width)) {
+                h.hit=true;
+                p.hurt(1,h.bx===h.ax?Math.sign(p.pos.x-h.ax)||1:0,h.bz===h.az?Math.sign(p.pos.z-h.az)||1:0);
+            }
+            if (h.t>=h.warn+L.live+L.fade) {
+                this.hz.splice(i,1);
+            }
+        }
+        const w=this.sweep;
+        if (w) {
+            const S=this.def.sweep;
+            w.t+=dt;
+            const sg=this.sweepSeg();
+            if (w.t>=w.warn&&w.t<w.warn+w.dur&&!w.hit&&this.segHit(p,sg.ax,sg.az,sg.bx,sg.bz,S.width)) {
+                w.hit=true;
+                p.hurt(1,-Math.sin(Math.atan2(sg.bz-sg.az,sg.bx-sg.ax))*w.dir,Math.cos(Math.atan2(sg.bz-sg.az,sg.bx-sg.ax))*w.dir);
+            }
+            if (w.t>=w.warn&&w.t<w.warn+w.dur&&rng.next()<0.5) {
+                ctx.particles.burst(sg.bx,0.4,sg.bz,1,{color:'ink',speed:[1,3],up:[1,3]});
+            }
+            if (w.t>=w.warn+w.dur+S.fade) {
+                this.sweep=null;
+            }
+        }
+    }
+
+    seal(ctx) {
+        const S=this.def.seal;
+        this.sealed=true;
+        this.shielded=true;
+        this.sealT=0;
+        this.sealAtk=S.attackEvery*0.6;
+        this.tele=null;
+        this.bombs=[];
+        this.setState('sealed');
+        this.marks=[];
+        const n=S.marks[Math.min(S.marks.length-1,this.page-1)];
+        const b=ctx.room.bounds;
+        const a0=rng.range(0,Math.PI*2);
+        for (let i=0;i<n;i++) {
+            const a=a0+i/n*Math.PI*2;
+            const x=Math.max(b.minX+1.5,Math.min(b.maxX-1.5,this.pos.x+Math.cos(a)*S.radius));
+            const z=Math.max(b.minZ+1.5,Math.min(b.maxZ-1.5,this.pos.z+Math.sin(a)*S.radius));
+            const m=ctx.enemyMgr.spawn('bookmark',x,z,{hpMult:1});
+            m.host=this;
+            this.marks.push(m);
+        }
+        this.say={text:t('bookFinal.seal'),t:0,dur:2.2,keep:true};
+        ctx.fx.cameraShake(0.4);
+    }
+
+    unseal(ctx,broken) {
+        const S=this.def.seal;
+        this.sealed=false;
+        this.shielded=false;
+        this.tele=null;
+        for (const m of this.marks) {
+            if (m.alive) {
+                ctx.enemyMgr.slay(m);
+            }
+        }
+        this.marks=[];
+        if (broken) {
+            this.setState('broken');
+            this.say={text:t('bookFinal.broken'),t:0,dur:2,keep:true};
+            this.sqv+=5;
+        }
+        else {
+            this.hp=Math.min(this.maxHp,this.hp+this.maxHp*S.heal);
+            this.setState('move');
+            this.patternT=0.8;
+            this.say={text:t('bookFinal.healed'),t:0,dur:2,keep:true};
+        }
+    }
+
     think(dt,ctx) {
         const d=this.def;
         const p=ctx.player;
-        const pg=this.pageOf();
+        this.tickHazards(dt,ctx);
+        const pg=Math.max(this.page,this.pageOf());
         if (pg!==this.page) {
             this.page=pg;
             this.say={text:t('bookFinal.page'+pg),t:0,dur:2,keep:true};
-            fireRing(ctx,this.pos.x,this.pos.z,24,0,5,d.bulletDamage,d.bulletLife);
-            ctx.fx.cameraShake(0.5);
+            this.seal(ctx);
+            return;
         }
-        if (this.state==='attack'&&['flip','mimicScatter','mimicBomb'].includes(this.pattern)) {
-            this.manual=true;
-            this.vel.set(0,0,0);
-            this.aimX=this.nx;
-            this.aimZ=this.nz;
+        this.manual=true;
+        this.vel.set(0,0,0);
+        this.aimX=this.nx;
+        this.aimZ=this.nz;
+        if (this.state==='sealed') {
+            const S=d.seal;
+            this.sealT+=dt;
+            if (!this.tele) {
+                this.teleRing(d.radius+0.6,0.4);
+            }
+            this.tele.t=Math.min(this.tele.t,0.3);
+            this.sealAtk-=dt;
+            if (this.sealAtk<=0&&this.hz.length===0) {
+                this.sealAtk=S.attackEvery;
+                this.addLines(ctx,S.lines,d.lines.warn);
+            }
+            if (this.marks.every(m=>!m.alive)) {
+                this.unseal(ctx,true);
+            }
+            else if (this.sealT>=S.time) {
+                this.unseal(ctx,false);
+            }
+            return;
+        }
+        if (this.state==='broken') {
+            if (this.stateT>=d.seal.stun) {
+                this.setState('move');
+                this.patternT=0.6;
+            }
+            return;
+        }
+        if (this.state==='move') {
+            this.patternT-=dt*(1+this.page*0.15);
+            if (this.patternT<=0) {
+                this.pattern=this.choose();
+                this.setState('telegraph');
+                if (this.pattern==='wall') {
+                    this.teleLine(this.nx,this.nz,14,0.8,3,0.9);
+                }
+                else if (this.pattern==='sweep') {
+                    this.teleRing(d.sweep.inner,0.5);
+                }
+                else {
+                    this.teleRing(2.6,0.5);
+                }
+            }
+            return;
+        }
+        if (this.state==='telegraph') {
+            if (this.stateT>=this.tele.dur) {
+                this.tele=null;
+                this.setState('attack');
+                this.volley=0;
+                this.fireAcc=0;
+                if (this.pattern==='lines') {
+                    this.addLines(ctx,d.lines.count[this.page],d.lines.warn);
+                }
+                else if (this.pattern==='sweep') {
+                    const S=d.sweep;
+                    const dir=rng.sign();
+                    this.sweep={a0:Math.atan2(this.nz,this.nx)-dir*S.arc/2,dir,t:0,warn:S.warn,dur:S.dur*(1-this.page*0.12),hit:false};
+                }
+            }
+            return;
+        }
+        if (this.state==='attack') {
             const sp=1+this.page*0.08;
-            if (this.pattern==='flip') {
-                const F=d.flip;
-                this.fireAcc+=dt;
-                if (this.fireAcc>=F.every||this.volley===0) {
-                    this.fireAcc=0;
-                    fireRing(ctx,this.pos.x,this.pos.z,F.count+this.page*4,this.volley*0.16,F.speeds[this.volley%2]*sp,d.bulletDamage,d.bulletLife);
-                    this.volley++;
-                    ctx.fx.cameraShake(0.2);
-                    if (this.volley>=F.rings+this.page) {
-                        this.rest();
-                    }
+            if (this.pattern==='lines') {
+                if (this.hz.length===0) {
+                    this.rest();
+                }
+            }
+            else if (this.pattern==='sweep') {
+                if (!this.sweep) {
+                    this.rest();
                 }
             }
             else if (this.pattern==='mimicScatter') {
@@ -2536,16 +2963,16 @@ class BookFinal extends Book {
                         ctx.enemyBullets.spawn(this.pos.x+Math.cos(a)*2,this.pos.z+Math.sin(a)*2,Math.cos(a),Math.sin(a),M.speed*sp,d.bulletDamage,d.bulletLife);
                     }
                     this.volley++;
-                    if (this.volley>=M.volleys) {
+                    if (this.volley>=M.volleys+(this.page>=2?1:0)) {
                         this.rest();
                     }
                 }
             }
-            else {
+            else if (this.pattern==='mimicBomb') {
                 const B=d.mimicBomb;
                 if (this.volley===0) {
                     this.volley=1;
-                    const n=this.page>=1?B.count2:B.count;
+                    const n=B.count[this.page];
                     this.bombs=[];
                     for (let i=0;i<n;i++) {
                         const x=p.pos.x+(i===0?0:rng.range(-5,5));
@@ -2558,7 +2985,9 @@ class BookFinal extends Book {
                 for (let i=this.bombs.length-1;i>=0;i--) {
                     const q=this.bombs[i];
                     if (this.stateT>=q.t) {
-                        fireRing(ctx,q.x,q.z,B.ring,rng.range(0,1),B.speed,d.bulletDamage,B.life);
+                        if (this.page>=2) {
+                            fireRing(ctx,q.x,q.z,B.ring,rng.range(0,1),B.speed,d.bulletDamage,B.life);
+                        }
                         ctx.particles.burst(q.x,0.4,q.z,14,{color:'ink',speed:[3,7],up:[2,6],size:[0.1,0.22]});
                         if (Math.hypot(p.pos.x-q.x,p.pos.z-q.z)<B.r) {
                             p.hurt(1,0,1);
@@ -2570,18 +2999,89 @@ class BookFinal extends Book {
                     this.rest();
                 }
             }
+            else {
+                super.think(dt,ctx);
+            }
             return;
         }
-        super.think(dt,ctx);
+        if (this.state==='rest') {
+            if (this.stateT>=d.restTime) {
+                this.setState('move');
+                this.patternT=rng.range(0.5,0.9);
+            }
+        }
+    }
+
+    sync(alpha,dt) {
+        super.sync(alpha,dt);
+        const L=this.def.lines;
+        let si=0;
+        let li=8;
+        const put=(m,ax,az,bx,bz,w)=>{
+            const dx=bx-ax;
+            const dz=bz-az;
+            const len=Math.hypot(dx,dz);
+            m.visible=true;
+            m.position.set(ax,0.05,az);
+            m.rotation.y=Math.atan2(-dz,dx);
+            m.scale.set(Math.max(0.01,len),1,w);
+            m.material.uniforms.uLength.value=len;
+        };
+        for (const h of this.hz) {
+            if (h.t<0) {
+                continue;
+            }
+            if (h.t<h.warn) {
+                const k=Math.min(1,h.t/(h.warn*0.6));
+                const mx=(h.ax+h.bx)/2;
+                const mz=(h.az+h.bz)/2;
+                const m=this.line(li++);
+                put(m,mx+(h.ax-mx)*k,mz+(h.az-mz)*k,mx+(h.bx-mx)*k,mz+(h.bz-mz)*k,0.22);
+            }
+            else {
+                const m=this.strip(si++);
+                put(m,h.ax,h.az,h.bx,h.bz,L.width*2.2);
+                m.material.uniforms.uAlpha.value=Math.max(0,Math.min(1,1-(h.t-h.warn-L.live)/L.fade));
+            }
+        }
+        const w=this.sweep;
+        if (w) {
+            const sg=this.sweepSeg();
+            if (w.t<w.warn) {
+                const m=this.line(li++);
+                put(m,sg.ax,sg.az,sg.bx,sg.bz,0.3);
+                const a=w.a0+w.dir*this.def.sweep.arc;
+                const m2=this.line(li++);
+                put(m2,this.pos.x+Math.cos(a)*this.def.sweep.inner,this.pos.z+Math.sin(a)*this.def.sweep.inner,this.pos.x+Math.cos(a)*this.def.sweep.outer,this.pos.z+Math.sin(a)*this.def.sweep.outer,0.12);
+            }
+            else {
+                const m=this.strip(si++);
+                put(m,sg.ax,sg.az,sg.bx,sg.bz,this.def.sweep.width*2.4);
+                m.material.uniforms.uAlpha.value=Math.max(0,Math.min(1,1-(w.t-w.warn-w.dur)/this.def.sweep.fade));
+            }
+        }
+        for (let i=si;i<this.strips.length;i++) {
+            this.strips[i].visible=false;
+        }
     }
 
     pose() {
         super.pose();
-        this.crown.rotation.y=time.real*0.6;
+        this.crown.rotation.y=time.real*(this.sealed?2.4:0.6);
+        if (this.sealed) {
+            this.covers[0].rotation.z=0.02;
+            this.covers[1].rotation.z=-0.02;
+        }
+        else if (this.state==='broken') {
+            this.covers[0].rotation.z=0.05;
+            this.covers[1].rotation.z=-0.05;
+            const pulse=1.25+Math.sin(time.real*14)*0.2;
+            this.mark.scale.set(pulse,1,1);
+        }
     }
 }
 
-const CLASSES={stampSoldier:StampSoldier,scissorMinion:ScissorMinion,doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkCloud:InkCloud,inkBottle:InkBottle,scissors:Scissors,book:Book,exam:Exam,bookFinal:BookFinal};
+const CLASSES={bookmark:Bookmark,stampSoldier:StampSoldier,scissorMinion:ScissorMinion,doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkCloud:InkCloud,inkBottle:InkBottle,scissors:Scissors,book:Book,exam:Exam,bookFinal:BookFinal};
 
 export class EnemyManager {
     constructor(parent,fxScene) {
@@ -2702,6 +3202,12 @@ export class EnemyManager {
 
     damage(e,dmg,dx,dz,quiet=false,crit=false) {
         if (!e.alive) {
+            return false;
+        }
+        if (e.shielded) {
+            if (this.onBlock) {
+                this.onBlock(e);
+            }
             return false;
         }
         if (e.vulnT>0) {
