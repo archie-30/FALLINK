@@ -10,7 +10,7 @@ import {CameraRig} from './core/cameraRig.js';
 import {createScene} from './core/scene.js';
 import {tweens} from './core/tween.js';
 import {fx} from './core/fx.js';
-import {detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device} from './core/settings.js';
+import {detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device,TRAINING_DEFAULTS} from './core/settings.js';
 import {Renderer} from './render/renderer.js';
 import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial,shared,dissolveVariant} from './render/materials.js';
 import {Particles,MuzzleFlashes,Rings} from './render/particles.js';
@@ -344,6 +344,12 @@ function boot() {
         particles.burst(x,0.3,z,10,{speed:[2,5],up:[3,6],size:[0.1,0.2]});
         audio.play('drop');
     };
+    ctx.onStampPrint=(x,z,r,dur,fade,slow)=>{
+        game.room.zones.addPrint(x,z,r,dur,fade,slow);
+        decals.spawn(x,z,r*1.2,'ink','nearGray');
+        particles.burst(x,0.3,z,14,{color:'ink',speed:[2,6],up:[1,4],size:[0.08,0.18]});
+        audio.play('drop');
+    };
     ctx.onPuddle=(x,z,r,dur,slow)=>{
         game.room.zones.addPuddle(x,z,r,dur,slow);
         decals.spawn(x,z,r*3.2,'ink','nearGray');
@@ -656,6 +662,9 @@ function boot() {
         fx.cameraShake(F.shakeHit);
         fx.fovPunch(F.fovHit);
         particles.burst(x,H,z,PT.inkHit,{color:'ink',dirX:dx,dirZ:dz,cone:0.9,speed:[3,7],up:[1,4]});
+    };
+    enemies.onBlock=e=>{
+        particles.burst(e.pos.x,1.8,e.pos.z,3,{color:'red',speed:[2,5],up:[1,3]});
     };
     enemies.onSpawned=e=>{
         if (game.mode==='play') {
@@ -1328,7 +1337,7 @@ function boot() {
             player.setWeapon('pen');
         }
         if (mode==='training') {
-            settings.training.weapon=player.weaponId;
+            Object.assign(settings.training,JSON.parse(JSON.stringify(TRAINING_DEFAULTS)),{weapon:player.weaponId});
         }
         resetTrainStats();
         deck.provider=mode==='training'?trainProvider:(mode==='tutorial'?tutProvider:null);
@@ -1505,14 +1514,20 @@ function boot() {
         }
     });
     let lastDev='mouse';
+    let devSeen=false;
     function checkDevice() {
         const d=input.lastDevice;
         if (d!==lastDev) {
             const k=d==='touch'?'device.touch':'device.mouse';
-            overlay.hud.toast(t(k),k);
+            if (devSeen) {
+                overlay.hud.toast(t(k),k);
+            }
             if (d==='touch') {
                 hand.cancelTargeting();
             }
+        }
+        if (d!==lastDev||game.mode==='play') {
+            devSeen=true;
         }
         lastDev=d;
     }

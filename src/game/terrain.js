@@ -511,6 +511,19 @@ class Zones {
         this.list.push({type:'puddle',x,z,r,slow,t:0,life:duration,mesh:null});
     }
 
+    addPrint(x,z,r,duration,fade,slow) {
+        const m=new THREE.Mesh(this.planeGeo,trapMaterial('ink'));
+        m.position.set(x,0.04,z);
+        m.scale.set(r,1,r);
+        m.frustumCulled=false;
+        this.fxScene.add(m);
+        this.list.push({type:'puddle',x,z,r,slow,t:0,life:duration,fade,mesh:m});
+    }
+
+    fadeOf(zn) {
+        return zn.fade?Math.max(0,Math.min(1,(zn.life-zn.t)/zn.fade)):1;
+    }
+
     playerSlowAt(x,z) {
         let m=1;
         for (const zn of this.list) {
@@ -518,7 +531,7 @@ class Zones {
                 const dx=x-zn.x;
                 const dz=z-zn.z;
                 if (dx*dx+dz*dz<zn.r*zn.r) {
-                    m=Math.min(m,zn.slow);
+                    m=Math.min(m,1-(1-zn.slow)*this.fadeOf(zn));
                 }
             }
         }
@@ -576,7 +589,12 @@ class Zones {
         for (let i=this.list.length-1;i>=0;i--) {
             const zn=this.list[i];
             zn.t+=dt;
-            if (zn.type==='slow') {
+            if (zn.type==='puddle'&&zn.mesh) {
+                const u=zn.mesh.material.uniforms;
+                u.uProgress.value=EASE.easeOutCubic(Math.min(1,zn.t/0.3));
+                u.uAlpha.value=this.fadeOf(zn);
+            }
+            else if (zn.type==='slow') {
                 const u=zn.mesh.material.uniforms;
                 u.uProgress.value=EASE.easeOutCubic(Math.min(1,zn.t/0.45));
                 u.uAlpha.value=Math.min(1,(zn.life-zn.t)/0.5);

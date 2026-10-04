@@ -316,7 +316,7 @@ export const TUNING={
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:124,btnH:44,lineH:21,maxLines:2},
     langPick:{btnW:240,btnH:70,gap:24,y:0.42,goW:200,goH:52,goGap:70,noteGap:30},
     settingsUi:{
-        lang:{w:230,h:34,pad:14,item:36},
+        lang:{w:230,h:34,pad:14,item:36,openTime:0.22,closeTime:0.15,stagger:0.12,pickDecay:3,pop:0.1},
         devCode:'0012830',
         iconTap:20,
         pwErrDecay:1.6,
@@ -435,8 +435,7 @@ export const TUNING={
     },
     trainUi:{
         rowH:48,
-        bossGap:0.35,
-        bossH:1.25,
+        bossGap:0.1,
         pulseDecay:3.2,
         popDecay:4,
         hoverScale:0.06,
@@ -626,6 +625,7 @@ export const TUNING={
         eraseTime:0.8
     },
     hud:{
+        trainBossY:6,
         toastTime:3,
         toastMax:4,
         facing:{dist:0.75,len:0.32,half:0.2,alpha:0.85,guideFrom:1.1,guideLen:4.5,guideAlpha:0.28,dash:7,gap:7},
