@@ -10,7 +10,7 @@ import {CameraRig} from './core/cameraRig.js';
 import {createScene} from './core/scene.js';
 import {tweens} from './core/tween.js';
 import {fx} from './core/fx.js';
-import {detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device} from './core/settings.js';
+import {detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device,TRAINING_DEFAULTS,TRAINING_SPAWN} from './core/settings.js';
 import {Renderer} from './render/renderer.js';
 import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial,shared,dissolveVariant} from './render/materials.js';
 import {Particles,MuzzleFlashes,Rings} from './render/particles.js';
@@ -344,6 +344,12 @@ function boot() {
         particles.burst(x,0.3,z,10,{speed:[2,5],up:[3,6],size:[0.1,0.2]});
         audio.play('drop');
     };
+    ctx.onStampPrint=(x,z,r,dur,fade,slow)=>{
+        game.room.zones.addPrint(x,z,r,dur,fade,slow);
+        decals.spawn(x,z,r*1.2,'ink','nearGray');
+        particles.burst(x,0.3,z,14,{color:'ink',speed:[2,6],up:[1,4],size:[0.08,0.18]});
+        audio.play('drop');
+    };
     ctx.onPuddle=(x,z,r,dur,slow)=>{
         game.room.zones.addPuddle(x,z,r,dur,slow);
         decals.spawn(x,z,r*3.2,'ink','nearGray');
@@ -474,6 +480,9 @@ function boot() {
         overlay.hud.toast(t('training.picked',{name:names.join(t('ui.list'))}));
         audio.play('card');
         closePicker(true);
+    }
+    function modalShown() {
+        return trainingMenu.shown()||pauseMenu.shown()||trainingPicker.shown()||settingsMenu.shown()||codex.shown();
     }
     function openTrainingMenu() {
         hand.cancelTargeting();
@@ -656,6 +665,9 @@ function boot() {
         fx.cameraShake(F.shakeHit);
         fx.fovPunch(F.fovHit);
         particles.burst(x,H,z,PT.inkHit,{color:'ink',dirX:dx,dirZ:dz,cone:0.9,speed:[3,7],up:[1,4]});
+    };
+    enemies.onBlock=e=>{
+        particles.burst(e.pos.x,1.8,e.pos.z,3,{color:'red',speed:[2,5],up:[1,3]});
     };
     enemies.onSpawned=e=>{
         if (game.mode==='play') {
@@ -1328,6 +1340,9 @@ function boot() {
             player.setWeapon('pen');
         }
         if (mode==='training') {
+            for (const k of TRAINING_SPAWN) {
+                settings.training[k]=JSON.parse(JSON.stringify(TRAINING_DEFAULTS[k]));
+            }
             settings.training.weapon=player.weaponId;
         }
         resetTrainStats();
@@ -1510,14 +1525,20 @@ function boot() {
     });
     const PRIVACY_URL='https://archie-30.github.io/INKRAGE/privacy.html';
     let lastDev='mouse';
+    let devSeen=false;
     function checkDevice() {
         const d=input.lastDevice;
         if (d!==lastDev) {
             const k=d==='touch'?'device.touch':'device.mouse';
-            overlay.hud.toast(t(k),k);
+            if (devSeen) {
+                overlay.hud.toast(t(k),k);
+            }
             if (d==='touch') {
                 hand.cancelTargeting();
             }
+        }
+        if (d!==lastDev||game.mode==='play') {
+            devSeen=true;
         }
         lastDev=d;
     }
@@ -1751,6 +1772,7 @@ function boot() {
         textures.hatch.needsUpdate=true;
         setShadowQuality(q.hatchedShadow);
         particles.setLimit(q.particles);
+        decals.setLimit(q.decals);
         renderFlags.hulls=q.hulls!==false;
         player.root.traverse(o=>{
             if (o.name==='hull') {
@@ -1882,7 +1904,7 @@ function boot() {
             if (type!=='mouse'&&marks.hitPrompt(x,y)&&tryInteract()) {
                 return true;
             }
-            if (resumeT>0) {
+            if (resumeT>0||modalShown()) {
                 return true;
             }
             return hand.down(x,y,id,type,button);
@@ -1915,6 +1937,9 @@ function boot() {
                 trainingPicker.move(x,y);
                 return;
             }
+            if (modalShown()) {
+                return;
+            }
             hand.move(x,y,id,type);
         },
         up:(x,y,id,type,button)=>{
@@ -1925,6 +1950,10 @@ function boot() {
             levelView.up();
             skinEditor.up(x,y);
             trainingPicker.up(x,y);
+            if (modalShown()) {
+                hand.cancelTargeting();
+                return;
+            }
             hand.up(x,y,id,type,button);
         },
         hover:(x,y)=>{
@@ -2061,7 +2090,7 @@ function boot() {
         trainingPicker.wheel(dy);
         skinEditor.wheel(dy);
     };
-    input.canStick=()=>!popup.open&&!coach.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.canStick=()=>!modalShown()&&!popup.open&&!coach.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     let skillToggle=false;
     let skillQuick=false;
     input.onSkill=(type,slot,vx,vy,mag,moved)=>{
@@ -2144,6 +2173,8 @@ function boot() {
         }
     });
     const autoPause=()=>{
+        input.resetPointers();
+        hand.cancelTargeting();
         if (game.mode==='play'&&!pauseMenu.open&&!trainingMenu.open&&!trainingPicker.open&&!fx.cutin) {
             openPause();
         }

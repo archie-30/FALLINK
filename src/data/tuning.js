@@ -316,7 +316,7 @@ export const TUNING={
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:124,btnH:44,lineH:21,maxLines:2},
     langPick:{btnW:240,btnH:70,gap:24,y:0.42,goW:200,goH:52,goGap:70,noteGap:30},
     settingsUi:{
-        lang:{w:230,h:34,pad:14,item:36},
+        lang:{w:230,h:34,pad:14,item:36,openTime:0.22,closeTime:0.15,stagger:0.12,pickDecay:3,pop:0.1},
         devCode:'0012830',
         iconTap:20,
         pwErrDecay:1.6,
@@ -435,8 +435,7 @@ export const TUNING={
     },
     trainUi:{
         rowH:48,
-        bossGap:0.35,
-        bossH:1.25,
+        bossGap:0.1,
         pulseDecay:3.2,
         popDecay:4,
         hoverScale:0.06,
@@ -538,7 +537,7 @@ export const TUNING={
         clear:1.4,
         center:-2.5,
         eliteStep:10,
-        bossSpots:[[0,-5.5],[-8,-5],[8,-5],[-9,1.5],[9,1.5]],
+        bossSpots:[[0,0]],
         bossClear:3.6,
         dpsWindow:5
     },
@@ -625,7 +624,9 @@ export const TUNING={
         minPath:1.0,
         eraseTime:0.8
     },
+    evolve:{grow:0.14,pulse:5,shake:0.5,restart:0.8},
     hud:{
+        trainBossY:6,
         toastTime:3,
         toastMax:4,
         facing:{dist:0.75,len:0.32,half:0.2,alpha:0.85,guideFrom:1.1,guideLen:4.5,guideAlpha:0.28,dash:7,gap:7},
@@ -635,7 +636,7 @@ export const TUNING={
         progress:{y:30,segW:340,minSeg:160,side:240,actGap:12,dotR:6,bossR:8.5,curR:9,anim:0.8,hop:14,pulse:0.12,pulseRate:4,actSize:15,tagSize:14,tagY:20,below:58,show:4,fade:0.8,pauseY:34},
         score:{right:78,y:12,labelSize:12,size:30,pop:0.35,popDecay:2.5,rate:6,shake:4,shakeRate:55,shakeDecay:2.2},
         timer:{offset:42,cloneOffset:14,width:76,height:5},
-        timerSkip:['clone'],
+        timerSkip:['clone','trap'],
         enemyHp:{minTicks:4,maxTicks:12,hpPerTick:8,radius:30,radiusScale:20,span:0.5,offset:26,follow:0.08,tickW:3.5,tickH:10},
         hpPos:[24,22],
         hpLength:220,
@@ -646,13 +647,14 @@ export const TUNING={
         reloadRing:12
     },
     quality:{
-        low:{pixelRatio:1.0,grain:false,hatchedShadow:false,anisotropy:1,particles:120,hulls:false},
-        mid:{pixelRatio:1.5,grain:true,hatchedShadow:true,anisotropy:2,particles:250},
-        high:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:4,particles:500}
+        low:{pixelRatio:2.0,grain:false,hatchedShadow:false,anisotropy:1,particles:100,hulls:false,fastEdge:true,wobble:false,decals:8},
+        mid:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:2,particles:220,fastEdge:true,wobble:true,decals:16},
+        high:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:4,particles:500,fastEdge:false,wobble:true,decals:24}
     },
     pixelRatioCap:{
         mobile:1.5,
-        desktop:2.0
+        desktop:2.0,
+        ui:2.0
     },
     reducedMotion:{
         boil:0,

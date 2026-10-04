@@ -1,4 +1,4 @@
-import {LAYOUTS,NORMAL_LAYOUTS,ACTS,ENEMY_COST,ENEMY_ORDER,STORY_INTRO,ENDLESS,ROOM_TYPES,BOSS_POOL,FINAL_BOSS,FINAL_MIN_TIER,PAIRED} from '../data/levels.js';
+import {LAYOUTS,NORMAL_LAYOUTS,ACTS,ENEMY_COST,ENEMY_ORDER,STORY_INTRO,ENDLESS,ROOM_TYPES,BOSS_POOL,PAIRED} from '../data/levels.js';
 
 export const MODS=['dark','elite','hurry'];
 
@@ -37,12 +37,8 @@ function endlessTypes(page) {
     return Math.min(ENEMY_ORDER.length,1+Math.floor(page/ENDLESS.pagesPerType));
 }
 
-export function bossPool(beaten=[],tier=FINAL_MIN_TIER) {
-    return tier>=FINAL_MIN_TIER&&BOSS_POOL.every(b=>beaten.includes(b))?BOSS_POOL.concat([FINAL_BOSS]):BOSS_POOL.slice();
-}
-
-export function pickBoss(rng,used=[],beaten=[],tier=0) {
-    const all=bossPool(beaten,tier);
+export function pickBoss(rng,used=[]) {
+    const all=BOSS_POOL.slice();
     const left=all.filter(b=>!used.includes(b));
     const list=left.length>0?left:all;
     return list[Math.floor(rng.next()*list.length)];
@@ -109,7 +105,7 @@ function buildWaves(pool,budget,nw,rng,fresh) {
 export function planRoom(act,index,rng,lastLayout,o={}) {
     const A=ACTS[act];
     if (index>=A.rooms) {
-        const type=pickBoss(rng,o.used,o.beaten,act);
+        const type=pickBoss(rng,o.used);
         return {act,index,boss:true,bossType:type,tier:act,layoutKey:'bossArena',layout:LAYOUTS.bossArena,hpMult:A.bossMult,bossHp:A.bossHp,waves:[[{type,boss:true}]]};
     }
     let key=NORMAL_LAYOUTS[Math.floor(rng.next()*NORMAL_LAYOUTS.length)];
@@ -135,7 +131,7 @@ export function planEndless(page,rng,lastLayout,o={}) {
     const A=ACTS[act];
     const hpMult=1+page*E.hpPerPage;
     if (page%E.bossEvery===E.bossEvery-1) {
-        const type=pickBoss(rng,o.used,o.beaten,tier);
+        const type=pickBoss(rng,o.used);
         return {act,index:page,endless:true,boss:true,bossType:type,tier,layoutKey:'bossArena',layout:LAYOUTS.bossArena,hpMult:1+page*E.bossHpPerPage,bossHp:0.75,waves:[[{type,boss:true}]]};
     }
     let key=NORMAL_LAYOUTS[Math.floor(rng.next()*NORMAL_LAYOUTS.length)];

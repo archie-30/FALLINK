@@ -41,6 +41,8 @@ export const settings={
 
 export const TRAINING_DEFAULTS=JSON.parse(JSON.stringify(settings.training));
 
+export const TRAINING_SPAWN=['foes','elites','bosses','random','randCount','randElite'];
+
 export const STICK_DEFAULTS={stickSize:0.45,stickX:0.45,stickY:0.4,aimRing:0.7,skillSize:0.5};
 
 export function detectDevice() {
@@ -65,7 +67,7 @@ export function loadSettings() {
         if (raw) {
             Object.assign(settings,JSON.parse(raw));
         }
-        settings.training={...TRAINING_DEFAULTS,...settings.training};
+        settings.training=JSON.parse(JSON.stringify(TRAINING_DEFAULTS));
         delete settings.shake;
     }
     catch (e) {
@@ -82,7 +84,8 @@ export function loadSettings() {
 
 export function saveSettings() {
     try {
-        localStorage.setItem(KEY,JSON.stringify(settings));
+        const {training,...rest}=settings;
+        localStorage.setItem(KEY,JSON.stringify(rest));
     }
     catch (e) {
     }

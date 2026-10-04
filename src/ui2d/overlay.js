@@ -34,8 +34,7 @@ export class Overlay {
         this.us=us;
         this.width=w/us;
         this.height=h/us;
-        const cap=device.mobile?(settings.quality==='high'?2:(settings.quality==='mid'?1.25:1)):2;
-        this.dpr=Math.min(window.devicePixelRatio||1,cap);
+        this.dpr=Math.min(window.devicePixelRatio||1,TUNING.pixelRatioCap.ui);
         this.canvas.width=Math.floor(w*this.dpr);
         this.canvas.height=Math.floor(h*this.dpr);
     }

@@ -1,5 +1,5 @@
 import*as THREE from 'three';
-import {toonMaterial,dissolveVariant,trapMaterial,inkMaterial,pal} from '../render/materials.js';
+import {toonMaterial,dissolveVariant,trapMaterial,inkMaterial,countdownMaterial,pal} from '../render/materials.js';
 import {makeBox,makeCircle,circleVs} from '../core/collision.js';
 import {RNG,hash1} from '../core/rng.js';
 import {EASE} from '../core/easing.js';
@@ -438,13 +438,24 @@ class Zones {
         this.planeGeo.rotateX(-Math.PI/2);
     }
 
+    countdown(x,z,r,color) {
+        const m=new THREE.Mesh(this.planeGeo,countdownMaterial(color));
+        m.position.set(x,0.06,z);
+        m.scale.set(r,1,r);
+        m.frustumCulled=false;
+        m.material.uniforms.uR.value=r;
+        m.renderOrder=3;
+        this.fxScene.add(m);
+        return m;
+    }
+
     addSlow(x,z,r,duration,slow) {
         const m=new THREE.Mesh(this.planeGeo,trapMaterial('ink'));
         m.position.set(x,0.05,z);
         m.scale.set(r,1,r);
         m.frustumCulled=false;
         this.fxScene.add(m);
-        this.list.push({type:'slow',x,z,r,slow,t:0,life:duration,mesh:m});
+        this.list.push({type:'slow',x,z,r,slow,t:0,life:duration,mesh:m,cd:this.countdown(x,z,r,'ink')});
     }
 
     addTrail(player,dps,duration) {
@@ -511,6 +522,19 @@ class Zones {
         this.list.push({type:'puddle',x,z,r,slow,t:0,life:duration,mesh:null});
     }
 
+    addPrint(x,z,r,duration,fade,slow) {
+        const m=new THREE.Mesh(this.planeGeo,trapMaterial('ink'));
+        m.position.set(x,0.04,z);
+        m.scale.set(r,1,r);
+        m.frustumCulled=false;
+        this.fxScene.add(m);
+        this.list.push({type:'puddle',x,z,r,slow,t:0,life:duration,fade,mesh:m,cd:this.countdown(x,z,r,'ink')});
+    }
+
+    fadeOf(zn) {
+        return zn.fade?Math.max(0,Math.min(1,(zn.life-zn.t)/zn.fade)):1;
+    }
+
     playerSlowAt(x,z) {
         let m=1;
         for (const zn of this.list) {
@@ -518,7 +542,7 @@ class Zones {
                 const dx=x-zn.x;
                 const dz=z-zn.z;
                 if (dx*dx+dz*dz<zn.r*zn.r) {
-                    m=Math.min(m,zn.slow);
+                    m=Math.min(m,1-(1-zn.slow)*this.fadeOf(zn));
                 }
             }
         }
@@ -527,6 +551,7 @@ class Zones {
 
     clear() {
         for (const zn of this.list) {
+            this.dropCd(zn);
             if (zn.mesh) {
                 this.fxScene.remove(zn.mesh);
                 if (zn.type==='trail') {
@@ -572,11 +597,29 @@ class Zones {
         return false;
     }
 
+    dropCd(zn) {
+        if (zn.cd) {
+            this.fxScene.remove(zn.cd);
+            zn.cd.material.dispose();
+            zn.cd=null;
+        }
+    }
+
     update(dt,enemies) {
         for (let i=this.list.length-1;i>=0;i--) {
             const zn=this.list[i];
             zn.t+=dt;
-            if (zn.type==='slow') {
+            if (zn.cd) {
+                const u=zn.cd.material.uniforms;
+                u.uFrac.value=Math.max(0,1-zn.t/zn.life);
+                u.uAlpha.value=Math.min(1,zn.t/0.3,(zn.life-zn.t)/0.3);
+            }
+            if (zn.type==='puddle'&&zn.mesh) {
+                const u=zn.mesh.material.uniforms;
+                u.uProgress.value=EASE.easeOutCubic(Math.min(1,zn.t/0.3));
+                u.uAlpha.value=this.fadeOf(zn);
+            }
+            else if (zn.type==='slow') {
                 const u=zn.mesh.material.uniforms;
                 u.uProgress.value=EASE.easeOutCubic(Math.min(1,zn.t/0.45));
                 u.uAlpha.value=Math.min(1,(zn.life-zn.t)/0.5);
@@ -605,6 +648,7 @@ class Zones {
                 }
             }
             if (zn.t>=zn.life) {
+                this.dropCd(zn);
                 if (zn.mesh) {
                     this.fxScene.remove(zn.mesh);
                     if (zn.type==='trail') {

@@ -413,3 +413,31 @@ void main() {
     gl_FragColor=vec4(col,min(1.0,a));
 }
 `;
+
+export const COUNT_FRAG=`
+${OCCLUDE}
+uniform vec3 uColor;
+uniform float uFrac;
+uniform float uAlpha;
+uniform float uR;
+varying vec2 vUv;
+varying float vDepth;
+varying vec3 vWorldPos;
+void main() {
+    if (occluded(vDepth)) {
+        discard;
+    }
+    vec2 c=vUv*2.0-1.0;
+    float r=length(c);
+    float w=0.17/uR;
+    if (abs(r-(1.0-0.44/uR))>w*0.5) {
+        discard;
+    }
+    float a=fract(0.25-atan(c.y,c.x)/6.2831853);
+    if (a<uFrac) {
+        gl_FragColor=vec4(uColor,uAlpha);
+        return;
+    }
+    gl_FragColor=vec4(uColor,uAlpha*0.14);
+}
+`;

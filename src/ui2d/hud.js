@@ -475,10 +475,11 @@ export class Hud {
             return;
         }
         const p=run.plan;
+        const PB=TUNING.hud.progress;
         if (p.training) {
+            this.drawBossBar(ctx,w,enemies,TUNING.hud.trainBossY,false);
             return;
         }
-        const PB=TUNING.hud.progress;
         if (run.notebook()&&!p.overtime) {
             this.drawProgress(ctx,w,run);
         }
@@ -518,29 +519,39 @@ export class Hud {
             ctx.fillStyle=fail?PALETTE.midGray:PALETTE.red;
             ctx.fillText(txt,w/2,by+18);
         }
+        this.drawBossBar(ctx,w,enemies,by+4);
+    }
+
+    drawBossBar(ctx,w,enemies,y,hint=true) {
         const boss=enemies.boss();
         if (boss) {
+            ctx.textAlign='center';
+            ctx.textBaseline='top';
             const f=Math.max(0,boss.hp/boss.maxHp);
             this.bossShown+=(f-this.bossShown)*0.15;
             const bw=Math.min(520,w*0.45);
             const x=w/2-bw/2;
-            const y=by+4;
             ctx.fillStyle=PALETTE.ink;
             ctx.font='bold 14px '+FONT;
             ctx.textAlign='center';
-            ctx.fillText(t(boss.def.nameKey),w/2,y);
+            const tag=boss.evolving?t('boss.evolving'):(boss.guarded?t('boss.guard'):(boss.evolved?t('boss.form2'):''));
+            ctx.fillStyle=boss.evolved||boss.evolving?PALETTE.red:PALETTE.ink;
+            ctx.fillText(t(boss.def.nameKey)+tag,w/2,y);
             ctx.fillStyle=rgba('paper',0.8);
             ctx.fillRect(x,y+20,bw,14);
             drawShape(ctx,hatchFill(rectPoly(x+2,y+22,Math.max(2,(bw-4)*this.bossShown),10),{spacing:4,cross:true,seed:730,width:1}),PALETTE.ink);
             ctx.fillStyle=PALETTE.ink;
             ctx.fillRect(x+2,y+22,Math.max(0,(bw-4)*f),10);
             drawShape(ctx,sketchRect(x,y+20,bw,14,{width:1.8,seed:731}),PALETTE.ink);
-            for (const q of [0.33,0.66]) {
-                drawShape(ctx,sketchLine(x+bw*q,y+17,x+bw*q,y+37,{width:1.2,seed:732+q*10,overshoot:0}),PALETTE.nearGray);
+            const ev=boss.def.evolve;
+            for (const q of ev?[ev.at]:[0.33,0.66]) {
+                drawShape(ctx,sketchLine(x+bw*q,y+15,x+bw*q,y+39,{width:ev?2.2:1.2,seed:732+q*10,overshoot:0}),ev&&!boss.evolved?PALETTE.red:PALETTE.nearGray);
             }
-            ctx.font='12px '+FONT;
-            ctx.fillStyle=PALETTE.red;
-            ctx.fillText(t('boss.hint.'+boss.type),w/2,y+40);
+            if (hint) {
+                ctx.font='12px '+FONT;
+                ctx.fillStyle=PALETTE.red;
+                ctx.fillText(t('boss.hint.'+boss.type),w/2,y+40);
+            }
         }
     }
 

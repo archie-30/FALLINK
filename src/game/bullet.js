@@ -215,6 +215,15 @@ export class BulletSystem {
         this.vz[i]=0;
     }
 
+    redirect(i,wait,vx,vz) {
+        if (i<0) {
+            return;
+        }
+        this.wt[i]=wait;
+        this.lx[i]=vx;
+        this.lz[i]=vz;
+    }
+
     turnBack(i) {
         this.ret[i]=1;
         this.life[i]=4;

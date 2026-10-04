@@ -486,6 +486,25 @@ export class Input {
         }
     }
 
+    resetPointers() {
+        this.mouse.down=false;
+        this.dashQueued=false;
+        this.keys.clear();
+        this.touches.clear();
+        this.uiPointers.clear();
+        this.releaseStick(this.move);
+        this.releaseStick(this.aim);
+        this.dash.id=-1;
+        for (const k of this.skills) {
+            k.id=-1;
+            k.moved=false;
+            k.cancel=false;
+            k.vx=0;
+            k.vy=0;
+            k.mag=0;
+        }
+    }
+
     releaseStick(s) {
         s.id=-1;
         s.x=s.cx;

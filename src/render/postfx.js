@@ -105,6 +105,12 @@ export class PostFX {
         if (q.grain) {
             d.USE_GRAIN='';
         }
+        if (q.fastEdge) {
+            d.FAST_EDGE='';
+        }
+        if (!q.wobble) {
+            d.NO_WOBBLE='';
+        }
         this.material.defines=d;
         this.material.needsUpdate=true;
     }
