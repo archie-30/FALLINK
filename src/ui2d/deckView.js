@@ -187,7 +187,7 @@ export class DeckView {
         ctx.font='bold 18px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='top';
-        ctx.fillText(title+'（'+cards.length+'）',x,y);
+        ctx.fillText(title+t('ui.count',{n:cards.length}),x,y);
         drawShape(ctx,sketchLine(x,y+28,x+w,y+28,{width:1.4,seed:title.length*7}),PALETTE.ink,variant);
         if (cards.length===0) {
             ctx.fillStyle=PALETTE.midGray;

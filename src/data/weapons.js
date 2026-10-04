@@ -35,7 +35,7 @@ export const WEAPONS={
         sound:'wBrush',
         fireInterval:0.62,
         magazine:6,
-        refund:{max:15,streak:2,wait:0.1},
+        refund:{max:0,streak:2,wait:0.1},
         reloadTime:1.2,
         damage:15,
         bands:[30,20,15],

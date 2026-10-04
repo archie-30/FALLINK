@@ -12,6 +12,7 @@ export const progress={
     bestScore:0,
     bestStory:0,
     seen:[],
+    beaten:[],
     bestAct:0
 };
 
@@ -27,9 +28,12 @@ export function loadProgress() {
     if (!Array.isArray(progress.seen)) {
         progress.seen=[];
     }
+    if (!Array.isArray(progress.beaten)) {
+        progress.beaten=[];
+    }
     const q=new URLSearchParams(location.search);
     if (q.get('seen')==='all') {
-        progress.seen=['doodle','blob','sprayer','inkCloud','bird','compass','eraserMonster','inkBottle','scissors','book'];
+        progress.seen=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','scissorMinion','compass','eraserMonster','inkBottle','scissors','book','exam','bookFinal'];
     }
     const lv=Number(q.get('level'));
     if (lv>0) {
@@ -70,6 +74,15 @@ export function hasSeen(type) {
 
 export function trainable(type) {
     return type==='doodle'||hasSeen(type);
+}
+
+export function markBeaten(type) {
+    if (godMode()||progress.beaten.includes(type)) {
+        return false;
+    }
+    progress.beaten.push(type);
+    saveProgress();
+    return true;
 }
 
 export function markSeen(type) {

@@ -1,5 +1,26 @@
+import {STRINGS_EN} from './strings_en.js';
+
 export const STRINGS={
     'ui.rotate':'請旋轉裝置',
+    'ui.sep':'　｜　',
+    'ui.list':'、',
+    'ui.gap':'　',
+    'ui.colon':'：',
+    'ui.unknown':'？？？',
+    'ui.count':'（{n}）',
+    'mg.stamp.pour':'倒',
+    'mg.stamp.big':'大',
+    'mg.stamp.small':'小',
+    'mg.stamp.throw':'丟',
+    'settings.lang':'語言',
+    'settingsInfo.lang':'切換遊戲的顯示語言，會立刻套用到所有畫面。',
+    'lang.zh':'繁體中文',
+    'lang.en':'English',
+    'langPick.title':'選擇語言 / Choose your language',
+    'langPick.note':'之後可以隨時在「設定」裡更改語言。',
+    'langPick.go':'開始',
+    'boss.hint.exam':'每道題目沒被打中就算答對，答對後它休息時受到三倍傷害',
+    'boss.hint.bookFinal':'攻擊後書本攤開休息時受到三倍傷害；血量每少三分之一會翻到新章節',
     'ui.dash':'衝刺',
     'ui.interact':'互動',
     'ui.move':'移動',
@@ -145,8 +166,8 @@ export const STRINGS={
     'boss.hint.book':'攻擊後書本攤開休息時（紅色書籤發光）受到三倍傷害',
     'enemy.scissors':'剪刀魔',
     'enemy.book':'墨跡之書',
-    'codex.scissors':'第二幕頭目。會瞄準你高速衝刺並留下紅色切痕，衝刺撞牆後會卡住，這時是最好的攻擊時機。',
-    'codex.book':'第三幕頭目。射出只留一個缺口的彈幕牆、在地上標記墨水雨、寫出小兵；攻擊後攤開休息時最脆弱。',
+    'codex.scissors':'會瞄準你高速衝刺，沿路留下的子彈會朝兩側射出；衝刺撞牆後會卡住，這時是最好的攻擊時機。',
+    'codex.book':'射出只留一個缺口的彈幕牆、在地上標記墨水雨、寫出小兵；攻擊後攤開休息時最脆弱。',
     'hud.act':'第 {n} 幕',
     'hud.score':'分數',
     'hud.bossPage':'頭目頁',
@@ -219,9 +240,9 @@ export const STRINGS={
     'menu.best':'最高分：{score}',
     'menu.bestStory':'最高分：{score}',
     'menu.equipped':'目前裝備：{name}',
-    'run.endlessInfo':'無盡模式 · 第 {page} 頁',
-    'run.endlessTitle':'無盡 · 第 {page} 頁',
-    'run.endlessBossSub':'每 5 頁出現一次頭目',
+    'run.endlessInfo':'無盡模式 · 第 {act} 幕第 {page} 頁',
+    'run.endlessTitle':'無盡 · 第 {act} 幕第 {page} 頁',
+    'run.endlessBossSub':'第 {act} 幕的最後一頁',
     'summary.score':'分數',
     'summary.best':'最高分',
     'summary.newBest':'新紀錄！',
@@ -264,7 +285,7 @@ export const STRINGS={
     'weapon.pencil.desc':'按住就連續射出細小筆芯。單發傷害低、散布較大，但射速很快、彈匣有 26 發，適合壓制成群敵人。',
     'weapon.brush.name':'毛筆',
     'weapon.brush.short':'橫掃墨痕・可擦敵彈',
-    'weapon.brush.desc':'揮出一道橫向的扇形粗墨痕往前推，把墨痕從揮筆位置到最遠處的距離平均分成三段，碰到敵人時落在哪一段決定傷害：前段 30、中段 20、後段 15，每個敵人每次揮筆只會被打一次；墨痕掃過的敵彈會被擦掉。彈匣 6 發；連續兩次揮筆造成的傷害都不超過 15 時，會返還 1 發彈藥（剛好打空時會先返還，不用換彈）。',
+    'weapon.brush.desc':'揮出一道橫向的扇形粗墨痕往前推，把墨痕從揮筆位置到最遠處的距離平均分成三段，碰到敵人時落在哪一段決定傷害：前段 30、中段 20、後段 15，每個敵人每次揮筆只會被打一次，牆壁會擋住墨痕；墨痕掃過的敵彈會被擦掉。彈匣 6 發；連續兩次揮筆都沒有造成任何傷害時，會返還 1 發彈藥（剛好打空時會先返還，不用換彈）。',
     'weapon.stapler.name':'釘書機',
     'weapon.stapler.short':'三連點射・減速',
     'weapon.stapler.desc':'每次扣下射出三連發書釘。被釘中的敵人會短暫減速，方便拉開距離或集中火力。',
@@ -273,7 +294,7 @@ export const STRINGS={
     'weapon.highlighter.desc':'按住放出一道螢光光束，持續灼燒並穿透線上所有敵人，碰到牆才會停。墨量代表熱度：放開會慢慢冷卻，射太久過熱就要等待冷卻。',
     'weapon.compass.name':'圓規',
     'weapon.compass.short':'回力鏢・冷卻制',
-    'weapon.compass.desc':'丟出高速旋轉的圓規，飛到最遠處會以同樣的速度飛回你手上；去程與回程都會穿透並傷害敵人，碰到的敵彈也會被打掉，能直接穿過箱子與墨水桶，撞到牆會彈回。不需要彈藥與換彈，但每次丟出後要等冷卻條充滿（1.8 秒）才能再丟；如果這一丟沒有打中任何敵人，剩下的冷卻會縮短為 4 成。',
+    'weapon.compass.desc':'丟出高速旋轉的圓規，飛到最遠處會以同樣的速度飛回你手上；去程與回程都會穿透並傷害敵人，碰到的敵彈也會被打掉，能直接穿過箱子與墨水桶，撞到牆會彈回。不需要彈藥與換彈，但每次丟出後要等冷卻條充滿（1.8 秒）才能再丟；如果這一丟沒有打中任何敵人，剩下的冷卻只縮短為 7 成；飛回來途中撞到牆會直接收回手上。',
     'hud.cool':'冷卻中',
     'tut.new':'推薦',
     'tut.title':'新手教學',
@@ -609,6 +630,50 @@ export const STRINGS={
     'codex.stat.knock':'擊退',
     'codex.knock.elite':'抗性 {n}%',
     'codex.knock.normal':'正常',
+    'codex.firstAt':'第 {act} 幕第 {page} 頁',
+    'codex.first.boss':'各幕頭目頁隨機出現',
+    'codex.first.final':'打倒所有頭目後，第 2 幕起出現',
+    'enemy.stampSoldier':'橡皮印章兵',
+    'enemy.scissorMinion':'剪刀小兵',
+    'enemy.exam':'考卷魔王',
+    'enemy.bookFinal':'墨跡之書・終章',
+    'codex.stampSoldier':'會跳到你預判的位置重重蓋章，落點先出現紅圈；落地後留下減速墨印並短暫硬直。',
+    'codex.scissorMinion':'兩兩一組，會從兩側同時衝刺夾擊；其中一隻被打倒，另一隻就會暴走加速。',
+    'codex.exam':'每輪出一道「題目」，照著題目躲過攻擊（沒被打中）就算答對，答對後它會攤開休息、受到 3 倍傷害。',
+    'codex.bookFinal':'最終頭目。血量每少三分之一就翻到新的一章，會模仿你的散射與爆墨，攻擊後攤開休息時最脆弱。',
+    'codex.weak.exam':'答對題目後休息時 ×3',
+    'codex.weak.bookFinal':'攤開休息時 ×3',
+    'atk.stampSoldier.stamp':'跳躍蓋章',
+    'atk.stampSoldier.stamp.desc':'預判你的位置跳過去，落點先畫出紅圈；落地時圈內受到傷害並留下減速墨印，之後會硬直一下。',
+    'atk.stampSoldier.elite':'連續蓋章（精英）',
+    'atk.stampSoldier.elite.desc':'精英會連跳兩次、硬直更短，每次落地都向四周彈出一圈 8 發子彈。',
+    'atk.scissorMinion.pinch':'左右夾擊',
+    'atk.scissorMinion.pinch.desc':'一隻準備衝刺時，附近的同伴也會一起畫紅線，從兩側同時剪過來。精英衝刺結束後會再朝你射出 3 發子彈。',
+    'atk.scissorMinion.rage':'暴走',
+    'atk.scissorMinion.rage.desc':'同伴被打倒時，剩下的剪刀小兵會變紅暴走：移動、出招與衝刺都更快。',
+    'atk.exam.zone':'選擇題',
+    'atk.exam.zone.desc':'在你腳下和周圍畫出紅圈，一段時間後依序引爆並向外炸出子彈。',
+    'atk.exam.quiet':'安靜作答',
+    'atk.exam.quiet.desc':'這段時間只要你開火，它就會喊「作弊！」並朝你射出一排子彈。',
+    'atk.exam.grade':'紅筆批改',
+    'atk.exam.grade.desc':'畫出好幾條紅線，接著沿著紅線連續射出子彈。',
+    'atk.exam.rest':'答對了',
+    'atk.exam.rest.desc':'每道題目結束時如果你沒被打中，它會攤開休息，這時受到 3 倍傷害；被打中就沒有休息。',
+    'atk.bookFinal.flip':'翻頁',
+    'atk.bookFinal.flip.desc':'連續翻頁震出好幾圈子彈，章節越後面圈數越多。',
+    'atk.bookFinal.mimic':'仿寫',
+    'atk.bookFinal.mimic.desc':'模仿你的技能：在你身邊標記紅圈後引爆（爆墨），或連射扇形子彈（散射）。',
+    'atk.bookFinal.rest':'攤開休息',
+    'atk.bookFinal.rest.desc':'每次攻擊後攤開休息，受到 3 倍傷害。也會使用墨跡之書的彈幕牆、墨水雨、重擊與召喚。',
+    'exam.q.zone':'選擇題！快離開紅圈！',
+    'exam.q.quiet':'安靜作答！不准開槍！',
+    'exam.q.grade':'紅筆批改中……',
+    'exam.q.toss':'把考卷揉成紙團！',
+    'exam.cheat':'作弊！',
+    'exam.right':'……答對了。',
+    'exam.wrong':'錯！重寫！',
+    'bookFinal.page1':'第二章：怒火！',
+    'bookFinal.page2':'終章：結局由我來寫！',
     'codex.first.elite':'「精英」特殊房間',
     'codex.dmg.bullet':'每發子彈 {n} 點傷害',
     'codex.dmg.hit':'命中造成 {n} 點傷害',
@@ -622,7 +687,7 @@ export const STRINGS={
     'codex.demoHint':'循環播放 · 按「返回」或 Esc 關閉',
     'codex.demoHint.touch':'循環播放 · 按「返回」關閉',
     'codex.attacks':'攻擊方式',
-    'codex.statNote':'生命值為第一幕的基礎值，之後的關卡會逐步提高。',
+    'codex.statNote':'生命值為第一幕的基礎值，之後的關卡會逐步提高；頭目在越後面的幕出現，攻擊越頻繁，還會召喚小兵。',
     'codex.stat.hp':'生命',
     'codex.stat.speed':'移動速度',
     'codex.stat.still':'不移動',
@@ -635,16 +700,6 @@ export const STRINGS={
     'codex.type.boss':'頭目',
     'codex.type.fly':'飛行',
     'codex.type.ground':'地面',
-    'codex.first.sprayer':'第 2 幕第 1 頁',
-    'codex.first.inkCloud':'第 2 幕第 3 頁',
-    'codex.first.doodle':'第 1 幕第 1 頁',
-    'codex.first.blob':'第 1 幕第 4 頁',
-    'codex.first.bird':'第 2 幕第 6 頁',
-    'codex.first.compass':'第 3 幕第 3 頁',
-    'codex.first.eraserMonster':'第 3 幕第 5 頁',
-    'codex.first.inkBottle':'第 1 幕頭目',
-    'codex.first.scissors':'第 2 幕頭目',
-    'codex.first.book':'第 3 幕頭目',
     'codex.weak.inkBottle':'背後紅色裂縫 ×3',
     'codex.weak.scissors':'撞牆卡住時 ×3',
     'codex.weak.book':'攤開休息時 ×3',
@@ -679,7 +734,7 @@ export const STRINGS={
     'atk.inkBottle.weak':'弱點：背後裂縫',
     'atk.inkBottle.weak.desc':'瓶身背後的紅色裂縫受到 3 倍傷害，繞到它背後攻擊吧。',
     'atk.scissors.dash':'衝刺剪擊',
-    'atk.scissors.dash.desc':'預判你的位置畫出紅線後高速衝刺，沿路留下紅色切痕。撞牆會卡住，此時受到 3 倍傷害。',
+    'atk.scissors.dash.desc':'預判你的位置畫出紅線後高速衝刺，沿路留下一排子彈；子彈停留一下後會朝衝刺路線的左右兩側射出。撞牆會卡住，此時受到 3 倍傷害。',
     'atk.scissors.snip':'十字剪',
     'atk.scissors.snip.desc':'朝四個方向各射出三發子彈，每一波都會稍微旋轉角度。',
     'atk.scissors.spin':'旋轉',
@@ -709,7 +764,7 @@ export const STRINGS={
     'codex.eraserMonster':'衝撞型敵人，會擦掉你畫的牆；撞上掩體會暈眩。',
     'codex.bird':'在空中盤旋的摺紙鳥，畫出紅線後高速俯衝。',
     'codex.inkCloud':'飄在半空的烏雲，保持距離在地上畫紅圈降下墨雨。本身不會撞人，優先擊倒就能停止墨雨。',
-    'codex.inkBottle':'第一個頭目。螺旋、扇形與環狀彈幕，會潑灑減速墨漬；背後的紅色裂縫是弱點。',
+    'codex.inkBottle':'會原地旋轉放出螺旋、扇形與環狀彈幕，並潑灑減速墨漬；背後的紅色裂縫是弱點。',
     'node.battle':'一般戰',
     'node.elite':'精英戰',
     'node.challenge':'挑戰頁',
@@ -855,7 +910,7 @@ export const STRINGS={
     'intro.event':'和主持人玩一個小遊戲，過關有獎、失敗受罰。',
     'intro.encounter':'奇怪的遭遇，每個選擇都有代價。',
     'intro.rest':'修正液休息：回一點血或升級一張卡。',
-    'intro.boss':'這一幕的頭目，打贏可選兩張卡。',
+    'intro.boss':'這一幕的頭目（每次隨機），打贏可選兩張卡。',
     'intro.next':'繼續往下一頁前進。',
     'intro.act':'進入下一幕，敵人會變強。',
     'intro.finish':'以勝利結束本局並結算分數。',
@@ -1022,14 +1077,27 @@ export const STRINGS={
 };
 
 let touchText=false;
+let lang='zh';
 
 export function setTouchText(on) {
     touchText=on;
 }
 
-export function t(key,params) {
+export function setLang(l) {
+    lang=l==='en'?'en':'zh';
+}
+
+export function getLang() {
+    return lang;
+}
+
+function look(T,key) {
     const tk=touchText?key+'.touch':null;
-    let s=(tk&&STRINGS[tk]!==undefined?STRINGS[tk]:STRINGS[key])??key;
+    return tk&&T[tk]!==undefined?T[tk]:T[key];
+}
+
+export function t(key,params) {
+    let s=(lang==='en'?look(STRINGS_EN,key):undefined)??look(STRINGS,key)??key;
     if (params) {
         for (const k in params) {
             s=s.split('{'+k+'}').join(String(params[k]));

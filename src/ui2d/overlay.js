@@ -155,6 +155,7 @@ export class Overlay {
         }
         game.codex.draw(ctx,game.art);
         game.popup.draw(ctx);
+        game.langPick.draw(ctx);
         if (game.resumeT>0) {
             this.drawCountdown(ctx,game.resumeT);
         }

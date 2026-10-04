@@ -11,17 +11,17 @@ export const CARD_H=TUNING.cards.height;
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 const VARIANTS=TUNING.boil.variants;
 
-const NO_START='。，、；：）」』！？…%';
+const NO_START='。，、；：）」』！？…%;:,!?)”';
 
 export function wrapText(ctx,text,maxW) {
     const lines=[];
     let cur='';
-    const tokens=text.match(/[A-Za-z0-9.%×+]+|[\s\S]/gu)||[];
+    const tokens=text.match(/[A-Za-z0-9.%×+'’\-]+|[\s\S]/gu)||[];
     for (const ch of tokens) {
         const test=cur+ch;
         if (ctx.measureText(test).width>maxW&&cur.length>0&&!NO_START.includes(ch)) {
-            lines.push(cur);
-            cur=ch;
+            lines.push(cur.trimEnd());
+            cur=ch===' '?'':ch;
         }
         else {
             cur=test;
@@ -620,7 +620,12 @@ function renderFace(card,v,scale) {
     ctx.font='bold 16px '+FONT;
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    ctx.fillText(cardName(card),W/2+10,23);
+    const nm=cardName(card);
+    const nw=ctx.measureText(nm).width;
+    if (nw>W-48) {
+        ctx.font='bold '+Math.max(9,Math.floor(16*(W-48)/nw))+'px '+FONT;
+    }
+    ctx.fillText(nm,W/2+10,23);
     ctx.font='11px '+FONT;
     ctx.fillStyle=PALETTE.nearGray;
     ctx.fillText(card.def.rarity==='rare'?t('type.ult'):t('type.'+card.def.type),W/2,H-18);
@@ -788,7 +793,7 @@ const FACT_KEYS=['dps','radius','range','width','duration','heal','ink','hits','
 
 export function cardBrief(card) {
     const d=cardDesc(card);
-    const cut=d.search(/[，。；：]/);
+    const cut=d.search(/[，。；：]|[.,;:] /);
     return cut>4?d.slice(0,cut):d;
 }
 
@@ -802,7 +807,7 @@ export function cardChips(card) {
     else {
         const k=FACT_KEYS.find(q=>p[q]!==undefined);
         if (k) {
-            out.push(t('fact.'+k,{v:p[k]}).replace('：',' '));
+            out.push(t('fact.'+k,{v:p[k]}).replace(/：|: /,' '));
         }
     }
     out.push(t('cardMode.'+mode));

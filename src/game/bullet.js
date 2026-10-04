@@ -83,6 +83,9 @@ export class BulletSystem {
         this.struck=new Uint8Array(cap);
         this.el=new Float32Array(cap);
         this.spd=new Float32Array(cap);
+        this.wt=new Float32Array(cap);
+        this.lx=new Float32Array(cap);
+        this.lz=new Float32Array(cap);
         this.drag=o.drag||0;
         this.spin=o.spin||0;
         this.hidden=!!o.hidden;
@@ -162,6 +165,7 @@ export class BulletSystem {
         this.struck[i]=0;
         this.el[i]=0;
         this.spd[i]=speed;
+        this.wt[i]=0;
         const K=this.K;
         for (let j=0;j<K;j++) {
             this.hist[(i*K+j)*2]=x;
@@ -192,9 +196,23 @@ export class BulletSystem {
         this.struck[i]=this.struck[j];
         this.el[i]=this.el[j];
         this.spd[i]=this.spd[j];
+        this.wt[i]=this.wt[j];
+        this.lx[i]=this.lx[j];
+        this.lz[i]=this.lz[j];
         this.hits.copyWithin(i*6,j*6,j*6+6);
         const K2=this.K*2;
         this.hist.copyWithin(i*K2,j*K2,j*K2+K2);
+    }
+
+    delay(i,wait,vx,vz) {
+        if (i<0) {
+            return;
+        }
+        this.wt[i]=wait;
+        this.lx[i]=vx;
+        this.lz[i]=vz;
+        this.vx[i]=0;
+        this.vz[i]=0;
     }
 
     turnBack(i) {
@@ -290,6 +308,13 @@ export class BulletSystem {
                 this.steer(i,dt);
             }
             this.el[i]+=dt;
+            if (this.wt[i]>0) {
+                this.wt[i]-=dt;
+                if (this.wt[i]<=0) {
+                    this.vx[i]=this.lx[i];
+                    this.vz[i]=this.lz[i];
+                }
+            }
             if (this.drag) {
                 const f=Math.exp(-this.drag*dt);
                 this.vx[i]*=f;
