@@ -207,7 +207,7 @@ export const TUNING={
         deadZone:0.14,
         fireRingRange:[0.55,0.9],
         nudge:{waveDur:1.4,waves:3,waveGap:0.25,waveGrow:0.9,waveAlpha:0.75,waveWidth:4,idle:10,every:3,dur:0.5,amp:6,rate:42,stagger:0.12,interactEvery:1.3,interactDur:0.35,interactAmp:3,interactTilt:0.12},
-        skill:{scale:0.46,sizeRange:[0.75,1.3],gap:14,angles:[2.9,3.55,4.2,4.88],ultMul:1.15,dashMul:0.92,grab:1.15,dragRadius:1.3,moveSlop:12,cancelReach:1.15},
+        skill:{scale:0.46,sizeRange:[0.75,1.3],gap:14,angles:[2.9,3.55,4.2,4.88],ultMul:1.15,dashMul:0.92,grab:1.15,dragRadius:1.3,moveSlop:12,cancelReach:1.15,auraCast:0.35},
         stickMin:50,
         stickMax:76,
         stickScale:0.1,
@@ -290,7 +290,8 @@ export const TUNING={
         skinCam:{dist:7,height:4.2,look:1.1,shift:1.8,follow:5},
         closeTime:0.28,
         deckCloseTime:0.32,
-        deckOutMax:0.75
+        deckOutMax:0.75,
+        deckDrag:8
     },
     summaryUi:{
         best:{at:1.7,bursts:9,gap:0.4,life:1.1,sparks:14,strips:40,stampTime:0.45,x:0.19,y:0.22,rot:-0.14},
@@ -306,7 +307,7 @@ export const TUNING={
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
     pauseUi:{compactH:700,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
     doors:{width:2.4,height:1.9,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
-    minigame:{endDelay:0.9,bellShake:0.18,tilesSearch:4000,popTime:0.35,popGap:0.04,wallRise:0.5,wallGap:0.03,wallSink:0.5},
+    minigame:{endDelay:0.9,bellShake:0.18,bell:{impulse:3.2,k:34,damp:3.4,clapK:70,clapDamp:5,flash:0.28,squash:0.1,wave:2.6,decay:1.4},tilesSearch:4000,popTime:0.35,popGap:0.04,wallRise:0.5,wallGap:0.03,wallSink:0.5},
     npc:{bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
     worldMarks:{sayFont:17,sayLift:46,sayTime:3.2,sayMargin:12,sayTop:170,sayLeft:190,subH:22,subMaxW:340,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14,padSegs:28,padLift:1.4},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
@@ -331,6 +332,7 @@ export const TUNING={
         pulseDecay:3
     },
     codex:{
+        open:{time:0.45,fade:0.25,scale:0.94,rise:40},
         enemyCompact:{leftFrac:0.4,icon:92,descLines:4,rowH:20,stageMax:200,stageFrac:0.42,gap:16},
         compactH:600,
         compactTop:10,
@@ -348,6 +350,8 @@ export const TUNING={
         wheelLine:40
     },
     effects:{
+        selfRing:1.3,
+        holeBlast:3.5,
         spreadShake:0.22,
         pierceSize:0.34,
         pierceTrail:0.34,
@@ -472,7 +476,8 @@ export const TUNING={
         sleeveSoft:0.85
     },
     tutorial:{
-        need:{move:3,shoot:3,dash:2,cards:2,ult:1},
+        need:{pad:3,kill:3,dodge:2,card:2,cancel:1,deck:1,detail:1,ult:1},
+        holdTime:2.4,
         pads:[[-7,1.5],[7,-1],[0,-3.5]],
         padR:1.3,
         dummies:[[-5,-2],[0,-3.5],[5,-2]],
@@ -481,9 +486,8 @@ export const TUNING={
         respawn:1.2,
         startDelay:0.9,
         doneTime:1.3,
-        clearDamage:99999,
         handDraw:0.3,
-        strip:{w:470,wSmall:470,h:78,hSmall:86,top:12,illus:118,illusSmall:130},
+        strip:{w:470,wSmall:470,h:78,hSmall:86,line:26,lineSmall:30,top:12,illus:118,illusSmall:130},
         modal:{w:940,h:500,small:600,illus:0.5,illusSmall:0.44,btnW:200,btnWSmall:180,btnH:50,btnHSmall:50},
         confetti:{count:46,speed:[60,140],size:[4,9],spin:6}
     },

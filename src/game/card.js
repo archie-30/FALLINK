@@ -707,7 +707,14 @@ export class CardEffects {
                 g.particles.burst(s.x+Math.cos(a)*rr,0.3,s.z+Math.sin(a)*rr,1,{dirX:-Math.cos(a),dirZ:-Math.sin(a),cone:0.3,speed:[rr*1.5,rr*2],up:[0.5,1.5],size:[0.08,0.14],life:[0.4,0.5]});
             }
             if (s.t>=s.dur) {
-                g.enemies.damageRadius(s.x,s.z,3.5,s.dmg);
+                const B=this.T.effects.holeBlast;
+                const hit=g.enemies.list.filter(e=>e.state!=='spawn'&&Math.hypot(e.pos.x-s.x,e.pos.z-s.z)<=B+e.def.radius);
+                if (hit.length===1) {
+                    g.enemies.damage(hit[0],s.single,0,0);
+                }
+                else {
+                    g.enemies.damageRadius(s.x,s.z,B,s.dmg);
+                }
                 g.fx.hitStop(120,true);
                 g.fx.cameraShake(0.8);
                 g.fx.fovPunch(2.5);
@@ -967,8 +974,8 @@ export class CardEffects {
         g.fx.fovPunch(2.0);
     }
 
-    blackHole(x,z,radius,duration,damage) {
-        this.sweeps.push({type:'hole',t:0,dur:duration,x,z,r:radius,dmg:damage,ring:0});
+    blackHole(x,z,radius,duration,damage,single) {
+        this.sweeps.push({type:'hole',t:0,dur:duration,x,z,r:radius,dmg:damage,single,ring:0});
         this.g.fx.cameraShake(0.2);
     }
 

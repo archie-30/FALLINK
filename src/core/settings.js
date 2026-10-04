@@ -20,6 +20,7 @@ export const settings={
     musicVol:0.55,
     sfxVol:0.8,
     jitter:1,
+    jitterPrev:1,
     mute:{volume:false,music:false,sfx:false,jitter:false},
     stickSize:0.45,
     stickX:0.45,

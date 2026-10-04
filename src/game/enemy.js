@@ -1916,7 +1916,17 @@ export class EnemyManager {
         }
     }
 
-    kill(e,dx,dz) {
+    slay(e) {
+        if (!e.alive) {
+            return false;
+        }
+        e.immortal=false;
+        e.hp=0;
+        this.kill(e,0,0,true);
+        return true;
+    }
+
+    kill(e,dx,dz,clean=false) {
         e.hide();
         const i=this.list.indexOf(e);
         if (i>=0) {
@@ -1926,7 +1936,7 @@ export class EnemyManager {
             this.onKill(e,dx,dz);
         }
         const d=e.def;
-        if (d.split) {
+        if (d.split&&!clean) {
             for (let k=0;k<d.splitCount;k++) {
                 const a=Math.atan2(dz,dx)+(k===0?1.2:-1.2);
                 this.spawn(d.split,e.pos.x+Math.cos(a)*0.7,e.pos.z+Math.sin(a)*0.7,{quick:true,dummy:e.dummy});

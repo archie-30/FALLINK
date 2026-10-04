@@ -215,9 +215,10 @@ export class Preview {
             this.ring.material.uniforms.uColor.value.copy(pal(color));
             return;
         }
+        const ar=tg==='aura'?params.radius:TUNING.effects.selfRing;
         this.ring.visible=true;
         this.ring.position.set(p.x,0.06,p.z);
-        this.ring.scale.set(1.3,1,1.3);
+        this.ring.scale.set(ar,1,ar);
         this.ring.material.uniforms.uColor.value.copy(pal(color));
     }
 

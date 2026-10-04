@@ -551,6 +551,9 @@ export class Hand {
         if (this.targetView) {
             if (button===2) {
                 this.cancelTargeting();
+                if (this.api.onCancel) {
+                    this.api.onCancel();
+                }
                 return true;
             }
             if (y<this.fieldBottom()&&this.targetView.card.def.targeting==='drawPath') {
@@ -731,6 +734,10 @@ export class Hand {
             }
         }
         const out={type:tg,x:p.x+dx*3,z:p.z+dz*3,dx,dz};
+        if (tg==='aura') {
+            out.x=p.x;
+            out.z=p.z;
+        }
         if (tg==='point') {
             out.x=p.x+dx*dist;
             out.z=p.z+dz*dist;
@@ -1197,7 +1204,8 @@ export class Hand {
             ctx.fillText(t('deck.burn'),this.width/2,y);
         }
         else if (this.targetView&&!(this.api.showKeys&&this.api.showKeys())) {
-            const txt=t(this.targetView.card.def.targeting==='drawPath'?'hand.touchHintPath':'hand.touchHint');
+            const tgt=this.targetView.card.def.targeting;
+            const txt=t(tgt==='drawPath'?'hand.touchHintPath':(tgt==='aura'?'hand.touchHintAura':'hand.touchHint'));
             ctx.font='bold '+Math.round(14*s)+'px '+FONT;
             const hy=y-C.targetLift*s-8*s;
             const w=ctx.measureText(txt).width+24*s;
@@ -1209,7 +1217,7 @@ export class Hand {
         else if (this.targetView&&this.api.showKeys&&this.api.showKeys()) {
             const v=this.targetView;
             const hy=y-C.targetLift*s-(C.keycap.size+C.keycap.gap)*s-8*s;
-            const key=v.card.def.targeting==='drawPath'?'hand.hintPath':'hand.hint';
+            const key=v.card.def.targeting==='drawPath'?'hand.hintPath':(v.card.def.targeting==='aura'?'hand.hintAura':'hand.hint');
             ctx.font='bold '+Math.round(15*s)+'px '+FONT;
             const txt=t(key,{key:v.slot+1});
             const w=ctx.measureText(txt).width+24*s;

@@ -254,8 +254,8 @@ export const CARDS={
         type:'attack',
         mode:'self',
         targeting:'none',
-        params:{duration:8},
-        upgraded:{cost:2,params:{duration:8}},
+        params:{duration:6},
+        upgraded:{cost:2,params:{duration:6}},
         effect:(g,t,p)=>g.dualWield(p.duration)
     },
     pin:{
@@ -350,9 +350,9 @@ export const CARDS={
         mode:'place',
         targeting:'point',
         range:12,
-        params:{radius:7,duration:2.5,damage:90},
-        upgraded:{cost:4,params:{radius:8,duration:2.5,damage:120}},
-        effect:(g,t,p)=>g.blackHole(t.x,t.z,p.radius,p.duration,p.damage)
+        params:{radius:7,duration:2.5,damage:90,single:100},
+        upgraded:{cost:4,params:{radius:8,duration:2.5,damage:120,single:140}},
+        effect:(g,t,p)=>g.blackHole(t.x,t.z,p.radius,p.duration,p.damage,p.single)
     },
     barrage:{
         id:'barrage',
@@ -416,7 +416,7 @@ export const CARDS={
         rarity:'common',
         type:'defense',
         mode:'around',
-        targeting:'none',
+        targeting:'aura',
         params:{radius:4,per:4,max:3},
         upgraded:{cost:1,params:{radius:5.5,per:3,max:4}},
         effect:(g,t,p)=>g.blot(p.radius,p.per,p.max)

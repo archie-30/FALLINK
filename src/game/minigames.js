@@ -281,20 +281,23 @@ const GAMES={
                 dome.position.y=-0.55;
                 swing.add(dome);
                 g.ball(0.24,'light',0,-0.12,0,swing);
-                g.ball(0.13,'accent',0,-1.0,0,swing);
+                const clap=new THREE.Group();
+                clap.position.y=1.5;
+                root.add(clap);
+                g.ball(0.13,'accent',0,-1.0,0,clap);
                 g.cyl(0.05,0.05,1.5,'dark',0,0.75,-0.45,root,6);
                 g.box(0.9,0.08,0.08,'dark',0,1.52,-0.45,root);
                 const wave=g.ring(0.9,'accent',x,P.z);
                 wave.visible=false;
                 const ring=g.ring(P.reach,'cover',x,P.z);
-                return {x,z:P.z,root,swing,dome,ring,wave,lit:0,i};
+                return {x,z:P.z,root,swing,clap,dome,ring,wave,lit:0,i,ang:0,av:0,cang:0,cav:0,side:1};
             });
             g.solid(g.bells.map(b=>makeBox(b.x,b.z,0.55,0.55,0)));
         },
         begin(g) {
             const P=g.P;
             g.place(0,MINIGAMES.start[1]);
-            const len=g.a(P.len);
+            const len=P.len[0]+g.int(P.len[1]-P.len[0]+1);
             g.seq=[];
             for (let k=0;k<len;k++) {
                 g.seq.push(g.int(P.xs.length));
@@ -307,6 +310,8 @@ const GAMES={
         flash(g,i,input) {
             const b=g.bells[i];
             b.lit=1;
+            b.side=-b.side;
+            b.av+=TUNING.minigame.bell.impulse*b.side;
             b.wave.visible=true;
             g.sound('bell',TUNING.npc.bellPitch[i%TUNING.npc.bellPitch.length]);
             g.burst(b.x,b.z,input?'red':'ink',18,1.4);
@@ -314,14 +319,24 @@ const GAMES={
             g.mg.api.shake(TUNING.minigame.bellShake);
         },
         idle(g,dt) {
+            const B=TUNING.minigame.bell;
             for (const b of g.bells) {
-                b.lit=Math.max(0,b.lit-dt*1.6);
+                b.lit=Math.max(0,b.lit-dt*B.decay);
                 const k=1-b.lit;
-                b.swing.rotation.z=Math.sin(k*Math.PI*5)*b.lit*0.5;
-                const s=1+Math.sin(b.lit*Math.PI)*0.25;
-                b.swing.scale.set(s,s,s);
-                b.dome.material=mat(b.lit>0.3?'marker':'light');
-                b.wave.scale.setScalar(1+k*2.2);
+                b.av+=(-B.k*b.ang-B.damp*b.av)*dt;
+                b.ang+=b.av*dt;
+                b.cav+=(B.clapK*(b.ang-b.cang)-B.clapDamp*b.cav)*dt;
+                b.cang+=b.cav*dt;
+                b.swing.rotation.z=b.ang;
+                b.clap.rotation.z=b.cang;
+                const sq=1+Math.sin(k*Math.PI*6)*b.lit*B.squash;
+                b.dome.scale.set(1/sq,sq,1/sq);
+                const hot=b.lit>1-B.flash;
+                if (hot!==b.hot) {
+                    b.hot=hot;
+                    b.dome.material=mat(hot?'marker':'light');
+                }
+                b.wave.scale.setScalar(1+(1-Math.pow(b.lit,2))*B.wave);
                 b.wave.visible=b.lit>0.05;
             }
         },

@@ -92,7 +92,7 @@ export const WEAPONS={
         sound:'wCompass',
         fireInterval:0.55,
         cooldown:1.8,
-        missCut:0.4,
+        missCut:0.7,
         magazine:1,
         reloadTime:1.0,
         damage:20,

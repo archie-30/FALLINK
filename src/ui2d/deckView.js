@@ -23,6 +23,9 @@ export class DeckView {
         this.outRate=1;
         this.count=0;
         this.sel=null;
+        this.scroll=0;
+        this.maxScroll=0;
+        this.drag=null;
     }
 
     hover(x,y) {
@@ -32,6 +35,9 @@ export class DeckView {
     }
 
     hovered() {
+        if (this.touch) {
+            return this.sel?this.rects.find(r=>r.card===this.sel)||null:null;
+        }
         for (let i=this.rects.length-1;i>=0;i--) {
             const r=this.rects[i];
             if (this.hx>=r.x&&this.hx<=r.x+r.w&&this.hy>=r.y&&this.hy<=r.y+r.h) {
@@ -52,6 +58,60 @@ export class DeckView {
         this.sel=null;
         this.onClosed=null;
         this.t=0;
+        this.scroll=0;
+        this.drag=null;
+    }
+
+    hit(x,y) {
+        for (let i=this.rects.length-1;i>=0;i--) {
+            const r=this.rects[i];
+            if (x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h) {
+                return r;
+            }
+        }
+        return null;
+    }
+
+    press(x,y) {
+        if (!this.open) {
+            return false;
+        }
+        const c=this.closeRect;
+        if (x>=c.x&&x<=c.x+c.w&&y>=c.y&&y<=c.y+c.h) {
+            return false;
+        }
+        this.touch=true;
+        this.drag={x,y,s0:this.scroll,moved:false};
+        return true;
+    }
+
+    move(x,y) {
+        const d=this.drag;
+        if (!d) {
+            return;
+        }
+        if (Math.abs(y-d.y)>TUNING.ui.deckDrag) {
+            d.moved=true;
+        }
+        if (d.moved) {
+            this.scroll=Math.max(0,Math.min(this.maxScroll,d.s0-(y-d.y)));
+        }
+    }
+
+    up() {
+        const d=this.drag;
+        this.drag=null;
+        if (!d||d.moved) {
+            return;
+        }
+        const r=this.hit(d.x,d.y);
+        this.sel=r?r.card:null;
+    }
+
+    wheel(dy) {
+        if (this.open) {
+            this.scroll=Math.max(0,Math.min(this.maxScroll,this.scroll+dy));
+        }
     }
 
     hide() {
@@ -133,7 +193,7 @@ export class DeckView {
             ctx.fillStyle=PALETTE.midGray;
             ctx.font='14px '+FONT;
             ctx.fillText(t('deck.empty'),x,y+40);
-            return;
+            return y+60;
         }
         for (let i=0;i<cards.length;i++) {
             const c=cards[i];
@@ -153,6 +213,7 @@ export class DeckView {
             drawCost(ctx,c,false,variant);
             ctx.restore();
         }
+        return y+40+Math.ceil(cards.length/cols)*(ch+gap);
     }
 
     draw(ctx,art,deck) {
@@ -181,12 +242,30 @@ export class DeckView {
         ctx.fillText(t('deck.viewer'),w/2,py-18+(1-EASE.easeOutBack(a))*-20);
         const colW=(pw-40)/2;
         const draw=deck.drawPile.slice().sort((p,q)=>p.id<q.id?-1:1);
-        this.section(ctx,art,draw,t('deck.draw'),px,py+30,colW,variant,0);
-        this.section(ctx,art,deck.discardPile,t('deck.discard'),px+colW+40,py+30,colW,variant,draw.length);
         const bw=210;
         const bh=40;
         const bx=w/2-bw/2;
         const by=h-bh-30;
+        const top=py+24;
+        const bottom=by-34;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0,top,w,bottom-top);
+        ctx.clip();
+        const y0=py+30-this.scroll;
+        const e1=this.section(ctx,art,draw,t('deck.draw'),px,y0,colW,variant,0);
+        const e2=this.section(ctx,art,deck.discardPile,t('deck.discard'),px+colW+40,y0,colW,variant,draw.length);
+        ctx.restore();
+        this.rects=this.rects.filter(r=>r.y+r.h>top&&r.y<bottom);
+        this.maxScroll=Math.max(0,Math.max(e1,e2)+this.scroll-bottom);
+        this.scroll=Math.min(this.scroll,this.maxScroll);
+        if (this.maxScroll>0) {
+            const vh=bottom-top;
+            const th=Math.max(30,vh*vh/(vh+this.maxScroll));
+            const ty=top+(vh-th)*(this.scroll/this.maxScroll);
+            ctx.fillStyle=rgba('ink',0.35);
+            ctx.fillRect(px+pw+8,ty,4,th);
+        }
         this.closeRect={x:bx,y:by,w:bw,h:bh};
         const ba=Math.min(1,this.t/0.3);
         ctx.fillStyle=rgba('paper',0.95*ba);
