@@ -1502,8 +1502,13 @@ function boot() {
         close:()=>{
             audio.play('ui');
             popup.hide();
+        },
+        link:url=>{
+            audio.play('ui');
+            window.open(url,'_blank');
         }
     });
+    const PRIVACY_URL='https://archie-30.github.io/INKRAGE/privacy.html';
     let lastDev='mouse';
     function checkDevice() {
         const d=input.lastDevice;
@@ -1669,6 +1674,10 @@ function boot() {
     };
     const settingsMenu=new SettingsMenu({
         changed:settingsChanged,
+        privacy:()=>{
+            audio.play('ui');
+            popup.open2(t('privacy.title'),t('privacy.body'),{label:t('privacy.open'),url:PRIVACY_URL});
+        },
         tutorial:()=>{
             settingsMenu.hide();
             startGame('tutorial');
