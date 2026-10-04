@@ -1,4 +1,4 @@
-import {settings} from './settings.js';
+import {settings,device} from './settings.js';
 import {SOUNDS,AUDIO} from '../data/sounds.js';
 import {MUSIC} from '../data/music.js';
 import {music} from './music.js';
@@ -52,7 +52,7 @@ export const audio={
         for (let i=0;i<len;i++) {
             d[i]=Math.random()*2-1;
         }
-        const rl=Math.floor(c.sampleRate*AUDIO.reverbTime);
+        const rl=Math.floor(c.sampleRate*AUDIO.reverbTime*(device.mobile?0.55:1));
         const ir=c.createBuffer(2,rl,c.sampleRate);
         for (let ch=0;ch<2;ch++) {
             const q=ir.getChannelData(ch);

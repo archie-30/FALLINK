@@ -1,5 +1,5 @@
 export const AUDIO={
-    masterGain:0.75,
+    masterGain:2.2,
     reverbTime:1.4,
     reverbDecay:3.2,
     compThreshold:-12,
