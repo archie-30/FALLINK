@@ -491,7 +491,10 @@ export const CARD_ANIMS={
         draw(S,k) {
             S.player(PX,PY,0);
             const s0=0.35;
-            const s1=0.55;
+            const s1=0.43;
+            const kb=1-Math.pow(1-seg(k,s0,s0+0.15),3);
+            S.enemy('doodle',PX+4.8+kb*2.6,PY+0.6,{size:1.5,flash:seg(k,s0,s0+0.02)*(1-seg(k,s0+0.05,s0+0.12))});
+            S.num('-5',PX+5.2+kb*2.6,PY-1.2,seg(k,s0,0.8),PALETTE.red,16);
             const sw=seg(k,s0,s1);
             const cur=lerp(-0.7,0.7,sw);
             if (k>=s0&&k<0.75) {
@@ -514,8 +517,8 @@ export const CARD_ANIMS={
                 const x=x0-10*k;
                 const y=lerp(y0,PY,k*0.35);
                 const an=Math.atan2(y-PY,x-PX);
-                const te=s0+(s1-s0)*(an+0.7)/1.4;
-                const gone=seg(k,te,te+0.06);
+                const te=an>-0.7&&an<0.7?s0:9;
+                const gone=seg(k,te,te+0.05);
                 if (k<te||gone<1) {
                     S.bullet(x,y,'enemy',1-gone);
                 }
