@@ -200,26 +200,9 @@ export class CardEffects {
             if (s.type==='eraser') {
                 const e=1-Math.pow(1-k,2);
                 const a=s.a0+(s.a1-s.a0)*e;
-                const lo=Math.min(s.a0,a);
-                const hi=Math.max(s.a0,a);
                 const cx=s.x;
                 const cz=s.z;
                 const R=s.range;
-                g.enemyBullets.killWhere((x,z)=>{
-                    const dx=x-cx;
-                    const dz=z-cz;
-                    if (dx*dx+dz*dz>R*R) {
-                        return false;
-                    }
-                    let ang=Math.atan2(dz,dx);
-                    while (ang<lo-Math.PI) {
-                        ang+=Math.PI*2;
-                    }
-                    while (ang>hi+Math.PI) {
-                        ang-=Math.PI*2;
-                    }
-                    return ang>=lo-0.05&&ang<=hi+0.05;
-                },(x,z)=>g.particles.burst(x,1.0,z,2,{color:'farGray',speed:[0.5,2],up:[1,2],size:[0.06,0.1],life:[0.2,0.35]}));
                 const r=R*this.E.eraserRide;
                 const m=this.eraserMesh;
                 m.visible=true;
@@ -408,14 +391,41 @@ export class CardEffects {
         }
     }
 
-    eraseCone(dx,dz,range,angle) {
+    eraseCone(dx,dz,range,angle,damage,push) {
         const g=this.g;
         const p=g.player;
         p.faceDir(dx,dz);
         const base=Math.atan2(dz,dx);
-        this.sweeps.push({type:'eraser',t:0,dur:this.E.eraserSweep,x:p.pos.x,z:p.pos.z,a0:base-angle/2,a1:base+angle/2,range});
-        g.fx.cameraShake(0.15);
-        g.fx.fovPunch(0.8);
+        const cx=p.pos.x;
+        const cz=p.pos.z;
+        const inCone=(x,z,pad)=>{
+            const ex=x-cx;
+            const ez=z-cz;
+            const d=Math.hypot(ex,ez);
+            if (d>range+pad) {
+                return false;
+            }
+            let da=Math.atan2(ez,ex)-base;
+            da=Math.atan2(Math.sin(da),Math.cos(da));
+            return d<pad+0.3||Math.abs(da)<=angle/2+0.05+Math.atan2(pad,Math.max(d,0.01));
+        };
+        g.enemyBullets.killWhere((x,z)=>inCone(x,z,0),(x,z)=>g.particles.burst(x,1.0,z,2,{color:'farGray',speed:[0.5,2],up:[1,2],size:[0.06,0.1],life:[0.2,0.35]}));
+        for (const e of g.enemies.list.slice()) {
+            if (e.state==='spawn'||!e.alive||!inCone(e.pos.x,e.pos.z,e.def.radius)) {
+                continue;
+            }
+            const ex=e.pos.x-cx;
+            const ez=e.pos.z-cz;
+            const d=Math.hypot(ex,ez)||1;
+            g.enemies.damage(e,damage,ex/d,ez/d);
+            if (e.alive&&!e.def.boss) {
+                e.vel.x+=ex/d*push;
+                e.vel.z+=ez/d*push;
+            }
+        }
+        this.sweeps.push({type:'eraser',t:0,dur:this.E.eraserSweep,x:cx,z:cz,a0:base-angle/2,a1:base+angle/2,range});
+        g.fx.cameraShake(0.25);
+        g.fx.fovPunch(1.0);
     }
 
     trapCircle(x,z,radius,duration,slow) {

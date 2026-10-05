@@ -375,7 +375,7 @@ export const TUNING={
         executeShake:0.8,
         missRadius:1.6,
         missDamage:40,
-        eraserSweep:0.32,
+        eraserSweep:0.2,
         eraserRide:0.8,
         eraserScale:1.5,
         eraserWidth:0.5,

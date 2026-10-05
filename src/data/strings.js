@@ -110,7 +110,7 @@ export const STRINGS={
     'card.pencilWall.name':'鉛筆牆',
     'card.pencilWall.desc':'在地上畫出最長 {length} 的路徑，長出一道擋住敵彈的牆（耐久 {hp}）。',
     'card.eraser.name':'橡皮擦',
-    'card.eraser.desc':'朝指定方向揮動橡皮擦，擦掉扇形範圍內所有敵彈。',
+    'card.eraser.desc':'朝指定方向揮動橡皮擦，立刻擦掉扇形範圍內所有敵彈，並對範圍內的敵人造成 {damage} 傷害並擊退。',
     'card.trap.name':'陷阱圈',
     'card.trap.desc':'在地上畫一個圈，{duration} 秒內圈中敵人減速 {pct}%。',
     'card.paperShield.name':'紙盾',

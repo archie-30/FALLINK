@@ -108,7 +108,7 @@ export const STRINGS_EN={
     'card.pencilWall.name':'Pencil Wall',
     'card.pencilWall.desc':'Draw a path up to {length} long on the ground; a wall grows along it and blocks enemy bullets ({hp} durability).',
     'card.eraser.name':'Eraser',
-    'card.eraser.desc':'Swing an eraser in a direction and wipe out every enemy bullet in the arc.',
+    'card.eraser.desc':'Swing an eraser in a direction: instantly wipes every enemy bullet in the cone and deals {damage} damage to enemies inside, knocking them back.',
     'card.trap.name':'Trap Circle',
     'card.trap.desc':'Draw a circle on the ground; enemies inside are slowed by {pct}% for {duration}s.',
     'card.paperShield.name':'Paper Shield',
