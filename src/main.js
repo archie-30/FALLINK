@@ -10,7 +10,7 @@ import {CameraRig} from './core/cameraRig.js';
 import {createScene} from './core/scene.js';
 import {tweens} from './core/tween.js';
 import {fx} from './core/fx.js';
-import {wipeStorage,detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device,TRAINING_DEFAULTS,TRAINING_SPAWN} from './core/settings.js';
+import {isFlagship,wipeStorage,detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device,TRAINING_DEFAULTS,TRAINING_SPAWN} from './core/settings.js';
 import {Renderer} from './render/renderer.js';
 import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial,shared,dissolveVariant} from './render/materials.js';
 import {Particles,MuzzleFlashes,Rings} from './render/particles.js';
@@ -124,10 +124,19 @@ function boot() {
             return;
         }
         const weak=device.mobile&&(navigator.hardwareConcurrency||4)<L.weakCores;
-        const max=weak?L.fpsOptions[0]:(device.mobile?L.mobileMax:L.fpsOptions[L.fpsOptions.length-1]);
+        const top=isFlagship(fpsProbe.peak);
+        const max=weak?L.fpsOptions[0]:(device.mobile?(top?L.flagshipMax:L.mobileMax):L.fpsOptions[L.fpsOptions.length-1]);
         settings.fpsCap=L.fpsOptions.filter(q=>q<=Math.min(fpsProbe.peak+L.autoMargin,max)).pop()||L.fpsOptions[0];
         time.fpsCap=settings.fpsCap;
         fpsProbe=null;
+        if (device.mobile&&settings.qualityAuto) {
+            const q=top?'high':(weak?'low':'mid');
+            if (q!==settings.quality) {
+                settings.quality=q;
+                applyQuality();
+                resize();
+            }
+        }
         saveSettings();
     };
     const container=document.getElementById('game');
@@ -2592,20 +2601,61 @@ function boot() {
         }
         renderer.post.uniforms.uBleed.value=Math.max(bleed,low);
     }
-    let slowT=0;
+    const gov={scale:1,acc:0,n:0,good:0,slow:0,cool:0};
+    function setRenderScale(k) {
+        gov.scale=k;
+        renderer.setScale(k);
+    }
     function updatePerf(dt) {
         const P=TUNING.perf;
-        if (game.mode!=='play'||fx.paused||settings.quality==='low'||(!device.mobile&&settings.quality!=='high')) {
+        if (document.hidden||dt>P.hitch||transition.active) {
+            gov.acc=0;
+            gov.n=0;
             return;
         }
-        slowT=time.fps<P.lowFps?slowT+dt:Math.max(0,slowT-dt*0.5);
-        if (slowT>P.window) {
-            slowT=0;
-            settings.quality=settings.quality==='high'?'mid':'low';
-            saveSettings();
-            applyQuality();
-            resize();
-            overlay.hud.toast(t('perf.lowered'));
+        gov.cool-=dt;
+        gov.acc+=dt;
+        gov.n++;
+        if (gov.acc<P.window) {
+            return;
+        }
+        const fps=gov.n/gov.acc;
+        gov.acc=0;
+        gov.n=0;
+        const target=time.fpsCap||TUNING.loop.fpsOptions[0];
+        const min=P.minScale[settings.quality]??P.minScale.mid;
+        if (fps<target*P.low) {
+            gov.good=0;
+            if (gov.scale>min+0.001) {
+                if (gov.cool<=0) {
+                    setRenderScale(Math.max(min,gov.scale-P.down));
+                    gov.cool=P.coolDown;
+                }
+                return;
+            }
+            gov.slow+=P.window;
+            if (gov.slow>=P.dropAfter&&game.mode==='play'&&!fx.paused&&settings.quality!=='low') {
+                gov.slow=0;
+                settings.quality=settings.quality==='high'?'mid':'low';
+                saveSettings();
+                applyQuality();
+                setRenderScale(1);
+                resize();
+                overlay.hud.toast(t('perf.lowered'));
+            }
+            return;
+        }
+        gov.slow=0;
+        if (fps>=target*P.high) {
+            gov.good+=P.window;
+            if (gov.good>=P.upAfter&&gov.scale<1&&gov.cool<=0) {
+                setRenderScale(Math.min(1,gov.scale+P.up));
+                gov.good=0;
+                gov.cool=P.coolUp;
+            }
+        }
+        else {
+            gov.good=0;
         }
     }
     function musicTrack() {
@@ -2779,6 +2829,9 @@ function boot() {
         debugInfo.triangles=st.triangles;
         debugInfo.quality=settings.quality;
         debugInfo.pixelRatio=renderer.pixelRatio;
+        debugInfo.scale=gov.scale;
+        debugInfo.cap=time.fpsCap;
+        overlay.showDebug=settings.showFps||settings.godMode;
         debugInfo.resolution=renderer.post.target.width+'×'+renderer.post.target.height;
         overlay.draw(input,player,debugInfo,gameUi);
     }

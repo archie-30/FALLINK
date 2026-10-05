@@ -21,6 +21,15 @@ export class Renderer {
         this.width=1;
         this.height=1;
         this.pixelRatio=1;
+        this.scale=1;
+    }
+
+    setScale(s) {
+        if (Math.abs(s-this.scale)<0.001) {
+            return;
+        }
+        this.scale=s;
+        this.resize(this.width,this.height);
     }
 
     applyQuality() {
@@ -31,7 +40,7 @@ export class Renderer {
     resize(w,h) {
         this.width=w;
         this.height=h;
-        this.pixelRatio=pixelRatio();
+        this.pixelRatio=pixelRatio()*this.scale;
         this.gl.setPixelRatio(this.pixelRatio);
         this.gl.setSize(w,h,false);
         this.post.setSize(w,h,this.pixelRatio);

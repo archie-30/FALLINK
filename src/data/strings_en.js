@@ -1283,5 +1283,6 @@ export const STRINGS_EN={
     'tut.resume':'Keep practicing',
     'tut.remind':'Refresher',
     'tut.rewards.title':'Rewards & outfits',
-    'tut.rewards.body':'Each run ends with a chest based on how well you did, holding new colors and accessories; every level-up adds another accessory.|Achievements give Ink Dots, and every 5 achievements open another chest.|Spend Ink Dots to quick-unlock colors and accessories, unlock weapons early, or revive when you fall.|Dress up your hero under "Appearance" in the main menu and save looks as custom outfits.'
+    'tut.rewards.body':'Each run ends with a chest based on how well you did, holding new colors and accessories; every level-up adds another accessory.|Achievements give Ink Dots, and every 5 achievements open another chest.|Spend Ink Dots to quick-unlock colors and accessories, unlock weapons early, or revive when you fall.|Dress up your hero under "Appearance" in the main menu and save looks as custom outfits.',
+    'debug.scale':'Dynamic res'
 };
