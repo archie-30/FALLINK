@@ -1194,7 +1194,7 @@ export class AchievementView extends Panel {
         ctx.rect(V.x,V.y,V.w,V.h);
         ctx.clip();
         const rh=small?U.rowHSmall:U.rowH;
-        const cols=P.w>=U.twoCol&&!small?2:1;
+        const cols=P.w>=U.twoCol?2:1;
         const cw=(V.w-20-(cols-1)*14)/cols;
         const order=ACHIEVEMENTS.map((q,i)=>({q,i,done:progress.ach.includes(q.id)}));
         const y0=y-this.scroll;
@@ -1223,9 +1223,9 @@ export class AchievementView extends Panel {
             ctx.textAlign='left';
             ctx.textBaseline='middle';
             ctx.fillStyle=done?PALETTE.ink:PALETTE.ink;
-            fitText(ctx,t('ach.'+q.id+'.name'),tx,rh*0.26,tw,small?19:18,'bold ');
+            fitText(ctx,t('ach.'+q.id+'.name'),tx,rh*0.26,tw,small?17:18,'bold ');
             ctx.fillStyle=PALETTE.nearGray;
-            fitText(ctx,t('ach.'+q.id+'.desc',{n:q.goal}),tx,rh*0.53,tw,small?15:14,'');
+            fitText(ctx,t('ach.'+q.id+'.desc',{n:q.goal}),tx,rh*0.53,tw,small?14:14,'');
             const bx=tx;
             const by=rh*0.74;
             const bw=tw;
