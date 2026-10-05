@@ -22,7 +22,7 @@ import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip,cardBrief,card
 import {ENEMY_ICONS} from './enemyIcons.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {ACC_SLOTS,ACC_DEFAULT} from '../data/cosmetics.js';
-import {ownsTone,ownsAcc,owns,presetOwned,saveOutfit,clampSkin,chestsReady} from '../core/meta.js';
+import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,randomSkin} from '../core/meta.js';
 import {drawAcc,drawAccIcon,drawLock,drawWallet,drawInkDot,drawMiniChest} from './meta.js';
 
 function lerp1(a,b,f) {
@@ -4118,6 +4118,9 @@ export class SkinEditor extends Panel {
         this.tabT=1;
         this.msg=null;
         this.walletK=0;
+        this.outfitSel=-1;
+        this.splitT=0;
+        this.dice=0;
     }
 
     show() {
@@ -4133,6 +4136,8 @@ export class SkinEditor extends Panel {
         this.press=null;
         this.tabT=1;
         this.msg=null;
+        this.outfitSel=-1;
+        this.dice=0;
     }
 
     clampScroll() {
@@ -4168,6 +4173,8 @@ export class SkinEditor extends Panel {
         this.tabK+=(ti-this.tabK)*Math.min(1,dt*U.follow);
         this.tabT=Math.min(1,this.tabT+dt/0.35);
         this.walletK=Math.max(0,this.walletK-dt*2);
+        this.dice=Math.max(0,(this.dice||0)-dt*1.6);
+        this.splitT=(this.splitT||0)+dt/0.28;
         if (this.msg) {
             this.msg.t+=dt;
             if (this.msg.t>2.4) {
@@ -4238,11 +4245,13 @@ export class SkinEditor extends Panel {
         const h=this.height;
         const pw=h<760?Math.min(560,w*0.56):Math.min(430,Math.max(300,w*0.4));
         this.P={x:16,y:12,w:pw,h:h-24};
-        const bw=(pw-50)/2;
+        const bw=(pw-36-20)/3;
         const by=this.P.y+this.P.h-(h<600?50:62);
-        this.resetBtn={x:this.P.x+18,y:by,w:bw,h:h<600?40:46};
-        this.backBtn={x:this.P.x+32+bw,y:by,w:bw,h:h<600?40:46};
-        this.buttons=[this.resetBtn,this.backBtn];
+        const bh=h<600?40:46;
+        this.randomBtn={x:this.P.x+18,y:by,w:bw,h:bh};
+        this.resetBtn={x:this.P.x+28+bw,y:by,w:bw,h:bh};
+        this.backBtn={x:this.P.x+38+bw*2,y:by,w:bw,h:bh};
+        this.buttons=[this.resetBtn,this.backBtn,this.randomBtn];
     }
 
     hover(x,y) {
@@ -4281,8 +4290,15 @@ export class SkinEditor extends Panel {
         }
         if (inRect(this.resetBtn,x,y)) {
             this.pulse.reset=1;
+            this.outfitSel=-1;
             this.set({...DEFAULT_SKIN,...ACC_DEFAULT},true);
             this.actions.select();
+            return true;
+        }
+        if (inRect(this.randomBtn,x,y)) {
+            this.outfitSel=-1;
+            this.randomize();
+            this.actions.dice();
             return true;
         }
         for (let i=0;i<SKIN_TABS.length;i++) {
@@ -4319,15 +4335,19 @@ export class SkinEditor extends Panel {
             }
             this.pulse[q.key]=1;
             const cur=this.skin();
+            const split=this.outfitSel;
+            this.outfitSel=-1;
             if (q.preset) {
                 if (!presetOwned(q.preset)) {
-                    this.say('skin.presetLocked');
-                    this.actions.fail();
+                    this.actions.bundle(q.preset);
                     return;
                 }
-                const {id,...rest}=q.preset;
-                this.set({...cur,...rest},true);
-                this.burst(q.x+q.w/2,q.y+q.h/2,[SKIN_TONES[rest.coat][1],SKIN_TONES[rest.hat][1],PALETTE.ink],14);
+                this.applyPreset(q.preset,q);
+            }
+            else if (q.apply!==undefined) {
+                this.set(clampSkin(progress.outfits[q.apply]),true);
+                this.pulse['o'+q.apply]=1;
+                this.burst(q.x+q.w/2,q.y+q.h/2,[PALETTE.ink,PALETTE.red],14);
             }
             else if (q.save!==undefined) {
                 saveOutfit(q.save,cur);
@@ -4336,15 +4356,14 @@ export class SkinEditor extends Panel {
                 this.burst(q.x+q.w/2,q.y+q.h/2,[PALETTE.red,PALETTE.ink],12);
             }
             else if (q.outfit!==undefined) {
-                const o=progress.outfits[q.outfit];
-                if (!o) {
+                if (!progress.outfits[q.outfit]) {
                     saveOutfit(q.outfit,cur);
                     this.say('skin.saved',{n:q.outfit+1});
                     this.burst(q.x+q.w/2,q.y+q.h/2,[PALETTE.red,PALETTE.ink],12);
                 }
-                else {
-                    this.set(clampSkin(o),true);
-                    this.burst(q.x+q.w/2,q.y+q.h/2,[PALETTE.ink,PALETTE.red],14);
+                else if (split!==q.outfit) {
+                    this.outfitSel=q.outfit;
+                    this.splitT=0;
                 }
             }
             else {
@@ -4360,6 +4379,24 @@ export class SkinEditor extends Panel {
             this.actions.select();
             return;
         }
+    }
+
+    applyPreset(pr,q) {
+        const {id,...rest}=pr;
+        this.pulse['p'+SKIN_PRESETS.indexOf(pr)]=1;
+        this.set({...this.skin(),...rest},true);
+        const h=q||this.hits.find(r=>r.preset===pr);
+        if (h) {
+            this.burst(h.x+h.w/2,h.y+h.h/2,[SKIN_TONES[rest.coat][1],SKIN_TONES[rest.hat][1],PALETTE.ink],18);
+        }
+    }
+
+    randomize() {
+        this.pulse.random=1;
+        this.dice=1;
+        this.set(randomSkin(this.skin()),true);
+        const b=this.randomBtn;
+        this.burst(b.x+b.w/2,b.y,[PALETTE.red,PALETTE.ink,PALETTE.marker],18);
     }
 
     drawTabs(ctx,x,y,w,v,small) {
@@ -4385,65 +4422,11 @@ export class SkinEditor extends Panel {
         return y+th+8;
     }
 
-    drawColors(ctx,P,y,v,small,cur) {
-        const h=this.height;
+    drawOutfits(ctx,P,y,v,small,cur) {
         ctx.font='bold 14px '+FONT;
         ctx.fillStyle=PALETTE.ink;
         ctx.textAlign='left';
         ctx.textBaseline='top';
-        ctx.fillText(t('skin.presets'),P.x+18,y);
-        y+=22;
-        const cols=small?8:4;
-        const cw=(P.w-36-(cols-1)*8)/cols;
-        const ch=small?56:78;
-        for (let i=0;i<SKIN_PRESETS.length;i++) {
-            const pr=SKIN_PRESETS[i];
-            const cx=P.x+18+(i%cols)*(cw+8);
-            const cy=y+Math.floor(i/cols)*(ch+8);
-            const owned=presetOwned(pr);
-            const sel=owned&&SKIN_PARTS.every(q=>pr[q.key]===cur[q.key]);
-            const hov=inRect({x:cx,y:cy,w:cw,h:ch},this.hx,this.hy);
-            const key='p'+i;
-            const pu=this.pulse[key]||0;
-            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.1-i*0.04)/0.3)));
-            ctx.save();
-            ctx.translate(cx+cw/2,cy+ch/2);
-            const sc=ap*(1+(hov?0.06:0)+(owned?Math.sin(pu*Math.PI)*0.18:0));
-            ctx.scale(sc,sc);
-            ctx.rotate((hov?Math.sin(time.real*8)*0.03:0)+(1-ap)*0.4+(owned?0:Math.sin(pu*Math.PI*6)*0.08*pu));
-            ctx.translate(-cw/2,-ch/2);
-            ctx.fillStyle=sel?rgba('red',0.08):(hov?rgba('farGray',0.6):rgba('paper',0.9));
-            ctx.fillRect(0,0,cw,ch);
-            drawShape(ctx,sketchRect(0,0,cw,ch,{width:sel?2.4:1.3,seed:1510+i}),sel?PALETTE.red:(owned?PALETTE.ink:PALETTE.midGray),v);
-            const hop=(hov||sel?Math.abs(Math.sin(time.real*(sel?4:7)))*(sel?2:3):0)+pu*8*(owned?1:0);
-            ctx.save();
-            if (!owned) {
-                ctx.globalAlpha*=0.45;
-            }
-            drawSkinFigure(ctx,cw/2,ch*0.44-hop,small?0.6:0.85,{...pr,headwear:cur.headwear,eyewear:cur.eyewear,neckwear:cur.neckwear,backwear:cur.backwear},v,1520+i*3);
-            ctx.restore();
-            ctx.fillStyle=sel?PALETTE.red:(owned?PALETTE.ink:PALETTE.midGray);
-            ctx.font=(sel?'bold ':'')+'12px '+FONT;
-            ctx.textAlign='center';
-            ctx.textBaseline='bottom';
-            ctx.fillText(t('skin.preset.'+pr.id),cw/2,ch-3);
-            if (!owned) {
-                const have=SKIN_PARTS.filter(q=>ownsTone(q.key,pr[q.key])).length;
-                drawLock(ctx,cw-10,12,0.8,PALETTE.nearGray);
-                ctx.fillStyle=PALETTE.nearGray;
-                ctx.font='bold 10px '+FONT;
-                ctx.textAlign='left';
-                ctx.textBaseline='top';
-                ctx.fillText(have+'/'+SKIN_PARTS.length,4,4);
-            }
-            ctx.restore();
-            ctx.textAlign='left';
-            ctx.textBaseline='top';
-            this.hits.push({x:cx,y:cy,w:cw,h:ch,preset:pr,key});
-        }
-        y+=Math.ceil(SKIN_PRESETS.length/cols)*(ch+8)+(small?4:10);
-        ctx.font='bold 14px '+FONT;
-        ctx.fillStyle=PALETTE.ink;
         ctx.fillText(t('skin.custom'),P.x+18,y);
         ctx.font='11px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
@@ -4454,39 +4437,50 @@ export class SkinEditor extends Panel {
         const n=TUNING.meta.customSlots;
         const ow=(P.w-36-(n-1)*8)/n;
         const oh=small?62:84;
+        const keys=Object.keys(cur);
         for (let i=0;i<n;i++) {
             const o=progress.outfits[i];
             const ox=P.x+18+i*(ow+8);
             const key='o'+i;
             const pu=this.pulse[key]||0;
             const hov=inRect({x:ox,y,w:ow,h:oh},this.hx,this.hy);
-            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.2-i*0.05)/0.3)));
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.15-i*0.05)/0.3)));
+            const split=this.outfitSel===i?EASE.easeOutBack(Math.min(1,this.splitT)):0;
             ctx.save();
             ctx.translate(ox+ow/2,y+oh/2);
-            const sc=ap*(1+(hov?0.05:0)+Math.sin(pu*Math.PI)*0.15);
+            const sc=ap*(1+(hov&&!split?0.05:0)+Math.sin(pu*Math.PI)*0.15);
             ctx.scale(sc,sc);
             ctx.translate(-ow/2,-oh/2);
             if (o) {
-                const same=Object.keys(o).every(k=>o[k]===cur[k]);
+                const same=keys.every(k=>o[k]===cur[k]);
                 ctx.fillStyle=same?rgba('red',0.08):(hov?rgba('farGray',0.6):rgba('paper',0.9));
                 ctx.fillRect(0,0,ow,oh);
                 drawShape(ctx,sketchRect(0,0,ow,oh,{width:same?2.4:1.4,seed:1580+i}),same?PALETTE.red:PALETTE.ink,v);
-                drawSkinFigure(ctx,ow/2,oh*0.48-pu*6,small?0.62:0.85,o,v,1590+i*3);
-                const sb=small?22:26;
-                ctx.fillStyle=PALETTE.ink;
-                ctx.fillRect(ow-sb-3,3,sb,sb);
                 ctx.save();
-                ctx.translate(ow-3-sb/2,3+sb/2);
-                ctx.rotate(-0.7);
-                ctx.fillStyle=PALETTE.paper;
-                ctx.fillRect(-sb*0.32,-2,sb*0.5,4);
-                ctx.beginPath();
-                ctx.moveTo(sb*0.18,-2);
-                ctx.lineTo(sb*0.32,0);
-                ctx.lineTo(sb*0.18,2);
-                ctx.fill();
+                ctx.globalAlpha*=1-Math.min(1,split)*0.75;
+                drawSkinFigure(ctx,ow/2,oh*0.5-pu*6,small?0.66:0.88,o,v,1590+i*3);
                 ctx.restore();
-                this.hits.push({x:ox+ow-sb-6,y:y,w:sb+6,h:sb+6,save:i,key:'s'+i,top:true});
+                if (split>0) {
+                    const gap=4*Math.min(1,split);
+                    const hw=ow/2;
+                    for (let k=0;k<2;k++) {
+                        const bx=k===0?-gap:hw+gap;
+                        const hv2=inRect({x:ox+bx,y,w:hw,h:oh},this.hx,this.hy);
+                        ctx.save();
+                        ctx.globalAlpha*=Math.min(1,split);
+                        ctx.translate(bx+hw/2,oh/2);
+                        ctx.scale(0.6+0.4*split*(hv2?1.04:1),0.6+0.4*split*(hv2?1.04:1));
+                        ctx.fillStyle=k===0?PALETTE.ink:PALETTE.red;
+                        ctx.fillRect(-hw/2+2,-oh/2+2,hw-4,oh-4);
+                        ctx.fillStyle=PALETTE.paper;
+                        ctx.textAlign='center';
+                        ctx.textBaseline='middle';
+                        fitText(ctx,t(k===0?'skin.wear':'skin.overwrite'),0,1,hw-10,small?12:14,'bold ');
+                        ctx.restore();
+                    }
+                    this.hits.push({x:ox-gap,y,w:ow/2,h:oh,apply:i,key:'a'+i,top:true});
+                    this.hits.push({x:ox+ow/2+gap,y,w:ow/2,h:oh,save:i,key:'s'+i,top:true});
+                }
             }
             else {
                 ctx.fillStyle=hov?rgba('farGray',0.5):rgba('paper',0.6);
@@ -4494,8 +4488,10 @@ export class SkinEditor extends Panel {
                 ctx.strokeStyle=PALETTE.midGray;
                 ctx.lineWidth=1.5;
                 ctx.setLineDash([5,4]);
+                ctx.lineDashOffset=hov?-time.real*12:0;
                 ctx.strokeRect(1,1,ow-2,oh-2);
                 ctx.setLineDash([]);
+                ctx.lineDashOffset=0;
                 ctx.fillStyle=PALETTE.midGray;
                 ctx.font='bold 22px '+FONT;
                 ctx.textAlign='center';
@@ -4504,17 +4500,84 @@ export class SkinEditor extends Panel {
                 ctx.font='11px '+FONT;
                 ctx.fillText(t('skin.saveHere'),ow/2,oh*0.74);
             }
-            ctx.fillStyle=PALETTE.nearGray;
-            ctx.font='bold 10px '+FONT;
-            ctx.textAlign='left';
-            ctx.textBaseline='bottom';
-            ctx.fillText(String(i+1),4,oh-3);
+            if (!split) {
+                ctx.fillStyle=PALETTE.nearGray;
+                ctx.font='bold 10px '+FONT;
+                ctx.textAlign='left';
+                ctx.textBaseline='bottom';
+                ctx.fillText(String(i+1),4,oh-3);
+            }
             ctx.restore();
             ctx.textAlign='left';
             ctx.textBaseline='top';
             this.hits.push({x:ox,y,w:ow,h:oh,outfit:i,key});
         }
-        y+=oh+(small?8:14);
+        return y+oh+(small?8:14);
+    }
+
+    drawColors(ctx,P,y,v,small,cur) {
+        const h=this.height;
+        ctx.font='bold 14px '+FONT;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillText(t('skin.presets'),P.x+18,y);
+        ctx.font='11px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='right';
+        ctx.fillText(t('skin.presetHint'),P.x+P.w-20,y+2);
+        ctx.textAlign='left';
+        y+=22;
+        const cols=small?6:4;
+        const cw=(P.w-36-(cols-1)*8)/cols;
+        const ch=small?62:84;
+        const keys=SKIN_PARTS.map(q=>q.key).concat(ACC_SLOTS.map(q=>q.key));
+        for (let i=0;i<SKIN_PRESETS.length;i++) {
+            const pr=SKIN_PRESETS[i];
+            const cx=P.x+18+(i%cols)*(cw+8);
+            const cy=y+Math.floor(i/cols)*(ch+8);
+            const items=presetItems(pr);
+            const miss=items.filter(q=>!owns(q)).length;
+            const owned=miss===0;
+            const sel=owned&&keys.every(k=>pr[k]===cur[k]);
+            const hov=inRect({x:cx,y:cy,w:cw,h:ch},this.hx,this.hy);
+            const key='p'+i;
+            const pu=this.pulse[key]||0;
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.tabT-0.05-i*0.03)/0.4)));
+            ctx.save();
+            ctx.translate(cx+cw/2,cy+ch/2);
+            const sc=ap*(1+(hov?0.06:0)+Math.sin(pu*Math.PI)*0.18);
+            ctx.scale(sc,sc);
+            ctx.rotate((hov?Math.sin(time.real*8)*0.03:0)+(1-ap)*0.4);
+            ctx.translate(-cw/2,-ch/2);
+            ctx.fillStyle=sel?rgba('red',0.08):(hov?rgba('farGray',0.6):rgba('paper',0.9));
+            ctx.fillRect(0,0,cw,ch);
+            drawShape(ctx,sketchRect(0,0,cw,ch,{width:sel?2.4:1.3,seed:1510+i}),sel?PALETTE.red:(owned?PALETTE.ink:PALETTE.midGray),v);
+            const hop=(hov||sel?Math.abs(Math.sin(time.real*(sel?4:7)))*(sel?2:3):0)+pu*8;
+            ctx.save();
+            if (!owned) {
+                ctx.globalAlpha*=0.5;
+            }
+            drawSkinFigure(ctx,cw/2,ch*0.5-hop,small?0.66:0.88,pr,v,1520+i*3);
+            ctx.restore();
+            ctx.fillStyle=sel?PALETTE.red:(owned?PALETTE.ink:PALETTE.midGray);
+            ctx.textAlign='center';
+            ctx.textBaseline='bottom';
+            fitText(ctx,t('skin.preset.'+pr.id),cw/2,ch-3,cw-6,small?11:12,sel?'bold ':'');
+            if (!owned) {
+                drawLock(ctx,cw-10,12,0.8,PALETTE.nearGray);
+                ctx.fillStyle=PALETTE.nearGray;
+                ctx.font='bold 10px '+FONT;
+                ctx.textAlign='left';
+                ctx.textBaseline='top';
+                ctx.fillText((items.length-miss)+'/'+items.length,4,4);
+            }
+            ctx.restore();
+            ctx.textAlign='left';
+            ctx.textBaseline='top';
+            this.hits.push({x:cx,y:cy,w:cw,h:ch,preset:pr,key});
+        }
+        y+=Math.ceil(SKIN_PRESETS.length/cols)*(ch+8)+(small?4:10);
         const tiny=h<450;
         const SK=TUNING.skinUi;
         const r=tiny?SK.rTiny:(small?SK.rSmall:SK.r);
@@ -4681,10 +4744,12 @@ export class SkinEditor extends Panel {
         y+=4-this.scroll;
         const y0=y;
         const slide=(1-EASE.easeOutCubic(this.tabT))*TUNING.metaUi.tab.slide*(this.tab==='acc'?1:-1)*4;
+        y=this.drawOutfits(ctx,P,y,v,small,cur);
+        ctx.save();
         ctx.translate(slide,0);
         ctx.globalAlpha=Math.min(1,0.3+this.tabT);
         y=this.tab==='acc'?this.drawAccs(ctx,P,y,v,small,cur):this.drawColors(ctx,P,y,v,small,cur);
-        ctx.globalAlpha=1;
+        ctx.restore();
         this.contentH=y-y0+6;
         ctx.restore();
         const max=Math.max(0,this.contentH-V.h);
@@ -4756,6 +4821,51 @@ export class SkinEditor extends Panel {
         drawButton(ctx,this.resetBtn,t('skin.reset'),v,(this.t-0.1)/0.3,this.hoverIdx===0,16);
         ctx.restore();
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.15)/0.3,this.hoverIdx===1,18);
+        this.drawRandom(ctx,v,small);
+        ctx.restore();
+    }
+
+    drawRandom(ctx,v,small) {
+        const b=this.randomBtn;
+        const ap=(this.t-0.05)/0.3;
+        if (ap<=0) {
+            return;
+        }
+        const hv=this.hoverIdx===2;
+        const dk=this.dice||0;
+        const e=EASE.easeOutBack(Math.min(1,ap));
+        ctx.save();
+        ctx.globalAlpha=Math.min(1,ap*2);
+        ctx.translate(b.x+b.w/2,b.y+b.h/2);
+        ctx.scale(e*(hv?1.05:1)*(1+Math.sin(dk*Math.PI)*0.08),e*(hv?1.05:1)*(1+Math.sin(dk*Math.PI)*0.08));
+        ctx.fillStyle=hv?rgba('farGray',0.95):rgba('paper',0.92);
+        ctx.fillRect(-b.w/2,-b.h/2,b.w,b.h);
+        drawShape(ctx,sketchRect(-b.w/2,-b.h/2,b.w,b.h,{width:hv?2.8:2,seed:1620}),PALETTE.ink,v);
+        ctx.font='bold 16px '+FONT;
+        const label=t('skin.random');
+        const tw=Math.min(ctx.measureText(label).width,b.w-46);
+        const ds=b.h*0.42;
+        ctx.save();
+        ctx.translate(-tw/2-ds*0.4,0);
+        ctx.rotate(dk*Math.PI*4+(hv?Math.sin(time.real*8)*0.1:0));
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(-ds/2,-ds/2,ds,ds);
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=1.8;
+        ctx.strokeRect(-ds/2,-ds/2,ds,ds);
+        ctx.fillStyle=PALETTE.red;
+        const face=dk>0?1+Math.floor(time.real*20)%5:5;
+        const pips={1:[[0,0]],2:[[-1,-1],[1,1]],3:[[-1,-1],[0,0],[1,1]],4:[[-1,-1],[1,-1],[-1,1],[1,1]],5:[[-1,-1],[1,-1],[0,0],[-1,1],[1,1]]}[face];
+        for (const [px,py] of pips) {
+            ctx.beginPath();
+            ctx.arc(px*ds*0.25,py*ds*0.25,ds*0.09,0,Math.PI*2);
+            ctx.fill();
+        }
+        ctx.restore();
+        ctx.fillStyle=PALETTE.ink;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        fitText(ctx,label,ds*0.45,1,b.w-46,16,'bold ');
         ctx.restore();
     }
 }

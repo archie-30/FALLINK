@@ -8,7 +8,7 @@ import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchCircle,drawShape} from './sketch.js';
 import {progress} from '../core/progress.js';
-import {dots,price,statValue,chestsReady} from '../core/meta.js';
+import {dots,price,statValue,chestsReady,bundlePrice} from '../core/meta.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {drawChoiceIcon} from './menu.js';
 
@@ -584,14 +584,20 @@ export class BuyPrompt extends Panel {
         const h=this.height;
         const small=h<600;
         const U=TUNING.metaUi.buy;
-        const pw=Math.min(w-24,small?U.wSmall:U.w);
-        const ph=small?236:268;
+        const bundle=this.item&&this.item.kind==='bundle';
+        const pw=Math.min(w-24,bundle?(small?U.wBundleSmall:U.wBundle):(small?U.wSmall:U.w));
+        const rows=bundle?Math.ceil(this.item.items.length/2):0;
+        const ph=bundle?Math.min(h-16,(small?150:176)+rows*(small?U.chipSmall:U.chip)):(small?236:268);
         this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
         const bh=small?40:46;
         const bw=(pw-54)/2;
         this.noBtn={x:this.P.x+18,y:this.P.y+ph-bh-16,w:bw,h:bh};
         this.yesBtn={x:this.P.x+36+bw,y:this.P.y+ph-bh-16,w:bw,h:bh};
         this.buttons=[this.noBtn,this.yesBtn];
+    }
+
+    cost() {
+        return this.item.kind==='bundle'?bundlePrice(this.item.items):price(this.item);
     }
 
     update(dt) {
@@ -624,7 +630,7 @@ export class BuyPrompt extends Panel {
             return true;
         }
         if (inRect(this.yesBtn,x,y)) {
-            if (dots()<price(this.item)) {
+            if (dots()<this.cost()) {
                 this.shake=1;
                 this.actions.fail();
                 return true;
@@ -659,8 +665,9 @@ export class BuyPrompt extends Panel {
         const small=this.height<600;
         const a=EASE.easeOutBack(clamp01(this.t/0.3));
         const it=this.item;
-        const cost=price(it);
+        const cost=this.cost();
         const rich=dots()>=cost;
+        const bundle=it.kind==='bundle';
         ctx.save();
         ctx.fillStyle=rgba('paper',Math.min(0.7,this.t*3));
         ctx.fillRect(0,0,this.width,this.height);
@@ -675,23 +682,65 @@ export class BuyPrompt extends Panel {
         ctx.font='bold '+(small?17:20)+'px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='middle';
-        ctx.fillText(t(it.kind==='weapon'?'meta.buyWeapon':'meta.buyTitle'),18,small?24:28);
         drawWallet(ctx,P.w-14,small?10:14,v,'right',small?13:14);
-        const iy=P.h*0.4;
-        const r=small?26:32;
-        const bob=Math.sin(time.real*3)*2;
-        if (it.kind==='weapon') {
-            this.actions.weaponIcon(ctx,it.value,48,iy+bob,r/40,v);
+        let py=P.h*0.64;
+        if (bundle) {
+            fitText(ctx,t('meta.bundleTitle',{name:it.name}),18,small?24:28,P.w-120,small?17:20,'bold ');
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.font=(small?'12px ':'13px ')+FONT;
+            ctx.fillText(t('meta.bundleHint',{n:it.items.length}),18,small?48:56);
+            const U=TUNING.metaUi.buy;
+            const ch=small?U.chipSmall:U.chip;
+            const cw=(P.w-36-10)/2;
+            const y0=small?64:76;
+            it.items.forEach((q,i)=>{
+                const cx=18+(i%2)*(cw+10);
+                const cy=y0+Math.floor(i/2)*ch;
+                const ap=EASE.easeOutBack(clamp01((this.t-0.1-i*0.04)/0.3));
+                ctx.save();
+                ctx.translate(cx+cw/2,cy+ch/2-2);
+                ctx.scale(ap,ap);
+                ctx.translate(-cw/2,-(ch-4)/2);
+                ctx.fillStyle=rgba('farGray',0.35);
+                ctx.fillRect(0,0,cw,ch-4);
+                const ir=(ch-4)*0.32;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(2,0,ir*2+8,ch-4);
+                ctx.clip();
+                drawItemIcon(ctx,q,ir+6,(ch-4)/2,ir,v,this.skin);
+                ctx.restore();
+                ctx.textAlign='left';
+                ctx.textBaseline='middle';
+                ctx.fillStyle=PALETTE.ink;
+                fitText(ctx,itemName(q),ir*2+16,(ch-4)*0.34,cw-ir*2-50,small?12:13,'bold ');
+                ctx.fillStyle=PALETTE.nearGray;
+                fitText(ctx,itemPart(q),ir*2+16,(ch-4)*0.72,cw-ir*2-50,small?9:10,'');
+                drawInkDot(ctx,cw-22,(ch-4)/2,4.5);
+                ctx.fillStyle=PALETTE.ink;
+                ctx.font='bold 12px '+FONT;
+                ctx.fillText(String(price(q)),cw-14,(ch-4)/2+1);
+                ctx.restore();
+            });
+            py=y0+Math.ceil(it.items.length/2)*ch+(small?14:18);
         }
         else {
-            drawItemIcon(ctx,it,48,iy+bob,r,v,this.skin);
+            ctx.fillText(t(it.kind==='weapon'?'meta.buyWeapon':'meta.buyTitle'),18,small?24:28);
+            const iy=P.h*0.4;
+            const r=small?26:32;
+            const bob=Math.sin(time.real*3)*2;
+            if (it.kind==='weapon') {
+                this.actions.weaponIcon(ctx,it.value,48,iy+bob,r/40,v);
+            }
+            else {
+                drawItemIcon(ctx,it,48,iy+bob,r,v,this.skin);
+            }
+            ctx.textAlign='left';
+            ctx.fillStyle=PALETTE.ink;
+            fitText(ctx,itemName(it),48+r+14,iy-10,P.w-48-r-30,small?16:18,'bold ');
+            ctx.fillStyle=PALETTE.nearGray;
+            fitText(ctx,itemPart(it)||t('meta.weaponEarly'),48+r+14,iy+12,P.w-48-r-30,12,'');
         }
-        ctx.textAlign='left';
-        ctx.fillStyle=PALETTE.ink;
-        fitText(ctx,itemName(it),48+r+14,iy-10,P.w-48-r-30,small?16:18,'bold ');
-        ctx.fillStyle=PALETTE.nearGray;
-        fitText(ctx,itemPart(it)||t('meta.weaponEarly'),48+r+14,iy+12,P.w-48-r-30,12,'');
-        const py=P.h*0.64;
         ctx.font='bold '+(small?14:15)+'px '+FONT;
         ctx.textAlign='center';
         ctx.fillStyle=rich?PALETTE.ink:PALETTE.red;
@@ -714,11 +763,11 @@ export class BuyPrompt extends Panel {
             ctx.fillStyle=PALETTE.paper;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            fitText(ctx,t('meta.unlock'),0,1,b.w-14,small?15:17,'bold ');
+            fitText(ctx,t(bundle?'meta.unlockAll':'meta.unlock'),0,1,b.w-14,small?15:17,'bold ');
             ctx.restore();
         }
         else {
-            drawButton(ctx,this.yesBtn,t('meta.unlock'),v,ap,false,small?15:17);
+            drawButton(ctx,this.yesBtn,t(bundle?'meta.unlockAll':'meta.unlock'),v,ap,false,small?15:17);
             ctx.save();
             ctx.globalAlpha=0.5;
             ctx.fillStyle=PALETTE.paper;

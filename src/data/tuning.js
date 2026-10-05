@@ -675,7 +675,7 @@ export const TUNING={
         chest:{shake:0.9,burst:0.35,itemGap:0.32,itemPop:0.45,float:6,rays:12},
         toast:{time:3.4,slide:0.35,w:300,wSmall:240,h:62,hSmall:52,top:14},
         ach:{rowH:64,rowHSmall:54,barH:14,chestR:17,stagger:0.03,scrollFollow:14,dragSlop:8},
-        buy:{w:340,wSmall:300,stamp:0.45,close:0.7},
+        buy:{w:340,wSmall:300,wBundle:460,wBundleSmall:420,chip:46,chipSmall:40,stamp:0.45,close:0.7},
         revive:{w:420,wSmall:340,pulse:3},
         tab:{h:34,hSmall:30,slide:12},
         tile:{s:58,sSmall:46,gap:8},
