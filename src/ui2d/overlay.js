@@ -159,6 +159,7 @@ export class Overlay {
         game.chestView.draw(ctx);
         game.buyPrompt.draw(ctx);
         game.langPick.draw(ctx);
+        game.confirmPop.draw(ctx);
         if (game.resumeT>0) {
             this.drawCountdown(ctx,game.resumeT);
         }

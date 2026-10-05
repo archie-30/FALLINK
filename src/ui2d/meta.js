@@ -11,6 +11,7 @@ import {progress} from '../core/progress.js';
 import {dots,price,statValue,chestsReady,bundlePrice} from '../core/meta.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {drawChoiceIcon} from './menu.js';
+import {wrapText} from './cardView.js';
 
 const clamp01=x=>Math.max(0,Math.min(1,x));
 
@@ -1041,7 +1042,7 @@ export class AchievementView extends Panel {
         const w=this.width;
         const h=this.height;
         const small=h<600;
-        const pw=Math.min(760,w-20);
+        const pw=Math.min(1000,w-20);
         const ph=h-(small?12:40);
         this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
         const bh=small?38:46;
@@ -1119,7 +1120,7 @@ export class AchievementView extends Panel {
         const bh=U.barH;
         const ready=chestsReady();
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?12:13)+'px '+FONT;
+        ctx.font='bold '+(small?14:15)+'px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='middle';
         ctx.fillText(t('ach.progress',{n,total}),x,y);
@@ -1193,15 +1194,14 @@ export class AchievementView extends Panel {
         ctx.rect(V.x,V.y,V.w,V.h);
         ctx.clip();
         const rh=small?U.rowHSmall:U.rowH;
-        const two=P.w>=640;
-        const cols=two?2:1;
-        const cw=(V.w-20-(cols-1)*10)/cols;
+        const cols=P.w>=U.twoCol&&!small?2:1;
+        const cw=(V.w-20-(cols-1)*14)/cols;
         const order=ACHIEVEMENTS.map((q,i)=>({q,i,done:progress.ach.includes(q.id)}));
         const y0=y-this.scroll;
         for (let k=0;k<order.length;k++) {
             const {q,done}=order[k];
-            const rx=V.x+10+(k%cols)*(cw+10);
-            const ry=y0+Math.floor(k/cols)*(rh+8);
+            const rx=V.x+10+(k%cols)*(cw+14);
+            const ry=y0+Math.floor(k/cols)*(rh+10);
             if (ry>V.y+V.h||ry+rh<V.y) {
                 continue;
             }
@@ -1216,50 +1216,50 @@ export class AchievementView extends Panel {
             ctx.fillStyle=done?rgba('red',0.06):rgba('paper',0.95);
             ctx.fillRect(0,0,cw,rh);
             drawShape(ctx,sketchRect(0,0,Math.round(cw),rh,{width:done?2:1.2,seed:3530+k}),done?PALETTE.red:PALETTE.nearGray,v);
-            const ir=rh*0.3;
+            const ir=rh*0.28;
             drawChoiceIcon(ctx,q.icon,rh*0.48,rh/2,ir,v,done);
             const tx=rh*0.95;
-            const tw=cw-tx-(small?62:76);
+            const tw=cw-tx-(small?78:92);
             ctx.textAlign='left';
             ctx.textBaseline='middle';
             ctx.fillStyle=done?PALETTE.ink:PALETTE.ink;
-            fitText(ctx,t('ach.'+q.id+'.name'),tx,rh*0.27,tw,small?13:15,'bold ');
+            fitText(ctx,t('ach.'+q.id+'.name'),tx,rh*0.26,tw,small?19:18,'bold ');
             ctx.fillStyle=PALETTE.nearGray;
-            fitText(ctx,t('ach.'+q.id+'.desc',{n:q.goal}),tx,rh*0.52,tw,small?10:12,'');
+            fitText(ctx,t('ach.'+q.id+'.desc',{n:q.goal}),tx,rh*0.53,tw,small?15:14,'');
             const bx=tx;
-            const by=rh*0.72;
+            const by=rh*0.74;
             const bw=tw;
             ctx.fillStyle=rgba('farGray',0.8);
-            ctx.fillRect(bx,by,bw,5);
+            ctx.fillRect(bx,by,bw,7);
             ctx.fillStyle=done?PALETTE.red:PALETTE.ink;
-            ctx.fillRect(bx,by,bw*f*clamp01(ap),5);
+            ctx.fillRect(bx,by,bw*f*clamp01(ap),7);
             ctx.fillStyle=PALETTE.nearGray;
-            ctx.font=(small?'10px ':'11px ')+FONT;
+            ctx.font='bold '+(small?14:13)+'px '+FONT;
             ctx.textAlign='right';
-            ctx.fillText(val+'/'+q.goal,cw-10,rh*0.76);
+            ctx.fillText(val+'/'+q.goal,cw-12,rh*0.78);
             if (done) {
                 ctx.save();
-                ctx.translate(cw-(small?32:38),rh*0.36);
+                ctx.translate(cw-(small?40:46),rh*0.36);
                 ctx.rotate(-0.15);
                 ctx.strokeStyle=PALETTE.red;
                 ctx.lineWidth=2;
-                ctx.strokeRect(-24,-10,48,20);
+                ctx.strokeRect(-30,-12,60,24);
                 ctx.fillStyle=PALETTE.red;
-                ctx.font='bold 11px '+FONT;
+                ctx.font='bold 14px '+FONT;
                 ctx.textAlign='center';
                 ctx.fillText(t('ach.done'),0,1);
                 ctx.restore();
             }
             else {
-                drawInkDot(ctx,cw-(small?42:50),rh*0.36,5);
+                drawInkDot(ctx,cw-(small?50:58),rh*0.36,6.5);
                 ctx.fillStyle=PALETTE.ink;
-                ctx.font='bold 12px '+FONT;
+                ctx.font='bold 15px '+FONT;
                 ctx.textAlign='left';
-                ctx.fillText('+1',cw-(small?34:42),rh*0.37);
+                ctx.fillText('+1',cw-(small?40:48),rh*0.37);
             }
             ctx.restore();
         }
-        this.contentH=Math.ceil(order.length/cols)*(rh+8)+6;
+        this.contentH=Math.ceil(order.length/cols)*(rh+10)+6;
         ctx.restore();
         const max=Math.max(0,this.contentH-V.h);
         if (max>0) {
@@ -1271,7 +1271,7 @@ export class AchievementView extends Panel {
             ctx.fillRect(V.x+V.w-6,ty,6,th);
         }
         ctx.fillStyle=PALETTE.nearGray;
-        ctx.font=(small?'11px ':'12px ')+FONT;
+        ctx.font=(small?'13px ':'14px ')+FONT;
         ctx.textAlign='right';
         ctx.textBaseline='middle';
         ctx.fillText(t('ach.hint'),P.x+P.w-22,this.backBtn.y+this.backBtn.h/2);
@@ -1463,6 +1463,160 @@ export class RevivePopup extends Panel {
         ctx.textBaseline='middle';
         fitText(ctx,t('revive.yes',{n:this.n}),0,1,b.w-14,small?15:17,'bold ');
         ctx.restore();
+    }
+}
+
+export class ConfirmPopup extends Panel {
+    constructor(actions) {
+        super();
+        this.actions=actions;
+        this.outFrom=0.3;
+        this.done=-1;
+        this.fired=false;
+    }
+
+    open2(spec) {
+        this.spec=spec;
+        this.done=-1;
+        this.fired=false;
+        this.show();
+    }
+
+    layout() {
+        const w=this.width;
+        const h=this.height;
+        const small=h<600;
+        const U=TUNING.metaUi.confirm;
+        const pw=Math.min(w-24,small?U.wSmall:U.w);
+        const ph=small?U.hSmall:U.h;
+        this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
+        const bh=small?42:48;
+        const bw=(pw-54)/2;
+        this.noBtn={x:this.P.x+18,y:this.P.y+ph-bh-16,w:bw,h:bh};
+        this.yesBtn={x:this.P.x+36+bw,y:this.P.y+ph-bh-16,w:bw,h:bh};
+        this.buttons=[this.noBtn,this.yesBtn];
+    }
+
+    update(dt) {
+        super.update(dt);
+        if (this.done>=0) {
+            this.done+=dt;
+            if (!this.fired&&this.done>=TUNING.metaUi.confirm.flood) {
+                this.fired=true;
+                this.spec.onYes();
+            }
+        }
+    }
+
+    down(x,y) {
+        if (!this.open) {
+            return false;
+        }
+        this.layout();
+        if (this.done>=0) {
+            return true;
+        }
+        if (inRect(this.yesBtn,x,y)) {
+            this.done=0;
+            this.actions.yes();
+            return true;
+        }
+        if (inRect(this.noBtn,x,y)||!inRect(this.P,x,y)) {
+            this.actions.no();
+            this.hide();
+        }
+        return true;
+    }
+
+    draw(ctx) {
+        if (!this.shown()||!this.spec) {
+            return;
+        }
+        this.layout();
+        const v=time.boilIndex;
+        const P=this.P;
+        const w=this.width;
+        const h=this.height;
+        const small=h<600;
+        const a=EASE.easeOutBack(clamp01(this.t/0.32));
+        ctx.save();
+        ctx.fillStyle=rgba('ink',Math.min(0.45,this.t*1.6));
+        ctx.fillRect(0,0,w,h);
+        ctx.translate(P.x+P.w/2,P.y+P.h/2-(1-a)*50);
+        ctx.scale(a,a);
+        ctx.rotate((1-a)*0.08);
+        ctx.translate(-P.w/2,-P.h/2);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(0,0,P.w,P.h);
+        drawShape(ctx,sketchRect(0,0,Math.round(P.w),Math.round(P.h),{width:2.6,seed:3801}),PALETTE.red,v);
+        const ix=small?40:48;
+        const iy=small?40:50;
+        const ir=small?20:24;
+        ctx.save();
+        ctx.translate(ix,iy+Math.sin(time.real*3)*2);
+        ctx.rotate(Math.sin(time.real*9)*0.06);
+        ctx.fillStyle=PALETTE.red;
+        ctx.beginPath();
+        ctx.moveTo(0,-ir);
+        ctx.lineTo(ir*1.05,ir*0.8);
+        ctx.lineTo(-ir*1.05,ir*0.8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle=PALETTE.paper;
+        ctx.font='bold '+Math.round(ir*1.1)+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText('!',0,ir*0.25);
+        ctx.restore();
+        ctx.fillStyle=PALETTE.red;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        fitText(ctx,this.spec.title,ix+ir+18,iy,P.w-ix-ir-36,small?20:24,'bold ');
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font=(small?'14px ':'16px ')+FONT;
+        ctx.textBaseline='top';
+        const lines=wrapText(ctx,this.spec.body,P.w-44);
+        let ty=iy+ir+(small?14:20);
+        for (const ln of lines) {
+            ctx.fillText(ln,22,ty);
+            ty+=small?20:23;
+        }
+        ctx.fillStyle=PALETTE.red;
+        ctx.font='bold '+(small?14:16)+'px '+FONT;
+        ctx.fillText(this.spec.warn,22,ty+(small?4:8));
+        ctx.restore();
+        const ap=(this.t-0.12)/0.3;
+        drawButton(ctx,this.noBtn,this.spec.no,v,ap,this.hoverIdx===0,small?16:18);
+        const b=this.yesBtn;
+        const e=EASE.easeOutBack(clamp01(ap));
+        const hv=this.hoverIdx===1;
+        ctx.save();
+        ctx.globalAlpha=clamp01(ap*2);
+        ctx.translate(b.x+b.w/2+(hv?Math.sin(time.real*30)*1.2:0),b.y+b.h/2);
+        ctx.scale(e*(hv?1.05:1),e*(hv?1.05:1));
+        ctx.fillStyle=PALETTE.red;
+        ctx.fillRect(-b.w/2,-b.h/2,b.w,b.h);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        fitText(ctx,this.spec.yes,0,1,b.w-14,small?16:18,'bold ');
+        ctx.restore();
+        if (this.done>=0) {
+            const k=EASE.easeInOutCubic(clamp01(this.done/TUNING.metaUi.confirm.flood));
+            ctx.save();
+            ctx.fillStyle=PALETTE.ink;
+            ctx.beginPath();
+            ctx.moveTo(0,h);
+            const top=h*(1-k*1.15);
+            for (let i=0;i<=24;i++) {
+                const x=w*i/24;
+                ctx.lineTo(x,top+Math.sin(i*1.7+this.done*9)*18*(1-k*0.5));
+            }
+            ctx.lineTo(w,h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
     }
 }
 

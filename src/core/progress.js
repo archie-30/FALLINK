@@ -1,6 +1,6 @@
 import {TUNING} from '../data/tuning.js';
 import {UNLOCKS} from '../data/cards.js';
-import {settings} from './settings.js';
+import {settings,storage} from './settings.js';
 
 const MAX_LEVEL=TUNING.levels.max;
 
@@ -46,13 +46,10 @@ export function loadProgress() {
     }
 }
 
-export function resetLevel() {
-    progress.level=1;
-    progress.xp=0;
-    saveProgress();
-}
-
 export function saveProgress() {
+    if (storage.locked) {
+        return;
+    }
     try {
         localStorage.setItem(KEY,JSON.stringify(progress));
     }
