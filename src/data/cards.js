@@ -79,7 +79,7 @@ export const CARDS={
         range:12,
         radius:4,
         params:{damage:230,radius:4},
-        upgraded:{cost:4,params:{damage:400,radius:5}},
+        upgraded:{cost:4},
         effect:(g,t,p)=>g.execute(t.x,t.z,p.damage,p.radius)
     },
     pencilWall:{
@@ -188,7 +188,7 @@ export const CARDS={
         mode:'global',
         targeting:'none',
         params:{ink:5},
-        upgraded:{cost:2,params:{ink:6}},
+        upgraded:{cost:2},
         effect:(g,t,p)=>g.redraw(p.ink)
     },
     whiteout:{
@@ -255,7 +255,7 @@ export const CARDS={
         mode:'self',
         targeting:'none',
         params:{duration:6},
-        upgraded:{cost:2,params:{duration:6}},
+        upgraded:{cost:2},
         effect:(g,t,p)=>g.dualWield(p.duration)
     },
     pin:{
@@ -337,7 +337,7 @@ export const CARDS={
         targeting:'direction',
         range:16,
         params:{damage:60,width:8,length:18},
-        upgraded:{cost:3,params:{damage:80,width:9,length:20}},
+        upgraded:{cost:3},
         effect:(g,t,p)=>g.tsunami(t.dx,t.dz,p.damage,p.width,p.length)
     },
     blackHole:{
@@ -351,7 +351,7 @@ export const CARDS={
         targeting:'point',
         range:12,
         params:{radius:7,duration:2.5,damage:90,single:100},
-        upgraded:{cost:4,params:{radius:8,duration:2.5,damage:120,single:140}},
+        upgraded:{cost:4},
         effect:(g,t,p)=>g.blackHole(t.x,t.z,p.radius,p.duration,p.damage,p.single)
     },
     barrage:{
@@ -364,7 +364,7 @@ export const CARDS={
         mode:'shoot',
         targeting:'none',
         params:{duration:3,damage:12,count:36},
-        upgraded:{cost:3,params:{duration:3.5,damage:14,count:44}},
+        upgraded:{cost:3},
         effect:(g,t,p)=>g.barrage(p.duration,p.damage,p.count)
     },
     giantPen:{
@@ -378,7 +378,7 @@ export const CARDS={
         targeting:'direction',
         range:22,
         params:{damage:210,width:2.8},
-        upgraded:{cost:3,params:{damage:280,width:3.3}},
+        upgraded:{cost:3},
         effect:(g,t,p)=>g.giantPen(t.dx,t.dz,p.damage,p.width)
     },
     freezeAll:{
@@ -391,7 +391,7 @@ export const CARDS={
         mode:'global',
         targeting:'none',
         params:{duration:3},
-        upgraded:{cost:3,params:{duration:4}},
+        upgraded:{cost:3},
         effect:(g,t,p)=>g.freezeAll(p.duration)
     },
     paperBlade:{
@@ -472,7 +472,7 @@ export const CARDS={
         mode:'replay',
         targeting:'none',
         params:{ink:2},
-        upgraded:{cost:2,params:{ink:2}},
+        upgraded:{cost:2},
         effect:(g,t)=>g.echo(t)
     },
     inkStorm:{
@@ -485,7 +485,7 @@ export const CARDS={
         mode:'global',
         targeting:'none',
         params:{duration:5,damage:40,every:0.45},
-        upgraded:{cost:3,params:{duration:5,damage:40,every:0.45}},
+        upgraded:{cost:3},
         effect:(g,t,p)=>g.inkStorm(p.duration,p.damage,p.every)
     }
 };
