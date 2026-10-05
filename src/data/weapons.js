@@ -114,11 +114,13 @@ export const WEAPON_LIMITS={
 
 export const RANDOM_WEAPON={id:'random',min:2};
 
+export const EARLY_WEAPONS=[];
+
 export function weaponUnlocked(id,level) {
     if (id===RANDOM_WEAPON.id) {
         return unlockedWeapons(level).length>=RANDOM_WEAPON.min;
     }
-    return (WEAPONS[id]?.unlock??99)<=level;
+    return (WEAPONS[id]?.unlock??99)<=level||EARLY_WEAPONS.includes(id);
 }
 
 export function unlockedWeapons(level) {
