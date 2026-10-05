@@ -690,7 +690,6 @@ export class SettingsMenu extends Panel {
         this.page='main';
         this.pageT=0;
         this.lvStage=0;
-        this.lvDone=0;
         for (const k of [...SETTING_KEYS,...TOUCH_SETTING_KEYS]) {
             this.anim[k]=this.target(k);
             this.pulse[k]=0;
@@ -703,7 +702,6 @@ export class SettingsMenu extends Panel {
         const LG=TUNING.settingsUi.lang;
         this.langT=Math.max(0,Math.min(1,(this.langT||0)+(this.langOpen?dt/LG.openTime:-dt/LG.closeTime)));
         this.langPick=Math.max(0,(this.langPick||0)-dt*LG.pickDecay);
-        this.lvDone=Math.max(0,(this.lvDone||0)-dt);
         this.lvPulse=Math.max(0,(this.lvPulse||0)-dt*4);
         if (this.pw) {
             const P=this.pw;
@@ -835,8 +833,7 @@ export class SettingsMenu extends Panel {
             }
             else {
                 this.lvStage=0;
-                this.lvDone=TUNING.settingsUi.resetDone;
-                this.actions.resetLevel();
+                this.actions.resetGame();
             }
             return true;
         }
@@ -1105,7 +1102,7 @@ export class SettingsMenu extends Panel {
         }
         if (this.lvBtn) {
             const lb=this.lvBtn;
-            const label=this.lvDone>0?t('settings.resetDone'):t(['settings.resetLevel','settings.resetConfirm','settings.resetAgain'][this.lvStage]);
+            const label=t(['settings.resetGame','settings.resetConfirm','settings.resetAgain'][this.lvStage]);
             const p=this.lvPulse||0;
             const shake=this.lvStage===2?Math.sin(time.real*30)*1.5:0;
             ctx.save();

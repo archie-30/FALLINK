@@ -10,7 +10,7 @@ import {CameraRig} from './core/cameraRig.js';
 import {createScene} from './core/scene.js';
 import {tweens} from './core/tween.js';
 import {fx} from './core/fx.js';
-import {detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device,TRAINING_DEFAULTS,TRAINING_SPAWN} from './core/settings.js';
+import {wipeStorage,detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device,TRAINING_DEFAULTS,TRAINING_SPAWN} from './core/settings.js';
 import {Renderer} from './render/renderer.js';
 import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial,shared,dissolveVariant} from './render/materials.js';
 import {Particles,MuzzleFlashes,Rings} from './render/particles.js';
@@ -29,7 +29,7 @@ import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects,createCard,cardParams} from './game/card.js';
 import {STARTING_DECK,ALL_CARDS,CARDS,isUlt,unlockedCards,TUTORIAL_MERGE} from './data/cards.js';
-import {progress,loadProgress,addXp,markSeen,markBeaten,godMode,effectiveLevel,xpToNext,resetLevel} from './core/progress.js';
+import {progress,loadProgress,addXp,markSeen,markBeaten,godMode,effectiveLevel,xpToNext} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -42,7 +42,7 @@ import {UpgradeView} from './ui2d/upgrade.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
 import {initMeta,clampSkin,setGate,bump,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive} from './core/meta.js';
-import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast} from './ui2d/meta.js';
+import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast,ConfirmPopup} from './ui2d/meta.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
 import {audio} from './core/audio.js';
@@ -1591,6 +1591,10 @@ function boot() {
         tick:()=>audio.play('ui',1.2)
     });
     const achToast=new AchToast();
+    const confirmPop=new ConfirmPopup({
+        yes:()=>audio.play('erase'),
+        no:()=>audio.play('ui')
+    });
     const skinEditor=new SkinEditor({
         buy:item=>{
             audio.play('ui');
@@ -1846,24 +1850,13 @@ function boot() {
         },
         devOff:lockWeapons,
         wrong:()=>audio.play('fail'),
-        resetLevel:()=>{
-            resetLevel();
-            if (!weaponUnlocked(settings.weapon,effectiveLevel())) {
-                settings.weapon='pen';
-            }
-            if (!weaponUnlocked(settings.training.weapon,effectiveLevel())) {
-                settings.training.weapon='pen';
-            }
-            saveSettings();
-            if (game.mode!=='play') {
-                equipWeapon();
-            }
-            audio.play('erase');
-            transition.run(()=>{
-                settingsMenu.hide();
-                enterMenu();
-                overlay.hud.toast(t('settings.resetToast'));
-            });
+        resetGame:()=>{
+            audio.play('fail');
+            const wipe=()=>{
+                wipeStorage();
+                location.reload();
+            };
+            confirmPop.open2({title:t('reset.title'),body:t('reset.body'),warn:t('reset.warn'),yes:t('reset.yes'),no:t('meta.cancel'),onYes:wipe});
         },
         select:()=>audio.play('ui'),
         back:()=>{
@@ -1893,7 +1886,7 @@ function boot() {
         }
     });
     let pendingLevel=null;
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,popup,choice,deckPick,levelUp,achView,chestView,buyPrompt,revivePopup];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,popup,choice,deckPick,levelUp,achView,chestView,buyPrompt,revivePopup,confirmPop];
     setGate(()=>game.mode==='play'&&(run.mode==='story'||run.mode==='endless')&&!godMode());
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
@@ -1965,6 +1958,9 @@ function boot() {
             checkDevice();
             if (langPick.open) {
                 return langPick.down(x,y);
+            }
+            if (confirmPop.open) {
+                return confirmPop.down(x,y);
             }
             if (chestView.open) {
                 return chestView.down(x,y);
@@ -2159,6 +2155,13 @@ function boot() {
     };
     input.onEscape=()=>{
         audio.unlock();
+        if (confirmPop.open) {
+            if (confirmPop.done<0) {
+                confirmPop.actions.no();
+                confirmPop.hide();
+            }
+            return;
+        }
         if (chestView.open) {
             chestView.skip();
             return;
@@ -2239,7 +2242,7 @@ function boot() {
     // false when the system may close the app (second back press within 2 s on the idle main menu).
     let lastExitBack=-1e9;
     window.__inkrageBack=()=>{
-        const idleMenu=game.mode==='menu'&&!popup.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open&&!achView.open&&!chestView.open&&!buyPrompt.open;
+        const idleMenu=game.mode==='menu'&&!popup.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open&&!achView.open&&!chestView.open&&!buyPrompt.open&&!confirmPop.open;
         if (idleMenu) {
             const now=performance.now();
             if (now-lastExitBack<2000) {
@@ -2379,7 +2382,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
+    const gameUi={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -2804,7 +2807,7 @@ function boot() {
     if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

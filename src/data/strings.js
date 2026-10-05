@@ -442,7 +442,6 @@ export const STRINGS={
     'intro.games':'選一個小遊戲來測試。',
     'intro.back':'回到原本的訓練場。',
     'mg.test':'小遊戲測試',
-    'settings.resetToast':'等級已重置為 1',
     'training.home':'回主畫面',
     'training.random':'隨機',
     'training.pickHint':'可選 2 張一般牌＋1 張特殊技，再按放入手牌',
@@ -539,10 +538,8 @@ export const STRINGS={
     'settingsInfo.stickY':'搖桿離螢幕底部的高度。往右拉搖桿會往上移，避免擋到手牌或太貼近邊緣。',
     'settings.resetSticks':'恢復預設',
     'settings.touch':'觸控設定',
-    'settings.resetLevel':'重置等級',
-    'settings.resetConfirm':'是否確認重置？',
+    'settings.resetConfirm':'確定要清除所有進度？',
     'settings.resetAgain':'再按一次以重置',
-    'settings.resetDone':'已重置為等級 1',
     'settings.touchTitle':'觸控設定',
     'settings.touchHint':'拖曳滑桿時畫面會即時預覽搖桿與技能鍵',
     'settings.aimRing':'瞄準內圈大小',
@@ -1277,7 +1274,12 @@ export const STRINGS={
     'skin.preset.sky':'晴空',
     'skin.preset.coral':'珊瑚',
     'skin.preset.mint':'薄荷',
-    'skin.preset.cocoa':'可可'
+    'skin.preset.cocoa':'可可',
+    'settings.resetGame':'重置遊戲',
+    'reset.title':'重置整個遊戲？',
+    'reset.body':'等級、墨點、成就、外觀與配飾、解鎖的武器、最高分、圖鑑紀錄與所有設定都會被刪除，遊戲會重新載入，並視為第一次遊玩（從選擇語言與新手教學開始）。',
+    'reset.warn':'此操作無法復原！',
+    'reset.yes':'確定重置'
 };
 
 let touchText=false;

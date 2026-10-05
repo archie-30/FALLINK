@@ -440,7 +440,6 @@ export const STRINGS_EN={
     'intro.games':'Pick a minigame to test.',
     'intro.back':'Return to the training grounds.',
     'mg.test':'Minigame test',
-    'settings.resetToast':'Level reset to 1',
     'training.home':'Main menu',
     'training.random':'Random',
     'training.pickHint':'Pick 2 normal cards + 1 special, then press “Add to hand”',
@@ -537,10 +536,8 @@ export const STRINGS_EN={
     'settingsInfo.stickY':'Height of the sticks above the bottom of the screen. Drag right to raise them so they don’t cover your hand or sit too close to the edge.',
     'settings.resetSticks':'Reset to default',
     'settings.touch':'Touch settings',
-    'settings.resetLevel':'Reset level',
-    'settings.resetConfirm':'Are you sure?',
-    'settings.resetAgain':'Press again to reset',
-    'settings.resetDone':'Reset to level 1',
+    'settings.resetConfirm':'Erase all progress?',
+    'settings.resetAgain':'Tap again to reset',
     'settings.touchTitle':'Touch Settings',
     'settings.touchHint':'Sticks and skill buttons preview live while you drag the sliders',
     'settings.aimRing':'Aim ring size',
@@ -1275,5 +1272,10 @@ export const STRINGS_EN={
     'skin.preset.sky':'Clear Sky',
     'skin.preset.coral':'Coral',
     'skin.preset.mint':'Mint',
-    'skin.preset.cocoa':'Cocoa'
+    'skin.preset.cocoa':'Cocoa',
+    'settings.resetGame':'Reset game',
+    'reset.title':'Reset the whole game?',
+    'reset.body':'Your level, Ink Dots, achievements, outfits and accessories, unlocked weapons, high scores, codex records and all settings will be deleted. The game will reload as if you were playing for the first time (starting from language choice and the tutorial).',
+    'reset.warn':'This cannot be undone!',
+    'reset.yes':'Reset'
 };

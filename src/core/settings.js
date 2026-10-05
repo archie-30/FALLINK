@@ -2,6 +2,8 @@ import {TUNING} from '../data/tuning.js';
 
 const KEY='inkfall.settings.v1';
 
+export const storage={locked:false,prefix:'inkfall.'};
+
 export const device={
     mobile:false,
     native:false,
@@ -83,9 +85,30 @@ export function loadSettings() {
 }
 
 export function saveSettings() {
+    if (storage.locked) {
+        return;
+    }
     try {
         const {training,...rest}=settings;
         localStorage.setItem(KEY,JSON.stringify(rest));
+    }
+    catch (e) {
+    }
+}
+
+export function wipeStorage() {
+    storage.locked=true;
+    try {
+        const keys=[];
+        for (let i=0;i<localStorage.length;i++) {
+            const k=localStorage.key(i);
+            if (k&&k.startsWith(storage.prefix)) {
+                keys.push(k);
+            }
+        }
+        for (const k of keys) {
+            localStorage.removeItem(k);
+        }
     }
     catch (e) {
     }
