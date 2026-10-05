@@ -104,9 +104,16 @@ No sign-in, no personal data collected, no ads.
 | --- | --- | --- |
 | App 圖示 | `store/icon-512.png` | 512×512 PNG |
 | 主圖（Feature graphic） | `store/feature-graphic-1024x500.png` | 1024×500 PNG |
-| 手機截圖（至少 2 張，最多 8 張） | `store/screenshots/phone-1…5-*.png` | 2100×1082（比例 < 2:1，符合規定） |
+| 手機截圖（至少 2 張，最多 8 張） | `store/screenshots/phone/1…5-*.png` | 2400×1236（比例 < 2:1） |
+| 7 吋平板截圖 | `store/screenshots/tablet-7in/1…5-*.png` | 1920×1080（16:9，每邊 320–3840） |
+| 10 吋平板截圖 | `store/screenshots/tablet-10in/1…5-*.png` | 2560×1440（16:9，每邊 1080–7680） |
+| Google Play Games 電腦版截圖（4–8 張） | `store/screenshots/pc-google-play-games/1…5-*.png` | 2560×1440（16:9） |
+| Google Play Games 電腦版標誌 | `store/screenshots/pc-google-play-games/logo-600x400.png` | 600×400 透明 PNG，含遊戲名稱 |
+| Google Play Games 電腦版主題圖片 | `store/screenshots/pc-google-play-games/hero-no-text.png` | 2560×1440（16:9，不含任何文字） |
 
-截圖是用 Pixel 6 規格的觸控模式從實際遊戲擷取，顯示的是手機上真正的操作介面。若你想換成真機截圖，把 Pixel 6 上截的圖直接取代即可（橫向、比例不可超過 2:1）。
+截圖都是用 v0.9.32 的實際遊戲畫面，以裝置的原生解析度渲染（手機 3 倍、平板與電腦 2 倍），不是放大圖。
+手機與平板截圖顯示觸控介面；電腦版截圖顯示滑鼠鍵盤介面（Tab、1、2、3 快捷鍵提示）。
+每張圖都 < 8 MB，符合 Play Console 限制。遊戲更新後想重拍，可以請 Claude 重做。
 
 ## 內容分級問卷（IARC）重點【待你確認】
 - 類型：遊戲。
