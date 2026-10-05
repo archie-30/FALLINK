@@ -54,8 +54,55 @@ export function owns(item) {
     return item.kind==='color'?ownsTone(item.part,item.value):ownsAcc(item.part,item.value);
 }
 
+export function presetItems(pr) {
+    const out=SKIN_PARTS.map(q=>({kind:'color',part:q.key,value:pr[q.key]}));
+    for (const q of ACC_SLOTS) {
+        if (pr[q.key]) {
+            out.push({kind:'acc',part:q.key,value:pr[q.key]});
+        }
+    }
+    return out;
+}
+
+export function presetMissing(pr) {
+    return presetItems(pr).filter(q=>!owns(q));
+}
+
 export function presetOwned(pr) {
-    return SKIN_PARTS.every(q=>ownsTone(q.key,pr[q.key]));
+    return presetMissing(pr).length===0;
+}
+
+export function bundlePrice(items) {
+    return items.reduce((a,q)=>a+price(q),0);
+}
+
+export function buyAll(items) {
+    const p=bundlePrice(items);
+    if (progress.dots<p||items.length===0) {
+        return false;
+    }
+    progress.dots-=p;
+    for (const q of items) {
+        unlock(q);
+    }
+    checkAch(true);
+    saveProgress();
+    return true;
+}
+
+export function randomSkin(cur) {
+    const pick=list=>list[Math.floor(Math.random()*list.length)];
+    const out={...cur};
+    for (const q of SKIN_PARTS) {
+        const list=(q.tones||q.accents).filter(v=>ownsTone(q.key,v));
+        out[q.key]=pick(list.length>1?list.filter(v=>v!==cur[q.key]):list);
+    }
+    for (const q of ACC_SLOTS) {
+        const list=q.items.filter(v=>ownsAcc(q.key,v));
+        const some=list.filter(v=>v!=='none');
+        out[q.key]=some.length>0&&Math.random()<0.8?pick(some):pick(list);
+    }
+    return out;
 }
 
 function rawOwned(item) {

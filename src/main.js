@@ -41,7 +41,7 @@ import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
-import {initMeta,clampSkin,setGate,bump,addKind,flushMeta,metaDirty,achQueue,grant,buy,claimAchChest,runChestCount,reviveReady,spendRevive} from './core/meta.js';
+import {initMeta,clampSkin,setGate,bump,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive} from './core/meta.js';
 import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast} from './ui2d/meta.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
@@ -1602,6 +1602,19 @@ function boot() {
                 return false;
             });
         },
+        bundle:pr=>{
+            audio.play('ui');
+            const items=presetMissing(pr);
+            buyPrompt.open2({kind:'bundle',items,name:t('skin.preset.'+pr.id)},skinEditor.skin(),()=>{
+                if (buyAll(items)) {
+                    skinEditor.walletK=1;
+                    skinEditor.applyPreset(pr);
+                    return true;
+                }
+                return false;
+            });
+        },
+        dice:()=>audio.play('draw',1.3),
         fail:()=>audio.play('fail'),
         changed:(skin,big)=>{
             for (const c of clones) {
@@ -2467,6 +2480,7 @@ function boot() {
     }
     const dropRng=new RNG(4242);
     let skinZoom=0;
+    let achCheckT=0;
     const NO_AIM={mode:'none'};
     function update(dt) {
         if (run.state!=='dead') {
@@ -2651,6 +2665,11 @@ function boot() {
         for (const m of menus) {
             m.update(dt);
         }
+        achCheckT-=dt;
+        if (achCheckT<=0) {
+            achCheckT=0.5;
+            checkAch();
+        }
         while (achQueue.length>0) {
             achToast.push(achQueue.shift());
             audio.play('equip',1.2);
@@ -2707,10 +2726,12 @@ function boot() {
             const p=player.renderPos;
             const R=MM.camRadius+(S.dist-MM.camRadius)*z;
             cam.position.set(p.x+sa*R,MM.camHeight+(S.height-MM.camHeight)*z,p.z+ca*R);
-            cam.lookAt(p.x-ca*S.shift*z,MM.camLook+(S.look-MM.camLook)*z,p.z+sa*S.shift*z);
+            cam.lookAt(p.x,MM.camLook+(S.look-MM.camLook)*z,p.z);
             const W=renderer.width;
             const H=renderer.height;
-            cam.setViewOffset(W,H,W*(MM.colFrac/2)*(1-z),0,W,H);
+            skinEditor.layout();
+            const pf=Math.min(0.8,(skinEditor.P.x+skinEditor.P.w)/Math.max(1,skinEditor.width));
+            cam.setViewOffset(W,H,W*(MM.colFrac/2)*(1-z)-W*pf/2*z,0,W,H);
             if (cam.fov!==TUNING.camera.fov) {
                 cam.fov=TUNING.camera.fov;
                 cam.updateProjectionMatrix();
