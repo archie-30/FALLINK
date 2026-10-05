@@ -462,7 +462,7 @@ export const ENEMIES={
         restTime:2.3,
         wrongTime:0.7,
         zone:{count:4,count2:6,r:1.9,spread:5.5,delay:1.1,stagger:0.18,ring:8,speed:4.5,life:2.4},
-        quiet:{time:2.8,cool:0.35,shots:3,shots2:5,spread:0.5},
+        quiet:{time:2.8,cool:0.5,spinTime:0.7,ring:12,ring2:18,speed:1.1},
         grade:{lines:4,lines2:5,spread:2.4,tele:0.8,time:1.2,every:0.16},
         toss:{volleys:3,volleys2:4,count:5,spread:0.9,every:0.5,speed:6},
         evolve:{at:0.5,time:2.4},

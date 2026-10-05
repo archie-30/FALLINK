@@ -36,9 +36,9 @@ export const STRINGS={
     'upgrade.continue.touch':'點一下繼續',
     'ui.fire':'射擊',
     'ui.cast':'施放',
-    'hand.touchHint':'按住技能鍵或右搖桿拖曳瞄準、放開施放　點一下搖桿自動瞄準　再點一次取消',
-    'hand.touchHintAura':'虛線圈是作用範圍　按住技能鍵往任意方向滑出即施放　再點一次取消',
-    'hand.touchHintPath':'拖曳右搖桿擺放，或用手指在地上畫出牆　再點卡牌取消',
+    'hand.touchHint':'按住技能鍵或右搖桿拖曳瞄準、放開施放　點一下搖桿自動瞄準　拖到紅色 ✕ 取消',
+    'hand.touchHintAura':'虛線圈是作用範圍　按住技能鍵往任意方向滑出即施放　拖到紅色 ✕ 取消',
+    'hand.touchHintPath':'拖曳右搖桿擺放，或用手指在地上畫出牆　拖到紅色 ✕ 取消',
     'perf.lowered':'偵測到畫面不順，已自動降低畫質',
     'quality.low':'低',
     'quality.mid':'中',
@@ -653,7 +653,7 @@ export const STRINGS={
     'atk.exam.zone':'選擇題',
     'atk.exam.zone.desc':'在你腳下和周圍畫出紅圈，一段時間後依序引爆並向外炸出子彈。',
     'atk.exam.quiet':'安靜作答',
-    'atk.exam.quiet.desc':'這段時間只要你開火，它就會喊「作弊！」並朝你射出一排子彈。',
+    'atk.exam.quiet.desc':'這段時間只要你開火，它就會喊「作弊！」並原地轉一圈，朝四面八方射出一圈子彈。',
     'atk.exam.grade':'紅筆批改',
     'atk.exam.grade.desc':'畫出好幾條紅線，接著沿著紅線連續射出子彈。單純攻擊，不算題目。',
     'atk.exam.rest':'答對了',
@@ -1279,7 +1279,13 @@ export const STRINGS={
     'reset.title':'重置整個遊戲？',
     'reset.body':'等級、墨點、成就、外觀與配飾、解鎖的武器、最高分、圖鑑紀錄與所有設定都會被刪除，遊戲會重新載入，並視為第一次遊玩（從選擇語言與新手教學開始）。',
     'reset.warn':'此操作無法復原！',
-    'reset.yes':'確定重置'
+    'reset.yes':'確定重置',
+    'settings.countdown':'繼續前倒數',
+    'settingsInfo.countdown':'從暫停回到戰鬥時，先在畫面中央倒數 3 秒再繼續，讓你有時間調整位置與方向。關閉後按「繼續」會立即回到遊戲。',
+    'tut.resume':'繼續練習',
+    'tut.remind':'再看一次',
+    'tut.rewards.title':'獎勵與裝扮',
+    'tut.rewards.body':'每局結束會依表現開出寶箱，裡面有新的顏色與配飾；升級時每升一級還會多給一個配飾。|達成成就可以得到「墨點」，每完成 5 個成就再開一個寶箱。|墨點能快速解鎖顏色與配飾、提前解鎖武器，或在倒下時用來復活。|到主選單的「角色外觀」打扮角色，也能存成自訂套組。'
 };
 
 let touchText=false;

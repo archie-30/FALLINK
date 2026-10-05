@@ -23,7 +23,7 @@ import {ENEMY_ICONS} from './enemyIcons.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {ACC_SLOTS,ACC_DEFAULT} from '../data/cosmetics.js';
 import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,randomSkin} from '../core/meta.js';
-import {drawAcc,drawAccIcon,drawLock,drawWallet,drawInkDot,drawMiniChest} from './meta.js';
+import {drawAcc,drawAccIcon,drawLock,drawWallet,drawInkDot,drawMiniChest,drawItemIcon} from './meta.js';
 
 function lerp1(a,b,f) {
     return a+(b-a)*Math.max(0,Math.min(1,f));
@@ -567,7 +567,7 @@ export class PauseMenu extends Panel {
     }
 }
 
-const SETTING_KEYS=['volume','music','sfx','quality','fps','jitter','assist','reduced','full','god'];
+const SETTING_KEYS=['volume','music','sfx','quality','fps','jitter','assist','countdown','reduced','full','god'];
 
 const SEGS={quality:{opts:['low','mid','high'],label:k=>t('quality.'+k)},fps:{opts:TUNING.loop.fpsOptions,label:k=>String(k)}};
 
@@ -626,6 +626,9 @@ export class SettingsMenu extends Panel {
         }
         if (key==='assist') {
             return settings.aimAssist?1:0;
+        }
+        if (key==='countdown') {
+            return settings.resumeCount?1:0;
         }
         if (key==='god') {
             return settings.godMode?1:0;
@@ -910,6 +913,9 @@ export class SettingsMenu extends Panel {
                 else if (r.key==='assist') {
                     settings.aimAssist=!settings.aimAssist;
                     settings.aimGuide=settings.aimAssist;
+                }
+                else if (r.key==='countdown') {
+                    settings.resumeCount=!settings.resumeCount;
                 }
                 else if (r.key==='god') {
                     if (!settings.godMode) {
@@ -4458,7 +4464,7 @@ export class SkinEditor extends Panel {
                 drawSkinFigure(ctx,ow/2,oh*0.5-pu*6,small?0.66:0.88,o,v,1590+i*3);
                 ctx.restore();
                 if (split>0) {
-                    const gap=4*Math.min(1,split);
+                    const gap=0;
                     const hw=ow/2;
                     for (let k=0;k<2;k++) {
                         const bx=k===0?-gap:hw+gap;
@@ -4466,13 +4472,13 @@ export class SkinEditor extends Panel {
                         ctx.save();
                         ctx.globalAlpha*=Math.min(1,split);
                         ctx.translate(bx+hw/2,oh/2);
-                        ctx.scale(0.6+0.4*split*(hv2?1.04:1),0.6+0.4*split*(hv2?1.04:1));
+                        ctx.scale((0.6+0.4*split)*(hv2?1.03:1),(0.6+0.4*split)*(hv2?1.03:1));
                         ctx.fillStyle=k===0?PALETTE.ink:PALETTE.red;
-                        ctx.fillRect(-hw/2+2,-oh/2+2,hw-4,oh-4);
+                        ctx.fillRect(-hw/2+(k===0?5:3),-oh/2+6,hw-8,oh-12);
                         ctx.fillStyle=PALETTE.paper;
                         ctx.textAlign='center';
                         ctx.textBaseline='middle';
-                        fitText(ctx,t(k===0?'skin.wear':'skin.overwrite'),0,1,hw-10,small?12:14,'bold ');
+                        fitText(ctx,t(k===0?'skin.wear':'skin.overwrite'),k===0?1:-1,1,hw-16,small?12:13,'bold ');
                         ctx.restore();
                     }
                     this.hits.push({x:ox-gap,y,w:ow/2,h:oh,apply:i,key:'a'+i,top:true});
@@ -5761,10 +5767,19 @@ export class Coach extends Panel {
         this.bits=[];
     }
 
+    remind(step,i) {
+        this.step=step;
+        this.index=i;
+        this.animT=0;
+        this.reminding=true;
+        this.show();
+    }
+
     intro(step,i) {
         this.step=step;
         this.index=i;
         this.animT=0;
+        this.reminding=false;
         this.merged=false;
         this.strip=null;
         this.bits=step.key==='end'?this.confetti():[];
@@ -5812,6 +5827,9 @@ export class Coach extends Panel {
         if (s.key==='end') {
             return t('tut.finish');
         }
+        if (this.reminding) {
+            return t('tut.resume');
+        }
         if (s.merge&&!this.merged) {
             return t('tut.tryMerge');
         }
@@ -5825,6 +5843,11 @@ export class Coach extends Panel {
         }
         if (s.key==='end') {
             this.actions.finish();
+            return;
+        }
+        if (this.reminding) {
+            this.reminding=false;
+            this.actions.resume();
             return;
         }
         if (s.merge&&!this.merged) {
@@ -6181,6 +6204,9 @@ export class Coach extends Panel {
                 ctx.restore();
             }
         }
+        else if (step.draw==='rewards') {
+            this.drawRewardsIllus(ctx,x,y,w,h,v);
+        }
         else if (step.draw==='end') {
             this.drawPages(ctx,x,y-h*0.08,w,h,v,false,true);
             const e=1+Math.sin(this.animT*3)*0.05;
@@ -6202,6 +6228,86 @@ export class Coach extends Panel {
         if (step.ctl&&ctl) {
             this.drawControl(ctx,step.ctl,x+10,y+h-8,w);
         }
+    }
+
+    drawRewardsIllus(ctx,x,y,w,h,v) {
+        const k=(this.animT%4.5)/4.5;
+        const round=Math.floor(this.animT/4.5);
+        const seg2=(a,b)=>Math.max(0,Math.min(1,(k-a)/(b-a)));
+        const ta=EASE.easeOutBack(seg2(0.02,0.14))*(1-seg2(0.9,1));
+        const tw=Math.min(w*0.78,300);
+        ctx.save();
+        ctx.translate(x+w/2,y+h*0.12-(1-ta)*30);
+        ctx.globalAlpha*=Math.min(1,ta*1.5);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(-tw/2,-17,tw,34);
+        drawShape(ctx,sketchRect(-tw/2,-17,Math.round(tw),34,{width:1.8,seed:2480}),PALETTE.red,v);
+        ctx.fillStyle=PALETTE.red;
+        ctx.font='bold 14px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('ach.unlocked'),-tw/2+12,1);
+        drawInkDot(ctx,tw/2-40,1,6);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillText('+1',tw/2-30,1);
+        ctx.restore();
+        const cx=x+w*0.28;
+        const cy=y+h*0.62;
+        const opened=k>0.42;
+        const sh=!opened&&k>0.2?Math.sin(this.animT*40)*0.08:0;
+        ctx.save();
+        ctx.translate(cx,cy);
+        ctx.rotate(sh);
+        drawMiniChest(ctx,0,0,Math.min(w,h)/190,v,opened?'claimed':'ready');
+        ctx.restore();
+        const items=[{kind:'color',part:'coat',value:'coral'},{kind:'acc',part:'headwear',value:['crown','beret','catEars'][round%3]}];
+        items.forEach((it,i)=>{
+            const q=seg2(0.45+i*0.08,0.62+i*0.08);
+            if (q<=0) {
+                return;
+            }
+            const e=EASE.easeOutBack(q);
+            const ix=cx+(i?1:-1)*w*0.1*e;
+            const iy=cy-h*0.08-h*0.2*e;
+            ctx.save();
+            ctx.globalAlpha*=1-seg2(0.88,0.98);
+            ctx.translate(ix,iy);
+            ctx.scale(e,e);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.fillRect(-24,-24,48,48);
+            drawShape(ctx,sketchRect(-24,-24,48,48,{width:1.6,seed:2490+i}),i?PALETTE.red:PALETTE.ink,v);
+            drawItemIcon(ctx,it,0,0,16,v,{});
+            ctx.restore();
+        });
+        const fx=x+w*0.72;
+        const fy=y+h*0.56;
+        const pr=SKIN_PRESETS[1+round%(SKIN_PRESETS.length-1)];
+        const pop=EASE.easeOutBack(seg2(0.62,0.76));
+        const show=k>0.62?pr:SKIN_PRESETS[0];
+        const s=Math.min(w,h)/150*(1+Math.sin(pop*Math.PI)*0.12);
+        drawSkinFigure(ctx,fx,fy-Math.sin(pop*Math.PI)*10,s,show,v,2500);
+        if (k>0.62&&k<0.9) {
+            ctx.save();
+            ctx.globalAlpha*=1-seg2(0.8,0.9);
+            for (let i=0;i<8;i++) {
+                const a=i/8*Math.PI*2;
+                const r=30+seg2(0.62,0.8)*40;
+                ctx.fillStyle=i%2?PALETTE.red:PALETTE.ink;
+                ctx.beginPath();
+                ctx.arc(fx+Math.cos(a)*r,fy-20+Math.sin(a)*r,3,0,Math.PI*2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 15px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='bottom';
+        ctx.fillText(t('meta.chest'),cx,y+h-8);
+        ctx.fillText(t('menu.skin'),fx,y+h-8);
+        ctx.fillStyle=PALETTE.red;
+        ctx.font='bold 22px '+FONT;
+        ctx.fillText('→',x+w/2,fy);
     }
 
     drawDeckIllus(ctx,x,y,w,h,art,v) {
@@ -6439,7 +6545,22 @@ export class Coach extends Panel {
         ctx.textBaseline='top';
         ctx.fillStyle=PALETTE.red;
         ctx.font='bold '+(sm?16:15)+'px '+FONT;
-        ctx.fillText(t('tut.title')+t('ui.gap')+t('tut.stepOf',{n:this.index+1,total:TUTOR_STEPS.length}),P.x+pad,P.y+(sm?12:20));
+        const head=t('tut.title')+t('ui.gap')+t('tut.stepOf',{n:this.index+1,total:TUTOR_STEPS.length});
+        ctx.fillText(head,P.x+pad,P.y+(sm?12:20));
+        if (this.reminding) {
+            const hw=ctx.measureText(head).width;
+            const bob=Math.sin(this.animT*5)*2;
+            ctx.save();
+            ctx.translate(P.x+pad+hw+14,P.y+(sm?10:18)+bob);
+            ctx.rotate(-0.06);
+            ctx.font='bold '+(sm?14:13)+'px '+FONT;
+            const rw=ctx.measureText(t('tut.remind')).width+16;
+            ctx.fillStyle=PALETTE.red;
+            ctx.fillRect(0,-2,rw,sm?22:20);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.fillText(t('tut.remind'),8,sm?2:1);
+            ctx.restore();
+        }
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold '+(sm?28:32)+'px '+FONT;
         ctx.fillText(t('tut.'+step.key+'.title'),P.x+pad,P.y+(sm?34:44));
