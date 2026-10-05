@@ -542,40 +542,37 @@ const EXTRAS={
         stamp(ctx,w/2+S*0.9,cy-S*0.7,String(a.p.damage||''),S*0.55,seg(k,0.32,0.45),PALETTE.red);
     },
     redraw(ctx,w,h,k,cy,a) {
-        const ex=-w*0.1+EASE.easeInOutCubic(seg(k,0.08,0.5))*w*1.2;
-        for (let i=0;i<26;i++) {
-            const x=w*(0.05+hash1(i+300)*0.9);
-            const y=cy+(hash1(i+330)-0.5)*h*0.55;
-            if (x>ex+40) {
-                bullet(ctx,x+Math.sin(time.real*3+i)*4,y,6);
+        const cw=h*0.13;
+        const ch=h*0.18;
+        for (let i=0;i<3;i++) {
+            const q=EASE.easeOutBack(seg(k,0.12+i*0.1,0.36+i*0.1));
+            if (q<=0) {
+                continue;
             }
-            else {
-                const q=seg(k,0.5,0.75);
-                const bx=w*0.76;
-                const by=h*0.14;
-                const f=Math.min(1,Math.max(0,q*1.4-hash1(i)*0.4));
-                if (f<1) {
-                    dot(ctx,x+(bx-x)*f,y+(by-y)*f-Math.sin(f*Math.PI)*h*0.15,5,rgba('ink',1-f*0.3));
-                }
-            }
-        }
-        const q=seg(k,0.5,0.8);
-        if (q>0) {
-            const bx=w*0.76;
-            const by=h*0.14;
+            const x=w*(0.32+i*0.18);
+            const y=cy+Math.sin(time.real*3+i)*6-(1-q)*h*0.2;
             ctx.save();
-            ctx.translate(bx,by);
-            ctx.scale(1+Math.sin(q*Math.PI*4)*0.08,1+Math.sin(q*Math.PI*4)*0.08);
+            ctx.translate(x,y);
+            ctx.rotate((i-1)*0.14);
+            ctx.scale(q,q);
             ctx.fillStyle=PALETTE.paper;
-            ctx.fillRect(-22,-26,44,52);
-            ctx.fillStyle=PALETTE.ink;
-            ctx.fillRect(-22,26-52*q,44,52*q);
+            ctx.fillRect(-cw/2,-ch/2,cw,ch);
             ctx.strokeStyle=PALETTE.ink;
             ctx.lineWidth=3;
-            ctx.strokeRect(-22,-26,44,52);
+            ctx.strokeRect(-cw/2,-ch/2,cw,ch);
+            const strike=seg(k,0.45+i*0.06,0.55+i*0.06);
+            ctx.fillStyle=strike>0.5?PALETTE.red:PALETTE.ink;
+            ctx.beginPath();
+            ctx.arc(-cw/2+cw*0.2,-ch/2+cw*0.2,cw*0.22,0,Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle=PALETTE.paper;
+            ctx.font='bold '+Math.round(cw*0.26)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(strike>0.5?'0':String(2+i%2),-cw/2+cw*0.2,-ch/2+cw*0.2+1);
             ctx.restore();
-            stamp(ctx,bx+70,by,'+'+(a.p.ink||''),h*0.05,seg(k,0.6,0.7),PALETTE.ink);
         }
+        stamp(ctx,w*0.5,cy-h*0.24,'FREE',h*0.07,seg(k,0.6,0.72),PALETTE.red);
     },
     tsunami(ctx,w,h,k,cy,a) {
         const front=-w*0.25+EASE.easeInOutCubic(seg(k,0.02,0.72))*w*1.45;

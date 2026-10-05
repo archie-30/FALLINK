@@ -650,26 +650,21 @@ export const CARD_ANIMS={
         }
     },
     redraw:{
-        period:3,
+        period:3.4,
         draw(S,k) {
             S.player(PX,PY,0);
-            const sx=lerp(-1,17,inOut(seg(k,0.3,0.6)));
-            for (let i=0;i<16;i++) {
-                const x=4.5+hash(i)*11;
-                const y=0.8+hash(i+20)*7.4;
-                const dx=Math.sin(k*3+i)*0.3;
-                if (x+dx>sx) {
-                    S.bullet(x+dx,y,'enemy');
-                }
-                else {
-                    S.burst(x+dx,y,0.5,seg(k,0.3+(x/17)*0.3,0.4+(x/17)*0.3),PALETTE.midGray);
-                }
+            const on=seg(k,0.08,0.16)*(1-seg(k,0.9,0.98));
+            S.ring(PX,PY,1.2+seg(k,0.08,0.3)*1.6,PALETTE.red,0.12,on*(1-seg(k,0.08,0.4)));
+            S.rect(PX-1.6,PY-2.3,3.2,0.3,PALETTE.farGray,on);
+            S.rect(PX-1.6,PY-2.3,3.2*(1-seg(k,0.16,0.9)),0.3,PALETTE.red,on);
+            for (let i=0;i<3;i++) {
+                const k0=0.25+i*0.2;
+                const y=PY+(i-1)*1.8;
+                S.fly(PX+0.8,PY,14,y,k,k0,k0+0.18);
+                S.num('0',PX+1.2,PY-1.2-i*0.2,seg(k,k0,k0+0.18),PALETTE.red,18);
+                S.burst(14,y,0.6,seg(k,k0+0.18,k0+0.3),PALETTE.ink);
             }
-            if (k>0.3&&k<0.62) {
-                S.rect(sx-0.5,0,0.5,SH,PALETTE.paper,0.9);
-                S.line(sx,0,sx,SH,PALETTE.ink,0.12);
-            }
-            S.num('+5',PX,PY-0.6,seg(k,0.6,1),PALETTE.ink,18);
+            S.text('FREE',PX,PY-3.2,16,PALETTE.red,on);
         }
     },
     whiteout:{

@@ -120,7 +120,7 @@ export const STRINGS_EN={
     'card.clone.name':'Clone',
     'card.clone.desc':'Draw a clone at the target that shoots automatically for {duration}s ({damage} per shot).',
     'card.redraw.name':'Redraw',
-    'card.redraw.desc':'Redraw the whole room from a blank page: clears every enemy bullet, draws erased cover back, and gives {ink} ink.',
+    'card.redraw.desc':'Fresh start: for {duration}s, normal cards cost no ink (ultimates still do).',
     'card.whiteout.name':'Correction Fluid',
     'card.whiteout.desc':'Paint over your wounds and heal {heal} HP.',
     'card.shockwave.name':'Shockwave',

@@ -404,9 +404,7 @@ export const TUNING={
         dashLeadStep:0.2,
         timeStopFade:0.18,
         cloneFire:0.22,
-        cloneRange:14,
-        redrawTime:0.7,
-        redrawDraw:1.8
+        cloneRange:14
     },
     levels:{
         max:10,
