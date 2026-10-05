@@ -898,6 +898,7 @@ export class SettingsMenu extends Panel {
                 if (i>=0&&i<opts.length) {
                     if (r.key==='quality') {
                         settings.quality=opts[i];
+                        settings.qualityAuto=false;
                     }
                     else {
                         settings.fpsCap=opts[i];

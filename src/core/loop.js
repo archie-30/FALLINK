@@ -22,11 +22,23 @@ export function createLoop(update,render) {
     let running=false;
     let fpsAcc=0;
     let fpsFrames=0;
+    let budget=0;
+    let seen=-1;
     function frame(ts) {
         raf=requestAnimationFrame(frame);
         const now=ts/1000;
-        if (time.fpsCap>0&&last>=0&&now-last<1/time.fpsCap-TUNING.loop.capSlack) {
-            return;
+        if (time.fpsCap>0&&last>=0) {
+            const gap=1/time.fpsCap;
+            budget=Math.min(budget+now-(seen<0?now:seen),gap*2);
+            seen=now;
+            if (budget<gap-TUNING.loop.capSlack) {
+                return;
+            }
+            budget=Math.max(0,budget-gap);
+        }
+        else {
+            seen=now;
+            budget=0;
         }
         let dt=last<0?step:now-last;
         last=now;
@@ -75,6 +87,8 @@ export function createLoop(update,render) {
             }
             running=true;
             last=-1;
+            seen=-1;
+            budget=0;
             raf=requestAnimationFrame(frame);
         },
         stop() {

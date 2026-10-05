@@ -5,10 +5,13 @@ export const TUNING={
         maxSteps:4,
         fpsOptions:[60,90,120],
         capSlack:0.0025,
-        autoProbe:1.5,
+        autoProbe:2.5,
         autoMargin:6,
         weakCores:6,
-        mobileMax:90
+        mobileMax:90,
+        flagshipFps:110,
+        flagshipCores:8,
+        flagshipMax:120
     },
     boil:{
         fps:15,
@@ -262,8 +265,17 @@ export const TUNING={
         inkStrokes:18
     },
     perf:{
-        lowFps:42,
-        window:4
+        window:0.75,
+        low:0.9,
+        high:0.97,
+        down:0.1,
+        up:0.05,
+        coolDown:1.2,
+        coolUp:2,
+        upAfter:4,
+        dropAfter:5,
+        hitch:0.25,
+        minScale:{low:0.55,mid:0.65,high:0.75}
     },
     cardFx:{
         gain:{scale:1.25,inTime:0.55,hold:0.9,outTime:0.5,total:2.0,skip:0.5,burst:0.35,toX:0.08,toY:0.9},

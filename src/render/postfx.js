@@ -27,6 +27,7 @@ export class PostFX {
             stencilBuffer:false,
             generateMipmaps:false
         });
+        this.target.textures[0].type=THREE.UnsignedByteType;
         shared.tGBuf.value=this.target.textures[1];
         const O=TUNING.outline;
         const B=TUNING.boil;

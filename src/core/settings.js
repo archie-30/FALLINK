@@ -13,6 +13,7 @@ export const device={
 
 export const settings={
     quality:'high',
+    qualityAuto:true,
     reducedMotion:false,
     showFps:false,
     aimAssist:true,
@@ -122,6 +123,11 @@ export function qualityConfig() {
 export function pixelRatio() {
     const cap=device.mobile?TUNING.pixelRatioCap.mobile:TUNING.pixelRatioCap.desktop;
     return Math.min(device.dpr,cap,qualityConfig().pixelRatio);
+}
+
+export function isFlagship(peakFps) {
+    const L=TUNING.loop;
+    return peakFps>=L.flagshipFps&&(navigator.hardwareConcurrency||4)>=L.flagshipCores;
 }
 
 export function boilScale() {

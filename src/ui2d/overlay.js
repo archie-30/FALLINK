@@ -516,7 +516,8 @@ export class Overlay {
     drawDebug(d) {
         const ctx=this.ctx;
         const lines=[
-            t('debug.fps')+' '+d.fps.toFixed(0),
+            t('debug.fps')+' '+d.fps.toFixed(0)+' / '+(d.cap||'—'),
+            t('debug.scale')+' '+Math.round((d.scale??1)*100)+'%',
             t('debug.calls')+' '+d.calls,
             t('debug.tris')+' '+d.triangles,
             t('debug.quality')+' '+t('quality.'+d.quality)+' ('+d.pixelRatio.toFixed(2)+'x)',
