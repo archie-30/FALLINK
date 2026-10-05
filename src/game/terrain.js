@@ -833,7 +833,6 @@ export class Room {
         }
         this.pieces.length=0;
         this.colliders.length=0;
-        this.removed=[];
     }
 
     addPiece(kind,object,colliders,o) {
@@ -864,10 +863,6 @@ export class Room {
         if (i>=0) {
             this.pieces.splice(i,1);
         }
-        if (piece.kind==='prop'&&piece.object.parent) {
-            piece.home=piece.object.parent;
-            (this.removed||(this.removed=[])).push(piece);
-        }
         if (piece.object.parent) {
             piece.object.parent.remove(piece.object);
         }
@@ -879,26 +874,6 @@ export class Room {
             piece.tool.parent.remove(piece.tool);
         }
         this.rebuildColliders();
-    }
-
-    restoreProps() {
-        const list=this.removed||[];
-        this.removed=[];
-        for (const p of list) {
-            p.object.traverse(o=>{
-                if (o.userData.orig) {
-                    o.material=o.userData.orig;
-                    delete o.userData.orig;
-                }
-            });
-            p.home.add(p.object);
-            p.state='alive';
-            p.t=0;
-            p.hp=p.maxHp;
-            this.pieces.push(p);
-        }
-        this.rebuildColliders();
-        return list.length;
     }
 
     nearestErasable(x,z,r) {

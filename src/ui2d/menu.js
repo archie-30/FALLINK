@@ -4288,6 +4288,10 @@ export class SkinEditor extends Panel {
             return false;
         }
         this.layout();
+        const sel=this.outfitSel;
+        if (sel>=0&&!this.hits.some(h=>(h.apply===sel||h.save===sel)&&inRect(h,x,y))) {
+            this.outfitSel=-1;
+        }
         if (inRect(this.backBtn,x,y)) {
             this.actions.back();
             return true;

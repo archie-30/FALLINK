@@ -12,7 +12,12 @@ export function createCard(id,upgraded=false) {
     return {uid:nextUid++,id,def,upgraded};
 }
 
+export const freeCards={left:0};
+
 export function cardCost(card) {
+    if (freeCards.left>0&&card.def.rarity!=='rare') {
+        return 0;
+    }
     if (!card.upgraded) {
         return card.def.cost;
     }
@@ -71,10 +76,6 @@ export class CardEffects {
         const lg=new THREE.PlaneGeometry(1,1);
         lg.rotateX(-Math.PI/2);
         lg.translate(0.5,0,0);
-        this.redrawLine=new THREE.Mesh(lg,lineMaterial('ink'));
-        this.redrawLine.visible=false;
-        this.redrawLine.frustumCulled=false;
-        this.g.fxScene.add(this.redrawLine);
         const mk=()=>{
             const m=new THREE.Mesh(lg,lineMaterial('ink'));
             m.visible=false;
@@ -111,10 +112,10 @@ export class CardEffects {
     clear() {
         this.timers.length=0;
         this.sweeps.length=0;
+        freeCards.left=0;
         this.bladeMesh.visible=false;
         this.eraserMesh.visible=false;
         this.eraserLine.visible=false;
-        this.redrawLine.visible=false;
         this.waveLine.visible=false;
         this.beamLine.visible=false;
         for (const l of this.links) {
@@ -183,6 +184,7 @@ export class CardEffects {
     update(dt) {
         const g=this.g;
         this.updateExtras(dt);
+        freeCards.left=Math.max(0,freeCards.left-dt);
         for (let i=this.timers.length-1;i>=0;i--) {
             this.timers[i].left-=dt;
             if (this.timers[i].left<=0) {
@@ -217,25 +219,6 @@ export class CardEffects {
                 if (k>=1) {
                     m.visible=false;
                     this.eraserLine.visible=false;
-                    this.sweeps.splice(i,1);
-                }
-            }
-            else if (s.type==='redraw') {
-                const b=g.room.bounds;
-                const x=b.minX-2+(b.maxX-b.minX+4)*k;
-                g.enemyBullets.killWhere(bx=>bx<x,(bx,bz)=>g.particles.burst(bx,1.0,bz,2,{color:'nearGray',speed:[0.5,2],up:[1,3],size:[0.06,0.12],life:[0.2,0.4]}));
-                const L=b.maxZ-b.minZ+4;
-                const ln=this.redrawLine;
-                ln.visible=true;
-                ln.position.set(x,0.07,b.maxZ+2);
-                ln.rotation.y=Math.PI/2;
-                ln.scale.set(L,1,0.5);
-                ln.material.uniforms.uLength.value=L;
-                if (Math.random()<0.8) {
-                    g.particles.burst(x,0.3,b.minZ+Math.random()*(b.maxZ-b.minZ),2,{color:'ink',speed:[1,3],up:[2,5],size:[0.08,0.14],life:[0.3,0.5]});
-                }
-                if (k>=1) {
-                    ln.visible=false;
                     this.sweeps.splice(i,1);
                 }
             }
@@ -1043,18 +1026,14 @@ export class CardEffects {
         g.fx.cameraShake(0.3);
     }
 
-    redraw(inkGain) {
+    redraw(duration) {
         const g=this.g;
-        g.ink.add(inkGain);
-        this.sweeps.push({type:'redraw',t:0,dur:this.E.redrawTime});
-        if (g.redrawRoom) {
-            g.redrawRoom(this.E.redrawTime*this.E.redrawDraw);
-        }
-        if (g.room&&g.room.restoreProps) {
-            g.room.restoreProps();
-        }
+        const p=g.player;
+        freeCards.left=Math.max(freeCards.left,duration);
         g.fx.flash('paper',0.25,0.5);
         g.fx.cameraShake(0.3);
         g.fx.fovPunch(1.5);
+        g.rings.spawn(p.pos.x,p.pos.z,2.2,'red',0.5);
+        g.particles.burst(p.pos.x,1.2,p.pos.z,24,{color:'red',speed:[2,6],up:[3,7],size:[0.08,0.18],life:[0.4,0.8]});
     }
 }

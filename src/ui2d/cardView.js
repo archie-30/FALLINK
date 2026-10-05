@@ -2,7 +2,7 @@ import {PALETTE,rgba} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
 import {sketchLine,sketchRect,sketchCircle,sketchPath,sketchPolygon,hatchFill,rectPoly,drawShape} from './sketch.js';
-import {cardName,cardDesc,cardCost,cardKey,cardParams} from '../game/card.js';
+import {cardName,cardDesc,cardCost,cardKey,cardParams,freeCards} from '../game/card.js';
 import {unlockLevel} from '../data/cards.js';
 import {RNG} from '../core/rng.js';
 
@@ -769,8 +769,9 @@ export function drawCost(ctx,card,flash,v) {
     ctx.fillStyle=PALETTE.ink;
     ctx.fill(DROP);
     drawShape(ctx,sketchPath([[0,-17],[7,-8],[13,3],[11,12],[0,18],[-11,12],[-13,3],[-7,-8],[0,-17]],{width:1.4,seed:88,overshoot:1}),PALETTE.ink,v);
-    ctx.fillStyle=flash?PALETTE.red:PALETTE.paper;
-    ctx.font='bold 15px '+FONT;
+    const free=freeCards.left>0&&card.def.rarity!=='rare';
+    ctx.fillStyle=flash||free?PALETTE.red:PALETTE.paper;
+    ctx.font='bold '+(free?17:15)+'px '+FONT;
     ctx.textAlign='center';
     ctx.textBaseline='middle';
     ctx.fillText(String(cardCost(card)),0,6);

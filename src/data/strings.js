@@ -122,7 +122,7 @@ export const STRINGS={
     'card.clone.name':'分身',
     'card.clone.desc':'在目標位置畫出一個分身，{duration} 秒內自動射擊（每發 {damage}）。',
     'card.redraw.name':'重畫',
-    'card.redraw.desc':'重新繪製整個房間：畫面從白紙重新畫出，清除所有敵彈、把被擦掉的掩體畫回來，並獲得 {ink} 墨水。',
+    'card.redraw.desc':'重新提筆：{duration} 秒內施放一般卡都不消耗墨水（特殊技仍需墨水）。',
     'card.whiteout.name':'修正液',
     'card.whiteout.desc':'塗上修正液，回復 {heal} 點生命。',
     'card.shockwave.name':'衝擊波',

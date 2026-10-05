@@ -248,7 +248,7 @@ function boot() {
     const art=new CardArt();
     const deckView=new DeckView();
     ctx.enemyMgr=enemies;
-    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene,redrawRoom:d=>renderer.post.drawIn(d,0)},TUNING);
+    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene},TUNING);
     ctx.dangerRings=dangerRings;
     ctx.weaponSys=weaponSys;
     const swings=[];

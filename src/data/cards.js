@@ -187,9 +187,9 @@ export const CARDS={
         type:'utility',
         mode:'global',
         targeting:'none',
-        params:{ink:5},
+        params:{duration:5.5},
         upgraded:{cost:2},
-        effect:(g,t,p)=>g.redraw(p.ink)
+        effect:(g,t,p)=>g.redraw(p.duration)
     },
     whiteout:{
         id:'whiteout',
@@ -350,7 +350,7 @@ export const CARDS={
         mode:'place',
         targeting:'point',
         range:12,
-        params:{radius:7,duration:2.5,damage:90,single:100},
+        params:{radius:5.5,duration:2.5,damage:90,single:100},
         upgraded:{cost:4},
         effect:(g,t,p)=>g.blackHole(t.x,t.z,p.radius,p.duration,p.damage,p.single)
     },
@@ -491,11 +491,11 @@ export const CARDS={
 };
 
 export const UNLOCKS={
-    1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','trap','paperShield','inkDash','timeStop','clone','execute','redraw'],
+    1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','trap','paperShield','inkDash','timeStop','clone','execute','tsunami','dualWield'],
     2:['whiteout','shockwave'],
     3:['haste','mark'],
-    4:['inkMine','tsunami','blot'],
-    5:['dualWield','pin'],
+    4:['inkMine','blot'],
+    5:['redraw','pin'],
     6:['paperBlade','echo','chain'],
     7:['inkRain','blackHole','inkField'],
     8:['reflect','inkWell','barrage'],
