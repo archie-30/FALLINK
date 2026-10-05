@@ -316,7 +316,7 @@ export const TUNING={
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:124,btnH:44,lineH:21,maxLines:2},
     langPick:{btnW:240,btnH:70,gap:24,y:0.42,goW:200,goH:52,goGap:70,noteGap:30},
     settingsUi:{
-        lang:{w:230,h:34,pad:14,item:36,openTime:0.22,closeTime:0.15,stagger:0.12,pickDecay:3,pop:0.1},
+        lang:{w:230,h:34,pad:14,item:36,openTime:0.32,closeTime:0.2,stagger:0.2,pickDecay:3,pop:0.1},
         devCode:'0012830',
         iconTap:20,
         pwErrDecay:1.6,
@@ -660,5 +660,25 @@ export const TUNING={
         boil:0,
         shake:0,
         flash:0.12
+    },
+    meta:{
+        price:{color:2,acc:5,weapon:15},
+        revive:{min:1,max:10,invuln:2.5,once:true},
+        chestEvery:5,
+        chestItems:2,
+        accChance:0.35,
+        story:{rooms:5,boss:1,clear:true},
+        endless:[5,12,20],
+        customSlots:4
+    },
+    metaUi:{
+        chest:{shake:0.9,burst:0.35,itemGap:0.32,itemPop:0.45,float:6,rays:12},
+        toast:{time:3.4,slide:0.35,w:300,wSmall:240,h:62,hSmall:52,top:14},
+        ach:{rowH:64,rowHSmall:54,barH:14,chestR:17,stagger:0.03,scrollFollow:14,dragSlop:8},
+        buy:{w:340,wSmall:300,stamp:0.45,close:0.7},
+        revive:{w:420,wSmall:340,pulse:3},
+        tab:{h:34,hSmall:30,slide:12},
+        tile:{s:58,sSmall:46,gap:8},
+        dot:{size:9}
     }
 };

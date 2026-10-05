@@ -12,6 +12,7 @@ import {NOTEBOOK} from '../data/notebook.js';
 import {MINIGAMES} from '../data/minigames.js';
 import {WEAPON_ORDER} from '../data/weapons.js';
 import {t} from '../data/strings.js';
+import {bump,setMax,resetRevive} from '../core/meta.js';
 
 export class Run {
     constructor(hooks,seed) {
@@ -23,6 +24,7 @@ export class Run {
 
     start(startDeck,mode='story') {
         this.mode=mode;
+        resetRevive();
         this.rng=new RNG(this.seed++);
         this.act=0;
         this.index=0;
@@ -190,6 +192,7 @@ export class Run {
         this.chHp=-1;
         this.chT=0;
         this.chCards=this.stats.cards;
+        this.roomTaken=this.stats.taken;
         this.hooks.banner(plan.boss?'boss':'room',this);
     }
 
@@ -274,6 +277,9 @@ export class Run {
 
     gameDone(ok) {
         const p=this.plan;
+        if (ok&&!p.trainGame) {
+            bump('games');
+        }
         const lines=ok?MINIGAMES.winLines:MINIGAMES.loseLines;
         this.hooks.npcSay(0,t(lines[Math.floor(this.rng.next()*lines.length)]));
         this.state='node';
@@ -451,10 +457,28 @@ export class Run {
         this.hooks.transition(()=>this.enter());
     }
 
+    trackPage(player) {
+        bump('pages');
+        if (this.stats.taken<=(this.roomTaken??0)) {
+            bump('cleanPages');
+            if (this.plan.boss) {
+                bump('cleanBoss');
+            }
+        }
+        if (player.hp===1) {
+            bump('clutch');
+        }
+        if (this.mode==='endless') {
+            setMax('endlessPage',this.index+1);
+        }
+    }
+
     playerDown() {
         if (this.state==='dead'||this.state==='summary') {
             return;
         }
+        this.preDead=this.state;
+        this.reviving=false;
         this.state='dead';
         this.timer=1.6;
         this.hooks.onDeath();
@@ -560,6 +584,7 @@ export class Run {
         }
         this.deckList.push({id:card.id,upgraded:true});
         this.stats.merges=(this.stats.merges||0)+1;
+        bump('merges');
         return card.id;
     }
 
@@ -748,6 +773,7 @@ export class Run {
         this.hooks.npcUsed(i,true);
         this.hooks.npcSay(0,t('shop.thanks'));
         this.stats.score-=it.price;
+        bump('buys');
         this.note('note.paid',{n:it.price});
         const back=()=>this.backToPeace();
         if (id==='buy'||id==='rare') {
@@ -978,6 +1004,7 @@ export class Run {
                 this.timer=1.4;
                 this.stats.rooms++;
                 this.stats.xp+=TUNING.levels.xpRoom;
+                this.trackPage(player);
                 this.addScore(ENDLESS.scoreRoom);
                 if (this.plan.elite) {
                     this.addScore(NOTEBOOK.eliteScore);
@@ -1029,8 +1056,24 @@ export class Run {
             return;
         }
         if (this.state==='dead') {
+            if (this.reviving) {
+                return;
+            }
             this.timer-=dt;
             if (this.timer<=0) {
+                if (!this.training()&&!this.tutorial()&&this.hooks.canRevive()) {
+                    this.reviving=true;
+                    this.hooks.openRevive(ok=>{
+                        this.reviving=false;
+                        if (ok) {
+                            this.state=this.preDead||'combat';
+                            return;
+                        }
+                        this.state='summary';
+                        this.hooks.showSummary(!!this.stats.cleared,this.stats);
+                    });
+                    return;
+                }
                 this.state='summary';
                 this.hooks.showSummary(!!this.stats.cleared,this.stats);
             }

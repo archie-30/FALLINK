@@ -7,6 +7,7 @@ import {EASE} from '../core/easing.js';
 import {SKIN_TONES,ACCENTS} from '../data/palette.js';
 import {WEAPONS,WEAPON_LIMITS} from '../data/weapons.js';
 import {DEFAULT_SKIN} from '../data/skins.js';
+import {ACC_DEFAULT} from '../data/cosmetics.js';
 
 const _mv={x:0,z:0};
 
@@ -162,23 +163,35 @@ export class Player {
             b.position.set(0,by,0.28);
             this.torso.add(b);
         }
-        const pouch=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.3,0.14),gear);
-        pouch.position.set(0,0.02,-0.3);
-        addHull(pouch,hull);
-        this.torso.add(pouch);
-        const flap=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.08,0.16),hat);
-        flap.position.set(0,0.16,-0.3);
-        this.torso.add(flap);
-        const scarf=new THREE.Mesh(new THREE.TorusGeometry(0.2,0.075,6,14),hat);
-        scarf.rotation.x=Math.PI/2;
-        scarf.position.y=1.2;
-        addHull(scarf,hull);
-        this.body.add(scarf);
-        const tail=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.26,0.05),hat);
-        tail.position.set(0.1,1.06,-0.2);
-        tail.rotation.set(0.35,0,-0.25);
-        this.body.add(tail);
-        this.scarfTail=tail;
+        const paper=tm({light:'paper',mid:'paper',dark:'farGray',jitter:J});
+        if (g) {
+            this.ghostMats.push(paper);
+        }
+        const A={headwear:{},eyewear:{},neckwear:{},backwear:{}};
+        this.acc=A;
+        const grp=(slot,id,parentObj)=>{
+            const q=new THREE.Group();
+            q.name='acc';
+            A[slot][id]=q;
+            parentObj.add(q);
+            return q;
+        };
+        const put=(q,geo,mat,x,y,z,rx=0,ry=0,rz=0,thin=false)=>{
+            const m=new THREE.Mesh(geo,mat);
+            m.position.set(x,y,z);
+            m.rotation.set(rx,ry,rz);
+            if (thin) {
+                addHull(m,hull,true);
+            }
+            q.add(m);
+            return m;
+        };
+        const pouchG=grp('backwear','pouch',this.torso);
+        put(pouchG,new THREE.BoxGeometry(0.26,0.3,0.14),gear,0,0.02,-0.3,0,0,0,true);
+        put(pouchG,new THREE.BoxGeometry(0.28,0.08,0.16),hat,0,0.16,-0.3);
+        const scarfG=grp('neckwear','scarf',this.body);
+        put(scarfG,new THREE.TorusGeometry(0.2,0.075,6,14),hat,0,1.2,0,Math.PI/2,0,0,true);
+        this.scarfTail=put(scarfG,new THREE.BoxGeometry(0.1,0.26,0.05),hat,0.1,1.06,-0.2,0.35,0,-0.25);
         this.head=new THREE.Group();
         this.head.position.y=1.46;
         const skull=new THREE.Mesh(new THREE.SphereGeometry(0.31,12,9),face);
@@ -194,19 +207,14 @@ export class Player {
             cheek.rotation.y=sx*0.55;
             this.head.add(cheek);
         }
-        const brim=new THREE.Mesh(new THREE.CylinderGeometry(0.21,0.25,0.06,12),hat);
-        brim.position.set(0,TUNING.skinHatch.brimY,-0.02);
-        brim.rotation.x=-0.3;
+        const BY=TUNING.skinHatch.brimY;
+        const dropG=grp('headwear','drop',this.head);
+        const brim=put(dropG,new THREE.CylinderGeometry(0.21,0.25,0.06,12),hat,0,BY,-0.02,-0.3);
         addHull(brim,hull);
-        this.head.add(brim);
-        const drop=new THREE.Mesh(new THREE.ConeGeometry(0.15,0.36,10),hat);
-        drop.position.set(0,TUNING.skinHatch.brimY+0.16,-0.08);
-        drop.rotation.x=-0.45;
+        const drop=put(dropG,new THREE.ConeGeometry(0.15,0.36,10),hat,0,BY+0.16,-0.08,-0.45);
         addHull(drop,hull);
-        this.head.add(drop);
-        const tip=new THREE.Mesh(new THREE.SphereGeometry(0.045,6,4),ink);
-        tip.position.set(0,TUNING.skinHatch.brimY+0.31,-0.17);
-        this.head.add(tip);
+        put(dropG,new THREE.SphereGeometry(0.045,6,4),ink,0,BY+0.31,-0.17);
+        this.buildAcc(grp,put,{hat,gear,coat,face,dark,ink,paper});
         this.body.add(this.head);
         const armGeo=capsule(0.08,0.22);
         const handGeo=new THREE.SphereGeometry(0.085,8,6);
@@ -312,7 +320,157 @@ export class Player {
         parent.add(this.root);
     }
 
+    buildAcc(grp,put,m) {
+        const H=this.head;
+        const B=this.body;
+        const ball=(r,w=8,h=6)=>new THREE.SphereGeometry(r,w,h);
+        const box=(x,y,z)=>new THREE.BoxGeometry(x,y,z);
+        const cyl=(a,b,h,n=8)=>new THREE.CylinderGeometry(a,b,h,n);
+        const cone=(r,h,n=8)=>new THREE.ConeGeometry(r,h,n);
+        const ring=(r,t,n=14,arc=Math.PI*2)=>new THREE.TorusGeometry(r,t,5,n,arc);
+        let q=grp('headwear','beret',H);
+        put(q,ball(0.28,12,8),m.hat,-0.03,0.25,-0.02,0,0,0.22,true).scale.set(1,0.34,1);
+        put(q,cyl(0.022,0.03,0.07,6),m.hat,0.0,0.36,-0.02,0,0,0.22);
+        q=grp('headwear','crown',H);
+        put(q,cyl(0.21,0.23,0.11,12),m.gear,0,0.3,-0.02,-0.12,0,0,true);
+        for (let i=0;i<5;i++) {
+            const a=i/5*Math.PI*2;
+            put(q,cone(0.045,0.11,4),m.gear,Math.sin(a)*0.2,0.4+Math.cos(a)*0.02,Math.cos(a)*0.2-0.02-Math.cos(a)*0.03,0,0,0);
+        }
+        put(q,ball(0.03,6,4),m.ink,0,0.3,0.21);
+        q=grp('headwear','propeller',H);
+        put(q,new THREE.SphereGeometry(0.31,12,6,0,Math.PI*2,0,Math.PI*0.42),m.hat,0,0.04,0,-0.12,0,0,true);
+        put(q,cyl(0.015,0.015,0.14,5),m.ink,0,0.36,-0.04);
+        const prop=new THREE.Group();
+        prop.position.set(0,0.43,-0.04);
+        put(prop,box(0.38,0.012,0.07),m.gear,0,0,0,0,0,0,true);
+        put(prop,ball(0.025,6,4),m.ink,0,0.01,0);
+        q.add(prop);
+        this.propeller=prop;
+        q=grp('headwear','headphones',H);
+        put(q,ring(0.33,0.025,14,Math.PI),m.ink,0,0.02,-0.02);
+        for (const sx of [-1,1]) {
+            put(q,cyl(0.1,0.1,0.07,10),m.gear,sx*0.33,0.0,-0.02,0,0,Math.PI/2,true);
+        }
+        q=grp('headwear','catEars',H);
+        for (const sx of [-1,1]) {
+            put(q,cone(0.1,0.2,4),m.hat,sx*0.17,0.31,-0.02,0,Math.PI/4,-sx*0.38,true);
+            put(q,cone(0.05,0.1,4),m.face,sx*0.165,0.3,0.03,0,Math.PI/4,-sx*0.38);
+        }
+        q=grp('headwear','paperBoat',H);
+        put(q,cyl(0.24,0.24,0.12,3),m.paper,0,0.37,-0.02,-Math.PI/2,0,0,true).scale.set(1.25,1,1);
+        put(q,box(0.44,0.03,0.14),m.ink,0,0.26,-0.02);
+        q=grp('eyewear','glasses',H);
+        for (const sx of [-1,1]) {
+            put(q,ring(0.072,0.013),m.ink,sx*0.1,0.03,0.3);
+            put(q,box(0.012,0.012,0.2),m.ink,sx*0.2,0.05,0.2,0,sx*0.25,0);
+        }
+        put(q,box(0.06,0.012,0.012),m.ink,0,0.05,0.31);
+        q=grp('eyewear','monocle',H);
+        put(q,ring(0.085,0.015),m.ink,0.1,0.03,0.305);
+        for (let i=0;i<4;i++) {
+            put(q,ball(0.012,4,3),m.ink,0.17+i*0.02,-0.05-i*0.05,0.28-i*0.02);
+        }
+        q=grp('eyewear','eyepatch',H);
+        put(q,cyl(0.085,0.085,0.02,10),m.ink,-0.1,0.04,0.3,Math.PI/2,0,0);
+        put(q,ring(0.315,0.011,24),m.ink,0,0.07,0,Math.PI/2,0,0.32);
+        q=grp('eyewear','mustache',H);
+        for (const sx of [-1,1]) {
+            put(q,ball(0.07,8,6),m.dark,sx*0.065,-0.09,0.28,0,0,sx*0.35).scale.set(1.3,0.45,0.55);
+        }
+        q=grp('eyewear','bandage',H);
+        for (const sz of [-1,1]) {
+            put(q,box(0.15,0.045,0.012),m.paper,-0.17,-0.06,0.265,0,-0.55,sz*0.6,true);
+        }
+        q=grp('neckwear','bowtie',B);
+        for (const sx of [-1,1]) {
+            put(q,cone(0.075,0.15,4),m.hat,sx*0.085,1.16,0.24,0,0,sx*Math.PI/2,true);
+        }
+        put(q,ball(0.04,6,4),m.hat,0,1.16,0.25);
+        q=grp('neckwear','tie',B);
+        put(q,box(0.08,0.07,0.05),m.hat,0,1.15,0.24,0,0,0,true);
+        put(q,box(0.085,0.24,0.03),m.hat,0,1.0,0.26,-0.12,0,0,true);
+        put(q,cone(0.06,0.08,4),m.hat,0,0.86,0.28,Math.PI-0.12,Math.PI/4,0);
+        q=grp('neckwear','bell',B);
+        put(q,ring(0.2,0.03),m.hat,0,1.19,0,Math.PI/2,0,0,true);
+        put(q,ball(0.065,8,6),m.gear,0,1.11,0.22,0,0,0,true);
+        put(q,box(0.08,0.012,0.02),m.ink,0,1.1,0.285);
+        q=grp('neckwear','beads',B);
+        const bead=ball(0.038,6,4);
+        for (let i=0;i<12;i++) {
+            const a=i/12*Math.PI*2;
+            const c=Math.cos(a);
+            put(q,bead,i%3===0?m.ink:m.hat,Math.sin(a)*0.23,1.17-Math.max(0,c)*0.06,c*0.21);
+        }
+        q=grp('neckwear','ruff',B);
+        const frill=ball(0.075,8,5);
+        for (let i=0;i<12;i++) {
+            const a=i/12*Math.PI*2;
+            put(q,frill,m.paper,Math.sin(a)*0.22,1.19,Math.cos(a)*0.2,0,a,0,true).scale.set(1.1,0.5,0.8);
+        }
+        q=grp('backwear','cape',B);
+        const cape=new THREE.Group();
+        cape.position.set(0,1.18,-0.24);
+        put(cape,box(0.5,0.66,0.03),m.hat,0,-0.33,0,0,0,0,true);
+        put(cape,box(0.52,0.06,0.05),m.ink,0,-0.02,0.01);
+        q.add(cape);
+        this.cape=cape;
+        q=grp('backwear','wings',B);
+        this.wings=[];
+        for (const sx of [-1,1]) {
+            const w=new THREE.Group();
+            w.position.set(sx*0.06,1.04,-0.27);
+            put(w,cone(0.09,0.3,3),m.paper,sx*0.15,0.02,0,0,0,-sx*Math.PI/2-sx*0.35,true).scale.set(1,1,0.18);
+            q.add(w);
+            this.wings.push(w);
+        }
+        q=grp('backwear','backpack',B);
+        put(q,box(0.38,0.4,0.18),m.gear,0,0.92,-0.34,0,0,0,true);
+        put(q,box(0.4,0.12,0.2),m.hat,0,1.08,-0.34);
+        put(q,box(0.2,0.12,0.04),m.hat,0,0.86,-0.44);
+        q=grp('backwear','quiver',B);
+        put(q,cyl(0.085,0.075,0.46,8),m.gear,0.06,0.98,-0.33,0,0,0.4,true);
+        for (let i=0;i<3;i++) {
+            const px=-0.04-i*0.03;
+            const py=1.25+i*0.01;
+            put(q,cyl(0.022,0.022,0.14,6),i===1?m.hat:m.paper,px+0.02*i,py,-0.33+(i-1)*0.04,0,0,0.4);
+            put(q,cone(0.022,0.05,6),m.ink,px+0.02*i-0.035,py+0.09,-0.33+(i-1)*0.04,0,0,0.4);
+        }
+        q=grp('backwear','scroll',B);
+        put(q,cyl(0.075,0.075,0.5,8),m.paper,0,1.04,-0.33,0,0,Math.PI/2+0.25,true);
+        for (const sx of [-1,1]) {
+            put(q,cyl(0.09,0.09,0.04,8),m.gear,sx*0.25,1.04+sx*0.063,-0.33,0,0,Math.PI/2+0.25);
+        }
+        put(q,box(0.04,0.18,0.18),m.hat,0.0,1.04,-0.33,0,0,0.25);
+        this.applyAcc(ACC_DEFAULT);
+    }
+
+    applyAcc(skin) {
+        for (const slot in this.acc) {
+            const want=skin[slot]??ACC_DEFAULT[slot];
+            for (const id in this.acc[slot]) {
+                this.acc[slot][id].visible=id===want;
+            }
+        }
+    }
+
+    animAcc(s) {
+        const T=time.real;
+        if (this.propeller&&this.propeller.parent.visible) {
+            this.propeller.rotation.y=T*(8+s*14);
+        }
+        if (this.cape&&this.cape.parent.visible) {
+            this.cape.rotation.x=0.12+s*0.45+Math.sin(T*3)*0.04;
+        }
+        if (this.wings&&this.wings[0].parent.visible) {
+            const f=Math.sin(T*(3+s*6))*0.25;
+            this.wings[0].rotation.y=f;
+            this.wings[1].rotation.y=-f;
+        }
+    }
+
     applySkin(skin) {
+        this.applyAcc(skin);
         const S=TUNING.skinHatch;
         const plain=['coat','limbs','face','hat','gear'].every(k=>skin[k]===DEFAULT_SKIN[k]);
         if (this.hullMat) {
@@ -881,6 +1039,7 @@ export class Player {
         this.torso.scale.y=1+breath;
         this.head.position.y=1.46+breath*0.6;
         this.head.rotation.z=Math.sin(ph*0.5)*0.06*s;
+        this.animAcc(s);
         this.gun.position.z=0.42-this.kick*P.recoilDistance;
         this.gun.position.y=1.0;
         this.gun.rotation.set(0,0,0);

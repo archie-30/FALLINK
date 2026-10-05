@@ -67,6 +67,7 @@ export class Overlay {
         const dying=game.run.state==='dead';
         if (game.mode==='play'&&dying) {
             game.summary.draw(ctx);
+            game.revivePopup.draw(ctx);
         }
         if (game.mode==='play'&&!dying) {
             this.hud.drawEnemyHp(ctx,game.enemies,game.project,this.tmp3||(this.tmp3={x:0,y:0}));
@@ -142,6 +143,7 @@ export class Overlay {
         }
         game.levelView.draw(ctx);
         game.weaponView.draw(ctx);
+        game.achView.draw(ctx);
         game.levelUp.draw(ctx,game.art);
         game.skinEditor.draw(ctx);
         game.settingsMenu.draw(ctx);
@@ -154,11 +156,14 @@ export class Overlay {
         }
         game.codex.draw(ctx,game.art);
         game.popup.draw(ctx);
+        game.chestView.draw(ctx);
+        game.buyPrompt.draw(ctx);
         game.langPick.draw(ctx);
         if (game.resumeT>0) {
             this.drawCountdown(ctx,game.resumeT);
         }
         this.hud.drawToast(ctx,this.width,game.dt);
+        game.achToast.draw(ctx,this.width,game.dt,time.boilIndex);
         this.hud.drawResult(ctx,this.width,this.height,game.dt);
         game.transition.drawTop(ctx,this.width,this.height);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {

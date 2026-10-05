@@ -39,9 +39,10 @@ import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
-import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView} from './ui2d/menu.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
-import {DEFAULT_SKIN} from './data/skins.js';
+import {initMeta,clampSkin,setGate,bump,addKind,flushMeta,metaDirty,achQueue,grant,buy,claimAchChest,runChestCount,reviveReady,spendRevive} from './core/meta.js';
+import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast} from './ui2d/meta.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
 import {audio} from './core/audio.js';
@@ -105,6 +106,9 @@ function boot() {
     }
     applyLang();
     loadProgress();
+    initMeta();
+    flushMeta();
+    settings.skin=clampSkin(settings.skin);
     applyTheme();
     settings.aimGuide=settings.aimAssist;
     time.fpsCap=settings.fpsAuto?0:settings.fpsCap;
@@ -138,7 +142,7 @@ function boot() {
     const game={room:null,mode:'menu'};
     let menuAngle=0;
     const player=new Player(actors);
-    player.applySkin({...DEFAULT_SKIN,...settings.skin});
+    player.applySkin(clampSkin(settings.skin));
     const equipWeapon=(play=false)=>{
         const lv=effectiveLevel();
         let id=weaponUnlocked(settings.weapon,lv)?settings.weapon:'pen';
@@ -581,6 +585,10 @@ function boot() {
             audio.play('card');
             if (run.stats) {
                 run.stats.cards++;
+                bump('cards');
+                if (card&&isUlt(card.id)) {
+                    bump('ults');
+                }
             }
             if (run.mode==='training') {
                 trainStats.cards++;
@@ -687,6 +695,14 @@ function boot() {
         if (e.def.boss&&run.mode!=='training'&&run.mode!=='tutorial') {
             markBeaten(e.type);
         }
+        bump('kills');
+        if (e.elite) {
+            bump('elites');
+        }
+        if (e.def.boss) {
+            bump('bosses');
+            addKind('boss',e.type);
+        }
         fx.hitStop(F.hitStopKill,true);
         fx.cameraShake(F.shakeKill);
         fx.fovPunch(F.fovKill);
@@ -738,6 +754,7 @@ function boot() {
         }
     };
     player.events.onDodge=p=>{
+        bump('dodges');
         if (!run.tutorial()) {
             return;
         }
@@ -1187,9 +1204,40 @@ function boot() {
             fx.flash('paper',0.5,0.5);
             fx.cameraShake(0.8);
         },
+        canRevive:()=>reviveReady(),
+        openRevive:cb=>{
+            fx.paused=true;
+            hand.cancelTargeting();
+            revivePopup.open2(n=>{
+                if (n>0&&spendRevive(n)) {
+                    fx.paused=false;
+                    player.hp=n;
+                    player.invuln=TUNING.meta.revive.invuln;
+                    renderer.post.resetDeath();
+                    music.recover();
+                    audio.play('clear',1.3);
+                    fx.flash('paper',0.5,0.8);
+                    fx.cameraShake(0.5);
+                    particles.burst(player.pos.x,1.2,player.pos.z,30,{color:'red',speed:[3,7],up:[3,8],size:[0.1,0.22],life:[0.5,1]});
+                    rings.spawn(player.pos.x,player.pos.z,2.6,'red',0.6);
+                    dmgNums.spawnText(player.pos.x,2.4,player.pos.z,t('revive.done',{n}));
+                    cb(true);
+                    return;
+                }
+                cb(false);
+            });
+        },
         showSummary:(victory,stats,quit=false)=>{
             fx.paused=true;
             hand.cancelTargeting();
+            const scoring=run.mode==='story'||run.mode==='endless';
+            if (scoring) {
+                bump('runs');
+                if (victory) {
+                    bump('clears');
+                }
+                addKind('weapon',player.weaponId);
+            }
             const lvBefore=progress.level;
             const xpFrom=progress.xp/xpToNext(lvBefore);
             const bestKey=run.mode==='endless'?'bestScore':'bestStory';
@@ -1213,6 +1261,9 @@ function boot() {
                 }
                 summary.progress={xp:Math.round(stats.xp),before:lvBefore,after:progress.level,unlocked:res.unlocked.map(id=>t(CARDS[id].nameKey)),xpFrom,xpTo:progress.xp/xpToNext(progress.level)};
             }
+            flushMeta();
+            const levels=progress.level-lvBefore;
+            const items=scoring&&!godMode()?grant(runChestCount(stats,run.mode)+levels,levels):[];
             summary.show(victory,stats,quit,toMenu=>{
                 audio.play('ui');
                 player.hp=TUNING.player.maxHp;
@@ -1232,6 +1283,13 @@ function boot() {
                     run.start(startIds(),run.mode);
                 }
             });
+            if (items.length>0) {
+                summary.chest={items,opened:false};
+                summary.onChest=(list,after)=>{
+                    audio.play('ui');
+                    chestView.open2(list,t('meta.runChest'),settings.skin,after);
+                };
+            }
         }
     },seedParam||(Date.now()&0xffff));
     function warmShaders() {
@@ -1447,6 +1505,10 @@ function boot() {
             applyLang();
             art.cache.clear();
         }
+        if (key==='god') {
+            settings.skin=clampSkin(settings.skin);
+            player.applySkin(settings.skin);
+        }
         if (key==='reduced') {
             if (settings.reducedMotion) {
                 settings.jitterPrev=settings.jitter;
@@ -1493,10 +1555,58 @@ function boot() {
         levels:()=>{
             audio.play('ui');
             levelView.show();
+        },
+        achieve:()=>{
+            audio.play('ui');
+            achView.show();
         }
     });
+    const achView=new AchievementView({
+        back:()=>{
+            audio.play('ui');
+            achView.hide();
+        },
+        chest:()=>{
+            const items=claimAchChest();
+            if (items) {
+                audio.play('ui');
+                chestView.open2(items,t('ach.chestTitle'),settings.skin,null);
+            }
+        }
+    });
+    const chestView=new ChestView({
+        burst:()=>{
+            audio.play('clear',1.1);
+            fx.cameraShake(0.3);
+        },
+        pop:i=>audio.play('draw',1+i*0.15)
+    });
+    const buyPrompt=new BuyPrompt({
+        fail:()=>audio.play('fail'),
+        cancel:()=>audio.play('ui'),
+        bought:()=>audio.play('equip'),
+        weaponIcon:(ctx,id,x,y,s,v)=>drawWeaponIcon(ctx,id,x,y,s,v,false)
+    });
+    const revivePopup=new RevivePopup({
+        tick:()=>audio.play('ui',1.2)
+    });
+    const achToast=new AchToast();
     const skinEditor=new SkinEditor({
+        buy:item=>{
+            audio.play('ui');
+            buyPrompt.open2(item,skinEditor.skin(),()=>{
+                if (buy(item)) {
+                    skinEditor.applyItem(item);
+                    return true;
+                }
+                return false;
+            });
+        },
+        fail:()=>audio.play('fail'),
         changed:(skin,big)=>{
+            for (const c of clones) {
+                c.fig.applyAcc(skin);
+            }
             player.applySkin(skin);
             saveSettings();
             player.sqv+=big?4:2.2;
@@ -1544,6 +1654,20 @@ function boot() {
     }
     const weaponView=new WeaponView({
         select:()=>audio.play('ui'),
+        buy:id=>{
+            audio.play('ui');
+            const item={kind:'weapon',value:id};
+            buyPrompt.open2(item,settings.skin,()=>{
+                if (buy(item)) {
+                    weaponView.walletK=1;
+                    weaponView.pop=1;
+                    weaponView.equipT=0;
+                    weaponView.equipId=id;
+                    return true;
+                }
+                return false;
+            });
+        },
         equip:id=>{
             settings.weapon=id;
             saveSettings();
@@ -1756,7 +1880,8 @@ function boot() {
         }
     });
     let pendingLevel=null;
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,popup,choice,deckPick,levelUp];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,popup,choice,deckPick,levelUp,achView,chestView,buyPrompt,revivePopup];
+    setGate(()=>game.mode==='play'&&(run.mode==='story'||run.mode==='endless')&&!godMode());
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
     ink.events.onChange=d=>overlay.hud.inkChanged(d);
@@ -1828,6 +1953,15 @@ function boot() {
             if (langPick.open) {
                 return langPick.down(x,y);
             }
+            if (chestView.open) {
+                return chestView.down(x,y);
+            }
+            if (buyPrompt.open) {
+                return buyPrompt.down(x,y);
+            }
+            if (revivePopup.open) {
+                return revivePopup.down(x,y);
+            }
             if (levelUp.open) {
                 return levelUp.down(x,y);
             }
@@ -1845,6 +1979,9 @@ function boot() {
             }
             if (weaponView.open) {
                 return weaponView.down(x,y);
+            }
+            if (achView.open) {
+                return achView.down(x,y);
             }
             if (skinEditor.open) {
                 return skinEditor.down(x,y);
@@ -1929,6 +2066,10 @@ function boot() {
                 levelView.move(x,y);
                 return;
             }
+            if (achView.open) {
+                achView.move(x,y);
+                return;
+            }
             if (skinEditor.open) {
                 skinEditor.move(x,y);
                 return;
@@ -1948,6 +2089,7 @@ function boot() {
             settingsMenu.up();
             codex.up(x,y);
             levelView.up();
+            achView.up();
             skinEditor.up(x,y);
             trainingPicker.up(x,y);
             if (modalShown()) {
@@ -2004,6 +2146,22 @@ function boot() {
     };
     input.onEscape=()=>{
         audio.unlock();
+        if (chestView.open) {
+            chestView.skip();
+            return;
+        }
+        if (buyPrompt.open) {
+            buyPrompt.actions.cancel();
+            buyPrompt.hide();
+            return;
+        }
+        if (revivePopup.open) {
+            return;
+        }
+        if (achView.open) {
+            achView.actions.back();
+            return;
+        }
         if (popup.open) {
             popup.actions.close();
             return;
@@ -2068,7 +2226,7 @@ function boot() {
     // false when the system may close the app (second back press within 2 s on the idle main menu).
     let lastExitBack=-1e9;
     window.__inkrageBack=()=>{
-        const idleMenu=game.mode==='menu'&&!popup.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open;
+        const idleMenu=game.mode==='menu'&&!popup.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open&&!achView.open&&!chestView.open&&!buyPrompt.open;
         if (idleMenu) {
             const now=performance.now();
             if (now-lastExitBack<2000) {
@@ -2089,6 +2247,7 @@ function boot() {
         levelView.wheel(dy);
         trainingPicker.wheel(dy);
         skinEditor.wheel(dy);
+        achView.wheel(dy);
     };
     input.canStick=()=>!modalShown()&&!popup.open&&!coach.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     let skillToggle=false;
@@ -2173,6 +2332,9 @@ function boot() {
         }
     });
     const autoPause=()=>{
+        if (metaDirty()) {
+            flushMeta();
+        }
         input.resetPointers();
         hand.cancelTargeting();
         if (game.mode==='play'&&!pauseMenu.open&&!trainingMenu.open&&!trainingPicker.open&&!fx.cutin) {
@@ -2204,7 +2366,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
+    const gameUi={achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -2489,6 +2651,10 @@ function boot() {
         for (const m of menus) {
             m.update(dt);
         }
+        while (achQueue.length>0) {
+            achToast.push(achQueue.shift());
+            audio.play('equip',1.2);
+        }
         ultCutin.update(fx.paused?0:dt);
         checkDevice();
         gameUi.dt=dt;
@@ -2617,7 +2783,7 @@ function boot() {
     if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();
