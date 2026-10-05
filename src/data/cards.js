@@ -78,7 +78,7 @@ export const CARDS={
         targeting:'point',
         range:12,
         radius:4,
-        params:{damage:300,radius:4},
+        params:{damage:230,radius:4},
         upgraded:{cost:4,params:{damage:400,radius:5}},
         effect:(g,t,p)=>g.execute(t.x,t.z,p.damage,p.radius)
     },
