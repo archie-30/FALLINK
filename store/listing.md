@@ -104,7 +104,7 @@ No sign-in, no personal data collected, no ads.
 | --- | --- | --- |
 | App 圖示 | `store/icon-512.png` | 512×512 PNG |
 | 主圖（Feature graphic） | `store/feature-graphic-1024x500.png` | 1024×500 PNG |
-| 手機截圖（至少 2 張，最多 8 張） | `store/screenshots/phone/1…5-*.png` | 2400×1236（比例 < 2:1） |
+| 手機截圖（至少 2 張，最多 8 張） | `store/screenshots/phone/1…5-*.png`（主選單、一般戰、頭目戰、武器、敵人圖鑑） | 2400×1236（比例 < 2:1） |
 | 7 吋平板截圖 | `store/screenshots/tablet-7in/1…5-*.png` | 1920×1080（16:9，每邊 320–3840） |
 | 10 吋平板截圖 | `store/screenshots/tablet-10in/1…5-*.png` | 2560×1440（16:9，每邊 1080–7680） |
 | Google Play Games 電腦版截圖（4–8 張） | `store/screenshots/pc-google-play-games/1…5-*.png` | 2560×1440（16:9） |
