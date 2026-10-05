@@ -17,6 +17,7 @@ export const settings={
     showFps:false,
     aimAssist:true,
     aimGuide:true,
+    resumeCount:true,
     volume:0.8,
     fpsCap:60,
     fpsAuto:true,

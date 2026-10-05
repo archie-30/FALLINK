@@ -1018,6 +1018,13 @@ function boot() {
             coach.intro(step,i);
         },
         task:step=>coach.task(step),
+        remind:(step,i)=>{
+            hand.cancelTargeting();
+            input.mouse.down=false;
+            fx.paused=true;
+            audio.play('page',1.2);
+            coach.remind(step,i);
+        },
         progress:(kind,n,pad)=>{
             coach.progress(kind,n);
             audio.play('ui',1.2+n*0.1);
@@ -1463,7 +1470,7 @@ function boot() {
         pauseMenu.hide();
         input.mouse.down=false;
         input.dashQueued=false;
-        resumeT=coach.open||upgradeView.open||!tense()?0:TUNING.ui.resumeCount;
+        resumeT=coach.open||upgradeView.open||!tense()||!settings.resumeCount?0:TUNING.ui.resumeCount;
         if (resumeT<=0&&!coach.open&&!upgradeView.open) {
             fx.paused=false;
         }
@@ -1725,6 +1732,13 @@ function boot() {
             audio.play('ui');
             coach.hide();
             run.director.next();
+        },
+        resume:()=>{
+            audio.play('ui');
+            fx.paused=false;
+            input.mouse.down=false;
+            input.dashQueued=false;
+            coach.hide();
         },
         merge:()=>{
             coach.hide();
@@ -2545,7 +2559,7 @@ function boot() {
         homingBullets.update(dt,room);
         lobs.update(dt);
         deck.update(dt);
-        hand.idleT=run.state==='combat'&&run.mode!=='training'&&hand.visible()?(hand.idleT||0)+dt:0;
+        hand.idleT=run.state==='combat'&&run.mode!=='training'&&run.mode!=='tutorial'&&hand.visible()?(hand.idleT||0)+dt:0;
         room.update(dt,enemies);
         effects.update(dt);
         for (const c of clones) {

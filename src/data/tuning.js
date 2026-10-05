@@ -483,6 +483,7 @@ export const TUNING={
     tutorial:{
         need:{pad:3,kill:3,dodge:2,card:2,cancel:1,deck:1,detail:1,ult:1},
         holdTime:2.4,
+        remind:30,
         pads:[[-7,1.5],[7,-1],[0,-3.5]],
         padR:1.3,
         dummies:[[-5,-2],[0,-3.5],[5,-2]],

@@ -2801,6 +2801,10 @@ class Exam extends Enemy {
             }
             return;
         }
+        if ((this.state!=='attack'||this.pattern!=='quiet')&&this.spin!==0) {
+            this.spin=0;
+            this.cheatT=0;
+        }
         if (this.state==='attack') {
             const sp=d.bulletSpeed*(P2?1.12:1);
             let done=false;
@@ -2822,20 +2826,31 @@ class Exam extends Enemy {
             else if (this.pattern==='quiet') {
                 const Q=d.quiet;
                 this.coolT-=dt;
-                if ((p.shots||0)>this.shotsAsk&&this.coolT<=0) {
-                    this.shotsAsk=p.shots;
-                    this.coolT=Q.cool;
-                    const n=P2?Q.shots2:Q.shots;
-                    const base=Math.atan2(this.nz,this.nx);
-                    for (let i=0;i<n;i++) {
-                        const a=base+(i/(n-1)-0.5)*Q.spread;
-                        ctx.enemyBullets.spawn(this.pos.x,this.pos.z,Math.cos(a),Math.sin(a),sp*1.2,d.bulletDamage,d.bulletLife);
+                if ((this.cheatT||0)>0) {
+                    const k0=1-this.cheatT/Q.spinTime;
+                    this.cheatT=Math.max(0,this.cheatT-dt);
+                    const k1=1-this.cheatT/Q.spinTime;
+                    this.spin=-EASE.easeInOutQuad(k1)*Math.PI*2;
+                    const n=P2?Q.ring2:Q.ring;
+                    for (let i=Math.floor(k0*n);i<Math.floor(k1*n);i++) {
+                        const a=this.cheatBase+i/n*Math.PI*2;
+                        ctx.enemyBullets.spawn(this.pos.x+Math.cos(a)*1.2,this.pos.z+Math.sin(a)*1.2,Math.cos(a),Math.sin(a),sp*Q.speed,d.bulletDamage,d.bulletLife);
                     }
+                    if (this.cheatT<=0) {
+                        this.spin=0;
+                        this.coolT=Q.cool;
+                    }
+                }
+                else if ((p.shots||0)>this.shotsAsk&&this.coolT<=0) {
+                    this.shotsAsk=p.shots;
+                    this.cheatT=Q.spinTime;
+                    this.cheatBase=Math.atan2(this.nz,this.nx);
                     this.speak('exam.cheat',0.9);
                     this.kick=1;
+                    ctx.fx.cameraShake(0.25);
                 }
                 this.shotsAsk=Math.max(this.shotsAsk,p.shots||0);
-                done=this.stateT>=Q.time;
+                done=this.stateT>=Q.time&&!(this.cheatT>0);
             }
             else if (this.pattern==='grade') {
                 const G=d.grade;

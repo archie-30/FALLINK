@@ -13,6 +13,7 @@ export const TUTOR_STEPS=[
     {key:'warn',info:true,anim:'warn'},
     {key:'upgrade',info:true,draw:'merge',merge:true},
     {key:'unlock',info:true,draw:'unlock'},
+    {key:'rewards',info:true,draw:'rewards'},
     {key:'end',info:true,draw:'end'}
 ];
 
@@ -64,6 +65,7 @@ export class TutorialDirector {
             return;
         }
         this.phase='task';
+        this.taskT=0;
         this.slots=[];
         if (s.goals.includes('pad')) {
             this.placePad();
@@ -98,6 +100,7 @@ export class TutorialDirector {
             return;
         }
         this.counts[kind]=(this.counts[kind]||0)+1;
+        this.taskT=0;
         this.hooks.progress(kind,this.counts[kind],this.pad);
         if (this.met()) {
             if (s.hold) {
@@ -144,6 +147,11 @@ export class TutorialDirector {
         }
         if (this.phase!=='task') {
             return;
+        }
+        this.taskT=(this.taskT||0)+dt;
+        if (this.taskT>=TUNING.tutorial.remind) {
+            this.taskT=0;
+            this.hooks.remind(this.step(),this.index);
         }
         if (this.pad) {
             this.pad.t+=dt;

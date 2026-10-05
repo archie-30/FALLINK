@@ -1377,11 +1377,14 @@ export const ENEMY_ATTACKS={
             draw(S,k) {
                 const shoot=k>0.45&&k<0.55;
                 S.player(PX,PY,0,{kick:shoot?1:0});
-                S.enemy('exam',12,PY);
+                const spin=seg(k,0.58,0.72);
+                S.enemy('exam',12,PY,{rot:-spin*Math.PI*2});
                 S.ring(12,PY,2.6,PALETTE.red,0.08,seg(k,0.05,0.2)*(1-seg(k,0.9,1)),[0.3,0.2]);
                 S.fly(PX+0.9,PY,11,PY,k,0.46,0.6);
-                for (let i=0;i<3;i++) {
-                    S.fly(11,PY,PX+0.5,PY+(i-1)*1.2,k,0.58,0.8,'enemy');
+                for (let i=0;i<12;i++) {
+                    const a=Math.PI+i/12*Math.PI*2;
+                    const k0=0.58+i/12*0.14;
+                    S.fly(12+Math.cos(a)*1.2,PY+Math.sin(a)*1.2,12+Math.cos(a)*9,PY+Math.sin(a)*9,k,k0,k0+0.22,'enemy');
                 }
                 S.text('!',12,PY-2.6,20,PALETTE.red,seg(k,0.55,0.6)*(1-seg(k,0.85,0.9)));
             }
