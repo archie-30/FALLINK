@@ -1,21 +1,17 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# R8 rules for INKRAGE (Capacitor 8, no third-party plugins).
+# Capacitor's own consumer rules (plugins, @PluginMethod, Cordova) are applied automatically.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,JavascriptInterface
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+-keep class com.getcapacitor.MessageHandler { *; }
+-keep class com.getcapacitor.Bridge { public *; }
+-keep class com.getcapacitor.BridgeActivity { public protected *; }
+-keep class com.archie.inkrage.MainActivity { *; }
+
+-dontwarn io.ionic.sslpinning.**
