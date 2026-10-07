@@ -2149,6 +2149,7 @@ function boot() {
         const i=QUALITY_ORDER.indexOf(settings.quality);
         settings.quality=QUALITY_ORDER[(i+1)%QUALITY_ORDER.length];
         autoDrop.base=null;
+        settings.qualityAuto=false;
         saveSettings();
         applyQuality();
     };
@@ -2877,7 +2878,7 @@ function boot() {
                 return;
             }
             gov.slow+=P.window;
-            if (gov.slow>=P.dropAfter&&game.mode==='play'&&!fx.paused&&settings.quality!=='low') {
+            if (gov.slow>=P.dropAfter&&game.mode==='play'&&!fx.paused&&settings.qualityAuto&&settings.quality!=='low') {
                 gov.slow=0;
                 autoDrop.base=autoDrop.base||settings.quality;
                 settings.quality=settings.quality==='high'?'mid':'low';
