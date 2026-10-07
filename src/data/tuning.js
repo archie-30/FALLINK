@@ -294,6 +294,7 @@ export const TUNING={
     ui:{
         resumeCount:3,
         scale:{refH:560,refW:900,min:0.72},
+        text:{small:1,mid:1.12,large:1.26,minPx:10,maxPx:20},
         fit:{smallH:640,ratio:1.62,min:760},
         dangerHover:0.18,
         loaderMin:0.7,
@@ -552,6 +553,7 @@ export const TUNING={
         dpsWindow:5
     },
     reward:{
+        skipSure:3,
         endlessPages:[0,2],
         touchScale:1.3,
         touchH:0.44,

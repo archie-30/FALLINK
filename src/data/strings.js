@@ -1380,7 +1380,13 @@ export const STRINGS={
     'privacy.aiHead':'關於 AI 生成',
     'privacy.ai':'本遊戲的程式、美術、文字、音效與音樂全部由 AI 生成，包含這份說明與遊戲內所有的文字。',
     'settings.modes':'玩法說明',
-    'relic.locked':'遺物在等級 {n} 解鎖'
+    'relic.locked':'遺物在等級 {n} 解鎖',
+    'settings.textSize':'文字大小',
+    'settingsInfo.textSize':'調整遊戲裡說明文字的大小（選單、說明視窗、卡牌與敵人說明、教學等）。覺得字太小看不清楚時，請改成「大」。',
+    'textSize.small':'小',
+    'textSize.mid':'中',
+    'textSize.large':'大',
+    'reward.skipSure':'確定跳過'
 };
 
 let touchText=false;
