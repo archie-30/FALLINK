@@ -48,7 +48,13 @@ function compassGeo() {
     return g;
 }
 
-const MODELS={compass:compassGeo};
+function chalkGeo() {
+    const g=new THREE.CylinderGeometry(0.11,0.11,0.8,8);
+    g.rotateZ(Math.PI/2);
+    return g;
+}
+
+const MODELS={compass:compassGeo,chalk:chalkGeo};
 
 export class BulletSystem {
     constructor(scene,fxScene,o) {

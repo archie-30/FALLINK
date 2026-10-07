@@ -78,7 +78,7 @@ export const CARDS={
         targeting:'point',
         range:12,
         radius:4,
-        params:{damage:230,radius:4},
+        params:{damage:250,radius:4},
         upgraded:{cost:4},
         effect:(g,t,p)=>g.execute(t.x,t.z,p.damage,p.radius)
     },
@@ -92,8 +92,8 @@ export const CARDS={
         mode:'draw',
         targeting:'drawPath',
         range:10,
-        params:{length:8,hp:6,height:1.4},
-        upgraded:{cost:2,params:{length:11,hp:10,height:1.5}},
+        params:{length:8,duration:6,height:1.4},
+        upgraded:{cost:2,params:{length:11,duration:9,height:1.5}},
         effect:(g,t,p)=>g.pencilWall(t.points,p)
     },
     eraser:{
@@ -213,8 +213,8 @@ export const CARDS={
         type:'defense',
         mode:'around',
         targeting:'none',
-        params:{radius:4,damage:15,push:14},
-        upgraded:{cost:2,params:{radius:5,damage:22,push:16}},
+        params:{radius:5.5,damage:15,push:14},
+        upgraded:{cost:2,params:{radius:7,damage:22,push:16}},
         effect:(g,t,p)=>g.shockwave(p.radius,p.damage,p.push)
     },
     mark:{

@@ -27,8 +27,9 @@ export const settings={
     fpsAuto:true,
     musicVol:0.55,
     sfxVol:0.8,
-    jitter:1,
-    jitterPrev:1,
+    jitter:0.5,
+    jitterPrev:0.5,
+    jitterV:2,
     mute:{volume:false,music:false,sfx:false,jitter:false},
     stickSize:0.45,
     stickX:0.45,
@@ -72,7 +73,13 @@ export function loadSettings() {
     try {
         const raw=localStorage.getItem(KEY);
         if (raw) {
-            Object.assign(settings,JSON.parse(raw));
+            const saved=JSON.parse(raw);
+            Object.assign(settings,saved);
+            if (saved&&saved.jitterV!==2) {
+                settings.jitter=Math.min(1,(saved.jitter??1)*0.5);
+                settings.jitterPrev=Math.min(1,(saved.jitterPrev??1)*0.5);
+                settings.jitterV=2;
+            }
         }
         settings.training=JSON.parse(JSON.stringify(TRAINING_DEFAULTS));
         delete settings.shake;
@@ -138,7 +145,7 @@ export function isFlagship(peakFps) {
 
 export function boilScale() {
     const j=settings.mute&&settings.mute.jitter?0:(settings.jitter??1);
-    return (settings.reducedMotion?TUNING.reducedMotion.boil:1)*j;
+    return (settings.reducedMotion?TUNING.reducedMotion.boil:1)*j*TUNING.boil.gain;
 }
 
 export function shakeScale() {

@@ -23,7 +23,7 @@ import {ENEMY_ICONS} from './enemyIcons.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {ACC_SLOTS,ACC_DEFAULT} from '../data/cosmetics.js';
 import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,randomSkin,ownsRelic,equippedRelic,relicPrice,relicsUnlocked} from '../core/meta.js';
-import {drawAcc,drawAccIcon,drawLock,drawWallet,drawInkDot,drawMiniChest,drawItemIcon} from './meta.js';
+import {drawAcc,drawAccIcon,drawLock,drawWallet,drawCoin,drawMiniChest,drawItemIcon} from './meta.js';
 import {drawRelicIcon} from './relicIcons.js';
 import {RELIC_ORDER} from '../data/relics.js';
 
@@ -569,9 +569,9 @@ export class PauseMenu extends Panel {
     }
 }
 
-const SETTING_KEYS=['volume','music','sfx','quality','fps','jitter','assist','countdown','reduced','full','god','textSize'];
+const SETTING_KEYS=['volume','music','sfx','quality','fps','jitter','assist','countdown','reduced','full','god','textSize','lang'];
 
-const SEGS={quality:{opts:['low','mid','high'],label:k=>t('quality.'+k)},textSize:{opts:['small','mid','large'],label:k=>t('textSize.'+k)},fps:{opts:TUNING.loop.fpsOptions,label:k=>String(k)}};
+const SEGS={quality:{opts:['low','mid','high'],label:k=>t('quality.'+k)},textSize:{opts:['small','mid','large'],label:k=>t('textSize.'+k)},lang:{opts:['zh','en'],label:k=>t('lang.'+k)},fps:{opts:TUNING.loop.fpsOptions,label:k=>String(k)}};
 
 const MUTE_KEYS=['volume','music','sfx','jitter'];
 
@@ -625,6 +625,9 @@ export class SettingsMenu extends Panel {
         }
         if (key==='textSize') {
             return Math.max(0,SEGS.textSize.opts.indexOf(settings.textSize));
+        }
+        if (key==='lang') {
+            return Math.max(0,SEGS.lang.opts.indexOf(settings.lang));
         }
         if (key==='reduced') {
             return settings.reducedMotion?1:0;
@@ -690,9 +693,6 @@ export class SettingsMenu extends Panel {
 
     show() {
         super.show();
-        this.langOpen=false;
-        this.langT=0;
-        this.langPick=0;
         this.infoPin=null;
         this.pw={open:false,t:0,digits:'',err:0,press:null,pressT:0,hits:[]};
         this.page='main';
@@ -707,9 +707,6 @@ export class SettingsMenu extends Panel {
     update(dt) {
         super.update(dt);
         this.pageT+=dt;
-        const LG=TUNING.settingsUi.lang;
-        this.langT=Math.max(0,Math.min(1,(this.langT||0)+(this.langOpen?dt/LG.openTime:-dt/LG.closeTime)));
-        this.langPick=Math.max(0,(this.langPick||0)-dt*LG.pickDecay);
         this.lvPulse=Math.max(0,(this.lvPulse||0)-dt*4);
         if (this.pw) {
             const P=this.pw;
@@ -908,6 +905,9 @@ export class SettingsMenu extends Panel {
                     }
                     else if (r.key==='textSize') {
                         settings.textSize=opts[i];
+                    }
+                    else if (r.key==='lang') {
+                        settings.lang=opts[i];
                     }
                     else {
                         settings.fpsCap=opts[i];
@@ -1132,7 +1132,6 @@ export class SettingsMenu extends Panel {
         if (!touch) {
             this.drawModeBtn(ctx,v);
             this.drawPrivacy(ctx,v);
-            this.drawLang(ctx,v);
         }
         if (this.info&&this.t>0.35&&!this.pw.open) {
             this.drawInfo(ctx,this.info,v);
@@ -1142,38 +1141,17 @@ export class SettingsMenu extends Panel {
         }
     }
 
-    langBox() {
-        const P=this.panel;
-        const L=TUNING.settingsUi.lang;
-        const w=Math.min(L.w,P.w*0.4);
-        return {x:P.x+P.w-w-L.pad,y:P.y+L.pad,w,h:L.h};
-    }
-
     privBox() {
         const P=this.panel;
         const L=TUNING.settingsUi.lang;
-        const b=this.langBox();
-        const w=92;
-        const x=b.x-8-w;
-        if (x>=P.x+130) {
-            return {x,y:b.y,w,h:b.h};
-        }
-        return {x:b.x+b.w-w,y:b.y+b.h+6,w,h:b.h};
+        const w=104;
+        return {x:P.x+P.w-w-L.pad,y:P.y+L.pad,w,h:L.h};
     }
 
     modeBox() {
-        const P=this.panel;
         const p=this.privBox();
-        const l=this.langBox();
-        const w=78;
-        const x=p.x-8-w;
-        if (x>=P.x+P.w*0.55) {
-            return {x,y:p.y,w,h:p.h};
-        }
-        if (p.y===l.y) {
-            return {x:l.x+l.w-w,y:l.y+l.h+6,w,h:p.h};
-        }
-        return {x:l.x+l.w-w,y:p.y+p.h+6,w,h:p.h};
+        const w=104;
+        return {x:p.x-8-w,y:p.y,w,h:p.h};
     }
 
     drawModeBtn(ctx,v) {
@@ -1210,119 +1188,9 @@ export class SettingsMenu extends Panel {
         ctx.restore();
     }
 
-    drawLang(ctx,v) {
-        const L=TUNING.settingsUi.lang;
-        const b=this.langBox();
-        const a=Math.min(1,this.t*4);
-        const k=this.langOpen?Math.min(1.04,EASE.easeOutBack(this.langT||0)):EASE.easeOutCubic(this.langT||0);
-        const pk=this.langPick||0;
-        ctx.save();
-        ctx.globalAlpha*=a;
-        const hv=inRect(b,this.hx??-1,this.hy??-1);
-        ctx.save();
-        ctx.translate(b.x+b.w/2,b.y+b.h/2);
-        ctx.scale(1+pk*L.pop,1+pk*L.pop);
-        ctx.translate(-(b.x+b.w/2),-(b.y+b.h/2));
-        ctx.fillStyle=hv||this.langOpen?rgba('farGray',0.95):PALETTE.paper;
-        ctx.fillRect(b.x,b.y,b.w,b.h);
-        drawShape(ctx,sketchRect(b.x,b.y,b.w,b.h,{width:hv||this.langOpen?2.2:1.8,seed:1490}),PALETTE.ink,v);
-        ctx.fillStyle=pk>0.1?PALETTE.red:PALETTE.ink;
-        ctx.textAlign='left';
-        ctx.textBaseline='middle';
-        fitText(ctx,t('settings.lang')+t('ui.colon')+t('lang.'+settings.lang),b.x+10,b.y+b.h/2+1,b.w-34,14,'bold ');
-        ctx.translate(b.x+b.w-14,b.y+b.h/2);
-        ctx.rotate(EASE.easeOutBack(this.langT||0)*Math.PI);
-        ctx.fillStyle=PALETTE.ink;
-        ctx.beginPath();
-        ctx.moveTo(-6,-3);
-        ctx.lineTo(6,-3);
-        ctx.lineTo(0,4);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-        this.langHits=[];
-        if (k>0) {
-            const full=L.item*LANGS.length;
-            const y0=b.y+b.h+3;
-            ctx.fillStyle=rgba('ink',0.12*k);
-            ctx.fillRect(b.x+4,y0+5,b.w,full*k);
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(b.x-4,y0-2,b.w+8,full*k+4);
-            ctx.clip();
-            ctx.fillStyle=PALETTE.paper;
-            ctx.fillRect(b.x,y0,b.w,full);
-            drawShape(ctx,sketchRect(b.x,y0,b.w,full,{width:1.6,seed:1491}),PALETTE.ink,v);
-            LANGS.forEach((q,i)=>{
-                const r={x:b.x+3,y:y0+i*L.item+2,w:b.w-6,h:L.item-4};
-                const ik=Math.max(0,Math.min(1,((this.langT||0)-i*L.stagger)/(1-L.stagger*(LANGS.length-1))));
-                const on=settings.lang===q;
-                const h2=inRect(r,this.hx??-1,this.hy??-1);
-                ctx.save();
-                ctx.globalAlpha*=ik;
-                ctx.translate(-(1-ik)*18,0);
-                if (on||h2) {
-                    ctx.fillStyle=on?rgba('ink',0.1):rgba('farGray',0.9);
-                    ctx.fillRect(r.x,r.y,r.w,r.h);
-                }
-                if (on) {
-                    ctx.fillStyle=PALETTE.red;
-                    ctx.fillRect(r.x,r.y+4,4,r.h-8);
-                }
-                const bk=on?pk:0;
-                ctx.save();
-                ctx.translate(r.x+24,r.y+r.h/2);
-                ctx.rotate(h2?Math.sin(time.real*10)*0.12:0);
-                ctx.scale(1+bk*0.4,1+bk*0.4);
-                ctx.fillStyle=on?PALETTE.red:PALETTE.paper;
-                ctx.fillRect(-13,-9,26,18);
-                ctx.strokeStyle=on?PALETTE.red:PALETTE.ink;
-                ctx.lineWidth=1.4;
-                ctx.strokeRect(-13,-9,26,18);
-                ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
-                ctx.font='bold 11px '+FONT;
-                ctx.textAlign='center';
-                ctx.fillText(q==='zh'?'中':'EN',0,1);
-                ctx.restore();
-                ctx.fillStyle=on?PALETTE.red:PALETTE.ink;
-                ctx.font=(on||h2?'bold ':'')+'14px '+FONT;
-                ctx.textAlign='left';
-                ctx.fillText(t('lang.'+q),r.x+46+(h2?4:0),r.y+r.h/2+1);
-                ctx.restore();
-                if (this.langOpen) {
-                    this.langHits.push({...r,k:q});
-                }
-            });
-            ctx.restore();
-        }
-        ctx.restore();
-    }
-
     langDown(x,y) {
         if (this.page==='touch') {
             return false;
-        }
-        if (this.langOpen) {
-            const hit=(this.langHits||[]).find(r=>inRect(r,x,y));
-            this.langOpen=false;
-            if (hit) {
-                this.langPick=1;
-            }
-            if (hit&&hit.k!==settings.lang) {
-                settings.lang=hit.k;
-                this.actions.changed('lang');
-            }
-            if (this.actions.select) {
-                this.actions.select();
-            }
-            return true;
-        }
-        if (inRect(this.langBox(),x,y)) {
-            this.langOpen=true;
-            if (this.actions.select) {
-                this.actions.select();
-            }
-            return true;
         }
         if (inRect(this.privBox(),x,y)) {
             this.actions.privacy();
@@ -6326,7 +6194,7 @@ export class Coach extends Panel {
         ctx.textAlign='left';
         ctx.textBaseline='middle';
         ctx.fillText(t('ach.unlocked'),-tw/2+12,1);
-        drawInkDot(ctx,tw/2-40,1,6);
+        drawCoin(ctx,tw/2-40,1,6);
         ctx.fillStyle=PALETTE.ink;
         ctx.fillText('+1',tw/2-30,1);
         ctx.restore();
@@ -7523,7 +7391,7 @@ export class WeaponView extends Panel {
             drawShape(ctx,sketchRect(-eb.w/2,-eb.h/2,eb.w,eb.h,{width:2.2,seed:2042}),PALETTE.red,v);
             ctx.font='bold '+(small?13:15)+'px '+FONT;
             const lw=ctx.measureText(label).width;
-            drawInkDot(ctx,-lw/2-6,1,5,PALETTE.red);
+            drawCoin(ctx,-lw/2-6,1,5,PALETTE.red);
             ctx.fillStyle=PALETTE.red;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
@@ -7623,7 +7491,7 @@ export class WeaponView extends Panel {
             if (st==='locked') {
                 ctx.fillStyle=PALETTE.red;
                 fitText(ctx,t('relic.price',{n:relicPrice()}),ch*0.98+16,ch*0.68,tw-16,small?14:16,'');
-                drawInkDot(ctx,ch*0.98+5,ch*0.68,5,PALETTE.red);
+                drawCoin(ctx,ch*0.98+5,ch*0.68,5,PALETTE.red);
             }
             else {
                 ctx.fillStyle=PALETTE.nearGray;
@@ -7705,7 +7573,7 @@ export class WeaponView extends Panel {
             drawShape(ctx,sketchRect(-eb.w/2,-eb.h/2,eb.w,eb.h,{width:2.2,seed:2082}),PALETTE.red,v);
             ctx.font='bold '+(small?15:17)+'px '+FONT;
             const lw=ctx.measureText(label).width;
-            drawInkDot(ctx,-lw/2-6,1,5,PALETTE.red);
+            drawCoin(ctx,-lw/2-6,1,5,PALETTE.red);
             ctx.fillStyle=PALETTE.red;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
@@ -8685,8 +8553,14 @@ export class LangPicker extends Panel {
         const bw=Math.min(L.btnW,(w-60)/2);
         const cy=h*L.y;
         this.opts=LANGS.map((k,i)=>({k,x:w/2+(i===0?-bw-L.gap/2:L.gap/2),y:cy,w:bw,h:L.btnH}));
-        this.go={x:w/2-L.goW/2,y:cy+L.btnH+L.goGap,w:L.goW,h:L.goH};
-        this.buttons=this.opts.concat(this.pick?[this.go]:[]);
+        const sy=cy+L.btnH+L.sizeGap;
+        const sizes=SEGS.textSize.opts;
+        const sw=Math.min(L.sizeW,(w-60)/sizes.length);
+        const sx=w/2-(sw*sizes.length+L.sizeSep*(sizes.length-1))/2;
+        this.sizes=sizes.map((k,i)=>({k,x:sx+i*(sw+L.sizeSep),y:sy,w:sw,h:L.sizeH}));
+        this.noteY=sy+L.sizeH+L.noteGap;
+        this.go={x:w/2-L.goW/2,y:this.noteY+L.goGap-L.goH/2+6,w:L.goW,h:L.goH};
+        this.buttons=this.opts.concat(this.sizes,this.pick?[this.go]:[]);
     }
 
     update(dt) {
@@ -8708,6 +8582,11 @@ export class LangPicker extends Panel {
                 this.pickT=0;
                 this.actions.choose(o.k);
             }
+            return true;
+        }
+        const z=this.sizes.find(q=>inRect(q,x,y));
+        if (z) {
+            this.actions.size(z.k);
             return true;
         }
         if (this.pick&&inRect(this.go,x,y)) {
@@ -8739,9 +8618,9 @@ export class LangPicker extends Panel {
         ctx.font='bold 30px '+FONT;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        ctx.fillText(t('game.title'),w/2,h*0.18);
+        ctx.fillText(t('game.title'),w/2,h*0.12);
         ctx.font='bold 20px '+FONT;
-        ctx.fillText(t('langPick.title'),w/2,h*0.3);
+        ctx.fillText(t('langPick.title'),w/2,this.opts[0].y-30);
         this.opts.forEach((o,i)=>{
             const on=this.pick===o.k;
             const e=EASE.easeOutBack(Math.min(1,(this.t-0.1-i*0.08)/0.35));
@@ -8759,13 +8638,33 @@ export class LangPicker extends Panel {
             ctx.fillText(t('lang.'+o.k),0,1);
             ctx.restore();
         });
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 16px '+FONT;
+        ctx.fillText(t('langPick.size'),w/2,this.sizes[0].y-18);
+        this.sizes.forEach((o,i)=>{
+            const on=settings.textSize===o.k;
+            const e=EASE.easeOutBack(Math.min(1,(this.t-0.3-i*0.06)/0.35));
+            if (e<=0) {
+                return;
+            }
+            ctx.save();
+            ctx.translate(o.x+o.w/2,o.y+o.h/2);
+            ctx.scale(e,e);
+            ctx.fillStyle=on?PALETTE.ink:(this.hoverIdx===this.opts.length+i?rgba('farGray',0.95):rgba('paper',0.95));
+            ctx.fillRect(-o.w/2,-o.h/2,o.w,o.h);
+            drawShape(ctx,sketchRect(-o.w/2,-o.h/2,o.w,o.h,{width:on?2.4:1.6,seed:1610+i}),on?PALETTE.red:PALETTE.ink,v);
+            ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
+            ctx.font='bold '+(14+i*3)+'px '+FONT;
+            ctx.fillText(t('textSize.'+o.k),0,1);
+            ctx.restore();
+        });
         if (this.pick) {
             const q=EASE.easeOutCubic(Math.min(1,this.pickT/0.3));
             ctx.globalAlpha*=q;
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='16px '+FONT;
-            ctx.fillText(t('langPick.note'),w/2,this.opts[0].y+this.opts[0].h+TUNING.langPick.noteGap);
-            drawButton(ctx,this.go,t('langPick.go'),v,q*1.2,this.hoverIdx===this.opts.length,20);
+            ctx.fillText(t('langPick.note'),w/2,this.noteY);
+            drawButton(ctx,this.go,t('langPick.go'),v,q*1.2,this.hoverIdx===this.opts.length+this.sizes.length,20);
         }
         ctx.restore();
     }
