@@ -766,9 +766,6 @@ export class Hud {
         if (c.failed) {
             return t('course.hud.fail');
         }
-        if (c.id==='math') {
-            return c.streak+'/'+c.goal;
-        }
         if (c.id==='pe') {
             return t('course.hud.time',{s:Math.max(0,Math.ceil(TUNING.courses.pe.time-c.elapsed))});
         }

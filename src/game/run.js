@@ -273,6 +273,7 @@ export class Run {
             return;
         }
         this.director=new RoomDirector(plan,this.hooks.enemies,this.room,this.rng);
+        this.director.hold=()=>!!this.course&&this.course.holding();
         this.state='combat';
         this.chFail=false;
         this.chHp=-1;

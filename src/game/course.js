@@ -9,10 +9,9 @@ export class CourseRun {
         this.cfg=TUNING.courses[id];
         this.hooks=hooks;
         this.total=plan.waves.reduce((a,w)=>a+w.length,0);
-        this.goal=id==='math'?Math.min(this.total,this.cfg.goal):(this.cfg.goal||this.total);
+        this.goal=this.cfg.goal||this.total;
         this.count=0;
-        this.streak=0;
-        this.counter=0;
+        this.step=1;
         this.done=false;
         this.failed=false;
         this.elapsed=0;
@@ -28,7 +27,7 @@ export class CourseRun {
         if (this.done) {
             return 1;
         }
-        return Math.min(1,(this.id==='math'?this.streak:this.count)/Math.max(1,this.goal));
+        return Math.min(1,this.count/Math.max(1,this.goal));
     }
 
     complete() {
@@ -62,26 +61,48 @@ export class CourseRun {
 
     onSpawn(e) {
         e.courseOrig=true;
-        if (this.id==='math') {
-            e.courseNum=++this.counter;
-        }
     }
 
-    nextNum(except=null) {
-        let best=0;
-        for (const e of this.hooks.enemies.list) {
-            if (e!==except&&e.alive&&e.courseNum>0&&(best===0||e.courseNum<best)) {
-                best=e.courseNum;
-            }
-        }
-        return best;
+    holding() {
+        return this.id==='math'&&!this.done&&!this.failed;
+    }
+
+    nextNum() {
+        return this.holding()?this.step:0;
     }
 
     damage(e,dmg) {
-        if (this.id==='math'&&e.courseNum>0&&e.courseNum>this.nextNum()) {
+        if (this.holding()&&e.courseNum!==this.step) {
             return dmg*this.cfg.off;
         }
         return dmg;
+    }
+
+    tagMath(list) {
+        let live=0;
+        const pool=[];
+        for (const e of list) {
+            if (!e.alive||e.def.boss) {
+                continue;
+            }
+            if (e.courseNum===this.step) {
+                live++;
+            }
+            else {
+                pool.push(e);
+            }
+        }
+        while (live<this.cfg.tags&&pool.length>0) {
+            const e=pool.splice(Math.floor(Math.random()*pool.length),1)[0];
+            e.courseNum=this.step;
+            live++;
+        }
+    }
+
+    clearTags() {
+        for (const e of this.hooks.enemies.list) {
+            e.courseNum=0;
+        }
     }
 
     dodged() {
@@ -96,6 +117,20 @@ export class CourseRun {
     }
 
     onKill(e) {
+        if (this.holding()&&e.courseNum===this.step) {
+            e.courseNum=0;
+            this.clearTags();
+            this.count++;
+            this.pulse=0.6;
+            this.hooks.counted(e);
+            if (this.count>=this.goal) {
+                this.complete();
+                return;
+            }
+            this.step++;
+            this.tagMath(this.hooks.enemies.list);
+            return;
+        }
         if (e.copyOf&&this.id==='copy') {
             return;
         }
@@ -113,23 +148,14 @@ export class CourseRun {
         if (this.id==='pe'||this.id==='copy') {
             this.count++;
         }
-        if (this.id==='math'&&e.courseNum>0) {
-            const m=this.nextNum();
-            if (m===0||e.courseNum<m) {
-                this.streak++;
-            }
-            else {
-                this.streak=0;
-            }
-            if (this.streak>=this.goal) {
-                this.complete();
-            }
-        }
     }
 
     update(dt,player) {
         this.pulse=Math.max(0,this.pulse-dt*2);
         if (this.done||this.failed) {
+            if (this.id==='math') {
+                this.clearTags();
+            }
             this.rings.length=0;
             this.throws.length=0;
             return;
@@ -138,6 +164,9 @@ export class CourseRun {
         const list=this.hooks.enemies.list;
         if (this.id==='pe'&&this.elapsed>this.cfg.time) {
             this.fail('course.pe.late');
+        }
+        if (this.id==='math') {
+            this.tagMath(list);
         }
         if (this.id==='copy') {
             this.copyT-=dt;
@@ -207,6 +236,9 @@ export class CourseRun {
             const z=player.pos.z+(Math.random()*2-1)*C.rangeZ;
             const d=Math.hypot(x-player.pos.x,z-player.pos.z);
             if (x<b.minX+2||x>b.maxX-2||z<b.minZ+2||z>b.maxZ-2||d<C.minFar||this.rings.some(q=>Math.hypot(q.x-x,q.z-z)<C.radius*3)) {
+                continue;
+            }
+            if (i<C.tries&&this.hooks.enemies.list.some(e=>e.alive&&Math.hypot(e.pos.x-x,e.pos.z-z)<C.foeGap+(e.def.radius||0.5))) {
                 continue;
             }
             let ok=true;

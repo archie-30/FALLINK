@@ -1237,6 +1237,10 @@ function boot() {
                 particles.burst(x,0.3,z,16,{color:'red',speed:[2,5],up:[2,5],size:[0.08,0.16]});
                 rings.spawn(x,z,TUNING.courses.music.radius*1.8,'red',0.4);
             },
+            counted:e=>{
+                audio.play('clear',1.6);
+                rings.spawn(e.pos.x,e.pos.z,1.6,'red',0.35);
+            },
             missed:(x,z)=>{
                 particles.burst(x,0.3,z,6,{color:'midGray',speed:[1,3],up:[1,3],size:[0.06,0.12]});
             },
