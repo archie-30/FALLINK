@@ -205,6 +205,7 @@ function boot() {
     const clones=[new Clone(fxScene),new Clone(fxScene)];
     const playerBullets=new BulletSystem(actors,fxScene,{color:'ink',...TUNING.bullet.player});
     const enemyBullets=new BulletSystem(actors,fxScene,{color:'red',owner:'enemy',...TUNING.bullet.enemy});
+    const chalkBullets=new BulletSystem(actors,fxScene,TUNING.bullet.chalk);
     const E=TUNING.effects;
     const pierceBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:16,radius:E.pierceRadius,size:E.pierceSize,trailWidth:E.pierceTrail,pierce:true,thruWalls:true});
     const homingBullets=new BulletSystem(actors,fxScene,{color:'ink',capacity:48,radius:0.22,size:E.homingSize,trailWidth:0.2,homing:E.homingTurn});
@@ -634,7 +635,13 @@ function boot() {
         return e?e.pos:null;
     };
     const hitEnemies=(x,z,r,dmg,vx,vz,sys,i)=>enemies.hitBullet(x,z,r,dmg,vx,vz,sys,i);
-    pierceBullets.onHit=hitEnemies;
+    pierceBullets.onHit=(x,z,r,dmg,vx,vz,sys,i)=>{
+        const e=hitEnemies(x,z,r,dmg,vx,vz,sys,i);
+        if (e) {
+            setMax('pierceBest',sys.hitN[i]+1);
+        }
+        return e;
+    };
     for (const s of extraSys) {
         s.onHit=hitEnemies;
     }
@@ -651,6 +658,7 @@ function boot() {
     let heart=0;
     playerBullets.onHit=hitEnemies;
     enemyBullets.onHit=(x,z,r,dmg,vx,vz)=>player.hitBullet(x,z,r,dmg,vx,vz);
+    chalkBullets.onHit=(x,z,r,dmg,vx,vz)=>player.hitBullet(x,z,r,dmg,vx,vz);
     const playerWall=(x,z,vx,vz,col)=>{
         if (col&&col.piece&&(col.piece.kind==='barrel'||col.piece.kind==='crate'||col.piece.kind==='target')) {
             game.room.damagePiece(col.piece,W.damage);
@@ -812,8 +820,15 @@ function boot() {
             audio.play('draw',1.7);
         }
     };
+    const dodgeTimes=[];
     player.events.onDodge=p=>{
         bump('dodges');
+        const DC=TUNING.achFx.dodgeChain;
+        dodgeTimes.push(time.game);
+        while (dodgeTimes.length>0&&time.game-dodgeTimes[0]>DC.window) {
+            dodgeTimes.shift();
+        }
+        setMax('dodgeChain',dodgeTimes.length);
         if (run.course&&run.state==='combat') {
             run.course.dodged();
         }
@@ -902,10 +917,11 @@ function boot() {
             return;
         }
         if (piece.kind==='barrel') {
+            bump('barrels');
             audio.play('kill',0.6);
             enemies.damageRadius(piece.x,piece.z,P.barrelRadius,P.barrelDamage);
-            if (Math.hypot(player.pos.x-piece.x,player.pos.z-piece.z)<P.barrelRadius*0.7) {
-                player.hurt(1,player.pos.x-piece.x,player.pos.z-piece.z);
+            if (Math.hypot(player.pos.x-piece.x,player.pos.z-piece.z)<P.barrelRadius*0.7&&player.hurt(P.barrelSelf,player.pos.x-piece.x,player.pos.z-piece.z)&&player.hp<=0) {
+                bump('barrelDeaths');
             }
             rings.spawn(piece.x,piece.z,P.barrelRadius,'ink',0.35);
             decals.spawn(piece.x,piece.z,P.barrelRadius*1.4,'ink','midGray');
@@ -922,6 +938,9 @@ function boot() {
             });
         }
         else {
+            if (piece.kind==='crate') {
+                bump('crates');
+            }
             audio.play('wall',1.4);
             const r=Math.random();
             if (r<0.5) {
@@ -986,6 +1005,7 @@ function boot() {
         enemies.clear();
         playerBullets.clear();
         enemyBullets.clear();
+        chalkBullets.clear();
         pierceBullets.clear();
         for (const s of extraSys) {
             s.clear();
@@ -1054,6 +1074,7 @@ function boot() {
         overlay.hud.result=null;
         fx.paused=viaDoor;
         warmShaders();
+        preview.warm();
         return r;
     }
     const minis=new MiniGames({
@@ -1178,10 +1199,15 @@ function boot() {
         },
         course:{
             enemies,
-            bullets:enemyBullets,
+            bullets:chalkBullets,
             room:()=>game.room,
-            chalked:(x,z)=>{
+            chalked:(x,z,warn)=>{
+                dangerRings.spawn(x,z,1.1,'red',warn);
                 particles.burst(x,1.0,z,6,{color:'paper',speed:[1,3],up:[1,3],size:[0.08,0.14]});
+            },
+            thrown:(x,z)=>{
+                audio.play('dash',1.6);
+                particles.burst(x,1.0,z,8,{color:'farGray',speed:[2,4],up:[1,3],size:[0.06,0.12]});
             },
             stepped:(x,z)=>{
                 audio.play('clear',1.4);
@@ -1231,6 +1257,7 @@ function boot() {
         onCleared:plan=>{
             audio.play('clear');
             enemyBullets.killWhere(()=>true,(x,z)=>particles.burst(x,1.0,z,1,{color:'farGray',speed:[0.5,2],up:[1,2]}));
+            chalkBullets.killWhere(()=>true,null);
             fx.slowMo(0.4,0.6);
             if (plan.boss) {
                 const heal=TUNING.run.bossHeal;
@@ -1744,7 +1771,7 @@ function boot() {
                 settings.jitter=0;
             }
             else {
-                settings.jitter=settings.jitterPrev??1;
+                settings.jitter=settings.jitterPrev??0.5;
             }
         }
         if (key==='full') {
@@ -1974,6 +2001,11 @@ function boot() {
             audio.play('ui');
             settings.lang=k;
             applyLang();
+            art.cache.clear();
+        },
+        size:k=>{
+            audio.play('ui');
+            settings.textSize=k;
             art.cache.clear();
         },
         done:()=>{
@@ -2891,6 +2923,8 @@ function boot() {
         const room=game.room;
         playerBullets.update(dt,room);
         enemyBullets.update(dt*hurry,room);
+        chalkBullets.frozen=enemyBullets.frozen;
+        chalkBullets.update(dt,room);
         pierceBullets.update(dt,room);
         for (const s of extraSys) {
             s.update(dt,room);
@@ -3040,6 +3074,7 @@ function boot() {
         enemies.sync(alpha,dt);
         playerBullets.render(alpha);
         enemyBullets.render(alpha);
+        chalkBullets.render(alpha);
         pierceBullets.render(alpha);
         for (const s of extraSys) {
             s.render(alpha);

@@ -6,7 +6,9 @@ export const PALETTE={
     ink:'#1A1A1A',
     red:'#D62828',
     darkRed:'#8C1C1C',
-    marker:'#E0B43C'
+    marker:'#E0B43C',
+    gold:'#E8B931',
+    goldDark:'#A87A12'
 };
 
 export const SKIN_TONES={

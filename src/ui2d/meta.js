@@ -62,20 +62,29 @@ function box(ctx,x,y,w,h,fill,stroke=PALETTE.ink,lw=1) {
     }
 }
 
-export function drawInkDot(ctx,x,y,r,color=PALETTE.ink,shine=true) {
+export function drawCoin(ctx,x,y,r,color=PALETTE.ink,shine=true) {
     ctx.save();
     ctx.translate(x,y);
-    ctx.fillStyle=color;
+    ctx.fillStyle=PALETTE.goldDark;
     ctx.beginPath();
-    ctx.moveTo(0,-r*1.5);
-    ctx.quadraticCurveTo(r*1.05,-r*0.2,r*0.95,r*0.25);
-    ctx.arc(0,r*0.25,r*0.95,0,Math.PI);
-    ctx.quadraticCurveTo(-r*1.05,-r*0.2,0,-r*1.5);
+    ctx.arc(0,r*0.12,r,0,Math.PI*2);
     ctx.fill();
+    ctx.fillStyle=PALETTE.gold;
+    ctx.beginPath();
+    ctx.arc(0,0,r,0,Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle=color;
+    ctx.lineWidth=Math.max(1,r*0.18);
+    ctx.stroke();
+    ctx.strokeStyle=PALETTE.goldDark;
+    ctx.lineWidth=Math.max(0.8,r*0.12);
+    ctx.beginPath();
+    ctx.arc(0,0,r*0.62,0,Math.PI*2);
+    ctx.stroke();
     if (shine) {
-        ctx.fillStyle=rgba('paper',0.8);
+        ctx.fillStyle=rgba('paper',0.75);
         ctx.beginPath();
-        ctx.ellipse(-r*0.35,r*0.05,r*0.18,r*0.32,-0.4,0,Math.PI*2);
+        ctx.ellipse(-r*0.35,-r*0.35,r*0.16,r*0.28,-0.7,0,Math.PI*2);
         ctx.fill();
     }
     ctx.restore();
@@ -96,7 +105,7 @@ export function drawWallet(ctx,x,y,v,align='right',size=15,pulse=0,n=dots()) {
     ctx.fillStyle=pulse>0?rgba('red',0.12*pulse):rgba('paper',0.94);
     ctx.fillRect(0,0,w,h);
     drawShape(ctx,sketchRect(0,0,Math.round(w),Math.round(h),{width:1.5,seed:3101}),PALETTE.ink,v);
-    drawInkDot(ctx,10+size*0.45,h/2+1,size*0.42);
+    drawCoin(ctx,10+size*0.45,h/2+1,size*0.42);
     ctx.fillStyle=PALETTE.ink;
     ctx.textAlign='left';
     ctx.textBaseline='middle';
@@ -475,7 +484,7 @@ export function itemPart(item) {
 
 export function drawItemIcon(ctx,item,x,y,r,v,skin) {
     if (item.kind==='dots') {
-        drawInkDot(ctx,x,y+r*0.1,r*0.55);
+        drawCoin(ctx,x,y+r*0.1,r*0.55);
         return;
     }
     if (item.kind==='color') {
@@ -721,7 +730,7 @@ export class BuyPrompt extends Panel {
                 fitText(ctx,itemName(q),ir*2+16,(ch-4)*0.34,cw-ir*2-50,small?12:13,'bold ');
                 ctx.fillStyle=PALETTE.nearGray;
                 fitText(ctx,itemPart(q),ir*2+16,(ch-4)*0.72,cw-ir*2-50,small?9:10,'');
-                drawInkDot(ctx,cw-22,(ch-4)/2,4.5);
+                drawCoin(ctx,cw-22,(ch-4)/2,4.5);
                 ctx.fillStyle=PALETTE.ink;
                 ctx.font='bold 12px '+FONT;
                 ctx.fillText(String(price(q)),cw-14,(ch-4)/2+1);
@@ -754,7 +763,7 @@ export class BuyPrompt extends Panel {
         ctx.fillStyle=rich?PALETTE.ink:PALETTE.red;
         const label=rich?t('meta.cost',{n:cost}):t('meta.poor',{n:cost});
         const tw=ctx.measureText(label).width;
-        drawInkDot(ctx,P.w/2-tw/2-10,py+1,6,rich?PALETTE.ink:PALETTE.red);
+        drawCoin(ctx,P.w/2-tw/2-10,py+1,6,rich?PALETTE.ink:PALETTE.red);
         ctx.fillText(label,P.w/2+6,py+1);
         ctx.restore();
         const ap=(this.t-0.1)/0.3;
@@ -1074,7 +1083,7 @@ export class AchievementView extends Panel {
         this.clampScroll();
         this.scroll+=(this.scrollTo-this.scroll)*Math.min(1,dt*TUNING.metaUi.ach.scrollFollow);
         this.bump=Math.max(0,this.bump-dt*2);
-        const f=progress.ach.length/ACHIEVEMENTS.length;
+        const f=this.nextChest().f;
         this.barK+=(f-this.barK)*Math.min(1,dt*4*(this.t>0.3?1:0));
     }
 
@@ -1119,6 +1128,16 @@ export class AchievementView extends Panel {
         this.press=null;
     }
 
+    nextChest() {
+        const E=TUNING.meta.chestEvery;
+        const n=progress.ach.length;
+        const chests=Math.floor(ACHIEVEMENTS.length/E);
+        const i=Math.min(chests,progress.achChests+1);
+        const done=progress.achChests>=chests;
+        const f=done?1:Math.max(0,Math.min(1,(n-(i-1)*E)/E));
+        return {i,f,done,state:done?'claimed':(i*E<=n?'ready':'locked'),left:Math.max(0,i*E-n)};
+    }
+
     drawTopBar(ctx,x,y,w,v,small) {
         const n=progress.ach.length;
         const total=ACHIEVEMENTS.length;
@@ -1133,36 +1152,38 @@ export class AchievementView extends Panel {
         ctx.fillText(t('ach.progress',{n,total}),x,y);
         ctx.textAlign='right';
         ctx.fillStyle=ready>0?PALETTE.red:PALETTE.nearGray;
-        ctx.fillText(ready>0?t('ach.chestReady',{n:ready}):t('ach.chestNext',{n:E-n%E}),x+w,y);
+        const nc=this.nextChest();
+        ctx.fillText(ready>0?t('ach.chestReady',{n:ready}):(nc.done?t('ach.chestAll'):t('ach.chestNext',{n:nc.left})),x+w,y);
+        const r=U.chestR*(small?0.85:1);
         const by=y+(small?24:30);
         const bx=x+8;
-        const bw=w-16;
+        const bw=w-16-r*2-14;
         ctx.fillStyle=rgba('farGray',0.8);
         ctx.fillRect(bx,by,bw,bh);
-        ctx.fillStyle=PALETTE.ink;
+        ctx.fillStyle=nc.state==='ready'?PALETTE.red:PALETTE.ink;
         ctx.fillRect(bx,by,bw*this.barK,bh);
         drawShape(ctx,sketchRect(bx,by,Math.round(bw),bh,{width:1.4,seed:3501}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font=(small?12:13)+'px '+FONT;
+        ctx.textAlign='left';
+        ctx.fillText(t('ach.chestNo',{i:nc.i,n:Math.floor(ACHIEVEMENTS.length/E)}),bx,by+bh+(small?11:13));
         this.chestHits=[];
-        const chests=Math.floor(total/E);
-        for (let i=1;i<=chests;i++) {
-            const cx=bx+bw*(i*E/total);
-            const cy=by+bh/2;
-            const state=i<=progress.achChests?'claimed':(i*E<=n?'ready':'locked');
-            const r=U.chestR*(small?0.85:1);
-            const ap=EASE.easeOutBack(clamp01((this.t-0.2-i*0.06)/0.3));
-            ctx.save();
-            ctx.translate(cx,cy-2);
-            ctx.scale(ap*(state==='ready'?1+this.bump*0.2:1),ap*(state==='ready'?1+this.bump*0.2:1));
-            ctx.fillStyle=PALETTE.paper;
-            ctx.beginPath();
-            ctx.arc(0,0,r,0,Math.PI*2);
-            ctx.fill();
-            drawShape(ctx,sketchCircle(0,0,r,{width:state==='ready'?2.2:1.3,seed:3510+i}),state==='ready'?PALETTE.red:PALETTE.ink,v);
-            drawMiniChest(ctx,0,4,r/36,v,state);
-            ctx.restore();
-            this.chestHits.push({x:cx,y:cy,r:r+8,state});
-        }
-        return by+bh+(small?18:24);
+        const cx=bx+bw+14+r;
+        const cy=by+bh/2;
+        const state=nc.state;
+        const ap=EASE.easeOutBack(clamp01((this.t-0.2)/0.3));
+        ctx.save();
+        ctx.translate(cx,cy-2);
+        ctx.scale(ap*(state==='ready'?1+this.bump*0.2:1),ap*(state==='ready'?1+this.bump*0.2:1));
+        ctx.fillStyle=PALETTE.paper;
+        ctx.beginPath();
+        ctx.arc(0,0,r,0,Math.PI*2);
+        ctx.fill();
+        drawShape(ctx,sketchCircle(0,0,r,{width:state==='ready'?2.2:1.3,seed:3510+nc.i}),state==='ready'?PALETTE.red:PALETTE.ink,v);
+        drawMiniChest(ctx,0,4,r/36,v,state);
+        ctx.restore();
+        this.chestHits.push({x:cx,y:cy,r:r+8,state});
+        return by+bh+(small?26:32);
     }
 
     draw(ctx) {
@@ -1256,7 +1277,7 @@ export class AchievementView extends Panel {
                 ctx.restore();
             }
             else {
-                drawInkDot(ctx,cw-(small?50:58),rh*0.36,6.5);
+                drawCoin(ctx,cw-(small?50:58),rh*0.36,6.5);
                 ctx.fillStyle=PALETTE.ink;
                 ctx.font='bold 15px '+FONT;
                 ctx.textAlign='left';
@@ -1445,7 +1466,7 @@ export class RevivePopup extends Panel {
         ctx.textBaseline='middle';
         const label=t('revive.cost',{n:this.n});
         const tw=ctx.measureText(label).width;
-        drawInkDot(ctx,-tw/2-10,1,6);
+        drawCoin(ctx,-tw/2-10,1,6);
         ctx.fillText(label,6,1);
         ctx.restore();
         ctx.restore();
@@ -1675,7 +1696,7 @@ export class AchToast {
         ctx.save();
         ctx.translate(tw-34,th/2-(1-dk)*10);
         ctx.globalAlpha*=dk;
-        drawInkDot(ctx,-8,0,6);
+        drawCoin(ctx,-8,0,6);
         ctx.fillStyle=PALETTE.ink;
         ctx.font='bold 14px '+FONT;
         ctx.fillText('+1',0,1);

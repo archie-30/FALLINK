@@ -959,8 +959,10 @@ export class Room {
         }
         cx/=pts.length;
         cz/=pts.length;
-        const piece=this.addPiece('pencilWall',mesh,cols,{x:cx,z:cz,radius:0.5,erasable:true,hp:params.hp,passPlayer:true,length});
+        const piece=this.addPiece('pencilWall',mesh,cols,{x:cx,z:cz,radius:0.5,erasable:true,hp:1,passPlayer:true,length});
         piece.pts=pts;
+        piece.life=params.duration;
+        piece.maxLife=params.duration;
         piece.state='growing';
         piece.t=0;
         piece.tool=pencilTool();
@@ -989,14 +991,6 @@ export class Room {
             }
             return;
         }
-        if (piece.kind!=='pencilWall'||piece.state==='erasing') {
-            return;
-        }
-        piece.hp-=dmg;
-        piece.object.material.uniforms.uCrack.value=Math.min(1,1-piece.hp/piece.maxHp+0.15);
-        if (piece.hp<=0) {
-            this.breakPiece(piece);
-        }
     }
 
     breakPiece(piece) {
@@ -1021,6 +1015,14 @@ export class Room {
                 p.flash-=dt;
                 const k=Math.max(0,p.flash/0.12);
                 p.object.scale.set(1+0.12*k,1-0.1*k,1+0.12*k);
+            }
+            if (p.kind==='pencilWall'&&p.state!=='erasing'&&p.maxLife>0) {
+                p.life-=dt;
+                p.object.material.uniforms.uCrack.value=Math.max(0,Math.min(1,1-p.life/p.maxLife));
+                if (p.life<=0) {
+                    this.erasePiece(p,p.x+1,p.z,TUNING.terrain.wallFade);
+                    continue;
+                }
             }
             if (p.state==='growing') {
                 p.t+=dt;

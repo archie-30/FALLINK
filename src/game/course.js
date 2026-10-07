@@ -21,6 +21,7 @@ export class CourseRun {
         this.rings=[];
         this.ringT=id==='music'?this.cfg.first:0;
         this.chalkT=id==='dodge'?this.cfg.first:0;
+        this.throws=[];
     }
 
     progress() {
@@ -130,6 +131,7 @@ export class CourseRun {
         this.pulse=Math.max(0,this.pulse-dt*2);
         if (this.done||this.failed) {
             this.rings.length=0;
+            this.throws.length=0;
             return;
         }
         this.elapsed+=dt;
@@ -150,6 +152,7 @@ export class CourseRun {
                 this.chalkT=this.cfg.every;
                 this.chalk(player);
             }
+            this.tickThrows(dt,player);
         }
         if (this.id==='music') {
             this.updateRings(dt,player);
@@ -161,15 +164,35 @@ export class CourseRun {
         if (!room) {
             return;
         }
+        const C=this.cfg;
         const b=room.walkBounds||room.bounds;
-        const side=Math.floor(Math.random()*4);
-        const rx=b.minX+1+Math.random()*(b.maxX-b.minX-2);
-        const rz=b.minZ+1+Math.random()*(b.maxZ-b.minZ-2);
-        const x=side===0?b.minX+0.8:(side===1?b.maxX-0.8:rx);
-        const z=side===2?b.minZ+0.8:(side===3?b.maxZ-0.8:rz);
-        const a=Math.atan2(player.pos.z-z,player.pos.x-x)+(Math.random()-0.5)*2*this.cfg.spread;
-        this.hooks.bullets.spawn(x,z,Math.cos(a),Math.sin(a),this.cfg.speed,1,this.cfg.life+Math.hypot(player.pos.x-x,player.pos.z-z)/this.cfg.speed);
-        this.hooks.chalked(x,z);
+        for (let i=0;i<24;i++) {
+            const a=Math.random()*Math.PI*2;
+            const d=0.85+Math.random()*0.3;
+            const x=player.pos.x+Math.cos(a)*C.distX*d;
+            const z=player.pos.z+Math.sin(a)*C.distZ*d;
+            if (x<b.minX+1||x>b.maxX-1||z<b.minZ+1||z>b.maxZ-1) {
+                continue;
+            }
+            this.throws.push({x,z,t:C.warn});
+            this.hooks.chalked(x,z,C.warn);
+            return;
+        }
+    }
+
+    tickThrows(dt,player) {
+        const C=this.cfg;
+        for (let i=this.throws.length-1;i>=0;i--) {
+            const q=this.throws[i];
+            q.t-=dt;
+            if (q.t>0) {
+                continue;
+            }
+            this.throws.splice(i,1);
+            const a=Math.atan2(player.pos.z-q.z,player.pos.x-q.x)+(Math.random()-0.5)*2*C.spread;
+            this.hooks.bullets.spawn(q.x,q.z,Math.cos(a),Math.sin(a),C.speed,1,C.life);
+            this.hooks.thrown(q.x,q.z);
+        }
     }
 
     ringSpot(player) {
@@ -260,6 +283,7 @@ export class CourseRun {
             this.fail('course.pe.late');
         }
         this.rings.length=0;
+        this.throws.length=0;
         if (!this.failed&&(this.id==='pe'||this.id==='copy')) {
             this.count=this.goal;
             this.complete();

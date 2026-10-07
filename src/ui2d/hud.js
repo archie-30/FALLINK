@@ -6,7 +6,7 @@ import {sketchRect,sketchLine,sketchPath,hatchFill,rectPoly,drawShape} from './s
 import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
 import {CARDS} from '../data/cards.js';
-import {ACTS,ENDLESS} from '../data/levels.js';
+import {ACTS} from '../data/levels.js';
 import {drawCourseIcon} from './courseIcons.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
@@ -541,7 +541,7 @@ export class Hud {
             ctx.font='bold 15px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='top';
-            ctx.fillText(p.trainGame?t('mg.test')+' · '+t('event.'+p.game+'.title'):p.overtime?t('run.overtimeInfo',{page:p.otPage+1}):t('run.endlessInfo',{act:Math.floor(p.index/ENDLESS.bossEvery)+1,page:p.index%ENDLESS.bossEvery+1}),w/2,14);
+            ctx.fillText(p.trainGame?t('mg.test')+' · '+t('event.'+p.game+'.title'):p.overtime?t('run.overtimeInfo',{page:p.otPage+1}):(p.boss?t('enemy.'+p.bossType):(p.course?t('course.'+p.course+'.name'):'')),w/2,14);
         }
         if (!run.training()) {
             this.drawScore(ctx,w,run.stats);
@@ -751,7 +751,7 @@ export class Hud {
     courseIcon(w) {
         const U=TUNING.courses.ui;
         const S=TUNING.hud.score;
-        return {x:w-S.right-Math.max(this.scoreW||0,64)-U.iconGap-U.iconR,y:S.y+(S.labelSize+S.size)*0.5+2,r:U.iconR};
+        return {x:w-S.right-Math.max(this.scoreW||0,64)-U.iconGap-U.iconR,y:S.y+S.labelSize+2+S.size*0.5,r:U.iconR};
     }
 
     hitCourse(x,y,w) {
@@ -819,10 +819,6 @@ export class Hud {
         ctx.strokeStyle=PALETTE.ink;
         ctx.lineWidth=1.6;
         ctx.stroke();
-        ctx.font='bold 13px '+FONT;
-        ctx.fillStyle=PALETTE.ink;
-        ctx.textAlign='right';
-        ctx.fillText(t('course.'+c.id+'.name'),x0-24,y);
         ctx.font='bold 13px '+FONT;
         ctx.textAlign='left';
         ctx.fillStyle=c.done?PALETTE.red:(c.failed?PALETTE.midGray:PALETTE.nearGray);

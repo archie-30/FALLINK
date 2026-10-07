@@ -69,6 +69,16 @@ export class Preview {
         this.path.material.uniforms.uDash.value=0.35;
         parent.add(this.path);
         this.time=0;
+        this.warmN=0;
+    }
+
+    warm() {
+        this.warmN=2;
+        for (const m of [...this.lines,this.arc,this.ring,this.path]) {
+            m.visible=true;
+            m.scale.set(1e-4,1e-4,1e-4);
+        }
+        this.path.geometry.setDrawRange(0,6);
     }
 
     showPath(pts,card) {
@@ -223,6 +233,15 @@ export class Preview {
     }
 
     update(dt) {
+        if (this.warmN>0) {
+            this.warmN--;
+            if (this.warmN===0) {
+                this.hide();
+                this.arc.scale.set(1,1,1);
+                this.path.scale.set(1,1,1);
+                this.path.geometry.setDrawRange(0,0);
+            }
+        }
         this.time+=dt;
         const k=this.time*1.5;
         for (const l of this.lines) {
