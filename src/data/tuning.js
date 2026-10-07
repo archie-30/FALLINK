@@ -265,17 +265,17 @@ export const TUNING={
         inkStrokes:18
     },
     perf:{
-        window:0.75,
-        low:0.9,
-        high:0.97,
-        down:0.1,
-        up:0.05,
-        coolDown:1.2,
-        coolUp:2,
-        upAfter:4,
-        dropAfter:5,
+        window:1,
+        low:0.8,
+        high:0.95,
+        down:0.06,
+        up:0.06,
+        coolDown:1.6,
+        coolUp:1,
+        upAfter:2,
+        dropAfter:14,
         hitch:0.25,
-        minScale:{low:0.55,mid:0.65,high:0.75}
+        minScale:{low:0.7,mid:0.8,high:0.88}
     },
     cardFx:{
         gain:{scale:1.25,inTime:0.55,hold:0.9,outTime:0.5,total:2.0,skip:0.5,burst:0.35,toX:0.08,toY:0.9},
@@ -409,8 +409,8 @@ export const TUNING={
     },
     levels:{
         max:10,
-        base:300,
-        step:180,
+        base:340,
+        step:210,
         xpKill:3,
         xpBoss:80,
         xpRoom:15,

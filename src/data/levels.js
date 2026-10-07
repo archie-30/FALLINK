@@ -243,7 +243,8 @@ export const ENDLESS={
     scorePerPage:0.1,
     scorePerAct:0.5,
     scoreVictory:5000,
-    pagesPerType:2
+    pagesPerType:3,
+    typesStart:4
 };
 
 const MENU_DECOR=[

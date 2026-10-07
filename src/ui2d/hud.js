@@ -97,41 +97,16 @@ export class Hud {
     drawCourseMarks(ctx,c,enemies,project,tmp) {
         const now=time.real;
         const next=c.id==='math'?c.nextNum():0;
-        const C=TUNING.courses.music;
         ctx.save();
         for (const q of c.rings) {
             project(q.x,0.05,q.z,tmp);
-            const cx=tmp.x;
-            const cy=tmp.y;
-            project(q.x+C.radius,0.05,q.z,tmp);
-            const rx=Math.abs(tmp.x-cx);
-            project(q.x,0.05,q.z+C.radius,tmp);
-            const ry=Math.abs(tmp.y-cy);
-            const f=Math.min(1,q.age/C.life);
-            const late=f>0.78&&Math.floor(now*10)%2===0;
-            const col=late?PALETTE.red:PALETTE.ink;
             const open=Math.min(1,q.age/0.25);
             ctx.globalAlpha=open;
-            ctx.fillStyle=rgba('red',0.12);
-            ctx.beginPath();
-            ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
-            ctx.fill();
-            ctx.strokeStyle=col;
-            ctx.lineWidth=3;
-            ctx.beginPath();
-            ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
-            ctx.stroke();
-            const k=1+(1-f)*0.9;
-            ctx.strokeStyle=rgba('ink',0.5);
-            ctx.lineWidth=2;
-            ctx.beginPath();
-            ctx.ellipse(cx,cy,rx*k,ry*k,0,0,Math.PI*2);
-            ctx.stroke();
-            ctx.fillStyle=col;
-            ctx.font='bold '+Math.round(Math.max(14,rx*0.7))+'px '+FONT;
+            ctx.fillStyle=PALETTE.ink;
+            ctx.font='bold 18px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            ctx.fillText('♪',cx,cy);
+            ctx.fillText('♪',tmp.x,tmp.y);
         }
         ctx.globalAlpha=1;
         ctx.textAlign='center';

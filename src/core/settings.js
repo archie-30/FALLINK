@@ -4,6 +4,8 @@ const KEY='inkfall.settings.v1';
 
 export const storage={locked:false,prefix:'inkfall.'};
 
+export const autoDrop={base:null};
+
 export const device={
     mobile:false,
     native:false,
@@ -93,6 +95,9 @@ export function saveSettings() {
     }
     try {
         const {training,...rest}=settings;
+        if (autoDrop.base) {
+            rest.quality=autoDrop.base;
+        }
         localStorage.setItem(KEY,JSON.stringify(rest));
     }
     catch (e) {
