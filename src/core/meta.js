@@ -9,6 +9,7 @@ import {RELIC_ORDER} from '../data/relics.js';
 const M=TUNING.meta;
 
 let gate=()=>false;
+let hold=()=>false;
 let dirty=false;
 let revived=0;
 
@@ -44,6 +45,10 @@ export function initMeta() {
 
 export function setGate(fn) {
     gate=fn;
+}
+
+export function setAchHold(fn) {
+    hold=fn;
 }
 
 export function dots() {
@@ -373,7 +378,7 @@ export function addKind(kind,id) {
 }
 
 export function checkAch(quiet=false) {
-    if (godMode()) {
+    if (godMode()||hold()) {
         return;
     }
     const P=progress;

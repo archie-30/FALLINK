@@ -44,7 +44,7 @@ export function courseGuide(id) {
     const D=COURSES[id];
     const p=courseParams(id);
     return {title:t('course.'+id+'.name'),icon:id,blocks:[
-        {kind:'text',text:t('course.'+id+'.intro')},
+        {kind:'text',text:t('course.'+id+'.intro',p)},
         {kind:'head',text:t('course.head.fx')},
         ...lines('course.'+id+'.fx',D.fx,p),
         {kind:'head',text:t('course.head.ch')},

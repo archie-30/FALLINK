@@ -15,6 +15,7 @@ export class RoomDirector {
         this.boss=null;
         this.events=[];
         this.eliteWave=-1;
+        this.hold=null;
     }
 
     pickPoint(player) {
@@ -22,6 +23,22 @@ export class RoomDirector {
         const ok=pts.filter(p=>Math.hypot(p[0]-player.pos.x,p[1]-player.pos.z)>7);
         const list=ok.length>0?ok:pts;
         return list[Math.floor(this.rng.next()*list.length)];
+    }
+
+    extra() {
+        const pool=[];
+        for (const w of this.plan.waves) {
+            for (const s of w) {
+                if (!s.boss) {
+                    pool.push(s.type);
+                }
+            }
+        }
+        const out=[];
+        for (let i=0;i<TUNING.courses.math.extra&&pool.length>0;i++) {
+            out.push({type:pool[Math.floor(Math.random()*pool.length)]});
+        }
+        return out;
     }
 
     totalWaves() {
@@ -70,6 +87,15 @@ export class RoomDirector {
         }
         if (this.wave>=this.plan.waves.length-1) {
             if (alive===0) {
+                if (this.hold&&this.hold()) {
+                    this.nextT-=dt;
+                    if (this.nextT<=0) {
+                        this.queue=this.extra();
+                        this.spawnT=0;
+                        this.nextT=TUNING.courses.math.extraDelay;
+                    }
+                    return;
+                }
                 this.cleared=true;
             }
             return;

@@ -706,11 +706,11 @@ export const TUNING={
     },
     courses:{
         perAct:4,
-        math:{off:0.4,goal:5,reward:{score:800,ink:1}},
+        math:{off:0.4,goal:5,tags:2,extra:2,extraDelay:1.2,reward:{score:800,ink:1}},
         pe:{speed:1.2,foe:1.2,time:90,reward:{score:1000,dots:1}},
         copy:{every:6,max:4,hp:0.5,reward:{score:800,hp:2}},
         dodge:{every:1.6,first:2.5,speed:11,life:2.2,spread:0.08,distX:7.5,distZ:4.5,warn:0.7,dashCd:0.6,goal:4,reward:{score:900,dots:1}},
-        music:{every:3.2,first:2,life:3,radius:1.3,max:2,minFar:3,rangeX:8,rangeZ:4.5,goal:6,reward:{score:900,hp:1,ink:1}},
+        music:{every:2.6,first:1.6,life:3,radius:1.3,max:2,minFar:2.2,rangeX:5.5,rangeZ:3.6,foeGap:3,tries:32,goal:5,reward:{score:900,hp:1,ink:1}},
         ui:{barW:300,barWSmall:200,barY:48,shift:14,iconR:15,iconGap:12}
     },
     spin:{radius:2.5,still:0.3,pause:2,back:0.8},
