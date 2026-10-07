@@ -1375,7 +1375,7 @@ export const STRINGS_EN={
     'course.music.fx.1':'Circles keep appearing on the floor',
     'course.music.fx.2':'Each circle vanishes after {life}s',
     'course.music.ch.1':'Step into {goal} circles',
-    'ach.dizzy.name':'Dizzy',
+    'ach.dizzy.name':'Bobblehead',
     'ach.dizzy.desc':'Spin in place for {n} turns in a row (you may pause)',
     'choice.again':'Tap again to confirm'
 };
