@@ -32,6 +32,8 @@ uniform float uBleed;
 uniform vec3 uRed;
 uniform vec3 uDarkRed;
 uniform float uFlash;
+uniform float uBlur;
+uniform vec2 uBlurC;
 uniform vec3 uFlashColor;
 uniform float uDrawIn;
 uniform vec3 uPaperCol;
@@ -85,6 +87,15 @@ void main() {
     float grain=texture2D(tPaper,(gl_FragCoord.xy-uPaperOff)/(uGrain.y*uPx)).r;
     edge*=mix(1.0,uLine.z,fade)*(1.0-uLineGrain+uLineGrain*grain);
     vec3 col=texture2D(tColor,uv).rgb;
+    if (uBlur>0.001) {
+        vec2 bd=(uv-uBlurC)*uBlur*0.05;
+        vec3 acc=col;
+        for (int i=1;i<6;i++) {
+            acc+=texture2D(tColor,uv-bd*float(i)).rgb;
+        }
+        col=mix(acc/6.0,vec3(dot(acc/6.0,vec3(0.333))),uBlur*0.35);
+        edge*=1.0-uBlur*0.45;
+    }
     float fillMask=1.0;
     if (uDrawIn<1.0) {
         float sw=uv.x*0.65+(1.0-uv.y)*0.35+(texture2D(tNoise,uv*2.3).r-0.5)*0.16;

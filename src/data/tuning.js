@@ -158,6 +158,7 @@ export const TUNING={
         chalk:{color:'midGray',capacity:16,radius:0.3,size:1.4,trailWidth:0.22,model:'chalk',spin:9,thruWalls:true,owner:'enemy'}
     },
     feel:{
+        slowHold:0.45,
         hitStopHit:50,
         hitStopKill:90,
         hitStopHurt:80,
@@ -608,6 +609,7 @@ export const TUNING={
     brushSwing:{start:0.4,band:0.35,bulletPad:0.3,propPad:0.3,compassClear:0.75},
     bossIntro:{delay:0.9},
     achFx:{dodgeChain:{window:7}},
+    dodgeFx:{ink:1,slow:0.3,slowTime:0.55,blur:0.9,blurTime:0.4,flash:0.18,cooldown:0.8},
     bossDrop:{
         interval:[9,14],
         first:6,

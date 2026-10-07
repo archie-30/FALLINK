@@ -1121,6 +1121,8 @@ export const STRINGS_EN={
     'note.gained':'Gained {name}',
     'note.healed':'Healed {n} HP',
     'note.hurt':'Lost {n} HP',
+    'note.guarded':'Correction Fluid blocked the damage',
+    'dodge.perfect':'Perfect dodge! +{n} ink',
     'note.ink':'Gained {n} ink',
     'run.overtimeTitle':'Overtime · Page {page}',
     'run.overtimeInfo':'Overtime · Page {page}',
