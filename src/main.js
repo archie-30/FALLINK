@@ -2071,7 +2071,8 @@ function boot() {
         }
     });
     const choice=new ChoicePanel({
-        select:()=>audio.play('ui')
+        select:()=>audio.play('ui'),
+        arm:()=>audio.play('ui',0.8)
     });
     const deckPick=new DeckPicker({
         select:()=>audio.play('ui'),

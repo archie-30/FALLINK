@@ -8232,6 +8232,7 @@ export class ChoicePanel extends Panel {
         this.onPick=onPick;
         this.picked=-1;
         this.pickT=0;
+        this.arm=-1;
         this.show();
     }
 
@@ -8286,6 +8287,13 @@ export class ChoicePanel extends Panel {
         this.layout();
         for (let i=0;i<this.cards.length;i++) {
             if (inRect(this.cards[i],x,y)&&!this.spec.options[i].disabled) {
+                if (this.arm!==i) {
+                    this.arm=i;
+                    if (this.actions.arm) {
+                        this.actions.arm();
+                    }
+                    return true;
+                }
                 this.picked=i;
                 this.pickT=0;
                 if (this.actions.select) {
@@ -8294,6 +8302,7 @@ export class ChoicePanel extends Panel {
                 return true;
             }
         }
+        this.arm=-1;
         return true;
     }
 
@@ -8396,7 +8405,8 @@ export class ChoicePanel extends Panel {
             if (ap<=0) {
                 continue;
             }
-            const hv=!o.disabled&&this.picked<0&&inRect(r,this.hx,this.hy);
+            const armed=this.arm===i&&this.picked<0;
+            const hv=!o.disabled&&this.picked<0&&(armed||inRect(r,this.hx,this.hy));
             const sel=this.picked===i;
             const fade=this.picked>=0&&!sel?Math.max(0.25,1-this.pickT*4):1;
             const red=o.id==='elite'||o.id==='finish';
@@ -8412,7 +8422,7 @@ export class ChoicePanel extends Panel {
             ctx.fillRect(4,5,r.w,r.h);
             ctx.fillStyle=sel?rgba('red',0.12):(hv?PALETTE.farGray:PALETTE.paper);
             ctx.fillRect(0,0,r.w,r.h);
-            drawShape(ctx,sketchRect(0,0,r.w,r.h,{width:hv||sel?2.6:1.8,seed:2220+i}),red||sel?PALETTE.red:PALETTE.ink,v);
+            drawShape(ctx,sketchRect(0,0,r.w,r.h,{width:hv||sel?2.6:1.8,seed:2220+i}),red||sel||armed?PALETTE.red:PALETTE.ink,v);
             ctx.fillStyle=PALETTE.red;
             ctx.beginPath();
             ctx.arc(r.w/2,8,6,0,Math.PI*2);
@@ -8438,6 +8448,12 @@ export class ChoicePanel extends Panel {
                 ctx.fillStyle=PALETTE.red;
                 ctx.font='bold 14px '+FONT;
                 ctx.fillText(t(o.reason?'choice.'+o.reason:'choice.disabled'),r.w/2,r.h-24);
+            }
+            else if (armed) {
+                ctx.fillStyle=PALETTE.red;
+                ctx.font='bold 15px '+FONT;
+                ctx.textBaseline='middle';
+                ctx.fillText(t('choice.again'),r.w/2,r.h-22);
             }
             ctx.restore();
         }

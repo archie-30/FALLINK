@@ -1378,7 +1378,8 @@ export const STRINGS={
     'course.music.fx.2':'圈圈 {life} 秒後消失',
     'course.music.ch.1':'踩中 {goal} 個圈圈',
     'ach.dizzy.name':'頭暈目眩',
-    'ach.dizzy.desc':'連續原地旋轉 {n} 圈（中間可停一下）'
+    'ach.dizzy.desc':'連續原地旋轉 {n} 圈（中間可停一下）',
+    'choice.again':'再點一次確定'
 };
 
 let touchText=false;
