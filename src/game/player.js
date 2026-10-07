@@ -58,6 +58,7 @@ export class Player {
         this.hasteT=0;
         this.hasteMult=1;
         this.courseSpeed=1;
+        this.courseDash=1;
         this.rapidMult=1;
         this.dualT=0;
         this.dropDual(true);
@@ -897,7 +898,7 @@ export class Player {
             this.aimDirX=_mv.x/moveLen;
             this.aimDirZ=_mv.z/moveLen;
         }
-        this.dashCd=Math.max(0,this.dashCd-dt*(this.hasteT>0?this.hasteMult:1));
+        this.dashCd=Math.max(0,this.dashCd-dt*(this.hasteT>0?this.hasteMult:1)*this.courseDash);
         this.hasteT=Math.max(0,this.hasteT-dt);
         if (input.consumeDash()&&this.dashCd<=0) {
             let dx=this.aimDirX;

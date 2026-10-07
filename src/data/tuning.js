@@ -691,10 +691,11 @@ export const TUNING={
         math:{off:0.4,goal:5,reward:{score:800,ink:1}},
         pe:{speed:1.2,foe:1.2,time:90,reward:{score:1000,dots:1}},
         copy:{every:6,max:4,hp:0.5,reward:{score:800,hp:2}},
-        quiet:{shot:0.05,near:0.2,radius:5,decay:0.05,sleep:2,reward:{score:800,hp:1,ink:1}},
-        cram:{budget:1.4,hp:1.15,score:2,reward:{score:1600,dots:2}},
-        ui:{barW:300,barWSmall:200,barY:48,shift:14,iconR:15,iconGap:12,zzz:0.9}
+        dodge:{every:1.6,first:2.5,speed:9,life:3,spread:0.12,dashCd:0.6,goal:4,reward:{score:900,dots:1}},
+        music:{every:2,first:2,life:3,radius:1.3,max:2,minFar:3,rangeX:8,rangeZ:4.5,goal:5,reward:{score:900,hp:1,ink:1}},
+        ui:{barW:300,barWSmall:200,barY:48,shift:14,iconR:15,iconGap:12}
     },
+    spin:{radius:2.5,still:0.3,pause:2,back:0.8},
     relics:{
         price:12,
         unlock:3,

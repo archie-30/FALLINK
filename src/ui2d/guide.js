@@ -19,8 +19,7 @@ function lines(prefix,n,params) {
 
 export function courseParams(id) {
     const C=TUNING.courses[id];
-    const R=C.reward;
-    return {off:Math.round((1-(C.off||1))*100),goal:C.goal,speed:Math.round(((C.speed||1)-1)*100),foe:Math.round(((C.foe||1)-1)*100),time:C.time,every:C.every,max:C.max,hp:Math.round((C.hp||1)*100),sleep:C.sleep,budget:Math.round(((C.budget||1)-1)*100),hpUp:Math.round(((C.hp||1)-1)*100),score:C.score,reward:R.score};
+    return {off:Math.round((1-(C.off||1))*100),goal:C.goal,speed:Math.round(((C.speed||1)-1)*100),foe:Math.round(((C.foe||1)-1)*100),time:C.time,every:C.every,max:C.max,hp:Math.round((C.hp||1)*100),dash:Math.round((1-(C.dashCd||1))*100),life:C.life};
 }
 
 export function rewardLines(id) {

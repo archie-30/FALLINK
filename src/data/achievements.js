@@ -28,5 +28,6 @@ export const ACHIEVEMENTS=[
     {id:'bossAll',stat:'bossKinds',goal:5,icon:'boss'},
     {id:'endless25',stat:'endlessPage',goal:25,icon:'next'},
     {id:'level10',stat:'level',goal:10,icon:'next'},
-    {id:'clear3',stat:'clears',goal:3,icon:'flag'}
+    {id:'clear3',stat:'clears',goal:3,icon:'flag'},
+    {id:'dizzy',stat:'spinTurns',goal:10,icon:'challenge'}
 ];

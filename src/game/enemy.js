@@ -371,7 +371,7 @@ export class Enemy {
             return;
         }
         const k=Math.min(this.tier,B.summonEvery.length)-1;
-        this.minionT=B.summonEvery[k];
+        this.minionT=B.summonEvery[k]*(this.def.summonMult||1);
         if (ctx.enemyMgr.list.length>=B.summonCap) {
             return;
         }

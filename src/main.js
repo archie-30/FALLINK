@@ -41,7 +41,7 @@ import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
-import {initMeta,clampSkin,setGate,bump,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
+import {initMeta,clampSkin,setGate,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
 import {startRelic,relic} from './game/relic.js';
 import {GuidePopup,courseGuide,modeGuide,modesGuide} from './ui2d/guide.js';
 import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast,ConfirmPopup} from './ui2d/meta.js';
@@ -750,7 +750,7 @@ function boot() {
         fx.fovPunch(F.fovKill);
         fx.flash('paper',F.killFlash*3,0.35);
         if (run.stats) {
-            run.addScore((e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?TUNING.elite.score:1))*(run.course?run.course.scoreMult():1));
+            run.addScore((e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?TUNING.elite.score:1)));
             run.stats.kills++;
             run.stats.xp+=e.def.boss?TUNING.levels.xpBoss:TUNING.levels.xpKill*(e.def.cost||1);
         }
@@ -797,6 +797,9 @@ function boot() {
     };
     player.events.onDodge=p=>{
         bump('dodges');
+        if (run.course&&run.state==='combat') {
+            run.course.dodged();
+        }
         if (!run.tutorial()) {
             return;
         }
@@ -809,9 +812,6 @@ function boot() {
         fx.cameraShake(TUNING.player.dashTrauma);
     };
     player.events.onFire=(p,mx,mz)=>{
-        if (run.course) {
-            run.course.noise();
-        }
         const PW=p.W;
         audio.play(PW.sound||'shoot',0.85+Math.random()*0.3);
         muzzle.show(mx,H,mz,PW.flashColor||'ink',W.flashScale*(PW.flashMul||1));
@@ -822,9 +822,6 @@ function boot() {
         if (run.mode==='training') {
             trainStats.hurt++;
             trainStats.hurtT=1;
-        }
-        if (run.course&&run.state==='combat') {
-            run.course.hurt();
         }
         audio.play('hurt');
         fx.hitStop(F.hitStopHurt,true);
@@ -1150,6 +1147,19 @@ function boot() {
         },
         course:{
             enemies,
+            bullets:enemyBullets,
+            room:()=>game.room,
+            chalked:(x,z)=>{
+                particles.burst(x,1.0,z,6,{color:'paper',speed:[1,3],up:[1,3],size:[0.08,0.14]});
+            },
+            stepped:(x,z)=>{
+                audio.play('clear',1.4);
+                particles.burst(x,0.3,z,16,{color:'red',speed:[2,5],up:[2,5],size:[0.08,0.16]});
+                rings.spawn(x,z,TUNING.courses.music.radius*1.8,'red',0.4);
+            },
+            missed:(x,z)=>{
+                particles.burst(x,0.3,z,6,{color:'midGray',speed:[1,3],up:[1,3],size:[0.06,0.12]});
+            },
             hpMult:()=>run.plan.hpMult,
             note:key=>overlay.hud.toast(t(key),key),
             copied:(src,c)=>{
@@ -2691,10 +2701,53 @@ function boot() {
     let skinZoom=0;
     let achCheckT=0;
     const NO_AIM={mode:'none'};
+    const spin={yaw:null,acc:0,idle:0,back:0,x:0,z:0};
+    function trackSpin(dt) {
+        const K=TUNING.spin;
+        if (game.mode!=='play'||fx.paused||dt<=0||run.state==='dead') {
+            spin.yaw=null;
+            return;
+        }
+        const y=player.aimYaw;
+        if (spin.yaw===null) {
+            spin.yaw=y;
+            spin.x=player.pos.x;
+            spin.z=player.pos.z;
+            return;
+        }
+        let d=y-spin.yaw;
+        d=Math.atan2(Math.sin(d),Math.cos(d));
+        spin.yaw=y;
+        if (Math.hypot(player.pos.x-spin.x,player.pos.z-spin.z)>K.radius) {
+            spin.acc=0;
+            spin.x=player.pos.x;
+            spin.z=player.pos.z;
+        }
+        if (Math.abs(d)/dt<K.still) {
+            spin.idle+=dt;
+            if (spin.idle>K.pause) {
+                spin.acc=0;
+            }
+            return;
+        }
+        spin.idle=0;
+        if (spin.acc!==0&&Math.sign(d)!==Math.sign(spin.acc)) {
+            spin.back+=Math.abs(d);
+            if (spin.back>K.back) {
+                spin.acc=d;
+                spin.back=0;
+            }
+            return;
+        }
+        spin.back=0;
+        spin.acc+=d;
+        setMax('spinTurns',Math.floor(Math.abs(spin.acc)/(Math.PI*2)));
+    }
     function update(dt) {
         if (run.state!=='dead') {
             player.update(dt,input,ctx,game.mode==='menu'?NO_AIM:aim);
         }
+        trackSpin(dt);
         shared.uMist.value.x+=(player.pos.x-shared.uMist.value.x)*Math.min(1,dt*TUNING.fog.mist.follow);
         shared.uMist.value.y+=(player.pos.z-shared.uMist.value.y)*Math.min(1,dt*TUNING.fog.mist.follow);
         if (run.mode==='training'&&game.mode==='play') {
@@ -2721,6 +2774,7 @@ function boot() {
         }
         const cr=game.mode==='play'&&run.course&&run.state==='combat'?run.course:null;
         player.courseSpeed=cr?cr.playerSpeed():1;
+        player.courseDash=cr?cr.dashRate():1;
         const hurry=(game.mod==='hurry'&&game.mode==='play'?1.25:1)*(cr?cr.enemyRate():1);
         enemies.update(dt*hurry,ctx);
         updateTaunts(dt);
