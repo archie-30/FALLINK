@@ -71,6 +71,9 @@ export class Overlay {
         }
         if (game.mode==='play'&&!dying) {
             this.hud.drawEnemyHp(ctx,game.enemies,game.project,this.tmp3||(this.tmp3={x:0,y:0}));
+            if (game.run.course&&game.run.mode==='endless') {
+                this.hud.drawCourseMarks(ctx,game.run.course,game.enemies,game.project,this.tmp3);
+            }
             game.dmgNums.draw(ctx,game.project);
             const training=game.run.mode==='training';
             if (!training||!settings.training.ammo) {
@@ -156,6 +159,7 @@ export class Overlay {
         }
         game.codex.draw(ctx,game.art);
         game.popup.draw(ctx);
+        game.guide.draw(ctx);
         game.chestView.draw(ctx);
         game.buyPrompt.draw(ctx);
         game.langPick.draw(ctx);

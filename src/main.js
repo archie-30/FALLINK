@@ -41,7 +41,9 @@ import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
-import {initMeta,clampSkin,setGate,bump,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive} from './core/meta.js';
+import {initMeta,clampSkin,setGate,bump,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
+import {startRelic,relic} from './game/relic.js';
+import {GuidePopup,courseGuide,modeGuide} from './ui2d/guide.js';
 import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast,ConfirmPopup} from './ui2d/meta.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
@@ -691,10 +693,18 @@ function boot() {
             markSeen(e.type);
         }
     };
+    enemies.dmgHook=(e,dmg)=>run.course&&run.state==='combat'?run.course.damage(e,dmg):dmg;
     enemies.onKill=(e,dx,dz)=>{
         const x=e.pos.x;
         const z=e.pos.z;
         const D=TUNING.decals;
+        if (run.course&&run.state==='combat') {
+            run.course.onKill(e);
+        }
+        if (e.noReward) {
+            particles.burst(x,1.0,z,8,{color:'ink',speed:[2,5],up:[2,5],size:[0.08,0.16]});
+            return;
+        }
         ink.add((e.def.ink||1)*(e.elite?TUNING.ink.eliteMult:1));
         if (run.mode==='training') {
             trainStats.kills++;
@@ -711,13 +721,23 @@ function boot() {
         if (e.def.boss) {
             bump('bosses');
             addKind('boss',e.type);
+            if (run.mode==='story'||run.mode==='endless') {
+                const got=earnDots(TUNING.meta.dotBoss);
+                if (got>0) {
+                    overlay.hud.toast(t('run.dotsGain',{n:got}));
+                }
+                if (relic.id==='bandage'&&player.hp<TUNING.player.maxHp) {
+                    player.hp=Math.min(TUNING.player.maxHp,player.hp+TUNING.relics.bandage.heal);
+                    overlay.hud.toast(t('relic.healed',{n:TUNING.relics.bandage.heal}));
+                }
+            }
         }
         fx.hitStop(F.hitStopKill,true);
         fx.cameraShake(F.shakeKill);
         fx.fovPunch(F.fovKill);
         fx.flash('paper',F.killFlash*3,0.35);
         if (run.stats) {
-            run.addScore(e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?TUNING.elite.score:1));
+            run.addScore((e.def.boss?ENDLESS.scoreBoss:ENDLESS.scoreKill*(e.def.cost||1)*(e.elite?TUNING.elite.score:1))*(run.course?run.course.scoreMult():1));
             run.stats.kills++;
             run.stats.xp+=e.def.boss?TUNING.levels.xpBoss:TUNING.levels.xpKill*(e.def.cost||1);
         }
@@ -776,6 +796,9 @@ function boot() {
         fx.cameraShake(TUNING.player.dashTrauma);
     };
     player.events.onFire=(p,mx,mz)=>{
+        if (run.course) {
+            run.course.noise();
+        }
         const PW=p.W;
         audio.play(PW.sound||'shoot',0.85+Math.random()*0.3);
         muzzle.show(mx,H,mz,PW.flashColor||'ink',W.flashScale*(PW.flashMul||1));
@@ -787,6 +810,9 @@ function boot() {
             trainStats.hurt++;
             trainStats.hurtT=1;
         }
+        if (run.course&&run.state==='combat') {
+            run.course.hurt();
+        }
         audio.play('hurt');
         fx.hitStop(F.hitStopHurt,true);
         fx.cameraShake(F.shakeHurt);
@@ -797,6 +823,14 @@ function boot() {
             run.stats.taken+=dmg;
         }
         particles.burst(p.pos.x,1.0,p.pos.z,PT.redHurt,{color:'red',speed:[2,6],up:[2,6],size:[0.08,0.16]});
+    };
+    player.events.onGuard=(p,dx,dz)=>{
+        audio.play('clear',1.3);
+        fx.hitStop(60,true);
+        fx.cameraShake(0.25);
+        overlay.hud.toast(t('relic.guarded'));
+        particles.burst(p.pos.x,1.0,p.pos.z,12,{color:'paper',speed:[2,6],up:[2,5],size:[0.1,0.2]});
+        particles.burst(p.pos.x,1.0,p.pos.z,6,{color:'ink',speed:[2,5],up:[2,4]});
     };
     player.events.onShield=(p,idx,dx,dz)=>{
         fx.hitStop(60,true);
@@ -1082,6 +1116,9 @@ function boot() {
             else {
                 const title=p.overtime?t('run.overtimeTitle',{page:p.otPage+1}):p.endless?t('run.endlessTitle',endlessAP(p.index)):t('run.roomTitle',{act:p.act+1,page:p.index+1});
                 const parts=[];
+                if (p.course) {
+                    parts.push(t('course.'+p.course+'.name'));
+                }
                 if (p.fresh) {
                     parts.push(t('run.newEnemy',{name:t('enemy.'+p.fresh)}));
                 }
@@ -1092,6 +1129,45 @@ function boot() {
                     parts.push(t('challenge.'+p.challenge.id,p.challenge));
                 }
                 overlay.hud.banner(title,parts.length>0?parts.join(t('ui.sep')):t('run.roomSub'),parts.length>0?2.2+parts.length*0.6:2.0);
+            }
+        },
+        courseIntro:(id,first)=>{
+            pendingGuide=first?id:null;
+        },
+        course:{
+            enemies,
+            hpMult:()=>run.plan.hpMult,
+            note:key=>overlay.hud.toast(t(key),key),
+            copied:(src,c)=>{
+                audio.play('ui',0.6);
+                particles.burst(c.pos.x,1.0,c.pos.z,8,{color:'farGray',speed:[1,4],up:[1,4],size:[0.08,0.16]});
+            },
+            reward:c=>{
+                const R=TUNING.courses[c.id].reward;
+                const parts=[];
+                audio.play('clear',1.3);
+                fx.cameraShake(0.25);
+                if (R.score) {
+                    run.addScore(R.score);
+                    parts.push(t('course.rw.score',{n:R.score}));
+                }
+                if (R.hp) {
+                    player.hp=Math.min(TUNING.player.maxHp,player.hp+R.hp);
+                    parts.push(t('course.rw.hp',{n:R.hp}));
+                }
+                if (R.ink) {
+                    ink.add(ink.max);
+                    parts.push(t('course.rw.ink'));
+                }
+                if (R.dots) {
+                    const got=earnDots(R.dots);
+                    if (got>0) {
+                        parts.push(t('course.rw.dots',{n:got}));
+                    }
+                }
+                bump('courses');
+                particles.burst(player.pos.x,1.2,player.pos.z,18,{color:'red',speed:[2,6],up:[3,7],size:[0.08,0.18]});
+                overlay.hud.banner(t('course.done'),parts.join(t('ui.sep')),2.4);
             }
         },
         onSpawn:e=>{
@@ -1325,7 +1401,7 @@ function boot() {
         }
     }
     function resumePlay() {
-        if (!pauseMenu.open) {
+        if (!pauseMenu.open&&!guide.open) {
             fx.paused=false;
         }
         input.mouse.down=false;
@@ -1409,6 +1485,8 @@ function boot() {
         player.hp=TUNING.player.maxHp;
         ink.value=TUNING.ink.start;
         trainFixed=[];
+        pendingGuide=null;
+        startRelic(mode==='story'||mode==='endless'?equippedRelic():'');
         equipWeapon(mode!=='training');
         if (mode==='tutorial') {
             player.setWeapon('pen');
@@ -1426,6 +1504,23 @@ function boot() {
         if (mode==='training') {
             openPicker(true);
         }
+    }
+    let pendingGuide=null;
+    function openCourseGuide(id,intro) {
+        if (game.mode!=='play'||run.mode!=='endless'||guide.open) {
+            return;
+        }
+        audio.play('ui');
+        hand.cancelTargeting();
+        fx.paused=true;
+        guide.open2(courseGuide(id),{ok:t(intro?'course.start':'course.go'),onOk:()=>{
+            if (intro) {
+                fx.paused=false;
+            }
+            else {
+                resumeGame();
+            }
+        }});
     }
     function openPause() {
         if (game.mode==='play'&&run.mode==='training'&&!trainingMenu.open&&!trainingPicker.open&&!transition.active) {
@@ -1477,6 +1572,9 @@ function boot() {
     function closePause() {
         audio.play('ui');
         pauseMenu.hide();
+        resumeGame();
+    }
+    function resumeGame() {
         input.mouse.down=false;
         input.dashQueued=false;
         resumeT=coach.open||upgradeView.open||!tense()||!settings.resumeCount?0:TUNING.ui.resumeCount;
@@ -1550,9 +1648,23 @@ function boot() {
         }
         input.resize(input.width,input.height);
     }
+    function beginMode(mode) {
+        if (modeSeen(mode)) {
+            startGame(mode);
+            return;
+        }
+        audio.play('ui');
+        markModeSeen(mode);
+        guide.open2(modeGuide(mode),{ok:t('guide.go'),cancel:t('menu.back'),onOk:()=>startGame(mode)});
+    }
     const mainMenu=new MainMenu({
-        start:()=>startGame('story'),
-        endless:()=>startGame('endless'),
+        start:()=>beginMode('story'),
+        endless:()=>beginMode('endless'),
+        info:mode=>{
+            audio.play('ui');
+            markModeSeen(mode);
+            guide.open2(modeGuide(mode),{ok:t('notice.ok')});
+        },
         settings:()=>openSettings('menu'),
         codex:()=>{
             audio.play('ui');
@@ -1666,6 +1778,24 @@ function boot() {
             window.open(url,'_blank');
         }
     });
+    const guide=new GuidePopup({
+        ok:()=>{
+            audio.play('ui');
+            const fn=guide.opts.onOk;
+            guide.hide();
+            if (fn) {
+                fn();
+            }
+        },
+        cancel:()=>{
+            audio.play('ui');
+            const fn=guide.opts.onCancel;
+            guide.hide();
+            if (fn) {
+                fn();
+            }
+        }
+    });
     const PRIVACY_URL='https://archie-30.github.io/INKRAGE/privacy.html';
     let lastDev='mouse';
     let devSeen=false;
@@ -1706,6 +1836,22 @@ function boot() {
             saveSettings();
             equipWeapon();
             audio.play('reload');
+        },
+        buyRelic:id=>{
+            audio.play('ui');
+            const item={kind:'relic',value:id};
+            buyPrompt.open2(item,settings.skin,()=>{
+                if (buy(item)) {
+                    weaponView.walletK=1;
+                    weaponView.relPop=1;
+                    return true;
+                }
+                return false;
+            });
+        },
+        equipRelic:id=>{
+            equipRelic(id);
+            audio.play(id?'reload':'ui');
         },
         back:()=>{
             audio.play('ui');
@@ -1861,7 +2007,11 @@ function boot() {
         changed:settingsChanged,
         privacy:()=>{
             audio.play('ui');
-            popup.open2(t('privacy.title'),t('privacy.body'),{label:t('privacy.open'),url:PRIVACY_URL});
+            guide.open2({title:t('privacy.title'),icon:null,blocks:[
+                {kind:'text',text:t('privacy.body')},
+                {kind:'head',text:t('privacy.aiHead')},
+                {kind:'text',text:t('privacy.ai')}
+            ]},{ok:t('notice.ok'),cancel:t('privacy.open'),esc:'ok',onCancel:()=>window.open(PRIVACY_URL,'_blank')});
         },
         tutorial:()=>{
             settingsMenu.hide();
@@ -1909,7 +2059,7 @@ function boot() {
         }
     });
     let pendingLevel=null;
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,popup,choice,deckPick,levelUp,achView,chestView,buyPrompt,revivePopup,confirmPop];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,popup,guide,choice,deckPick,levelUp,achView,chestView,buyPrompt,revivePopup,confirmPop];
     setGate(()=>game.mode==='play'&&(run.mode==='story'||run.mode==='endless')&&!godMode());
     const input=new Input(container);
     const overlay=new Overlay(document.getElementById('ui'));
@@ -2000,6 +2150,9 @@ function boot() {
             if (popup.open) {
                 return popup.down(x,y);
             }
+            if (guide.open) {
+                return guide.down(x,y);
+            }
             if (settingsMenu.open) {
                 return settingsMenu.down(x,y);
             }
@@ -2067,6 +2220,10 @@ function boot() {
                 openPause();
                 return true;
             }
+            if (run.course&&run.mode==='endless'&&!transition.active&&overlay.hud.hitCourse(x,y,overlay.width)) {
+                openCourseGuide(run.course.id,false);
+                return true;
+            }
             if (coach.open) {
                 return coach.down(x,y);
             }
@@ -2079,6 +2236,10 @@ function boot() {
             return hand.down(x,y,id,type,button);
         },
         move:(x,y,id,type)=>{
+            if (guide.open) {
+                guide.move(x,y);
+                return;
+            }
             if (summary.open) {
                 summary.move(x,y);
             }
@@ -2116,6 +2277,7 @@ function boot() {
             hand.move(x,y,id,type);
         },
         up:(x,y,id,type,button)=>{
+            guide.up();
             deckView.up();
             summary.up();
             settingsMenu.up();
@@ -2158,7 +2320,7 @@ function boot() {
         }
     };
     input.onCardKey=i=>{
-        if (resumeT<=0&&!fx.cutin&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!choice.open&&!deckPick.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
+        if (resumeT<=0&&!fx.cutin&&!guide.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!choice.open&&!deckPick.open&&!summary.open&&!pauseMenu.open&&run.state==='combat') {
             hand.keyPlay(i);
         }
     };
@@ -2203,6 +2365,10 @@ function boot() {
         }
         if (popup.open) {
             popup.actions.close();
+            return;
+        }
+        if (guide.open) {
+            guide.actions[guide.opts.esc||(guide.cancelBtn?'cancel':'ok')]();
             return;
         }
         if (choice.open||deckPick.open) {
@@ -2265,7 +2431,7 @@ function boot() {
     // false when the system may close the app (second back press within 2 s on the idle main menu).
     let lastExitBack=-1e9;
     window.__inkrageBack=()=>{
-        const idleMenu=game.mode==='menu'&&!popup.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open&&!achView.open&&!chestView.open&&!buyPrompt.open&&!confirmPop.open;
+        const idleMenu=game.mode==='menu'&&!popup.open&&!guide.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open&&!achView.open&&!chestView.open&&!buyPrompt.open&&!confirmPop.open;
         if (idleMenu) {
             const now=performance.now();
             if (now-lastExitBack<2000) {
@@ -2280,6 +2446,7 @@ function boot() {
         return true;
     };
     input.onWheel=dy=>{
+        guide.wheel(dy);
         deckView.wheel(dy);
         codex.wheel(dy);
         summary.wheel(dy);
@@ -2288,7 +2455,7 @@ function boot() {
         skinEditor.wheel(dy);
         achView.wheel(dy);
     };
-    input.canStick=()=>!modalShown()&&!popup.open&&!coach.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
+    input.canStick=()=>!modalShown()&&!popup.open&&!guide.open&&!coach.open&&!fx.cutin&&game.mode==='play'&&!pauseMenu.open&&!deckView.open&&!trainingPicker.open&&!trainingMenu.open&&!reward.open&&!upgradeView.open&&!choice.open&&!deckPick.open&&!summary.open&&!transition.active&&!settingsMenu.open&&!codex.open;
     let skillToggle=false;
     let skillQuick=false;
     input.onSkill=(type,slot,vx,vy,mag,moved)=>{
@@ -2405,7 +2572,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,popup,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
+    const gameUi={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,popup,guide,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -2536,7 +2703,9 @@ function boot() {
                 ink.value=ink.max;
             }
         }
-        const hurry=game.mod==='hurry'&&game.mode==='play'?1.25:1;
+        const cr=game.mode==='play'&&run.course&&run.state==='combat'?run.course:null;
+        player.courseSpeed=cr?cr.playerSpeed():1;
+        const hurry=(game.mod==='hurry'&&game.mode==='play'?1.25:1)*(cr?cr.enemyRate():1);
         enemies.update(dt*hurry,ctx);
         updateTaunts(dt);
         pickups.update(dt,player,(type,x,z,amount)=>{
@@ -2677,6 +2846,11 @@ function boot() {
             tutNotify('detail');
         }
         tickResume(dt);
+        if (pendingGuide&&!transition.active&&game.mode==='play'&&run.state==='combat'&&!pauseMenu.open) {
+            const gid=pendingGuide;
+            pendingGuide=null;
+            openCourseGuide(gid,true);
+        }
         gameUi.resumeT=resumeT;
         setTouchText(input.lastDevice==='touch');
         music.update(musicTrack());
@@ -2874,7 +3048,7 @@ function boot() {
     if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={guide,overlay,confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

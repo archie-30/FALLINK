@@ -8,6 +8,7 @@ import {SKIN_TONES,ACCENTS} from '../data/palette.js';
 import {WEAPONS,WEAPON_LIMITS} from '../data/weapons.js';
 import {DEFAULT_SKIN} from '../data/skins.js';
 import {ACC_DEFAULT} from '../data/cosmetics.js';
+import {magBonus,reloadMult,takeGuard} from './relic.js';
 
 const _mv={x:0,z:0};
 
@@ -56,6 +57,7 @@ export class Player {
         this.rapidT=0;
         this.hasteT=0;
         this.hasteMult=1;
+        this.courseSpeed=1;
         this.rapidMult=1;
         this.dualT=0;
         this.dropDual(true);
@@ -633,6 +635,10 @@ export class Player {
         const def=WEAPONS[id]||WEAPONS.pen;
         this.weaponId=WEAPONS[id]?id:'pen';
         this.W={...TUNING.weapon,...def};
+        if (!this.ghost&&!def.cooldown) {
+            this.W.magazine+=magBonus(this.weaponId);
+            this.W.reloadTime*=reloadMult();
+        }
         this.ammo=this.W.magazine;
         this.cdT=0;
         this.reloadT=0;
@@ -682,6 +688,14 @@ export class Player {
     hurt(dmg,dx,dz) {
         const P=TUNING.player;
         if (this.isInvulnerable()||this.hp<=0) {
+            return false;
+        }
+        if (!this.ghost&&takeGuard()) {
+            this.invuln=TUNING.relics.whiteout.invuln;
+            this.sqv+=1.5;
+            if (this.events.onGuard) {
+                this.events.onGuard(this,dx,dz);
+            }
             return false;
         }
         if (this.shield>0) {
@@ -909,8 +923,8 @@ export class Player {
         else {
             const slow=room.zones.playerSlowAt(this.pos.x,this.pos.z);
             const hm=this.hasteT>0?this.hasteMult:1;
-            const tx=_mv.x*P.speed*slow*hm;
-            const tz=_mv.z*P.speed*slow*hm;
+            const tx=_mv.x*P.speed*slow*hm*this.courseSpeed;
+            const tz=_mv.z*P.speed*slow*hm*this.courseSpeed;
             const rate=(moveLen>0.05?P.accel:P.friction)*dt;
             const ex=tx-this.vel.x;
             const ez=tz-this.vel.z;

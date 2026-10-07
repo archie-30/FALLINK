@@ -13,6 +13,8 @@ import {MINIGAMES} from '../data/minigames.js';
 import {WEAPON_ORDER} from '../data/weapons.js';
 import {t} from '../data/strings.js';
 import {bump,setMax,resetRevive} from '../core/meta.js';
+import {COURSE_ORDER} from '../data/courses.js';
+import {CourseRun} from './course.js';
 
 export class Run {
     constructor(hooks,seed) {
@@ -35,6 +37,9 @@ export class Run {
         this.lastGames=[];
         this.lastPrize=null;
         this.trainGame=null;
+        this.course=null;
+        this.courseBag=[];
+        this.courseSeen=new Set();
         this.overtime=false;
         this.otPage=0;
         this.node='battle';
@@ -70,6 +75,27 @@ export class Run {
 
     notebook() {
         return this.mode==='story';
+    }
+
+    pickCourse(page) {
+        const E=ENDLESS;
+        const k=page%E.bossEvery;
+        if (k===0||this.courseBag.length===0) {
+            const last=this.courseBag.length>0?this.courseBag[this.courseBag.length-1]:null;
+            const bag=COURSE_ORDER.slice();
+            for (let i=bag.length-1;i>0;i--) {
+                const j=Math.floor(this.rng.next()*(i+1));
+                [bag[i],bag[j]]=[bag[j],bag[i]];
+            }
+            if (bag[0]===last) {
+                bag.push(bag.shift());
+            }
+            this.courseBag=bag.slice(0,TUNING.courses.perAct);
+            this.courseIdx=0;
+        }
+        const id=this.courseBag[Math.min(this.courseIdx,this.courseBag.length-1)];
+        this.courseIdx++;
+        return id;
     }
 
     otIndex() {
@@ -137,7 +163,8 @@ export class Run {
             plan.otPage=this.otPage;
         }
         else if (this.mode==='endless') {
-            plan=planEndless(this.index,this.rng,this.lastLayout,this.planOpts());
+            const bossPage=this.index%ENDLESS.bossEvery===ENDLESS.bossEvery-1;
+            plan=planEndless(this.index,this.rng,this.lastLayout,{...this.planOpts(),course:bossPage?null:this.pickCourse(this.index)});
         }
         else if (this.peaceNode()) {
             plan=this.planPeace(this.node);
@@ -166,6 +193,7 @@ export class Run {
         plan.node=this.notebook()&&!this.overtime?this.node:'battle';
         plan.exits=this.makeExits();
         this.plan=plan;
+        this.course=plan.course?new CourseRun(plan.course,plan,this.hooks.course):null;
         this.lastLayout=plan.layoutKey;
         if (plan.types) {
             this.lastTypes=plan.types;
@@ -194,6 +222,11 @@ export class Run {
         this.chCards=this.stats.cards;
         this.roomTaken=this.stats.taken;
         this.hooks.banner(plan.boss?'boss':'room',this);
+        if (plan.course) {
+            const first=!this.courseSeen.has(plan.course);
+            this.courseSeen.add(plan.course);
+            this.hooks.courseIntro(plan.course,first);
+        }
     }
 
     logPage(plan) {
@@ -993,13 +1026,22 @@ export class Run {
         if (this.state==='combat') {
             this.director.update(dt,player);
             for (const e of this.director.events) {
+                if (this.course) {
+                    this.course.onSpawn(e);
+                }
                 this.hooks.onSpawn(e);
+            }
+            if (this.course&&!this.training()) {
+                this.course.update(dt,player);
             }
             if (this.training()||this.tutorial()) {
                 return;
             }
             this.trackChallenge(dt,player);
             if (this.director.cleared) {
+                if (this.course) {
+                    this.course.finish();
+                }
                 this.state='cleared';
                 this.timer=1.4;
                 this.stats.rooms++;

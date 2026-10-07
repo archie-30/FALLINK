@@ -22,8 +22,10 @@ import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip,cardBrief,card
 import {ENEMY_ICONS} from './enemyIcons.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {ACC_SLOTS,ACC_DEFAULT} from '../data/cosmetics.js';
-import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,randomSkin} from '../core/meta.js';
+import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,randomSkin,ownsRelic,equippedRelic,relicPrice,modeSeen} from '../core/meta.js';
 import {drawAcc,drawAccIcon,drawLock,drawWallet,drawInkDot,drawMiniChest,drawItemIcon} from './meta.js';
+import {drawRelicIcon} from './relicIcons.js';
+import {RELIC_ORDER} from '../data/relics.js';
 
 function lerp1(a,b,f) {
     return a+(b-a)*Math.max(0,Math.min(1,f));
@@ -135,16 +137,22 @@ export class MainMenu extends Panel {
         const {cx,cw}=this.column();
         const M=TUNING.menu;
         this.buttons=[];
-        const bw=Math.min(small?220:260,cw);
         const top=small?h*0.3:h*0.3;
         const subH=small?M.bestGapSmall:M.bestGap;
         const avail=(small?h-top-14:h-top-120)-subH*MENU_SUBS.length;
         const gap=small?6:10;
         const bh=Math.min(small?40:52,avail/MENU_ACTS.length-gap);
+        const bw=Math.min(small?220:260,cw-bh-10);
+        const bx=cx-(bw+bh+10)/2;
+        this.btnCx=bx+bw/2;
+        this.infoBtns=[];
         let y=top;
         this.subY=[];
         for (let i=0;i<MENU_ACTS.length;i++) {
-            this.buttons.push({x:cx-bw/2,y,w:bw,h:bh});
+            this.buttons.push({x:bx,y,w:bw,h:bh});
+            if (i<2) {
+                this.infoBtns.push({x:bx+bw+10,y,w:bh,h:bh,mode:i===0?'story':'endless'});
+            }
             y+=bh+gap;
             if (MENU_SUBS.includes(i)) {
                 this.subY[i]=y+subH/2-gap/2;
@@ -165,6 +173,7 @@ export class MainMenu extends Panel {
     hover(x,y) {
         super.hover(x,y);
         this.levelHover=!!this.levelRect&&inRect(this.levelRect,x,y);
+        this.infoHover=this.infoBtns?this.infoBtns.findIndex(q=>inRect(q,x,y)):-1;
     }
 
     down(x,y) {
@@ -179,6 +188,12 @@ export class MainMenu extends Panel {
         if (this.walletRect&&inRect(this.walletRect,x,y)) {
             this.actions.achieve();
             return true;
+        }
+        for (const q of this.infoBtns) {
+            if (inRect(q,x,y)) {
+                this.actions.info(q.mode);
+                return true;
+            }
         }
         const i=this.hitButton(x,y);
         if (i>=0) {
@@ -205,6 +220,35 @@ export class MainMenu extends Panel {
         const r=drawWallet(ctx,x,y-(small?12:14),v,'left',small?13:15,this.walletPulse||0);
         this.walletRect={x:r.x-4,y:r.y-6,w:r.w+8,h:r.h+12};
         ctx.restore();
+    }
+
+    drawInfoBtns(ctx,v) {
+        for (let i=0;i<this.infoBtns.length;i++) {
+            const b=this.infoBtns[i];
+            const ap=(this.t-0.35-i*0.08)/0.45;
+            if (ap<=0) {
+                continue;
+            }
+            const hv=this.infoHover===i;
+            const e=EASE.easeOutBack(Math.min(1,ap));
+            const r=b.h*0.36;
+            const first=!modeSeen(b.mode);
+            ctx.save();
+            ctx.globalAlpha=Math.min(1,ap*2);
+            ctx.translate(b.x+b.w/2,b.y+b.h/2);
+            ctx.scale(e*(hv?1.1:1),e*(hv?1.1:1));
+            ctx.fillStyle=hv?rgba('farGray',0.95):rgba('paper',0.92);
+            ctx.beginPath();
+            ctx.arc(0,0,r*1.25,0,Math.PI*2);
+            ctx.fill();
+            drawShape(ctx,sketchCircle(0,0,r*1.25,{width:hv?2.6:2,seed:1410+i}),first?PALETTE.red:PALETTE.ink,v);
+            ctx.fillStyle=first?PALETTE.red:PALETTE.ink;
+            ctx.font='bold '+Math.round(r*1.5)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText('i',0,r*0.08);
+            ctx.restore();
+        }
     }
 
     drawAchBadge(ctx) {
@@ -319,7 +363,7 @@ export class MainMenu extends Panel {
         if (a<=0) {
             return;
         }
-        const {cx}=this.column();
+        const cx=this.btnCx;
         const small=this.height<600;
         ctx.save();
         ctx.globalAlpha=a;
@@ -470,6 +514,7 @@ export class MainMenu extends Panel {
         for (let i=0;i<MENU_ACTS.length;i++) {
             drawButton(ctx,this.buttons[i],t('menu.'+MENU_ACTS[i]),v,(this.t-0.35-i*0.08)/0.45,this.hoverIdx===i,this.buttons[i].h<46?19:22);
         }
+        this.drawInfoBtns(ctx,v);
         this.drawAchBadge(ctx);
         this.drawBar(ctx,v);
         this.drawWalletChip(ctx,v);
@@ -7002,6 +7047,20 @@ function weaponValue(def,key) {
     return def.cooldown?t('weapon.val.none'):t('weapon.val.mag',{n:def.magazine,s:def.reloadTime});
 }
 
+function relicParams(id) {
+    const R=TUNING.relics;
+    if (id==='refill') {
+        return {...R.refill,n:Object.values(R.refill).length};
+    }
+    if (id==='sharpener') {
+        return {pct:Math.round((1-R.sharpener.reload)*100)};
+    }
+    if (id==='bandage') {
+        return {n:R.bandage.heal};
+    }
+    return {};
+}
+
 export class WeaponView extends Panel {
     constructor(actions) {
         super();
@@ -7014,13 +7073,44 @@ export class WeaponView extends Panel {
         this.hy=-1;
         this.pop=0;
         this.bars={};
+        this.tab='weapon';
+        this.relSel=RELIC_ORDER[0];
+        this.tabHits=[];
+        this.relHits=[];
+        this.relPop=0;
     }
 
     show() {
         super.show();
         this.sel=settings.weapon||'pen';
+        this.tab='weapon';
+        this.relSel=equippedRelic()||RELIC_ORDER[0];
         this.animT=0;
         this.pop=0;
+        this.relPop=0;
+    }
+
+    tabRects() {
+        const P=this.P;
+        const small=this.height<600;
+        const tw=small?66:88;
+        const th=small?26:32;
+        const y=P.y+(small?9:18);
+        const x0=P.x+P.w-24-tw*2-8;
+        return [{x:x0,y,w:tw,h:th,id:'weapon'},{x:x0+tw+8,y,w:tw,h:th,id:'relic'}];
+    }
+
+    setTab(id) {
+        if (id===this.tab) {
+            return;
+        }
+        this.tab=id;
+        this.animT=0;
+        this.actions.select();
+    }
+
+    relicState(id) {
+        return ownsRelic(id)?(equippedRelic()===id?'on':'own'):'locked';
     }
 
     hover(x,y) {
@@ -7050,6 +7140,36 @@ export class WeaponView extends Panel {
         this.layout();
         if (inRect(this.backBtn,x,y)) {
             this.actions.back();
+            return true;
+        }
+        for (const q of this.tabRects()) {
+            if (inRect(q,x,y)) {
+                this.setTab(q.id);
+                return true;
+            }
+        }
+        if (this.tab==='relic') {
+            if (inRect(this.equipBtn,x,y)) {
+                const st=this.relicState(this.relSel);
+                if (st==='locked') {
+                    this.actions.buyRelic(this.relSel);
+                }
+                else {
+                    this.relPop=1;
+                    this.actions.equipRelic(st==='on'?'':this.relSel);
+                }
+                return true;
+            }
+            for (const q of this.relHits) {
+                if (inRect(q,x,y)) {
+                    if (q.id!==this.relSel) {
+                        this.relSel=q.id;
+                        this.animT=0;
+                        this.actions.select();
+                    }
+                    return true;
+                }
+            }
             return true;
         }
         if (inRect(this.equipBtn,x,y)) {
@@ -7083,6 +7203,7 @@ export class WeaponView extends Panel {
         this.animT+=dt;
         this.walletK=Math.max(0,(this.walletK||0)-dt*2);
         this.pop=Math.max(0,this.pop-dt*2.5);
+        this.relPop=Math.max(0,this.relPop-dt*2.5);
         this.equipT=(this.equipT??9)+dt;
         const st=WEAPONS[this.sel]?.stats;
         const k=1-Math.exp(-10*dt);
@@ -7121,10 +7242,26 @@ export class WeaponView extends Panel {
         const ttw=ctx.measureText(t('weapon.title')).width;
         drawWallet(ctx,P.x+24+ttw+14,P.y+(small?22:34)-(small?13:14),v,'left',small?12:14,this.walletK||0);
         ctx.textBaseline='middle';
-        ctx.font='13px '+FONT;
+        const tabs=this.tabRects();
         ctx.fillStyle=PALETTE.nearGray;
         ctx.textAlign='right';
-        ctx.fillText(t('weapon.hint'),P.x+P.w-24,P.y+(small?23:36));
+        ctx.textBaseline='middle';
+        fitText(ctx,t(this.tab==='relic'?'relic.hint':'weapon.hint'),tabs[0].x-14,P.y+(small?23:36),Math.max(60,tabs[0].x-14-(P.x+24+ttw+130)),13,'');
+        for (const q of tabs) {
+            const on=q.id===this.tab;
+            const hv=inRect(q,this.hx,this.hy);
+            ctx.fillStyle=on?PALETTE.ink:(hv?rgba('farGray',0.9):rgba('paper',0.95));
+            ctx.fillRect(q.x,q.y,q.w,q.h);
+            drawShape(ctx,sketchRect(q.x,q.y,q.w,q.h,{width:on?2.2:1.5,seed:2060+q.id.length}),PALETTE.ink,v);
+            ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
+            ctx.textAlign='center';
+            fitText(ctx,t('tab.'+q.id),q.x+q.w/2,q.y+q.h/2+1,q.w-10,small?13:15,'bold ');
+        }
+        if (this.tab==='relic') {
+            this.drawRelics(ctx,v,small);
+            ctx.restore();
+            return;
+        }
         const gx=P.x+24;
         const gy=P.y+(small?46:70);
         const gw=P.w*0.42;
@@ -7339,6 +7476,139 @@ export class WeaponView extends Panel {
             ctx.restore();
         }
         ctx.restore();
+    }
+
+    drawRelics(ctx,v,small) {
+        const P=this.P;
+        const gx=P.x+24;
+        const gy=P.y+(small?46:70);
+        const gw=P.w*0.42;
+        const cg=12;
+        const cw=(gw-cg)/2;
+        const ch=Math.min(small?78:120,(this.backBtn.y-gy-16-cg)/2);
+        this.relHits=[];
+        for (let i=0;i<RELIC_ORDER.length;i++) {
+            const id=RELIC_ORDER[i];
+            const x=gx+(i%2)*(cw+cg);
+            const y=gy+Math.floor(i/2)*(ch+cg);
+            const r={x,y,w:cw,h:ch,id};
+            this.relHits.push(r);
+            const st=this.relicState(id);
+            const sel=id===this.relSel;
+            const hv=inRect(r,this.hx,this.hy);
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.08-i*0.05)/0.3)));
+            if (ap<=0) {
+                continue;
+            }
+            ctx.save();
+            ctx.translate(x+cw/2,y+ch/2);
+            ctx.scale(ap*(hv||sel?1.03:1),ap*(hv||sel?1.03:1));
+            ctx.translate(-cw/2,-ch/2);
+            ctx.fillStyle=sel?rgba('ink',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.95));
+            ctx.fillRect(0,0,cw,ch);
+            drawShape(ctx,sketchRect(0,0,cw,ch,{width:sel?2.8:1.5,seed:2070+i}),st==='on'?PALETTE.red:(sel?PALETTE.ink:PALETTE.nearGray),v);
+            drawRelicIcon(ctx,id,ch*0.5,ch*0.5+(sel?Math.sin(this.animT*3)*3:0),ch/110,v,st==='locked');
+            ctx.fillStyle=st==='locked'?PALETTE.midGray:PALETTE.ink;
+            ctx.textAlign='left';
+            ctx.textBaseline='middle';
+            const tw=cw-ch*0.98-14;
+            fitText(ctx,t('relic.'+id+'.name'),ch*0.98,ch*0.38,tw,small?15:19,'bold ');
+            if (st==='locked') {
+                ctx.fillStyle=PALETTE.red;
+                fitText(ctx,t('relic.price',{n:relicPrice()}),ch*0.98+14,ch*0.66,tw-14,12,'');
+                drawInkDot(ctx,ch*0.98+4,ch*0.66,4,PALETTE.red);
+            }
+            else {
+                ctx.fillStyle=PALETTE.nearGray;
+                fitText(ctx,t('relic.'+id+'.short'),ch*0.98,ch*0.66,tw,12,'');
+            }
+            if (st==='on') {
+                const sk=Math.min(1,Math.max(0,1-this.relPop*0.6));
+                ctx.save();
+                ctx.translate(cw-10,10);
+                ctx.rotate(0.12);
+                ctx.scale(sk,sk);
+                ctx.fillStyle=PALETTE.red;
+                ctx.fillRect(-40,-2,44,20);
+                ctx.fillStyle=PALETTE.paper;
+                ctx.font='bold 12px '+FONT;
+                ctx.textAlign='center';
+                ctx.fillText(t('weapon.equipped'),-18,8);
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+        const dx=gx+gw+24;
+        const dw=P.x+P.w-24-dx;
+        const sh=Math.min(dw*9/16,small?(this.backBtn.y-gy)*0.46:230);
+        const id=this.relSel;
+        const st=this.relicState(id);
+        ctx.fillStyle=rgba('farGray',0.35);
+        ctx.fillRect(dx,gy,dw,sh);
+        drawRelicIcon(ctx,id,dx+dw/2,gy+sh/2+Math.sin(this.animT*2.4)*4,sh/110*1.5,v,st==='locked');
+        drawShape(ctx,sketchRect(dx,gy,dw,sh,{width:1.6,seed:2080}),PALETTE.ink,v);
+        let y=gy+sh+(small?10:18);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold '+(small?18:24)+'px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        ctx.fillText(t('relic.'+id+'.name'),dx,y);
+        y+=small?26:34;
+        ctx.font=(small?'12px ':'14px ')+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        const lines=wrapText(ctx,t('relic.'+id+'.desc',relicParams(id)),dw);
+        for (let i=0;i<lines.length&&i<4;i++) {
+            ctx.fillText(lines[i],dx,y);
+            y+=small?16:20;
+        }
+        y+=small?4:8;
+        ctx.fillStyle=PALETTE.red;
+        ctx.font='bold '+(small?12:13)+'px '+FONT;
+        ctx.fillText(t('relic.rule'),dx,y);
+        drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?15:17);
+        const eb=this.equipBtn;
+        const label=st==='locked'?t('relic.buy',{n:relicPrice()}):(st==='on'?t('relic.unequip'):t('relic.equip'));
+        if (st==='locked') {
+            ctx.save();
+            const s2=this.hoverIdx===1?1.05:1;
+            ctx.translate(eb.x+eb.w/2,eb.y+eb.h/2);
+            ctx.scale(s2,s2);
+            ctx.rotate(Math.sin(time.real*3)*0.012);
+            ctx.fillStyle=rgba('red',0.1);
+            ctx.fillRect(-eb.w/2,-eb.h/2,eb.w,eb.h);
+            drawShape(ctx,sketchRect(-eb.w/2,-eb.h/2,eb.w,eb.h,{width:2.2,seed:2082}),PALETTE.red,v);
+            ctx.font='bold '+(small?13:15)+'px '+FONT;
+            const lw=ctx.measureText(label).width;
+            drawInkDot(ctx,-lw/2-6,1,5,PALETTE.red);
+            ctx.fillStyle=PALETTE.red;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            fitText(ctx,label,6,1,eb.w-30,small?13:15,'bold ');
+            ctx.restore();
+        }
+        else if (st==='own') {
+            ctx.save();
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillRect(eb.x,eb.y,eb.w,eb.h);
+            drawShape(ctx,sketchRect(eb.x,eb.y,eb.w,eb.h,{width:2,seed:2083}),PALETTE.ink,v);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            const s=this.hoverIdx===1?1.05:1;
+            ctx.translate(eb.x+eb.w/2,eb.y+eb.h/2);
+            ctx.scale(s,s);
+            fitText(ctx,label,0,1,eb.w-16,small?15:18,'bold ');
+            ctx.restore();
+        }
+        else {
+            ctx.save();
+            drawShape(ctx,sketchRect(eb.x,eb.y,eb.w,eb.h,{width:1.8,seed:2084}),PALETTE.red,v);
+            ctx.fillStyle=PALETTE.red;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            fitText(ctx,label,eb.x+eb.w/2,eb.y+eb.h/2+1,eb.w-16,small?14:16,'bold ');
+            ctx.restore();
+        }
     }
 
     drawRandomTile(ctx,r,lv,small,v) {

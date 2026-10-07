@@ -4,6 +4,7 @@ import {ACC_SLOTS,ACC_DEFAULT,BASIC_TONES,BASIC_ACC} from '../data/cosmetics.js'
 import {ACHIEVEMENTS} from '../data/achievements.js';
 import {TUNING} from '../data/tuning.js';
 import {EARLY_WEAPONS,WEAPONS} from '../data/weapons.js';
+import {RELIC_ORDER} from '../data/relics.js';
 
 const M=TUNING.meta;
 
@@ -21,7 +22,7 @@ export function initMeta() {
             P[k]={};
         }
     }
-    for (const k of ['weapons','outfits','ach']) {
+    for (const k of ['weapons','outfits','ach','relics']) {
         if (!Array.isArray(P[k])) {
             P[k]=[];
         }
@@ -30,6 +31,13 @@ export function initMeta() {
         P.outfits.push(null);
     }
     P.achChests=Math.max(0,Math.floor(Number(P.achChests)||0));
+    P.relics=P.relics.filter(id=>RELIC_ORDER.includes(id));
+    if (typeof P.relic!=='string'||!P.relics.includes(P.relic)) {
+        P.relic='';
+    }
+    if (!P.modeSeen||typeof P.modeSeen!=='object'||Array.isArray(P.modeSeen)) {
+        P.modeSeen={};
+    }
     EARLY_WEAPONS.length=0;
     EARLY_WEAPONS.push(...P.weapons.filter(id=>WEAPONS[id]));
 }
@@ -155,6 +163,12 @@ function unlock(item) {
 export function grant(n,accFirst=0) {
     const out=[];
     for (let i=0;i<n;i++) {
+        if (i>=accFirst&&Math.random()<M.dotChance) {
+            const q=M.dotRange[0]+Math.floor(Math.random()*(M.dotRange[1]-M.dotRange[0]+1));
+            progress.dots+=q;
+            out.push({kind:'dots',n:q});
+            continue;
+        }
         const cols=pool('color');
         const accs=pool('acc');
         let list=i<accFirst?accs:(Math.random()<M.accChance?accs:cols);
@@ -162,8 +176,8 @@ export function grant(n,accFirst=0) {
             list=list===accs?cols:accs;
         }
         if (list.length===0) {
-            progress.dots++;
-            out.push({kind:'dots',n:1});
+            progress.dots+=M.dotRange[0];
+            out.push({kind:'dots',n:M.dotRange[0]});
             continue;
         }
         const item=list[Math.floor(Math.random()*list.length)];
@@ -178,10 +192,16 @@ export function grant(n,accFirst=0) {
 }
 
 export function price(item) {
+    if (item.kind==='relic') {
+        return TUNING.relics.price;
+    }
     return item.kind==='color'?M.price.color:(item.kind==='acc'?M.price.acc:M.price.weapon);
 }
 
 export function buy(item) {
+    if (item.kind==='relic') {
+        return buyRelic(item.value);
+    }
     const p=price(item);
     if (progress.dots<p) {
         return false;
@@ -199,6 +219,55 @@ export function buy(item) {
     checkAch(true);
     saveProgress();
     return true;
+}
+
+export function ownsRelic(id) {
+    return godMode()||progress.relics.includes(id);
+}
+
+export function relicPrice() {
+    return TUNING.relics.price;
+}
+
+export function buyRelic(id) {
+    const p=relicPrice();
+    if (!RELIC_ORDER.includes(id)||progress.relics.includes(id)||progress.dots<p) {
+        return false;
+    }
+    progress.dots-=p;
+    progress.relics.push(id);
+    saveProgress();
+    return true;
+}
+
+export function equippedRelic() {
+    return ownsRelic(progress.relic)?progress.relic:'';
+}
+
+export function equipRelic(id) {
+    progress.relic=id&&ownsRelic(id)?id:'';
+    saveProgress();
+}
+
+export function earnDots(n) {
+    if (!gate()||n<1) {
+        return 0;
+    }
+    progress.dots+=n;
+    dirty=true;
+    return n;
+}
+
+export function modeSeen(mode) {
+    return !!progress.modeSeen[mode];
+}
+
+export function markModeSeen(mode) {
+    if (progress.modeSeen[mode]) {
+        return;
+    }
+    progress.modeSeen[mode]=true;
+    saveProgress();
 }
 
 export function spendRevive(n) {

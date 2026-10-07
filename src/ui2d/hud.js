@@ -7,6 +7,7 @@ import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
 import {CARDS} from '../data/cards.js';
 import {ACTS,ENDLESS} from '../data/levels.js';
+import {drawCourseIcon} from './courseIcons.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -91,6 +92,57 @@ export class Hud {
                 ctx.restore();
             }
         }
+    }
+
+    drawCourseMarks(ctx,c,enemies,project,tmp) {
+        const now=time.real;
+        const next=c.id==='math'?c.nextNum():0;
+        ctx.save();
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        for (const e of enemies.list) {
+            if (!e.alive||e.def.boss||e.state==='spawn') {
+                continue;
+            }
+            project(e.renderPos.x,e.def.height*1.55,e.renderPos.z,tmp);
+            if (c.id==='math'&&e.courseNum>0) {
+                const on=e.courseNum===next;
+                const r=on?15+Math.sin(now*8)*1.5:12;
+                ctx.fillStyle=on?PALETTE.red:rgba('paper',0.92);
+                ctx.beginPath();
+                ctx.arc(tmp.x,tmp.y-8,r,0,Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle=on?PALETTE.darkRed:PALETTE.midGray;
+                ctx.lineWidth=2;
+                ctx.stroke();
+                ctx.fillStyle=on?PALETTE.paper:PALETTE.midGray;
+                ctx.font='bold '+(on?18:14)+'px '+FONT;
+                ctx.fillText(String(e.courseNum),tmp.x,tmp.y-7);
+            }
+            else if (c.id==='quiet'&&e.sleep) {
+                for (let i=0;i<3;i++) {
+                    const f=(now*TUNING.courses.ui.zzz+i/3)%1;
+                    ctx.globalAlpha=Math.sin(f*Math.PI);
+                    ctx.fillStyle=PALETTE.nearGray;
+                    ctx.font='bold '+Math.round(11+f*9)+'px '+FONT;
+                    ctx.fillText('Z',tmp.x+8+f*16,tmp.y-6-f*22);
+                }
+                ctx.globalAlpha=1;
+            }
+            else if (c.id==='copy'&&e.copyOf) {
+                ctx.fillStyle=rgba('paper',0.92);
+                ctx.fillRect(tmp.x-20,tmp.y-18,40,16);
+                ctx.strokeStyle=PALETTE.midGray;
+                ctx.lineWidth=1.4;
+                ctx.setLineDash([3,3]);
+                ctx.strokeRect(tmp.x-20,tmp.y-18,40,16);
+                ctx.setLineDash([]);
+                ctx.fillStyle=PALETTE.nearGray;
+                ctx.font='bold 11px '+FONT;
+                ctx.fillText(t('course.copy.tag'),tmp.x,tmp.y-9);
+            }
+        }
+        ctx.restore();
     }
 
     drawAmmo(ctx,player,project,tmp) {
@@ -493,9 +545,12 @@ export class Hud {
         if (!run.training()) {
             this.drawScore(ctx,w,run.stats);
         }
+        if (run.course&&run.mode==='endless'&&!p.boss) {
+            this.drawCourse(ctx,w,run.course);
+        }
         ctx.textAlign='center';
         ctx.textBaseline='top';
-        const by=PB.below;
+        const by=PB.below+(run.course&&run.mode==='endless'?TUNING.courses.ui.shift:0);
         const d=run.director;
         if (d&&!p.boss&&run.state==='combat') {
             const wv=Math.max(1,d.wave+1);
@@ -688,6 +743,96 @@ export class Hud {
         ctx.font='bold '+S.size+'px '+FONT;
         ctx.fillStyle=this.scoreShake>0.3&&this.scoreDown?PALETTE.red:(this.scorePop>0.3?PALETTE.red:PALETTE.ink);
         ctx.fillText(String(Math.round(this.scoreShown)),0,0);
+        this.scoreW=ctx.measureText(String(Math.round(this.scoreShown))).width;
+        ctx.restore();
+    }
+
+    courseIcon(w) {
+        const U=TUNING.courses.ui;
+        const S=TUNING.hud.score;
+        return {x:w-S.right-Math.max(this.scoreW||0,64)-U.iconGap-U.iconR,y:S.y+(S.labelSize+S.size)*0.5+2,r:U.iconR};
+    }
+
+    hitCourse(x,y,w) {
+        const c=this.courseIcon(w);
+        return Math.hypot(x-c.x,y-c.y)<c.r+12;
+    }
+
+    courseLabel(c) {
+        if (c.done) {
+            return t('course.hud.done');
+        }
+        if (c.failed) {
+            return t('course.hud.fail');
+        }
+        if (c.id==='math') {
+            return c.streak+'/'+c.goal;
+        }
+        if (c.id==='pe') {
+            return t('course.hud.time',{s:Math.max(0,Math.ceil(TUNING.courses.pe.time-c.elapsed))});
+        }
+        if (c.id==='quiet') {
+            return t('course.hud.alert',{n:Math.round(c.alert*100)});
+        }
+        return c.count+'/'+c.goal;
+    }
+
+    drawCourse(ctx,w,c) {
+        const U=TUNING.courses.ui;
+        const small=w<700;
+        const bw=small?U.barWSmall:U.barW;
+        const x0=w/2-bw/2;
+        const y=U.barY;
+        const now=time.real;
+        this.courseShown=(this.courseShown||0)+(c.progress()-(this.courseShown||0))*0.15;
+        if (this.courseFor!==c) {
+            this.courseFor=c;
+            this.courseShown=0;
+        }
+        const p=this.courseShown;
+        const col=c.failed?PALETTE.midGray:PALETTE.red;
+        ctx.save();
+        ctx.textBaseline='middle';
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=2.4;
+        ctx.beginPath();
+        ctx.moveTo(x0,y);
+        ctx.lineTo(x0+bw,y);
+        ctx.stroke();
+        if (p>0.005) {
+            ctx.strokeStyle=col;
+            ctx.lineWidth=5;
+            ctx.lineCap='round';
+            ctx.beginPath();
+            ctx.moveTo(x0,y);
+            ctx.lineTo(x0+bw*p,y);
+            ctx.stroke();
+        }
+        const mx=x0+bw*p;
+        const pulse=1+Math.sin(now*4)*0.12+c.pulse*0.6;
+        ctx.fillStyle=rgba(c.failed?'midGray':'red',0.25);
+        ctx.beginPath();
+        ctx.arc(mx,y,9*1.7*pulse,0,Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle=col;
+        ctx.beginPath();
+        ctx.arc(mx,y,9,0,Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=1.6;
+        ctx.stroke();
+        ctx.font='bold 13px '+FONT;
+        ctx.fillStyle=PALETTE.ink;
+        ctx.textAlign='right';
+        ctx.fillText(t('course.'+c.id+'.name'),x0-24,y);
+        ctx.font='bold 13px '+FONT;
+        ctx.textAlign='left';
+        ctx.fillStyle=c.done?PALETTE.red:(c.failed?PALETTE.midGray:PALETTE.nearGray);
+        ctx.fillText(this.courseLabel(c),x0+bw+14,y);
+        const ic=this.courseIcon(w);
+        ctx.translate(ic.x,ic.y);
+        ctx.scale(1+c.pulse*0.4,1+c.pulse*0.4);
+        drawCourseIcon(ctx,c.id,0,0,ic.r,time.boilIndex,!c.failed);
         ctx.restore();
     }
 

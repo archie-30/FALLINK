@@ -1,3 +1,4 @@
+import {TUNING} from '../data/tuning.js';
 import {LAYOUTS,NORMAL_LAYOUTS,ACTS,ENEMY_COST,ENEMY_ORDER,STORY_INTRO,ENDLESS,ROOM_TYPES,BOSS_POOL,PAIRED} from '../data/levels.js';
 
 export const MODS=['dark','elite','hurry'];
@@ -138,7 +139,9 @@ export function planEndless(page,rng,lastLayout,o={}) {
     if (key===lastLayout) {
         key=NORMAL_LAYOUTS[(NORMAL_LAYOUTS.indexOf(key)+1)%NORMAL_LAYOUTS.length];
     }
-    const budget=Math.min(E.budgetMax,Math.round(E.budgetBase+page*E.budgetPerPage));
+    const cram=o.course==='cram';
+    const C=TUNING.courses.cram;
+    const budget=Math.min(E.budgetMax*(cram?C.budget:1),Math.round((E.budgetBase+page*E.budgetPerPage)*(cram?C.budget:1)));
     const nw=Math.min(4,2+Math.floor(page/4));
     const count=endlessTypes(page);
     let q=page-1;
@@ -153,5 +156,5 @@ export function planEndless(page,rng,lastLayout,o={}) {
         const mods=page>=E.eliteFrom?MODS:MODS.filter(m=>m!=='elite');
         mod=mods[Math.floor(rng.next()*mods.length)];
     }
-    return {act,index:page,endless:true,boss:false,layoutKey:key,layout:LAYOUTS[key],hpMult,waves,mod,fresh,types,barrels:1+Math.floor(rng.next()*2),crates:1+Math.floor(rng.next()*2)};
+    return {act,index:page,endless:true,boss:false,layoutKey:key,layout:LAYOUTS[key],hpMult:hpMult*(cram?C.hp:1),waves,mod,fresh,types,course:o.course||null,barrels:1+Math.floor(rng.next()*2),crates:1+Math.floor(rng.next()*2)};
 }

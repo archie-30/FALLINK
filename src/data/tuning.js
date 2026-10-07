@@ -679,7 +679,26 @@ export const TUNING={
         accChance:0.35,
         story:{rooms:5,boss:1,clear:true},
         endless:[5,12,20],
-        customSlots:4
+        customSlots:4,
+        dotChance:0.2,
+        dotRange:[1,3],
+        dotBoss:2
+    },
+    courses:{
+        perAct:4,
+        math:{off:0.4,goal:5,reward:{score:800,ink:1}},
+        pe:{speed:1.2,foe:1.2,time:90,reward:{score:1000,dots:1}},
+        copy:{every:6,max:4,hp:0.5,reward:{score:800,hp:2}},
+        quiet:{shot:0.05,near:0.2,radius:5,decay:0.05,sleep:2,reward:{score:800,hp:1,ink:1}},
+        cram:{budget:1.4,hp:1.15,score:2,reward:{score:1600,dots:2}},
+        ui:{barW:300,barWSmall:200,barY:48,shift:14,iconR:15,iconGap:12,zzz:0.9}
+    },
+    relics:{
+        price:12,
+        refill:{pen:2,pencil:4,brush:1,stapler:3,highlighter:4},
+        whiteout:{guards:1,invuln:0.35},
+        sharpener:{reload:0.88},
+        bandage:{heal:1}
     },
     metaUi:{
         chest:{shake:0.9,burst:0.35,itemGap:0.32,itemPop:0.45,float:6,rays:12},
