@@ -1212,13 +1212,11 @@ export class AchievementView extends Panel {
             if (ry>V.y+V.h||ry+rh<V.y) {
                 continue;
             }
-            const ap=EASE.easeOutBack(clamp01((this.t-0.15-Math.min(k,16)*U.stagger)/0.3));
+            const ap=EASE.easeOutCubic(clamp01((this.t-0.1-Math.min(k,8)*U.stagger)/U.rise));
             const val=done?q.goal:Math.min(q.goal,statValue(q.stat));
             const f=done?1:val/q.goal;
             ctx.save();
-            ctx.translate(rx+cw/2,ry+rh/2);
-            ctx.scale(ap,ap);
-            ctx.translate(-cw/2,-rh/2);
+            ctx.translate(rx,ry+(1-ap)*U.drop);
             ctx.globalAlpha*=clamp01(ap);
             ctx.fillStyle=done?rgba('red',0.06):rgba('paper',0.95);
             ctx.fillRect(0,0,cw,rh);

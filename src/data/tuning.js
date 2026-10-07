@@ -433,12 +433,12 @@ export const TUNING={
         fogPuffs:28
     },
     weaponUi:{
-        row:40,
-        rowS:30,
+        row:44,
+        rowS:34,
         bar:9,
         barS:7,
-        randH:52,
-        randHSmall:34,
+        randH:54,
+        randHSmall:38,
         randStep:0.45,
         equip:{time:0.9,jolt:0.25,joltScale:0.08,shake:0.05,spinTime:0.6,spins:1,lift:0.18,grow:0.35,drops:12,dropTime:0.45,stampDelay:0.35,stampTime:0.3,stampFrom:2.6}
     },
@@ -695,6 +695,7 @@ export const TUNING={
     },
     relics:{
         price:12,
+        unlock:3,
         refill:{pen:2,pencil:4,brush:1,stapler:3,highlighter:4},
         whiteout:{guards:1,invuln:0.35},
         sharpener:{reload:0.88},
@@ -703,7 +704,7 @@ export const TUNING={
     metaUi:{
         chest:{shake:0.9,burst:0.35,itemGap:0.32,itemPop:0.45,float:6,rays:12},
         toast:{time:3.4,slide:0.35,w:300,wSmall:240,h:62,hSmall:52,top:14},
-        ach:{rowH:82,rowHSmall:80,twoCol:600,barH:16,chestR:19,stagger:0.03,scrollFollow:14,dragSlop:8},
+        ach:{rowH:82,rowHSmall:80,twoCol:600,barH:16,chestR:19,stagger:0.02,rise:0.3,drop:8,scrollFollow:14,dragSlop:8},
         buy:{w:340,wSmall:300,wBundle:460,wBundleSmall:420,chip:46,chipSmall:40,stamp:0.45,close:0.7},
         revive:{w:420,wSmall:340,pulse:3},
         confirm:{w:460,wSmall:400,h:300,hSmall:250,flood:0.9},

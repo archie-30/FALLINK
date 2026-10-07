@@ -64,6 +64,15 @@ export function modeGuide(mode) {
     ]};
 }
 
+export function modesGuide() {
+    const out=[];
+    for (const mode of ['story','endless']) {
+        const g=modeGuide(mode);
+        out.push({kind:'title',text:g.title},...g.blocks.filter(b=>b.kind!=='head'));
+    }
+    return {title:t('settings.modes'),icon:null,blocks:out};
+}
+
 export class GuidePopup extends Panel {
     constructor(actions) {
         super();
@@ -88,10 +97,10 @@ export class GuidePopup extends Panel {
         const w=this.width;
         const h=this.height;
         const small=h<600;
-        const pw=Math.min(560,w-24);
-        const ph=Math.min(h-(small?12:40),small?h-12:520);
+        const pw=Math.min(620,w-40);
+        const ph=Math.min(h-(small?78:130),560);
         this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
-        const bh=small?38:46;
+        const bh=small?40:48;
         const two=!!this.opts.cancel;
         const gap=12;
         const bw=two?(pw-48-gap)/2:Math.min(220,pw-48);
@@ -106,7 +115,7 @@ export class GuidePopup extends Panel {
             this.okBtn={x:w/2-bw/2,y:by,w:bw,h:bh};
             this.buttons=[this.okBtn];
         }
-        const top=this.P.y+(small?52:68);
+        const top=this.P.y+(small?58:76);
         this.V={x:this.P.x+14,y:top,w:pw-28,h:by-8-top};
     }
 
@@ -161,34 +170,34 @@ export class GuidePopup extends Panel {
 
     drawBody(ctx,small) {
         const V=this.V;
-        const fs=small?13:15;
-        const lh=small?19:22;
+        const fs=small?17:19;
+        const lh=Math.round(fs*1.42);
         let y=0;
         ctx.textBaseline='top';
         ctx.textAlign='left';
         for (const b of this.model.blocks) {
-            if (b.kind==='head') {
-                y+=y>0?(small?8:12):0;
+            if (b.kind==='head'||b.kind==='title') {
+                y+=y>0?(small?10:14):0;
                 ctx.fillStyle=PALETTE.red;
-                ctx.fillRect(V.x+2,V.y+y-this.scroll+4,6,fs);
+                ctx.fillRect(V.x+2,V.y+y-this.scroll+4,7,fs+2);
                 ctx.fillStyle=PALETTE.ink;
-                ctx.font='bold '+(fs+1)+'px '+FONT;
-                ctx.fillText(b.text,V.x+16,V.y+y-this.scroll);
-                y+=lh+2;
+                ctx.font='bold '+(fs+3)+'px '+FONT;
+                ctx.fillText(b.text,V.x+18,V.y+y-this.scroll);
+                y+=lh+4;
             }
             else if (b.kind==='bullet') {
                 ctx.font=fs+'px '+FONT;
-                const ls=wrapText(ctx,b.text,V.w-34);
+                const ls=wrapText(ctx,b.text,V.w-40);
                 ctx.fillStyle=PALETTE.ink;
                 ctx.beginPath();
-                ctx.arc(V.x+20,V.y+y-this.scroll+lh/2,3,0,Math.PI*2);
+                ctx.arc(V.x+22,V.y+y-this.scroll+lh/2,3.5,0,Math.PI*2);
                 ctx.fill();
                 ctx.fillStyle=PALETTE.nearGray;
                 for (const l of ls) {
-                    ctx.fillText(l,V.x+32,V.y+y-this.scroll);
+                    ctx.fillText(l,V.x+38,V.y+y-this.scroll);
                     y+=lh;
                 }
-                y+=3;
+                y+=5;
             }
             else {
                 ctx.font=fs+'px '+FONT;
@@ -197,10 +206,10 @@ export class GuidePopup extends Panel {
                     ctx.fillText(l,V.x+4,V.y+y-this.scroll);
                     y+=lh;
                 }
-                y+=4;
+                y+=6;
             }
         }
-        this.contentH=y+4;
+        this.contentH=y+6;
     }
 
     draw(ctx) {
@@ -226,17 +235,17 @@ export class GuidePopup extends Panel {
         ctx.fillStyle=PALETTE.red;
         ctx.fillRect(P.x,P.y,P.w,6);
         drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:4301}),PALETTE.ink,v);
-        const ir=small?17:22;
+        const ir=small?19:24;
         let tx=P.x+24;
         if (this.model.icon) {
-            drawCourseIcon(ctx,this.model.icon,P.x+24+ir,P.y+(small?30:38),ir,v,true);
+            drawCourseIcon(ctx,this.model.icon,P.x+24+ir,P.y+(small?32:42),ir,v,true);
             tx=P.x+24+ir*2+12;
         }
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?20:24)+'px '+FONT;
+        ctx.font='bold '+(small?24:28)+'px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='middle';
-        ctx.fillText(this.model.title,tx,P.y+(small?30:38));
+        ctx.fillText(this.model.title,tx,P.y+(small?32:42));
         ctx.save();
         ctx.beginPath();
         ctx.rect(this.V.x,this.V.y,this.V.w,this.V.h);
@@ -261,8 +270,8 @@ export class GuidePopup extends Panel {
         ctx.restore();
         const ap=(this.t-0.15)/0.3;
         if (this.cancelBtn) {
-            drawButton(ctx,this.cancelBtn,this.opts.cancel,v,ap,this.hoverIdx===0,small?15:17);
+            drawButton(ctx,this.cancelBtn,this.opts.cancel,v,ap,this.hoverIdx===0,small?17:19);
         }
-        drawButton(ctx,this.okBtn,this.opts.ok||t('notice.ok'),v,ap,this.hoverIdx===(this.cancelBtn?1:0),small?15:17);
+        drawButton(ctx,this.okBtn,this.opts.ok||t('notice.ok'),v,ap,this.hoverIdx===(this.cancelBtn?1:0),small?17:19);
     }
 }

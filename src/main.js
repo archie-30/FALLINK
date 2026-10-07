@@ -43,7 +43,7 @@ import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelVie
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
 import {initMeta,clampSkin,setGate,bump,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
 import {startRelic,relic} from './game/relic.js';
-import {GuidePopup,courseGuide,modeGuide} from './ui2d/guide.js';
+import {GuidePopup,courseGuide,modeGuide,modesGuide} from './ui2d/guide.js';
 import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast,ConfirmPopup} from './ui2d/meta.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
@@ -1660,11 +1660,6 @@ function boot() {
     const mainMenu=new MainMenu({
         start:()=>beginMode('story'),
         endless:()=>beginMode('endless'),
-        info:mode=>{
-            audio.play('ui');
-            markModeSeen(mode);
-            guide.open2(modeGuide(mode),{ok:t('notice.ok')});
-        },
         settings:()=>openSettings('menu'),
         codex:()=>{
             audio.play('ui');
@@ -1853,6 +1848,7 @@ function boot() {
             equipRelic(id);
             audio.play(id?'reload':'ui');
         },
+        locked:()=>audio.play('fail'),
         back:()=>{
             audio.play('ui');
             weaponView.hide();
@@ -2005,6 +2001,12 @@ function boot() {
     };
     const settingsMenu=new SettingsMenu({
         changed:settingsChanged,
+        modes:()=>{
+            audio.play('ui');
+            markModeSeen('story');
+            markModeSeen('endless');
+            guide.open2(modesGuide(),{ok:t('notice.ok')});
+        },
         privacy:()=>{
             audio.play('ui');
             guide.open2({title:t('privacy.title'),icon:null,blocks:[
