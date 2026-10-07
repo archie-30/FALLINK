@@ -12,6 +12,7 @@ import {dots,price,statValue,chestsReady,bundlePrice} from '../core/meta.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {drawChoiceIcon} from './menu.js';
 import {wrapText} from './cardView.js';
+import {drawRelicIcon} from './relicIcons.js';
 
 const clamp01=x=>Math.max(0,Math.min(1,x));
 
@@ -456,6 +457,9 @@ export function itemName(item) {
     if (item.kind==='weapon') {
         return t('weapon.'+item.value+'.name');
     }
+    if (item.kind==='relic') {
+        return t('relic.'+item.value+'.name');
+    }
     return t('acc.'+item.value);
 }
 
@@ -726,12 +730,15 @@ export class BuyPrompt extends Panel {
             py=y0+Math.ceil(it.items.length/2)*ch+(small?14:18);
         }
         else {
-            ctx.fillText(t(it.kind==='weapon'?'meta.buyWeapon':'meta.buyTitle'),18,small?24:28);
+            ctx.fillText(t(it.kind==='weapon'?'meta.buyWeapon':(it.kind==='relic'?'meta.buyRelic':'meta.buyTitle')),18,small?24:28);
             const iy=P.h*0.4;
             const r=small?26:32;
             const bob=Math.sin(time.real*3)*2;
             if (it.kind==='weapon') {
                 this.actions.weaponIcon(ctx,it.value,48,iy+bob,r/40,v);
+            }
+            else if (it.kind==='relic') {
+                drawRelicIcon(ctx,it.value,48,iy+bob,r/44,v);
             }
             else {
                 drawItemIcon(ctx,it,48,iy+bob,r,v,this.skin);
@@ -740,7 +747,7 @@ export class BuyPrompt extends Panel {
             ctx.fillStyle=PALETTE.ink;
             fitText(ctx,itemName(it),48+r+14,iy-10,P.w-48-r-30,small?16:18,'bold ');
             ctx.fillStyle=PALETTE.nearGray;
-            fitText(ctx,itemPart(it)||t('meta.weaponEarly'),48+r+14,iy+12,P.w-48-r-30,12,'');
+            fitText(ctx,itemPart(it)||t(it.kind==='relic'?'meta.relicHint':'meta.weaponEarly'),48+r+14,iy+12,P.w-48-r-30,12,'');
         }
         ctx.font='bold '+(small?14:15)+'px '+FONT;
         ctx.textAlign='center';

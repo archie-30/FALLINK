@@ -178,6 +178,11 @@ export class Enemy {
         this.elite=!!o.elite;
         this.dummy=!!o.dummy;
         this.immortal=!!o.immortal;
+        this.courseNum=0;
+        this.courseOrig=false;
+        this.copyOf=0;
+        this.sleep=false;
+        this.noReward=false;
         this.yawGroup.scale.setScalar(d.scale*(this.elite?TUNING.elite.scale:1));
         const A=TUNING.accent;
         this.accentOn=this.elite||!!d.boss;
@@ -3865,6 +3870,9 @@ export class EnemyManager {
         }
         if (e.vulnT>0) {
             dmg*=e.vulnMult;
+        }
+        if (this.dmgHook) {
+            dmg=this.dmgHook(e,dmg);
         }
         let dead=e.hurt(dmg,dx,dz);
         if (dead&&e.immortal) {
