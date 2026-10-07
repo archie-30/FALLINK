@@ -5,7 +5,7 @@ import {createCard} from './card.js';
 export const TUTOR_STEPS=[
     {key:'move',goals:['pad'],anim:'move',ctl:'move'},
     {key:'shoot',goals:['kill'],anim:'shoot',ctl:'shoot',foes:'dummy'},
-    {key:'dash',goals:['dodge'],anim:'dodge',ctl:'dash',foes:'sprayer'},
+    {key:'dash',goals:['dodge'],anim:'dodge',ctl:'dash',foes:'pen'},
     {key:'cards',goals:['card','cancel'],anim:'cards',ctl:'cards',foes:'dummy',hand:true},
     {key:'deck',goals:['deck','detail'],draw:'deck',hand:true},
     {key:'ult',goals:['ult'],anim:'ult',ctl:'ult',foes:'dummy',hand:true,ult:true,hold:true},
@@ -75,8 +75,8 @@ export class TutorialDirector {
                 this.slots.push({type:'doodle',x:p[0],z:p[1],dummy:true,immortal:false,t:T.firstSpawn,e:null,uid:-1});
             }
         }
-        if (s.foes==='sprayer') {
-            this.slots.push({type:'sprayer',x:T.sprayer[0],z:T.sprayer[1],dummy:false,immortal:true,t:T.firstSpawn,e:null,uid:-1});
+        if (s.foes==='pen') {
+            this.slots.push({type:'bookFinal',x:T.pen[0],z:T.pen[1],dummy:false,immortal:true,tutor:true,t:T.firstSpawn,e:null,uid:-1});
         }
         if (s.hand) {
             this.hooks.showHand(!!s.ult);
@@ -165,7 +165,7 @@ export class TutorialDirector {
             }
             sl.t-=dt;
             if (sl.t<=0) {
-                sl.e=this.enemies.spawn(sl.type,sl.x,sl.z,{hpMult:1,dummy:sl.dummy,immortal:sl.immortal});
+                sl.e=this.enemies.spawn(sl.type,sl.x,sl.z,{hpMult:1,dummy:sl.dummy,immortal:sl.immortal,tutor:!!sl.tutor});
                 sl.uid=sl.e.uid;
                 sl.t=TUNING.tutorial.respawn;
                 this.events.push(sl.e);

@@ -29,7 +29,7 @@ import {Ink} from './game/ink.js';
 import {Deck} from './game/deck.js';
 import {CardEffects,createCard,cardParams} from './game/card.js';
 import {STARTING_DECK,ALL_CARDS,CARDS,isUlt,unlockedCards,TUTORIAL_MERGE} from './data/cards.js';
-import {progress,loadProgress,addXp,markSeen,markBeaten,godMode,effectiveLevel,xpToNext} from './core/progress.js';
+import {progress,loadProgress,addXp,markSeen,markBeaten,markBossIntro,godMode,effectiveLevel,xpToNext} from './core/progress.js';
 import {CardArt} from './ui2d/cardView.js';
 import {Hand} from './ui2d/hand.js';
 import {DeckView} from './ui2d/deckView.js';
@@ -43,6 +43,7 @@ import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelVie
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
 import {initMeta,clampSkin,setGate,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
 import {startRelic,relic} from './game/relic.js';
+import {saveRunSnap,loadRunSnap,clearRunSnap} from './core/runSave.js';
 import {GuidePopup,courseGuide,modeGuide,modesGuide} from './ui2d/guide.js';
 import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast,ConfirmPopup} from './ui2d/meta.js';
 import {EASE} from './core/easing.js';
@@ -670,6 +671,9 @@ function boot() {
     };
     const dmgNums=new DamageNumbers();
     enemies.onDamage=(e,dmg,crit)=>{
+        if (dmg<=0) {
+            return;
+        }
         dmgNums.spawn(e.pos.x,e.def.height*0.9,e.pos.z,dmg,crit,beamMerge?TUNING.beam.mergeTime:0);
         if (run.stats) {
             run.stats.dealt+=dmg;
@@ -706,9 +710,13 @@ function boot() {
     enemies.onSpawned=e=>{
         if (game.mode==='play') {
             markSeen(e.type);
+            if (e.def.boss&&!e.tutor&&(run.mode==='story'||run.mode==='endless')&&!progress.bossIntro.includes(e.type)) {
+                pendingBoss=e.type;
+                bossIntroT=TUNING.bossIntro.delay;
+            }
         }
     };
-    enemies.dmgHook=(e,dmg)=>run.course&&run.state==='combat'?run.course.damage(e,dmg):dmg;
+    enemies.dmgHook=(e,dmg)=>e.tutor?0:(run.course&&run.state==='combat'?run.course.damage(e,dmg):dmg);
     enemies.onKill=(e,dx,dz)=>{
         const x=e.pos.x;
         const z=e.pos.z;
@@ -788,6 +796,13 @@ function boot() {
             particles.burst(p.pos.x,1.2,p.pos.z,TUNING.equip.particles,{color:'ink',speed:[2,5],up:[2,5],size:[0.08,0.16]});
         }
     };
+    weaponSys.compass.onProp=(piece,dmg)=>{
+        if (piece.state!=='alive'||time.real-(piece.compHit||-9)<TUNING.weaponFx.compass.propGap) {
+            return;
+        }
+        piece.compHit=time.real;
+        game.room.damagePiece(piece,dmg);
+    };
     weaponSys.compass.onReturn=(x,z,caught,struck)=>{
         if (!struck&&player.W.missCut) {
             player.cdT*=player.W.missCut;
@@ -849,6 +864,20 @@ function boot() {
         fx.cameraShake(0.25);
         paperShards.burst(p.pos.x-dx*0.8,1.0,p.pos.z-dz*0.8,4,-dx,-dz,0.8);
         particles.burst(p.pos.x,1.0,p.pos.z,6,{color:'farGray',speed:[2,5],up:[2,4]});
+    };
+    let fortFx=0;
+    player.events.onFortHit=(p,dx,dz)=>{
+        if (time.real-fortFx<TUNING.effects.fortFxGap) {
+            return;
+        }
+        fortFx=time.real;
+        const R=TUNING.effects.fortRadius;
+        particles.burst(p.pos.x-dx*R,1.0,p.pos.z-dz*R,6,{color:'farGray',speed:[1,4],up:[1,3],size:[0.06,0.12]});
+        audio.play('draw',1.8);
+    };
+    player.events.onFortEnd=p=>{
+        paperShards.burst(p.pos.x,1.0,p.pos.z,8,0,0,1.2);
+        audio.play('erase',1.1);
     };
     const pickups=new Pickups(actors);
     player.events.onDualEnd=p=>{
@@ -1224,14 +1253,14 @@ function boot() {
             audio.play('clear',0.8);
             upgradeView.show(id,done);
         },
-        openReward:(groups,counts,cb,forced=false)=>{
+        openReward:(groups,counts,cb,forced=false,title=null)=>{
             fx.paused=true;
             hand.cancelTargeting();
             for (const g of groups) {
                 art.warm(g.cards);
             }
             const d=hand.drawRect;
-            reward.show(groups,run.plan.boss?t('reward.bossTitle'):t('reward.title'),counts,cb,{x:d.x+d.w/2,y:d.y+d.h/2},forced);
+            reward.show(groups,title||(run.plan.boss?t('reward.bossTitle'):t('reward.title')),counts,cb,{x:d.x+d.w/2,y:d.y+d.h/2},forced);
         },
         openDoors:quiet=>{
             doors.openAll();
@@ -1264,6 +1293,8 @@ function boot() {
         },
         toast:(key,params,card)=>overlay.hud.toast(t(key,{...params,name:card?t(CARDS[card].nameKey):''})),
         hp:()=>player.hp,
+        saveRun:data=>saveRunSnap({...data,hp:player.hp,ink:ink.value,weapon:player.weaponId,relic:relic.id,guard:relic.guard}),
+        clearRun:()=>clearRunSnap(),
         showReport:(title,lines,cb)=>{
             const SK={'note.score':1,'note.scoreLoss':-1,'note.paid':-1};
             overlay.hud.showResult(t(title.key,title.params?{name:t(title.params.name)}:{}),lines.map(l=>({text:t(l.key,{...l.params,name:l.card?t(CARDS[l.card].nameKey):''}),bad:l.bad,score:SK[l.key]?SK[l.key]*l.params.n:0})));
@@ -1346,6 +1377,7 @@ function boot() {
             });
         },
         showSummary:(victory,stats,quit=false)=>{
+            clearRunSnap();
             fx.paused=true;
             hand.cancelTargeting();
             const scoring=run.mode==='story'||run.mode==='endless';
@@ -1512,6 +1544,7 @@ function boot() {
         ink.value=TUNING.ink.start;
         trainFixed=[];
         pendingGuide=null;
+        pendingBoss=null;
         startRelic(mode==='story'||mode==='endless'?equippedRelic():'');
         equipWeapon(mode!=='training');
         if (mode==='tutorial') {
@@ -1531,7 +1564,63 @@ function boot() {
             openPicker(true);
         }
     }
+    function resumeRun(s,settle) {
+        coach.reset();
+        mainMenu.hide();
+        game.mode='play';
+        trainFixed=[];
+        pendingGuide=null;
+        pendingBoss=null;
+        startRelic(s.relic||'');
+        relic.guard=s.guard||0;
+        player.setWeapon(WEAPONS[s.weapon]?s.weapon:'pen');
+        resetTrainStats();
+        deck.provider=null;
+        effects.lastUlt=null;
+        run.restore(s);
+        player.hp=Math.max(1,Math.min(TUNING.player.maxHp,s.hp||TUNING.player.maxHp));
+        ink.value=Math.max(0,s.ink??TUNING.ink.start);
+        if (settle) {
+            run.quit();
+            return;
+        }
+        overlay.hud.banner(t('resume.banner'),resumePlace(s),2.4);
+    }
+    function resumePlace(s) {
+        const p=s.plan;
+        if (p.overtime) {
+            return t('run.overtimeTitle',{page:(p.otPage||0)+1});
+        }
+        if (s.mode==='endless') {
+            return t('run.endlessTitle',endlessAP(p.index));
+        }
+        return t('run.roomTitle',{act:p.act+1,page:p.index+1});
+    }
+    function offerResume() {
+        const s=loadRunSnap();
+        if (!s) {
+            return;
+        }
+        guide.open2({title:t('resume.title'),icon:null,blocks:[
+            {kind:'text',text:t('resume.body')},
+            {kind:'bullet',text:t('resume.mode',{mode:t('modeinfo.'+s.mode+'.title')})},
+            {kind:'bullet',text:t('resume.page',{page:resumePlace(s)})},
+            {kind:'bullet',text:t('resume.score',{n:s.stats.score||0})},
+            {kind:'text',text:t('resume.note')}
+        ]},{ok:t('resume.continue'),cancel:t('resume.settle'),esc:'ok',onOk:()=>resumeRun(s,false),onCancel:()=>resumeRun(s,true)});
+    }
     let pendingGuide=null;
+    let pendingBoss=null;
+    let bossIntroT=0;
+    function openBossIntro(id) {
+        if (game.mode!=='play'||!markBossIntro(id)) {
+            return;
+        }
+        audio.play('ui');
+        hand.cancelTargeting();
+        fx.paused=true;
+        codex.showSolo(id,()=>resumeGame());
+    }
     function openCourseGuide(id,intro) {
         if (game.mode!=='play'||run.mode!=='endless'||guide.open) {
             return;
@@ -2140,10 +2229,11 @@ function boot() {
         art.setScale(overlay.dpr*hand.s*uiS*1.2);
         rig.setAspect(w/h);
     }
+    let debugHide=false;
     input.onToggleDebug=()=>{
-        overlay.showDebug=!overlay.showDebug;
-        settings.showFps=overlay.showDebug;
-        saveSettings();
+        if (settings.godMode) {
+            debugHide=!debugHide;
+        }
     };
     input.onCycleQuality=()=>{
         const i=QUALITY_ORDER.indexOf(settings.quality);
@@ -2593,7 +2683,7 @@ function boot() {
             openPause();
         }
     });
-    overlay.showDebug=settings.showFps;
+    overlay.showDebug=false;
     window.addEventListener('resize',resize);
     window.addEventListener('orientationchange',()=>setTimeout(resize,150));
     if (window.visualViewport) {
@@ -2692,9 +2782,9 @@ function boot() {
         if (pickups.items.filter(q=>q.active&&q.type==='ink').length>=B.max) {
             return;
         }
-        for (let i=0;i<8;i++) {
+        for (let i=0;i<B.tries;i++) {
             const s=game.room.freeSpot(dropRng);
-            if (s&&Math.hypot(s.x-player.pos.x,s.z-player.pos.z)>=B.minPlayerDist) {
+            if (s&&Math.hypot(s.x-player.pos.x,s.z-player.pos.z)>=B.minPlayerDist&&!enemies.list.some(e=>e.alive&&Math.hypot(s.x-e.pos.x,s.z-e.pos.z)<B.minFoeDist+(e.def.radius||0))) {
                 pickups.spawn('ink',s.x,s.z,B.ink);
                 rings.spawn(s.x,s.z,1.2,'ink',0.4);
                 particles.burst(s.x,2.5,s.z,8,{speed:[1,3],up:[-4,-1],size:[0.08,0.14]});
@@ -2926,6 +3016,14 @@ function boot() {
             pendingGuide=null;
             openCourseGuide(gid,true);
         }
+        if (pendingBoss&&!transition.active&&game.mode==='play'&&run.state==='combat'&&!pauseMenu.open&&!guide.open&&!codex.open&&!fx.cutin) {
+            bossIntroT-=dt;
+            if (bossIntroT<=0) {
+                const bid=pendingBoss;
+                pendingBoss=null;
+                openBossIntro(bid);
+            }
+        }
         gameUi.resumeT=resumeT;
         setTouchText(input.lastDevice==='touch');
         music.update(musicTrack());
@@ -3081,7 +3179,7 @@ function boot() {
         debugInfo.pixelRatio=renderer.pixelRatio;
         debugInfo.scale=gov.scale;
         debugInfo.cap=time.fpsCap;
-        overlay.showDebug=settings.showFps||settings.godMode;
+        overlay.showDebug=!!settings.godMode&&!debugHide;
         debugInfo.resolution=renderer.post.target.width+'×'+renderer.post.target.height;
         overlay.draw(input,player,debugInfo,gameUi);
     }
@@ -3120,6 +3218,9 @@ function boot() {
     }
     else if (!settings.tutorialSeen) {
         startGame('tutorial');
+    }
+    else {
+        offerResume();
     }
     if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);

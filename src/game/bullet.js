@@ -97,6 +97,7 @@ export class BulletSystem {
         this.onReturn=null;
         this.n=0;
         this.onWall=null;
+        this.onProp=null;
         this.onHit=null;
         this.onSeek=null;
         let geo;
@@ -373,6 +374,9 @@ export class BulletSystem {
                     continue;
                 }
                 if (this.boomerang&&col.piece&&(col.piece.kind==='barrel'||col.piece.kind==='crate')) {
+                    if (this.onProp&&circleVs(x,z,r,col,hit)) {
+                        this.onProp(col.piece,this.dmg[i]);
+                    }
                     continue;
                 }
                 if (circleVs(x,z,wr,col,hit)&&!(this.boomerang&&hit.x*this.vx[i]+hit.z*this.vz[i]>=0)) {

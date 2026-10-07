@@ -1015,6 +1015,17 @@ export class CardEffects {
         }
     }
 
+    inkBarrier(duration) {
+        const g=this.g;
+        const p=g.player;
+        p.setFort(duration);
+        p.sqv+=2;
+        g.fx.fovPunch(1.6);
+        g.fx.cameraShake(0.3);
+        g.rings.spawn(p.pos.x,p.pos.z,this.E.fortRadius*1.6,'ink',0.5);
+        g.particles.burst(p.pos.x,1.0,p.pos.z,20,{color:'farGray',speed:[2,6],up:[2,5],size:[0.08,0.16]});
+    }
+
     freezeAll(duration) {
         const g=this.g;
         for (const e of g.enemies.list) {

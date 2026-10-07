@@ -172,7 +172,7 @@ export class Overlay {
                     ctx.fillStyle=PALETTE.nearGray;
                     ctx.textAlign='center';
                     ctx.textBaseline='middle';
-                    ctx.fillText(t(input.lastDevice==='touch'?'pause.hintTouch':'pause.hint'),this.width/2,game.pause.compact()?game.pause.hintY():this.height-game.hand.s*164*0.8-100*game.hand.s);
+                    ctx.fillText(t(input.lastDevice==='touch'?'pause.hintTouch':'pause.hint'),this.width/2,game.pause.hintY());
                 }
             }
         }

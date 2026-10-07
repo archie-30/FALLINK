@@ -12,7 +12,7 @@ import {NOTEBOOK} from '../data/notebook.js';
 import {MINIGAMES} from '../data/minigames.js';
 import {WEAPON_ORDER} from '../data/weapons.js';
 import {t} from '../data/strings.js';
-import {bump,setMax,resetRevive} from '../core/meta.js';
+import {bump,setMax,resetRevive,reviveCount,setRevive} from '../core/meta.js';
 import {COURSE_ORDER} from '../data/courses.js';
 import {CourseRun} from './course.js';
 
@@ -50,7 +50,65 @@ export class Run {
         const ids=mode==='training'?unlockedCards(effectiveLevel()):(mode==='tutorial'?TUTORIAL_DECK:(startDeck||STARTING_DECK));
         this.deckList=ids.map(id=>({id,upgraded:false}));
         this.stats={kills:0,cards:0,damage:0,taken:0,dealt:0,rooms:0,time:0,bosses:0,act:0,xp:0,score:0,log:[]};
+        this.hooks.clearRun();
         this.enter();
+    }
+
+    saveable() {
+        return (this.mode==='story'||this.mode==='endless')&&!!this.stats&&!!this.plan&&this.state!=='dead'&&this.state!=='summary';
+    }
+
+    snapshot() {
+        if (!this.saveable()) {
+            return;
+        }
+        const p=this.plan;
+        const plan={};
+        for (const k of ['act','index','peace','node','boss','bossType','layoutKey','layout','hpMult','exits','overtime','otPage','endless']) {
+            if (p[k]!==undefined) {
+                plan[k]=p[k];
+            }
+        }
+        this.hooks.saveRun({mode:this.mode,rng:this.rng.s,seed:this.seed,act:this.act,index:this.index,lastLayout:this.lastLayout,lastTypes:this.lastTypes,usedBosses:this.usedBosses,lastEvent:this.lastEvent,lastGames:this.lastGames,lastPrize:this.lastPrize,courseBag:this.courseBag,courseIdx:this.courseIdx||0,courseSeen:[...this.courseSeen],overtime:this.overtime,otPage:this.otPage,node:this.node,eliteNext:this.eliteNext,revived:reviveCount(),deck:this.deckList,stats:this.stats,plan});
+    }
+
+    restore(s) {
+        this.mode=s.mode;
+        setRevive(s.revived);
+        this.seed=s.seed||this.seed;
+        this.rng=new RNG(1);
+        this.rng.s=s.rng>>>0;
+        this.act=s.act;
+        this.index=s.index;
+        this.lastLayout=s.lastLayout||null;
+        this.lastTypes=s.lastTypes||[];
+        this.usedBosses=s.usedBosses||[];
+        this.lastEvent=s.lastEvent||null;
+        this.lastGames=s.lastGames||[];
+        this.lastPrize=s.lastPrize||null;
+        this.trainGame=null;
+        this.course=null;
+        this.courseBag=s.courseBag||[];
+        this.courseIdx=s.courseIdx||0;
+        this.courseSeen=new Set(s.courseSeen||[]);
+        this.overtime=!!s.overtime;
+        this.otPage=s.otPage||0;
+        this.node=s.node||'battle';
+        this.eliteNext=!!s.eliteNext;
+        this.ambushAfter=null;
+        this.report=null;
+        this.deckList=s.deck.map(c=>({id:c.id,upgraded:!!c.upgraded})).filter(c=>CARDS[c.id]);
+        this.stats=s.stats;
+        this.stats.log=this.stats.log||[];
+        const plan={...s.plan,npcs:[],waves:[],barrels:0,crates:0,restored:true};
+        this.plan=plan;
+        this.director=null;
+        this.timer=0;
+        this.npcUsed=[];
+        this.room=this.hooks.enterRoom(plan,this.deckList);
+        this.state=plan.peace?'peace':'exit';
+        this.exitsOpen=true;
+        this.hooks.openDoors(true);
     }
 
     scoreMult() {
@@ -416,6 +474,7 @@ export class Run {
             this.state='exit';
         }
         this.hooks.openDoors();
+        this.snapshot();
     }
 
     canExit() {
@@ -430,6 +489,9 @@ export class Run {
         if (ex.kind==='games') {
             this.hooks.openGames();
             return true;
+        }
+        if (ex.kind!=='home'&&ex.kind!=='back') {
+            this.snapshot();
         }
         this.exitsOpen=false;
         if (ex.kind==='home') {
@@ -513,6 +575,7 @@ export class Run {
         this.preDead=this.state;
         this.reviving=false;
         this.state='dead';
+        this.hooks.clearRun();
         this.timer=1.6;
         this.hooks.onDeath();
     }
@@ -1092,8 +1155,13 @@ export class Run {
                     return;
                 }
                 this.state='reward';
-                const groups=this.plan.boss?[{kind:'normal',cards:this.rewardChoices('normal')},{kind:'rare',cards:this.rewardChoices('rare')}]:[{kind:'mixed',cards:this.rewardChoices('mixed',this.plan.elite?NOTEBOOK.eliteRareChance:null)}];
-                this.hooks.openReward(groups,this.deckCounts(),cards=>this.takeCards(cards));
+                if (this.plan.boss) {
+                    this.hooks.openReward([{kind:'normal',cards:this.rewardChoices('normal')}],this.deckCounts(),cards=>this.takeCards(cards,()=>{
+                        this.hooks.openReward([{kind:'rare',cards:this.rewardChoices('rare')}],this.deckCounts(),more=>this.takeCards(more),false,t('reward.boss2'));
+                    }),false,t('reward.boss1'));
+                    return;
+                }
+                this.hooks.openReward([{kind:'mixed',cards:this.rewardChoices('mixed',this.plan.elite?NOTEBOOK.eliteRareChance:null)}],this.deckCounts(),cards=>this.takeCards(cards));
             }
             return;
         }

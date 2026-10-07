@@ -1008,6 +1008,44 @@ export const CARD_ANIMS={
             }
         }
     },
+    inkBarrier:{
+        period:3.4,
+        draw(S,k,t) {
+            S.player(PX,PY,0);
+            S.enemy('sprayer',13,PY-1.2);
+            S.enemy('doodle',12.5,PY+1.6);
+            const on=seg(k,0.12,0.2);
+            const off=1-seg(k,0.86,0.9);
+            const live=on*off;
+            for (let i=0;i<6;i++) {
+                const k0=0.18+i*0.1;
+                const y0=PY-1.2+(i%2)*2.8;
+                if (k>=k0&&k<=k0+0.18) {
+                    const f=seg(k,k0,k0+0.18);
+                    S.bullet(lerp(12.3,PX+1.5,f),lerp(y0,PY+(y0-PY)*0.3,f),'enemy');
+                }
+            }
+            if (live>0) {
+                const c=S.ctx;
+                const n=12;
+                const blink=k>0.72&&Math.floor(t*10)%2===0;
+                for (let i=0;i<n&&!blink;i++) {
+                    const an=t*0.8+i*Math.PI*2/n;
+                    const r=1.45*(0.5+0.5*live);
+                    c.save();
+                    c.globalAlpha=live;
+                    c.translate(PX+Math.cos(an)*r,PY+Math.sin(an)*r);
+                    c.rotate(an);
+                    c.fillStyle=PALETTE.paper;
+                    c.fillRect(-0.12,-0.42,0.24,0.84);
+                    c.strokeStyle=PALETTE.ink;
+                    c.lineWidth=0.07;
+                    c.strokeRect(-0.12,-0.42,0.24,0.84);
+                    c.restore();
+                }
+            }
+        }
+    },
     freezeAll:{
         period:3.4,
         draw(S,k) {
@@ -2275,29 +2313,38 @@ export const TUTOR_ANIMS={
         }
     },
     dodge:{
-        period:3.2,
+        period:3.6,
         draw(S,k) {
-            const ex=13.5;
-            const px=7;
-            const y0=6.8;
-            const y1=2.3;
-            const d0=0.34;
-            const d1=0.42;
-            S.tele(ex-1,PY,1,PY,seg(k,0.02,0.1)*(1-seg(k,0.12,0.16)));
-            for (const s of [0.14,0.2,0.26,0.32,0.38,0.44]) {
-                S.fly(ex-1,PY,0.4,PY,k,s,s+0.3,'enemy');
+            const cx=13.2;
+            const px=6.6;
+            const R0=2.2;
+            const R1=12;
+            const a0=Math.PI-1.1;
+            const arc=2.2;
+            S.enemy('bookFinal',cx,PY,{size:2.2});
+            const tele=seg(k,0.02,0.12)*(1-seg(k,0.26,0.28));
+            for (const a of [a0,a0+arc]) {
+                S.line(cx+Math.cos(a)*R0,PY+Math.sin(a)*R0,cx+Math.cos(a)*R1,PY+Math.sin(a)*R1,PALETTE.red,0.07,tele);
             }
-            S.enemy('sprayer',ex,PY,{});
+            const sw=seg(k,0.28,0.74);
+            if (sw>0&&sw<1) {
+                const a=a0+arc*sw;
+                S.line(cx+Math.cos(a)*R0,PY+Math.sin(a)*R0,cx+Math.cos(a)*R1,PY+Math.sin(a)*R1,PALETTE.ink,0.4,1);
+            }
+            const y0=PY-1.7;
+            const y1=PY+1.9;
+            const d0=0.5;
+            const d1=0.58;
             const f=easeOut(seg(k,d0,d1));
             const fade=1-seg(k,d1,d1+0.18);
             if (f>0) {
                 for (let g=1;g<=3;g++) {
-                    S.player(px,lerp(y0,y1,Math.max(0,f-g*0.22)),-Math.PI/2,{ghost:true,alpha:0.55*(1-g/4)*fade});
+                    S.player(px,lerp(y0,y1,Math.max(0,f-g*0.22)),Math.PI/2,{ghost:true,alpha:0.55*(1-g/4)*fade});
                 }
             }
-            S.player(px,lerp(y0,y1,f),-Math.PI/2,{flash:f>0&&f<1?1:0});
-            const tx=seg(k,d0+0.02,d0+0.08)*(1-seg(k,0.78,0.86));
-            S.text(t('tut.invuln'),px+2.2,PY,Math.max(9,S.s*0.8),PALETTE.red,tx);
+            S.player(px,lerp(y0,y1,f),Math.PI/2,{flash:f>0&&f<1?1:0});
+            const tx=seg(k,d0+0.02,d0+0.08)*(1-seg(k,0.8,0.88));
+            S.text(t('tut.invuln'),px-2.6,PY,Math.max(9,S.s*0.8),PALETTE.red,tx);
         }
     }
 };

@@ -293,6 +293,14 @@ export function resetRevive() {
     revived=0;
 }
 
+export function reviveCount() {
+    return revived;
+}
+
+export function setRevive(n) {
+    revived=n||0;
+}
+
 export function clampSkin(skin) {
     const out={...DEFAULT_SKIN,...ACC_DEFAULT,...skin};
     for (const q of SKIN_PARTS) {

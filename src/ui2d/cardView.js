@@ -419,6 +419,22 @@ const ICONS={
         ctx.restore();
         drawShape(ctx,sketchLine(cx-36,cy+30,cx+36,cy+24,{width:5,seed:330,taper:0.15}),PALETTE.ink,v);
     },
+    inkBarrier(ctx,v,cx,cy) {
+        for (let i=0;i<8;i++) {
+            const a=i/8*Math.PI*2;
+            const pts=[];
+            for (let k=0;k<=4;k++) {
+                const b=a-0.36+k*0.72/4;
+                pts.push([cx+Math.cos(b)*28,cy+4+Math.sin(b)*24]);
+            }
+            drawShape(ctx,sketchPath(pts,{width:5,seed:350+i,taper:0.4,overshoot:0}),PALETTE.midGray,v);
+            drawShape(ctx,sketchPath(pts,{width:1.4,seed:360+i,overshoot:1}),PALETTE.ink,v);
+        }
+        dot(ctx,cx,cy-2,6,PALETTE.ink);
+        dot(ctx,cx,cy+12,8,PALETTE.ink);
+        dot(ctx,cx+38,cy-18,3,PALETTE.red);
+        dot(ctx,cx-38,cy+22,3,PALETTE.red);
+    },
     freezeAll(ctx,v,cx,cy) {
         ctx.save();
         ctx.translate(cx,cy);
