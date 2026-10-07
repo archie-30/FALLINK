@@ -40,6 +40,7 @@ export const TUNING={
         depthBoost:0.4,
         smallMinWidth:0.6,
         minLine:0.9,
+        aaOffset:0.35,
         hullWidth:0.035,
         mobileHull:0.7,
         lineGrain:0.2
@@ -330,7 +331,7 @@ export const TUNING={
     hand:{showTime:0.55,hideOffset:260},
     choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,descMax:5,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:124,btnH:44,lineH:21,maxLines:2},
-    langPick:{btnW:240,btnH:70,gap:24,y:0.34,goW:200,goH:52,goGap:44,noteGap:24,sizeGap:58,sizeW:96,sizeH:44,sizeSep:14},
+    langPick:{showLang:false,previewGap:46,btnW:240,btnH:70,gap:24,y:0.34,goW:200,goH:52,goGap:44,noteGap:24,sizeGap:58,sizeW:96,sizeH:44,sizeSep:14},
     settingsUi:{
         lang:{w:230,h:34,pad:14,item:36,openTime:0.32,closeTime:0.2,stagger:0.2,pickDecay:3,pop:0.1},
         devCode:'0012830',
@@ -675,8 +676,8 @@ export const TUNING={
     },
     quality:{
         low:{pixelRatio:2.0,grain:false,hatchedShadow:false,anisotropy:1,particles:100,hulls:false,fastEdge:true,wobble:false,decals:8},
-        mid:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:2,particles:220,fastEdge:true,wobble:true,decals:16},
-        high:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:4,particles:500,fastEdge:false,wobble:true,decals:24}
+        mid:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:2,particles:220,fastEdge:true,wobble:true,decals:16,edgeAA:true},
+        high:{pixelRatio:2.0,mobileCap:2.0,grain:true,hatchedShadow:true,anisotropy:4,particles:500,fastEdge:false,wobble:true,decals:24,edgeAA:true}
     },
     pixelRatioCap:{
         mobile:1.5,
@@ -707,7 +708,7 @@ export const TUNING={
         pe:{speed:1.2,foe:1.2,time:90,reward:{score:1000,dots:1}},
         copy:{every:6,max:4,hp:0.5,reward:{score:800,hp:2}},
         dodge:{every:1.6,first:2.5,speed:11,life:2.2,spread:0.08,distX:7.5,distZ:4.5,warn:0.7,dashCd:0.6,goal:4,reward:{score:900,dots:1}},
-        music:{every:2,first:2,life:3,radius:1.3,max:2,minFar:3,rangeX:8,rangeZ:4.5,goal:6,reward:{score:900,hp:1,ink:1}},
+        music:{every:3.2,first:2,life:3,radius:1.3,max:2,minFar:3,rangeX:8,rangeZ:4.5,goal:6,reward:{score:900,hp:1,ink:1}},
         ui:{barW:300,barWSmall:200,barY:48,shift:14,iconR:15,iconGap:12}
     },
     spin:{radius:2.5,still:0.3,pause:2,back:0.8},

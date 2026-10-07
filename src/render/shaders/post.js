@@ -21,6 +21,7 @@ uniform vec2 uLineFade;
 uniform vec4 uEdge;
 uniform float uLineScale;
 uniform float uMinLine;
+uniform float uAA;
 uniform vec3 uInk;
 uniform vec2 uPaperOff;
 uniform vec2 uGrain;
@@ -75,7 +76,12 @@ void main() {
     vec2 off=n*2.0*mix(uBoil.x,uBoil.y,fade)*uPx/uRes*(1.0-calm);
     #endif
     vec2 px=max(mix(uLine.x,uLine.y,fade)*uPx*uLineScale,uMinLine)/uRes;
+    #ifdef EDGE_AA
+    vec2 aa=uAA/uRes;
+    float edge=0.5*(edgeAt(uv+off+aa,px)+edgeAt(uv+off-aa,px));
+    #else
     float edge=edgeAt(uv+off,px);
+    #endif
     float grain=texture2D(tPaper,(gl_FragCoord.xy-uPaperOff)/(uGrain.y*uPx)).r;
     edge*=mix(1.0,uLine.z,fade)*(1.0-uLineGrain+uLineGrain*grain);
     vec3 col=texture2D(tColor,uv).rgb;
