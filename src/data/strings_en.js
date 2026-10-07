@@ -726,7 +726,6 @@ export const STRINGS_EN={
     'resume.mode':'Mode: {mode}',
     'resume.page':'Progress: {page} (cleared)',
     'resume.score':'Score so far: {n}',
-    'resume.note':'“Continue” takes you back to that page with its doors open; “Settle now” goes straight to the results with that page’s record.',
     'resume.continue':'Continue',
     'resume.settle':'Settle now',
     'resume.banner':'Resuming your last run',

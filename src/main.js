@@ -1662,8 +1662,7 @@ function boot() {
             {kind:'text',text:t('resume.body')},
             {kind:'bullet',text:t('resume.mode',{mode:t('modeinfo.'+s.mode+'.title')})},
             {kind:'bullet',text:t('resume.page',{page:resumePlace(s)})},
-            {kind:'bullet',text:t('resume.score',{n:s.stats.score||0})},
-            {kind:'text',text:t('resume.note')}
+            {kind:'bullet',text:t('resume.score',{n:s.stats.score||0})}
         ]},{ok:t('resume.continue'),cancel:t('resume.settle'),esc:'ok',onOk:()=>resumeRun(s,false),onCancel:()=>resumeRun(s,true)});
     }
     let pendingGuide=null;

@@ -728,7 +728,6 @@ export const STRINGS={
     'resume.mode':'模式：{mode}',
     'resume.page':'進度：{page}（已通過）',
     'resume.score':'目前分數：{n}',
-    'resume.note':'「繼續遊玩」會回到該頁、門已打開；「立即結算」會直接以該頁的成績進入結算畫面。',
     'resume.continue':'繼續遊玩',
     'resume.settle':'立即結算',
     'resume.banner':'繼續上次的遊戲',
