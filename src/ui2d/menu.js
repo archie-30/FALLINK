@@ -22,7 +22,7 @@ import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip,cardBrief,card
 import {ENEMY_ICONS} from './enemyIcons.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {ACC_SLOTS,ACC_DEFAULT} from '../data/cosmetics.js';
-import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,randomSkin,ownsRelic,equippedRelic,relicPrice,modeSeen} from '../core/meta.js';
+import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,randomSkin,ownsRelic,equippedRelic,relicPrice,relicsUnlocked} from '../core/meta.js';
 import {drawAcc,drawAccIcon,drawLock,drawWallet,drawInkDot,drawMiniChest,drawItemIcon} from './meta.js';
 import {drawRelicIcon} from './relicIcons.js';
 import {RELIC_ORDER} from '../data/relics.js';
@@ -137,22 +137,16 @@ export class MainMenu extends Panel {
         const {cx,cw}=this.column();
         const M=TUNING.menu;
         this.buttons=[];
+        const bw=Math.min(small?220:260,cw);
         const top=small?h*0.3:h*0.3;
         const subH=small?M.bestGapSmall:M.bestGap;
         const avail=(small?h-top-14:h-top-120)-subH*MENU_SUBS.length;
         const gap=small?6:10;
         const bh=Math.min(small?40:52,avail/MENU_ACTS.length-gap);
-        const bw=Math.min(small?220:260,cw-bh-10);
-        const bx=cx-(bw+bh+10)/2;
-        this.btnCx=bx+bw/2;
-        this.infoBtns=[];
         let y=top;
         this.subY=[];
         for (let i=0;i<MENU_ACTS.length;i++) {
-            this.buttons.push({x:bx,y,w:bw,h:bh});
-            if (i<2) {
-                this.infoBtns.push({x:bx+bw+10,y,w:bh,h:bh,mode:i===0?'story':'endless'});
-            }
+            this.buttons.push({x:cx-bw/2,y,w:bw,h:bh});
             y+=bh+gap;
             if (MENU_SUBS.includes(i)) {
                 this.subY[i]=y+subH/2-gap/2;
@@ -173,7 +167,6 @@ export class MainMenu extends Panel {
     hover(x,y) {
         super.hover(x,y);
         this.levelHover=!!this.levelRect&&inRect(this.levelRect,x,y);
-        this.infoHover=this.infoBtns?this.infoBtns.findIndex(q=>inRect(q,x,y)):-1;
     }
 
     down(x,y) {
@@ -188,12 +181,6 @@ export class MainMenu extends Panel {
         if (this.walletRect&&inRect(this.walletRect,x,y)) {
             this.actions.achieve();
             return true;
-        }
-        for (const q of this.infoBtns) {
-            if (inRect(q,x,y)) {
-                this.actions.info(q.mode);
-                return true;
-            }
         }
         const i=this.hitButton(x,y);
         if (i>=0) {
@@ -220,35 +207,6 @@ export class MainMenu extends Panel {
         const r=drawWallet(ctx,x,y-(small?12:14),v,'left',small?13:15,this.walletPulse||0);
         this.walletRect={x:r.x-4,y:r.y-6,w:r.w+8,h:r.h+12};
         ctx.restore();
-    }
-
-    drawInfoBtns(ctx,v) {
-        for (let i=0;i<this.infoBtns.length;i++) {
-            const b=this.infoBtns[i];
-            const ap=(this.t-0.35-i*0.08)/0.45;
-            if (ap<=0) {
-                continue;
-            }
-            const hv=this.infoHover===i;
-            const e=EASE.easeOutBack(Math.min(1,ap));
-            const r=b.h*0.36;
-            const first=!modeSeen(b.mode);
-            ctx.save();
-            ctx.globalAlpha=Math.min(1,ap*2);
-            ctx.translate(b.x+b.w/2,b.y+b.h/2);
-            ctx.scale(e*(hv?1.1:1),e*(hv?1.1:1));
-            ctx.fillStyle=hv?rgba('farGray',0.95):rgba('paper',0.92);
-            ctx.beginPath();
-            ctx.arc(0,0,r*1.25,0,Math.PI*2);
-            ctx.fill();
-            drawShape(ctx,sketchCircle(0,0,r*1.25,{width:hv?2.6:2,seed:1410+i}),first?PALETTE.red:PALETTE.ink,v);
-            ctx.fillStyle=first?PALETTE.red:PALETTE.ink;
-            ctx.font='bold '+Math.round(r*1.5)+'px '+FONT;
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            ctx.fillText('i',0,r*0.08);
-            ctx.restore();
-        }
     }
 
     drawAchBadge(ctx) {
@@ -363,7 +321,7 @@ export class MainMenu extends Panel {
         if (a<=0) {
             return;
         }
-        const cx=this.btnCx;
+        const {cx}=this.column();
         const small=this.height<600;
         ctx.save();
         ctx.globalAlpha=a;
@@ -514,7 +472,6 @@ export class MainMenu extends Panel {
         for (let i=0;i<MENU_ACTS.length;i++) {
             drawButton(ctx,this.buttons[i],t('menu.'+MENU_ACTS[i]),v,(this.t-0.35-i*0.08)/0.45,this.hoverIdx===i,this.buttons[i].h<46?19:22);
         }
-        this.drawInfoBtns(ctx,v);
         this.drawAchBadge(ctx);
         this.drawBar(ctx,v);
         this.drawWalletChip(ctx,v);
@@ -1166,6 +1123,7 @@ export class SettingsMenu extends Panel {
         }
         ctx.restore();
         if (!touch) {
+            this.drawModeBtn(ctx,v);
             this.drawPrivacy(ctx,v);
             this.drawLang(ctx,v);
         }
@@ -1194,6 +1152,38 @@ export class SettingsMenu extends Panel {
             return {x,y:b.y,w,h:b.h};
         }
         return {x:b.x+b.w-w,y:b.y+b.h+6,w,h:b.h};
+    }
+
+    modeBox() {
+        const P=this.panel;
+        const p=this.privBox();
+        const l=this.langBox();
+        const w=78;
+        const x=p.x-8-w;
+        if (x>=P.x+P.w*0.55) {
+            return {x,y:p.y,w,h:p.h};
+        }
+        if (p.y===l.y) {
+            return {x:l.x+l.w-w,y:l.y+l.h+6,w,h:p.h};
+        }
+        return {x:l.x+l.w-w,y:p.y+p.h+6,w,h:p.h};
+    }
+
+    drawModeBtn(ctx,v) {
+        const b=this.modeBox();
+        const a=Math.min(1,this.t*4);
+        ctx.save();
+        ctx.globalAlpha*=a;
+        const hv=inRect(b,this.hx??-1,this.hy??-1);
+        ctx.fillStyle=hv?rgba('farGray',0.95):PALETTE.paper;
+        ctx.fillRect(b.x,b.y,b.w,b.h);
+        drawShape(ctx,sketchRect(b.x,b.y,b.w,b.h,{width:1.8,seed:1492}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 14px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('settings.modes'),b.x+b.w/2,b.y+b.h/2+1,b.w-12);
+        ctx.restore();
     }
 
     drawPrivacy(ctx,v) {
@@ -1329,6 +1319,10 @@ export class SettingsMenu extends Panel {
         }
         if (inRect(this.privBox(),x,y)) {
             this.actions.privacy();
+            return true;
+        }
+        if (inRect(this.modeBox(),x,y)) {
+            this.actions.modes();
             return true;
         }
         return false;
@@ -7078,24 +7072,38 @@ export class WeaponView extends Panel {
         this.tabHits=[];
         this.relHits=[];
         this.relPop=0;
+        this.tabPos=0;
+        this.tabT=9;
+        this.tabDir=1;
+        this.lockMsg=0;
+        this.relEquipT=9;
+        this.relEquipId='';
     }
 
     show() {
         super.show();
         this.sel=settings.weapon||'pen';
         this.tab='weapon';
+        this.tabPos=0;
+        this.tabT=9;
+        this.lockMsg=0;
         this.relSel=equippedRelic()||RELIC_ORDER[0];
         this.animT=0;
         this.pop=0;
         this.relPop=0;
+        this.relEquipT=9;
+    }
+
+    relicsOpen() {
+        return relicsUnlocked();
     }
 
     tabRects() {
         const P=this.P;
         const small=this.height<600;
-        const tw=small?66:88;
-        const th=small?26:32;
-        const y=P.y+(small?9:18);
+        const tw=small?78:104;
+        const th=small?30:36;
+        const y=P.y+(small?7:15);
         const x0=P.x+P.w-24-tw*2-8;
         return [{x:x0,y,w:tw,h:th,id:'weapon'},{x:x0+tw+8,y,w:tw,h:th,id:'relic'}];
     }
@@ -7104,7 +7112,14 @@ export class WeaponView extends Panel {
         if (id===this.tab) {
             return;
         }
+        if (id==='relic'&&!this.relicsOpen()) {
+            this.lockMsg=1.8;
+            this.actions.locked();
+            return;
+        }
+        this.tabDir=id==='relic'?1:-1;
         this.tab=id;
+        this.tabT=0;
         this.animT=0;
         this.actions.select();
     }
@@ -7156,6 +7171,10 @@ export class WeaponView extends Panel {
                 }
                 else {
                     this.relPop=1;
+                    if (st!=='on') {
+                        this.relEquipT=0;
+                        this.relEquipId=this.relSel;
+                    }
                     this.actions.equipRelic(st==='on'?'':this.relSel);
                 }
                 return true;
@@ -7204,6 +7223,11 @@ export class WeaponView extends Panel {
         this.walletK=Math.max(0,(this.walletK||0)-dt*2);
         this.pop=Math.max(0,this.pop-dt*2.5);
         this.relPop=Math.max(0,this.relPop-dt*2.5);
+        this.relEquipT+=dt;
+        this.tabT+=dt;
+        this.lockMsg=Math.max(0,this.lockMsg-dt);
+        const goal=this.tab==='relic'?1:0;
+        this.tabPos+=(goal-this.tabPos)*Math.min(1,dt*14);
         this.equipT=(this.equipT??9)+dt;
         const st=WEAPONS[this.sel]?.stats;
         const k=1-Math.exp(-10*dt);
@@ -7243,22 +7267,42 @@ export class WeaponView extends Panel {
         drawWallet(ctx,P.x+24+ttw+14,P.y+(small?22:34)-(small?13:14),v,'left',small?12:14,this.walletK||0);
         ctx.textBaseline='middle';
         const tabs=this.tabRects();
-        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillStyle=this.lockMsg>0?PALETTE.red:PALETTE.nearGray;
         ctx.textAlign='right';
         ctx.textBaseline='middle';
-        fitText(ctx,t(this.tab==='relic'?'relic.hint':'weapon.hint'),tabs[0].x-14,P.y+(small?23:36),Math.max(60,tabs[0].x-14-(P.x+24+ttw+130)),13,'');
-        for (const q of tabs) {
-            const on=q.id===this.tab;
+        const hintKey=this.lockMsg>0?'relic.locked':(this.tab==='relic'?'relic.hint':'weapon.hint');
+        fitText(ctx,t(hintKey,{n:TUNING.relics.unlock}),tabs[0].x-14,P.y+(small?23:36),Math.max(60,tabs[0].x-14-(P.x+24+ttw+130)),small?14:15,'');
+        const relOk=this.relicsOpen();
+        const hx=tabs[0].x+(tabs[1].x-tabs[0].x)*this.tabPos;
+        for (let ti=0;ti<tabs.length;ti++) {
+            const q=tabs[ti];
             const hv=inRect(q,this.hx,this.hy);
-            ctx.fillStyle=on?PALETTE.ink:(hv?rgba('farGray',0.9):rgba('paper',0.95));
+            ctx.fillStyle=hv?rgba('farGray',0.9):rgba('paper',0.95);
             ctx.fillRect(q.x,q.y,q.w,q.h);
-            drawShape(ctx,sketchRect(q.x,q.y,q.w,q.h,{width:on?2.2:1.5,seed:2060+q.id.length}),PALETTE.ink,v);
-            ctx.fillStyle=on?PALETTE.paper:PALETTE.ink;
-            ctx.textAlign='center';
-            fitText(ctx,t('tab.'+q.id),q.x+q.w/2,q.y+q.h/2+1,q.w-10,small?13:15,'bold ');
+            drawShape(ctx,sketchRect(q.x,q.y,q.w,q.h,{width:1.5,seed:2060+q.id.length}),PALETTE.ink,v);
         }
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(hx,tabs[0].y,tabs[0].w,tabs[0].h);
+        drawShape(ctx,sketchRect(hx,tabs[0].y,tabs[0].w,tabs[0].h,{width:2.2,seed:2062}),PALETTE.ink,v);
+        for (let ti=0;ti<tabs.length;ti++) {
+            const q=tabs[ti];
+            const on=Math.abs(this.tabPos-ti)<0.5;
+            const lock=q.id==='relic'&&!relOk;
+            ctx.fillStyle=on?PALETTE.paper:(lock?PALETTE.midGray:PALETTE.ink);
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            fitText(ctx,t('tab.'+q.id),q.x+q.w/2+(lock?9:0),q.y+q.h/2+1,q.w-(lock?36:12),small?16:19,'bold ');
+            if (lock) {
+                drawLock(ctx,q.x+14,q.y+q.h/2,0.5,PALETTE.midGray);
+            }
+        }
+        const te=EASE.easeOutCubic(Math.min(1,this.tabT/0.32));
+        ctx.save();
+        ctx.translate((1-te)*this.tabDir*46,0);
+        ctx.globalAlpha*=Math.min(1,te*1.6);
         if (this.tab==='relic') {
             this.drawRelics(ctx,v,small);
+            ctx.restore();
             ctx.restore();
             return;
         }
@@ -7284,7 +7328,7 @@ export class WeaponView extends Panel {
             const sel=id===this.sel;
             const eq=id===settings.weapon;
             const hv=inRect(r,this.hx,this.hy);
-            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.08-i*0.05)/0.3)));
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(Math.min(this.t,this.tabT)-0.08-i*0.05)/0.3)));
             if (ap<=0) {
                 continue;
             }
@@ -7321,9 +7365,9 @@ export class WeaponView extends Panel {
             ctx.textAlign='left';
             ctx.textBaseline='middle';
             const tw=cw-ch*0.98-14;
-            fitText(ctx,t('weapon.'+id+'.name'),ch*0.98,ch*0.38,tw,small?15:19,'bold ');
+            fitText(ctx,t('weapon.'+id+'.name'),ch*0.98,ch*0.38,tw,small?18:22,'bold ');
             ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
-            fitText(ctx,locked?t('codex.locked',{level:WEAPONS[id].unlock}):t('weapon.'+id+'.short'),ch*0.98,ch*0.66,tw,12,'');
+            fitText(ctx,locked?t('codex.locked',{level:WEAPONS[id].unlock}):t('weapon.'+id+'.short'),ch*0.98,ch*0.68,tw,small?14:16,'');
             if (eqOn) {
                 const k=et/Q.time;
                 for (let d=0;d<Q.drops;d++) {
@@ -7358,7 +7402,7 @@ export class WeaponView extends Panel {
         const locked=!weaponUnlocked(this.sel,lv);
         const rnd=this.sel===RANDOM_WEAPON.id;
         const def=rnd?{unlock:0}:WEAPONS[this.sel];
-        const sh=Math.min(dw*9/16,small?(this.backBtn.y-gy)*0.46:230);
+        const sh=Math.min(dw*9/16,small?(this.backBtn.y-gy)*0.36:220);
         if (rnd) {
             this.drawRandomStage(ctx,dx,gy,dw,sh,lv,v);
         }
@@ -7372,29 +7416,29 @@ export class WeaponView extends Panel {
         }
         let y=gy+sh+(small?10:18);
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?18:24)+'px '+FONT;
+        ctx.font='bold '+(small?22:28)+'px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='top';
         ctx.fillText(t('weapon.'+this.sel+'.name'),dx,y);
-        y+=small?26:34;
-        ctx.font=(small?'12px ':'14px ')+FONT;
+        y+=small?30:40;
+        ctx.font=(small?'15px ':'18px ')+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         const lines=wrapText(ctx,t('weapon.'+this.sel+'.desc'),dw);
         for (let i=0;i<lines.length&&i<3;i++) {
             ctx.fillText(lines[i],dx,y);
-            y+=small?16:20;
+            y+=small?20:25;
         }
         y+=small?6:10;
         const bw=dw*0.46;
         if (rnd) {
             const names=unlockedWeapons(lv).map(id=>t('weapon.'+id+'.name')).join(t('ui.list'));
             ctx.fillStyle=PALETTE.ink;
-            ctx.font='bold '+(small?12:14)+'px '+FONT;
+            ctx.font='bold '+(small?14:16)+'px '+FONT;
             ctx.fillText(t('weapon.random.pool',{list:names}),dx,y);
             const last=settings.lastWeapon;
             if (WEAPONS[last]) {
                 ctx.fillStyle=PALETTE.red;
-                ctx.font=(small?'12px ':'13px ')+FONT;
+                ctx.font=(small?'14px ':'15px ')+FONT;
                 ctx.fillText(t('weapon.random.last',{name:t('weapon.'+last+'.name')}),dx,y+(small?18:24));
             }
         }
@@ -7404,14 +7448,14 @@ export class WeaponView extends Panel {
             const U=TUNING.weaponUi;
             const byy=y+Math.floor(i/2)*(small?U.rowS:U.row);
             ctx.fillStyle=PALETTE.ink;
-            ctx.font='bold 13px '+FONT;
+            ctx.font='bold '+(small?14:16)+'px '+FONT;
             ctx.textAlign='left';
             ctx.textBaseline='middle';
             const lab=t('weapon.stat.'+key);
             ctx.fillText(lab,bx,byy+6);
             const vx=bx+ctx.measureText(lab).width+8;
             ctx.fillStyle=PALETTE.nearGray;
-            fitText(ctx,weaponValue(def,key),vx,byy+6,bw-(vx-bx),small?11:12,'');
+            fitText(ctx,weaponValue(def,key),vx,byy+6,bw-(vx-bx),small?13:14,'');
             const bh=small?U.barS:U.bar;
             for (let s=0;s<5;s++) {
                 const f=Math.max(0,Math.min(1,(this.bars[key]||0)-s));
@@ -7476,16 +7520,18 @@ export class WeaponView extends Panel {
             ctx.restore();
         }
         ctx.restore();
+        ctx.restore();
     }
 
     drawRelics(ctx,v,small) {
         const P=this.P;
         const gx=P.x+24;
-        const gy=P.y+(small?46:70);
-        const gw=P.w*0.42;
+        const gy=P.y+(small?50:74);
+        const gw=P.w*0.44;
         const cg=12;
         const cw=(gw-cg)/2;
-        const ch=Math.min(small?78:120,(this.backBtn.y-gy-16-cg)/2);
+        const ch=Math.min(small?84:124,(this.backBtn.y-gy-16-cg)/2);
+        const Q=TUNING.weaponUi.equip;
         this.relHits=[];
         for (let i=0;i<RELIC_ORDER.length;i++) {
             const id=RELIC_ORDER[i];
@@ -7496,76 +7542,115 @@ export class WeaponView extends Panel {
             const st=this.relicState(id);
             const sel=id===this.relSel;
             const hv=inRect(r,this.hx,this.hy);
-            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.08-i*0.05)/0.3)));
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(Math.min(this.t,this.tabT)-0.08-i*0.05)/0.3)));
             if (ap<=0) {
                 continue;
             }
+            const et=id===this.relEquipId?this.relEquipT:9;
+            const eqOn=et<Q.time;
+            const jolt=eqOn?Math.sin(Math.min(1,et/Q.jolt)*Math.PI)*Q.joltScale:0;
             ctx.save();
             ctx.translate(x+cw/2,y+ch/2);
-            ctx.scale(ap*(hv||sel?1.03:1),ap*(hv||sel?1.03:1));
+            ctx.scale(ap*(hv||sel?1.03:1)*(1+jolt),ap*(hv||sel?1.03:1)*(1+jolt));
+            ctx.rotate(eqOn?Math.sin(et*40)*Q.shake*(1-et/Q.time):0);
             ctx.translate(-cw/2,-ch/2);
             ctx.fillStyle=sel?rgba('ink',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.95));
             ctx.fillRect(0,0,cw,ch);
-            drawShape(ctx,sketchRect(0,0,cw,ch,{width:sel?2.8:1.5,seed:2070+i}),st==='on'?PALETTE.red:(sel?PALETTE.ink:PALETTE.nearGray),v);
-            drawRelicIcon(ctx,id,ch*0.5,ch*0.5+(sel?Math.sin(this.animT*3)*3:0),ch/110,v,st==='locked');
+            if (eqOn) {
+                ctx.fillStyle=rgba('red',0.25*(1-et/Q.time));
+                ctx.fillRect(0,0,cw,ch);
+            }
+            drawShape(ctx,sketchRect(0,0,cw,ch,{width:sel?2.8:1.5,seed:2070+i}),eqOn||st==='on'?PALETTE.red:(sel?PALETTE.ink:PALETTE.nearGray),v);
+            const bob=sel?Math.sin(this.animT*3)*3:0;
+            if (eqOn) {
+                const sk=Math.min(1,et/Q.spinTime);
+                ctx.save();
+                ctx.translate(ch*0.5,ch*0.5+bob-Math.sin(sk*Math.PI)*ch*Q.lift);
+                ctx.rotate((1-EASE.easeOutCubic(sk))*Math.PI*2*Q.spins);
+                ctx.scale(1+Math.sin(sk*Math.PI)*Q.grow,1+Math.sin(sk*Math.PI)*Q.grow);
+                drawRelicIcon(ctx,id,0,0,ch/110,v,false);
+                ctx.restore();
+            }
+            else {
+                drawRelicIcon(ctx,id,ch*0.5,ch*0.5+bob,ch/110,v,st==='locked');
+            }
             ctx.fillStyle=st==='locked'?PALETTE.midGray:PALETTE.ink;
             ctx.textAlign='left';
             ctx.textBaseline='middle';
-            const tw=cw-ch*0.98-14;
-            fitText(ctx,t('relic.'+id+'.name'),ch*0.98,ch*0.38,tw,small?15:19,'bold ');
+            const tw=cw-ch*0.98-12;
+            fitText(ctx,t('relic.'+id+'.name'),ch*0.98,ch*0.36,tw,small?18:22,'bold ');
             if (st==='locked') {
                 ctx.fillStyle=PALETTE.red;
-                fitText(ctx,t('relic.price',{n:relicPrice()}),ch*0.98+14,ch*0.66,tw-14,12,'');
-                drawInkDot(ctx,ch*0.98+4,ch*0.66,4,PALETTE.red);
+                fitText(ctx,t('relic.price',{n:relicPrice()}),ch*0.98+16,ch*0.68,tw-16,small?14:16,'');
+                drawInkDot(ctx,ch*0.98+5,ch*0.68,5,PALETTE.red);
             }
             else {
                 ctx.fillStyle=PALETTE.nearGray;
-                fitText(ctx,t('relic.'+id+'.short'),ch*0.98,ch*0.66,tw,12,'');
+                fitText(ctx,t('relic.'+id+'.short'),ch*0.98,ch*0.68,tw,small?14:16,'');
+            }
+            if (eqOn) {
+                const k=et/Q.time;
+                for (let d=0;d<Q.drops;d++) {
+                    const an=hash1(d*7+i)*Math.PI*2;
+                    const dist=EASE.easeOutCubic(Math.min(1,et/Q.dropTime))*(cw*0.35+hash1(d*3)*cw*0.3);
+                    ctx.fillStyle=d%3===0?rgba('red',1-k):rgba('ink',1-k);
+                    ctx.beginPath();
+                    ctx.arc(ch*0.5+Math.cos(an)*dist,ch*0.5+Math.sin(an)*dist*0.6,2+hash1(d*5)*4,0,Math.PI*2);
+                    ctx.fill();
+                }
             }
             if (st==='on') {
-                const sk=Math.min(1,Math.max(0,1-this.relPop*0.6));
+                const sk=eqOn?Math.min(1,Math.max(0,(et-Q.stampDelay)/Q.stampTime)):1;
                 ctx.save();
                 ctx.translate(cw-10,10);
-                ctx.rotate(0.12);
-                ctx.scale(sk,sk);
+                ctx.rotate(0.12+(1-sk)*0.4);
+                const ss=sk<1?Q.stampFrom-(Q.stampFrom-1)*EASE.easeOutBack(sk):1;
+                ctx.globalAlpha*=sk;
+                ctx.scale(ss,ss);
                 ctx.fillStyle=PALETTE.red;
-                ctx.fillRect(-40,-2,44,20);
+                ctx.fillRect(-48,-2,52,22);
                 ctx.fillStyle=PALETTE.paper;
-                ctx.font='bold 12px '+FONT;
+                ctx.font='bold 14px '+FONT;
                 ctx.textAlign='center';
-                ctx.fillText(t('weapon.equipped'),-18,8);
+                ctx.fillText(t('weapon.equipped'),-22,9);
                 ctx.restore();
             }
             ctx.restore();
         }
         const dx=gx+gw+24;
         const dw=P.x+P.w-24-dx;
-        const sh=Math.min(dw*9/16,small?(this.backBtn.y-gy)*0.46:230);
+        const sh=Math.min(dw*9/16,small?(this.backBtn.y-gy)*0.4:210);
         const id=this.relSel;
         const st=this.relicState(id);
         ctx.fillStyle=rgba('farGray',0.35);
         ctx.fillRect(dx,gy,dw,sh);
-        drawRelicIcon(ctx,id,dx+dw/2,gy+sh/2+Math.sin(this.animT*2.4)*4,sh/110*1.5,v,st==='locked');
+        const pe=this.relEquipId===id?this.relEquipT:9;
+        const pk=pe<0.5?Math.sin(pe/0.5*Math.PI)*0.18:0;
+        drawRelicIcon(ctx,id,dx+dw/2,gy+sh/2+Math.sin(this.animT*2.4)*4,sh/110*1.4*(1+pk),v,st==='locked');
         drawShape(ctx,sketchRect(dx,gy,dw,sh,{width:1.6,seed:2080}),PALETTE.ink,v);
-        let y=gy+sh+(small?10:18);
+        let y=gy+sh+(small?8:16);
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?18:24)+'px '+FONT;
+        ctx.font='bold '+(small?22:28)+'px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='top';
         ctx.fillText(t('relic.'+id+'.name'),dx,y);
-        y+=small?26:34;
-        ctx.font=(small?'12px ':'14px ')+FONT;
+        y+=small?30:40;
+        ctx.font=(small?'15px ':'18px ')+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         const lines=wrapText(ctx,t('relic.'+id+'.desc',relicParams(id)),dw);
+        const lh=small?20:25;
         for (let i=0;i<lines.length&&i<4;i++) {
             ctx.fillText(lines[i],dx,y);
-            y+=small?16:20;
+            y+=lh;
         }
-        y+=small?4:8;
+        y+=small?2:6;
         ctx.fillStyle=PALETTE.red;
-        ctx.font='bold '+(small?12:13)+'px '+FONT;
-        ctx.fillText(t('relic.rule'),dx,y);
-        drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?15:17);
+        ctx.font='bold '+(small?14:16)+'px '+FONT;
+        for (const l of wrapText(ctx,t('relic.rule'),dw)) {
+            ctx.fillText(l,dx,y);
+            y+=small?18:22;
+        }
+        drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?17:19);
         const eb=this.equipBtn;
         const label=st==='locked'?t('relic.buy',{n:relicPrice()}):(st==='on'?t('relic.unequip'):t('relic.equip'));
         if (st==='locked') {
@@ -7577,13 +7662,13 @@ export class WeaponView extends Panel {
             ctx.fillStyle=rgba('red',0.1);
             ctx.fillRect(-eb.w/2,-eb.h/2,eb.w,eb.h);
             drawShape(ctx,sketchRect(-eb.w/2,-eb.h/2,eb.w,eb.h,{width:2.2,seed:2082}),PALETTE.red,v);
-            ctx.font='bold '+(small?13:15)+'px '+FONT;
+            ctx.font='bold '+(small?15:17)+'px '+FONT;
             const lw=ctx.measureText(label).width;
             drawInkDot(ctx,-lw/2-6,1,5,PALETTE.red);
             ctx.fillStyle=PALETTE.red;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            fitText(ctx,label,6,1,eb.w-30,small?13:15,'bold ');
+            fitText(ctx,label,6,1,eb.w-30,small?15:17,'bold ');
             ctx.restore();
         }
         else if (st==='own') {
@@ -7594,10 +7679,10 @@ export class WeaponView extends Panel {
             ctx.fillStyle=PALETTE.paper;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            const s=this.hoverIdx===1?1.05:1;
+            const s3=this.hoverIdx===1?1.05:1;
             ctx.translate(eb.x+eb.w/2,eb.y+eb.h/2);
-            ctx.scale(s,s);
-            fitText(ctx,label,0,1,eb.w-16,small?15:18,'bold ');
+            ctx.scale(s3,s3);
+            fitText(ctx,label,0,1,eb.w-16,small?17:20,'bold ');
             ctx.restore();
         }
         else {
@@ -7606,7 +7691,7 @@ export class WeaponView extends Panel {
             ctx.fillStyle=PALETTE.red;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            fitText(ctx,label,eb.x+eb.w/2,eb.y+eb.h/2+1,eb.w-16,small?14:16,'bold ');
+            fitText(ctx,label,eb.x+eb.w/2,eb.y+eb.h/2+1,eb.w-16,small?16:18,'bold ');
             ctx.restore();
         }
     }
@@ -7617,7 +7702,7 @@ export class WeaponView extends Panel {
         const sel=this.sel===r.id;
         const eq=settings.weapon===r.id;
         const hv=inRect(r,this.hx,this.hy);
-        const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.08-WEAPON_ORDER.length*0.05)/0.3)));
+        const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(Math.min(this.t,this.tabT)-0.08-WEAPON_ORDER.length*0.05)/0.3)));
         if (ap<=0) {
             return;
         }
@@ -7647,10 +7732,10 @@ export class WeaponView extends Panel {
         ctx.textAlign='left';
         ctx.textBaseline='middle';
         const x0=r.h*1.25;
-        fitText(ctx,t('weapon.random.name'),x0,r.h/2,r.w*0.3,small?15:19,'bold ');
+        fitText(ctx,t('weapon.random.name'),x0,r.h/2,r.w*0.3,small?17:21,'bold ');
         const rx=x0+ctx.measureText(t('weapon.random.name')).width+12;
         ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
-        fitText(ctx,locked?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('weapon.random.short'),rx,r.h/2+1,r.w-rx-10-(eq?58:0),12,'');
+        fitText(ctx,locked?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('weapon.random.short'),rx,r.h/2+1,r.w-rx-10-(eq?58:0),small?14:15,'');
         if (eq) {
             ctx.save();
             ctx.translate(r.w-10,r.h/2-10);

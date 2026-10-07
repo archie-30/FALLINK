@@ -1,4 +1,4 @@
-import {progress,saveProgress,godMode} from './progress.js';
+import {progress,saveProgress,godMode,effectiveLevel} from './progress.js';
 import {SKIN_PARTS,DEFAULT_SKIN} from '../data/skins.js';
 import {ACC_SLOTS,ACC_DEFAULT,BASIC_TONES,BASIC_ACC} from '../data/cosmetics.js';
 import {ACHIEVEMENTS} from '../data/achievements.js';
@@ -221,6 +221,10 @@ export function buy(item) {
     return true;
 }
 
+export function relicsUnlocked() {
+    return effectiveLevel()>=TUNING.relics.unlock;
+}
+
 export function ownsRelic(id) {
     return godMode()||progress.relics.includes(id);
 }
@@ -231,7 +235,7 @@ export function relicPrice() {
 
 export function buyRelic(id) {
     const p=relicPrice();
-    if (!RELIC_ORDER.includes(id)||progress.relics.includes(id)||progress.dots<p) {
+    if (!relicsUnlocked()||!RELIC_ORDER.includes(id)||progress.relics.includes(id)||progress.dots<p) {
         return false;
     }
     progress.dots-=p;
@@ -241,7 +245,7 @@ export function buyRelic(id) {
 }
 
 export function equippedRelic() {
-    return ownsRelic(progress.relic)?progress.relic:'';
+    return relicsUnlocked()&&ownsRelic(progress.relic)?progress.relic:'';
 }
 
 export function equipRelic(id) {

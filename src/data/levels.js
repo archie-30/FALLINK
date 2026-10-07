@@ -231,8 +231,8 @@ export const ENDLESS={
     bossEvery:5,
     hpPerPage:0.05,
     bossHpPerPage:0.09,
-    budgetBase:5,
-    budgetPerPage:0.85,
+    budgetBase:7,
+    budgetPerPage:1,
     budgetMax:24,
     modFrom:3,
     modChance:0.4,
@@ -243,7 +243,7 @@ export const ENDLESS={
     scorePerPage:0.1,
     scorePerAct:0.5,
     scoreVictory:5000,
-    pagesPerType:3
+    pagesPerType:2
 };
 
 const MENU_DECOR=[
