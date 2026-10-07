@@ -265,3 +265,54 @@ export class Rings {
         }
     }
 }
+
+export class FloorMarks {
+    constructor(parent,count=3) {
+        const geo=new THREE.PlaneGeometry(2,2);
+        geo.rotateX(-Math.PI/2);
+        this.items=[];
+        for (let i=0;i<count;i++) {
+            const mk=(w,y)=>{
+                const m=new THREE.Mesh(geo,ringMaterial('ink'));
+                m.visible=false;
+                m.frustumCulled=false;
+                m.position.y=y;
+                m.material.uniforms.uWidth.value=w;
+                parent.add(m);
+                return m;
+            };
+            this.items.push({fill:mk(2,0.05),edge:mk(0.14,0.06),outer:mk(0.08,0.07)});
+        }
+    }
+
+    update(list,radius,life,now) {
+        for (let i=0;i<this.items.length;i++) {
+            const it=this.items[i];
+            const q=list?list[i]:null;
+            if (!q) {
+                it.fill.visible=false;
+                it.edge.visible=false;
+                it.outer.visible=false;
+                continue;
+            }
+            const f=Math.min(1,q.age/life);
+            const late=f>0.78&&Math.floor(now*10)%2===0;
+            const open=Math.min(1,q.age/0.25);
+            const k=1+(1-f)*0.9;
+            it.fill.visible=true;
+            it.edge.visible=true;
+            it.outer.visible=true;
+            it.fill.position.x=it.edge.position.x=it.outer.position.x=q.x;
+            it.fill.position.z=it.edge.position.z=it.outer.position.z=q.z;
+            it.fill.scale.set(radius,1,radius);
+            it.edge.scale.set(radius,1,radius);
+            it.outer.scale.set(radius*k,1,radius*k);
+            it.fill.material.uniforms.uColor.value.copy(pal('red'));
+            it.fill.material.uniforms.uAlpha.value=0.2*open;
+            it.edge.material.uniforms.uColor.value.copy(pal(late?'red':'ink'));
+            it.edge.material.uniforms.uAlpha.value=open;
+            it.outer.material.uniforms.uColor.value.copy(pal('ink'));
+            it.outer.material.uniforms.uAlpha.value=0.55*open;
+        }
+    }
+}

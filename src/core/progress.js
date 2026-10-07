@@ -5,6 +5,7 @@ import {settings,storage} from './settings.js';
 const MAX_LEVEL=TUNING.levels.max;
 
 const KEY='inkfall.progress.v1';
+const BAK='inkfall.progress.bak';
 
 export const progress={
     xp:0,
@@ -16,14 +17,20 @@ export const progress={
     bestAct:0
 };
 
-export function loadProgress() {
+function readSaved(key) {
     try {
-        const raw=localStorage.getItem(KEY);
-        if (raw) {
-            Object.assign(progress,JSON.parse(raw));
-        }
+        const data=JSON.parse(localStorage.getItem(key));
+        return data&&typeof data==='object'&&!Array.isArray(data)?data:null;
     }
     catch (e) {
+        return null;
+    }
+}
+
+export function loadProgress() {
+    const saved=readSaved(KEY)||readSaved(BAK);
+    if (saved) {
+        Object.assign(progress,saved);
     }
     if (!Array.isArray(progress.seen)) {
         progress.seen=[];
@@ -51,7 +58,12 @@ export function saveProgress() {
         return;
     }
     try {
-        localStorage.setItem(KEY,JSON.stringify(progress));
+        const prev=localStorage.getItem(KEY);
+        const next=JSON.stringify(progress);
+        if (prev&&prev!==next&&readSaved(KEY)) {
+            localStorage.setItem(BAK,prev);
+        }
+        localStorage.setItem(KEY,next);
     }
     catch (e) {
     }

@@ -6,7 +6,7 @@ import {hash1} from '../core/rng.js';
 import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
-import {settings,STICK_DEFAULTS,device,textScale} from '../core/settings.js';
+import {settings,STICK_DEFAULTS,device,textScale,autoDrop} from '../core/settings.js';
 import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel,STARTING_DECK,unlockedCards,TUTORIAL_DECK,TUTORIAL_ULT,TUTORIAL_MERGE} from '../data/cards.js';
 import {progress,xpToNext,hasSeen,effectiveLevel,godMode,trainable} from '../core/progress.js';
 import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
@@ -904,6 +904,7 @@ export class SettingsMenu extends Panel {
                     if (r.key==='quality') {
                         settings.quality=opts[i];
                         settings.qualityAuto=false;
+                        autoDrop.base=null;
                     }
                     else if (r.key==='textSize') {
                         settings.textSize=opts[i];

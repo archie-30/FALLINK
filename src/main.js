@@ -10,10 +10,10 @@ import {CameraRig} from './core/cameraRig.js';
 import {createScene} from './core/scene.js';
 import {tweens} from './core/tween.js';
 import {fx} from './core/fx.js';
-import {isFlagship,wipeStorage,detectDevice,loadSettings,saveSettings,settings,qualityConfig,boilScale,device,TRAINING_DEFAULTS,TRAINING_SPAWN} from './core/settings.js';
+import {isFlagship,wipeStorage,detectDevice,loadSettings,saveSettings,settings,autoDrop,qualityConfig,boilScale,device,TRAINING_DEFAULTS,TRAINING_SPAWN} from './core/settings.js';
 import {Renderer} from './render/renderer.js';
 import {initMaterials,setBoilSeed,setJitterScale,setShadowQuality,toonMaterial,shared,dissolveVariant} from './render/materials.js';
-import {Particles,MuzzleFlashes,Rings} from './render/particles.js';
+import {Particles,MuzzleFlashes,Rings,FloorMarks} from './render/particles.js';
 import {Preview} from './render/preview.js';
 import {Shards} from './render/shards.js';
 import {Decals} from './render/decals.js';
@@ -135,6 +135,7 @@ function boot() {
             const q=top?'high':(weak?'low':'mid');
             if (q!==settings.quality) {
                 settings.quality=q;
+                autoDrop.base=null;
                 applyQuality();
                 resize();
             }
@@ -239,6 +240,7 @@ function boot() {
     const lobs=new Lobs(actors);
     const rings=new Rings(fxScene);
     const dangerRings=new Rings(fxScene,12);
+    const floorMarks=new FloorMarks(fxScene,TUNING.courses.music.max+1);
     const preview=new Preview(fxScene);
     const enemies=new EnemyManager(actors,fxScene);
     const ctx={dangerRings:null,room:null,player,playerBullets,enemyBullets,muzzle,particles,fx,lobs,enemies:[]};
@@ -2146,6 +2148,7 @@ function boot() {
     input.onCycleQuality=()=>{
         const i=QUALITY_ORDER.indexOf(settings.quality);
         settings.quality=QUALITY_ORDER[(i+1)%QUALITY_ORDER.length];
+        autoDrop.base=null;
         saveSettings();
         applyQuality();
     };
@@ -2876,8 +2879,8 @@ function boot() {
             gov.slow+=P.window;
             if (gov.slow>=P.dropAfter&&game.mode==='play'&&!fx.paused&&settings.quality!=='low') {
                 gov.slow=0;
+                autoDrop.base=autoDrop.base||settings.quality;
                 settings.quality=settings.quality==='high'?'mid':'low';
-                saveSettings();
                 applyQuality();
                 setRenderScale(1);
                 resize();
@@ -2950,6 +2953,7 @@ function boot() {
         particles.render();
         rings.update(dt*time.timeScale);
         dangerRings.update(dt*time.timeScale);
+        floorMarks.update(run.course&&run.course.id==='music'?run.course.rings:null,TUNING.courses.music.radius+0.3,TUNING.courses.music.life,time.real);
         preview.update(dt);
         const touchCast=input.lastDevice==='touch'&&!!hand.targetView;
         input.aimForCard=touchCast;

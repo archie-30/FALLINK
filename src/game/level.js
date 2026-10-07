@@ -34,7 +34,7 @@ function storyTypes(act,index) {
 }
 
 function endlessTypes(page) {
-    return Math.min(ENEMY_ORDER.length,1+Math.floor(page/ENDLESS.pagesPerType));
+    return Math.min(ENEMY_ORDER.length,ENDLESS.typesStart+Math.floor(page/ENDLESS.pagesPerType));
 }
 
 export function pickBoss(rng,used=[]) {
