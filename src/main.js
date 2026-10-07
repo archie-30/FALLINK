@@ -1367,10 +1367,10 @@ function boot() {
             hand.cancelTargeting();
             choice.open2(spec,cb);
         },
-        openDeckPick:(mode,list,cb)=>{
+        openDeckPick:(mode,list,cb,back=null)=>{
             fx.paused=true;
             art.warm(list.map(c=>createCard(c.id,c.upgraded)).concat(mode==='upgrade'?list.map(c=>createCard(c.id,true)):[]));
-            deckPick.open2(mode,list,cb);
+            deckPick.open2(mode,list,cb,back);
         },
         heal:n=>{
             const before=player.hp;
@@ -1543,6 +1543,12 @@ function boot() {
         }
         audio.play('ui');
         hand.cancelTargeting();
+        if (input.lastDevice==='touch'&&run.plan&&run.plan.node==='shop'&&npcs.focus>0&&npcs.armed!==npcs.focus) {
+            npcs.armed=npcs.focus;
+            buyArmT=TUNING.shopArm.time;
+            return true;
+        }
+        npcs.armed=-1;
         return run.interact(npcs.focus);
     }
     function enterMenu() {
@@ -1671,6 +1677,7 @@ function boot() {
     }
     let pendingGuide=null;
     let pendingBoss=null;
+    let buyArmT=0;
     let bossIntroT=0;
     function openBossIntro(id) {
         if (game.mode!=='play'||!markBossIntro(id)) {
@@ -2987,6 +2994,11 @@ function boot() {
             npcs.update(dt,player,i=>run.canInteract(i));
             doors.update(dt,player);
             input.interactReady=!fx.paused&&!transition.active&&((doors.focus>=0&&run.canExit())||(npcs.focus>=0&&run.canInteract(npcs.focus))||minis.wantsInteract(player));
+            buyArmT-=dt;
+            if (npcs.armed>=0&&(npcs.focus!==npcs.armed||buyArmT<=0||!input.interactReady||input.lastDevice!=='touch')) {
+                npcs.armed=-1;
+            }
+            input.interactArmed=npcs.armed>=0;
         }
     }
     function updateDamageFx(dt) {

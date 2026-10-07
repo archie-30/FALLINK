@@ -25,6 +25,7 @@ export const NOTEBOOK={
     challengeScore:800,
     shop:{
         offer:3,
+        refund:0.5,
         cards:3,
         shelfZ:2.8,shelfSideMin:2,shelfSideZ:1.4,shelfStart:3.2,
         shelfMaxZ:2.4,

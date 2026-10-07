@@ -283,11 +283,13 @@ export class Npcs {
     constructor() {
         this.list=[];
         this.focus=-1;
+        this.armed=-1;
     }
 
     clear() {
         this.list=[];
         this.focus=-1;
+        this.armed=-1;
     }
 
     build(room,specs) {

@@ -29,6 +29,7 @@ export class Input {
         this.onSkill=null;
         this.dashQueued=false;
         this.interactReady=false;
+        this.interactArmed=false;
         this.reloadQueued=false;
         this.touches=new Map();
         this.multiTapArmed=true;

@@ -882,12 +882,17 @@ export class Run {
             this.pickUpgrade(back);
         }
         else if (id==='remove') {
+            const refund=Math.floor(it.price*S.refund);
             this.hooks.openDeckPick('remove',this.deckList,k=>{
                 const cid=this.deckList[k].id;
                 this.deckList.splice(k,1);
                 this.note('note.removed',{},cid);
                 this.hooks.cardFx('remove',cid,back);
-            });
+            },{n:refund,cb:()=>{
+                this.stats.score+=refund;
+                this.note('note.refund',{n:refund});
+                back();
+            }});
         }
         else if (id==='patch'||id==='bigPatch') {
             this.note('note.healed',{n:this.hooks.heal(it.n)});

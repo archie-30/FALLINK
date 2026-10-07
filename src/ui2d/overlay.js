@@ -480,16 +480,17 @@ export class Overlay {
             ctx.save();
             ctx.translate(d.x+wig*N.interactAmp,d.y);
             ctx.rotate(wig*N.interactTilt);
-            ctx.fillStyle=rgba('paper',0.85);
+            const armed=input.interactArmed;
+            ctx.fillStyle=armed?PALETTE.red:rgba('paper',0.85);
             ctx.beginPath();
             ctx.arc(0,0,r*pulse,0,Math.PI*2);
             ctx.fill();
-            this.ring(0,0,r*pulse,3,PALETTE.ink,73);
-            ctx.fillStyle=PALETTE.ink;
+            this.ring(0,0,r*pulse,3,armed?PALETTE.darkRed:PALETTE.ink,73);
+            ctx.fillStyle=armed?PALETTE.paper:PALETTE.ink;
             ctx.font='bold 17px '+FONT;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            ctx.fillText(t('ui.interact'),0,1);
+            ctx.fillText(t(armed?'ui.buyConfirm':'ui.interact'),0,1);
             ctx.restore();
             return;
         }
