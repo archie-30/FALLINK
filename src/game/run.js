@@ -926,8 +926,8 @@ export class Run {
             cont();
         }
         else if (kind==='hurt') {
-            this.hooks.hurt(arg);
-            this.note('note.hurt',{n:arg});
+            const lost=this.hooks.hurt(arg);
+            this.note(lost>0?'note.hurt':'note.guarded',{n:arg});
             cont();
         }
         else if (kind==='ink') {

@@ -58,6 +58,8 @@ export class PostFX {
             uRed:{value:pal('red').clone()},
             uDarkRed:{value:pal('darkRed').clone()},
             uFlash:{value:0},
+            uBlur:{value:0},
+            uBlurC:{value:new THREE.Vector2(0.5,0.5)},
             uFlashColor:{value:pal('paper').clone()},
             uDrawIn:{value:1},
             uPaperCol:{value:pal('paper').clone()},
@@ -160,6 +162,14 @@ export class PostFX {
         const d=this.uniforms.uDeath.value;
         tweens.killTweensOf(d);
         d.set(0,0);
+    }
+
+    blurPulse(strength,duration,cx=0.5,cy=0.5) {
+        const u=this.uniforms.uBlur;
+        tweens.killTweensOf(u);
+        this.uniforms.uBlurC.value.set(cx,cy);
+        u.value=strength;
+        tweens.to(u,{value:0},{duration,ease:'easeOutQuad',unscaled:true});
     }
 
     flash(colorKey,duration,strength) {

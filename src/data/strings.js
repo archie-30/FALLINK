@@ -1123,6 +1123,8 @@ export const STRINGS={
     'note.gained':'獲得 {name}',
     'note.healed':'生命回復 {n}',
     'note.hurt':'失去 {n} 生命',
+    'note.guarded':'立可白擋下了這次傷害',
+    'dodge.perfect':'完美閃避！墨水 +{n}',
     'note.ink':'獲得 {n} 墨水',
     'run.overtimeTitle':'延長寫作 · 第 {page} 頁',
     'run.overtimeInfo':'延長寫作 · 第 {page} 頁',

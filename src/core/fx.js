@@ -9,6 +9,7 @@ export const fx={
     stopCd:0,
     slowScale:1,
     slowTime:0,
+    slowDur:0,
     paused:false,
     cutin:false,
 
@@ -53,6 +54,7 @@ export const fx={
         }
         this.slowScale=scale;
         this.slowTime=duration;
+        this.slowDur=duration;
     },
 
     invertFrame(frames=1) {
@@ -78,6 +80,13 @@ export const fx={
             time.timeScale=0;
             return;
         }
-        time.timeScale=this.slowScale;
+        if (this.slowTime>0&&this.slowDur>0) {
+            const k=1-this.slowTime/this.slowDur;
+            const r=k<TUNING.feel.slowHold?0:Math.pow((k-TUNING.feel.slowHold)/(1-TUNING.feel.slowHold),2);
+            time.timeScale=this.slowScale+(1-this.slowScale)*r;
+        }
+        else {
+            time.timeScale=this.slowScale;
+        }
     }
 };

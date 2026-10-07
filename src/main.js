@@ -42,7 +42,7 @@ import {UpgradeView} from './ui2d/upgrade.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
 import {initMeta,clampSkin,setGate,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
-import {startRelic,relic} from './game/relic.js';
+import {startRelic,relic,takeGuard} from './game/relic.js';
 import {saveRunSnap,loadRunSnap,clearRunSnap} from './core/runSave.js';
 import {GuidePopup,courseGuide,modeGuide,modesGuide} from './ui2d/guide.js';
 import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast,ConfirmPopup} from './ui2d/meta.js';
@@ -824,6 +824,24 @@ function boot() {
         }
     };
     const dodgeTimes=[];
+    let dodgeFxAt=-9;
+    function perfectDodge(p) {
+        const D=TUNING.dodgeFx;
+        ink.add(D.ink);
+        if (time.real-dodgeFxAt<D.cooldown) {
+            return;
+        }
+        dodgeFxAt=time.real;
+        audio.play('dash',0.6);
+        particles.burst(p.pos.x,1.0,p.pos.z,10,{color:'farGray',speed:[2,5],up:[1,3],size:[0.06,0.12]});
+        if (settings.reducedMotion) {
+            return;
+        }
+        fx.slowMo(D.slow,D.slowTime);
+        fx.flash('paper',0.25,D.flash);
+        const s=rig.worldToScreen(tmpV.set(p.pos.x,1,p.pos.z),renderer.width,renderer.height,{x:0,y:0});
+        renderer.post.blurPulse(D.blur,D.blurTime,s.x/Math.max(1,renderer.width),1-s.y/Math.max(1,renderer.height));
+    }
     player.events.onDodge=p=>{
         bump('dodges');
         const DC=TUNING.achFx.dodgeChain;
@@ -835,7 +853,9 @@ function boot() {
         if (run.course&&run.state==='combat') {
             run.course.dodged();
         }
+        perfectDodge(p);
         if (!run.tutorial()) {
+            dmgNums.spawnText(p.pos.x,2.2,p.pos.z,t('dodge.perfect',{n:TUNING.dodgeFx.ink}));
             return;
         }
         dmgNums.spawnText(p.pos.x,2.2,p.pos.z,t('tut.dodged'));
@@ -1354,9 +1374,14 @@ function boot() {
             return player.hp-before;
         },
         hurt:n=>{
+            if (takeGuard()) {
+                overlay.hud.toast(t('relic.guarded'));
+                return 0;
+            }
             const before=player.hp;
             player.hp=Math.max(1,player.hp-n);
             run.stats.taken+=before-player.hp;
+            return before-player.hp;
         },
         addInk:n=>ink.addOver(n),
         transition:mid=>{
@@ -1460,6 +1485,8 @@ function boot() {
                 }
                 else {
                     effects.lastUlt=null;
+                    startRelic(run.mode==='story'||run.mode==='endless'?equippedRelic():'');
+                    equipWeapon(true);
                     run.start(startIds(),run.mode);
                 }
             });
