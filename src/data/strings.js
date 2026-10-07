@@ -1385,7 +1385,8 @@ export const STRINGS={
     'settingsInfo.textSize':'調整遊戲裡說明文字的大小（選單、說明視窗、卡牌與敵人說明、教學等）。覺得字太小看不清楚時，請改成「大」。',
     'textSize.small':'小',
     'textSize.mid':'中',
-    'textSize.large':'大'
+    'textSize.large':'大',
+    'reward.skipSure':'確定跳過'
 };
 
 let touchText=false;

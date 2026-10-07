@@ -553,6 +553,7 @@ export const TUNING={
         dpsWindow:5
     },
     reward:{
+        skipSure:3,
         endlessPages:[0,2],
         touchScale:1.3,
         touchH:0.44,

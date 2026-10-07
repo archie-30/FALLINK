@@ -1383,5 +1383,6 @@ export const STRINGS_EN={
     'settingsInfo.textSize':'Changes the size of descriptive text in menus, pop-ups, card and enemy descriptions and the tutorial. If text is hard to read, choose Large.',
     'textSize.small':'S',
     'textSize.mid':'M',
-    'textSize.large':'L'
+    'textSize.large':'L',
+    'reward.skipSure':'Sure? Skip'
 };

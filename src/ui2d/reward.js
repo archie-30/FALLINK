@@ -67,7 +67,13 @@ export class RewardView {
         this.picked=false;
         this.pickT=0;
         this.hover=-1;
+        this.skipArm=0;
+        this.skipPulse=0;
         this.target=target||{x:this.width/2,y:this.height};
+    }
+
+    needsSure() {
+        return !this.dual()||this.selected().length===0;
     }
 
     slot(it) {
@@ -135,12 +141,21 @@ export class RewardView {
         }
         const r=this.btnRect;
         if (!this.forced&&x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h) {
+            if (this.needsSure()&&this.skipArm<=0) {
+                this.skipArm=TUNING.reward.skipSure;
+                this.skipPulse=1;
+                if (this.onArm) {
+                    this.onArm();
+                }
+                return true;
+            }
             if (!this.dual()) {
                 this.groups[0].sel=-1;
             }
             this.confirm();
             return true;
         }
+        this.skipArm=0;
         const i=this.hitIndex(x,y);
         if (i<0) {
             return true;
@@ -166,6 +181,11 @@ export class RewardView {
             return;
         }
         this.t+=dt;
+        this.skipArm=Math.max(0,this.skipArm-dt);
+        this.skipPulse=Math.max(0,this.skipPulse-dt*3);
+        if (!this.needsSure()) {
+            this.skipArm=0;
+        }
         for (const g of this.groups) {
             g.skipA+=((g.skip?1:0)-g.skipA)*(1-Math.exp(-12*dt));
         }
@@ -346,16 +366,26 @@ export class RewardView {
         const by=Math.min(h*0.52+CARD_H*s*0.5+(dual?48*s+14:44*Math.min(1.2,s)),h-bh-(dual?32:12));
         this.btnRect={x:bx,y:by,w:bw,h:bh};
         const ba=this.forced?0:Math.min(1,Math.max(0,(this.t-0.6)/0.3))*fade;
-        const label=dual?(this.selected().length>0?t('reward.confirm',{n:this.selected().length}):t('reward.skipAll')):t('reward.skip');
+        const armed=this.skipArm>0&&this.needsSure();
+        const label=armed?t('reward.skipSure'):(dual?(this.selected().length>0?t('reward.confirm',{n:this.selected().length}):t('reward.skipAll')):t('reward.skip'));
         ctx.save();
         ctx.globalAlpha=ba;
         if (dual&&this.selected().length>0) {
             ctx.fillStyle=PALETTE.ink;
             ctx.fillRect(bx,by,bw,bh);
         }
-        ctx.translate(bx,by);
-        drawShape(ctx,sketchRect(0,0,Math.round(bw),bh,{width:1.8,seed:812}),PALETTE.ink,v);
-        ctx.fillStyle=dual&&this.selected().length>0?PALETTE.paper:PALETTE.ink;
+        ctx.translate(bx+bw/2,by+bh/2);
+        const pop=armed?1+this.skipPulse*0.12:1;
+        ctx.scale(pop,pop);
+        ctx.translate(-bw/2,-bh/2);
+        if (armed) {
+            ctx.fillStyle=rgba('red',0.12);
+            ctx.fillRect(0,0,bw,bh);
+            ctx.fillStyle=PALETTE.red;
+            ctx.fillRect(0,bh-4,bw*(this.skipArm/TUNING.reward.skipSure),4);
+        }
+        drawShape(ctx,sketchRect(0,0,Math.round(bw),bh,{width:armed?2.6:1.8,seed:812}),armed?PALETTE.red:PALETTE.ink,v);
+        ctx.fillStyle=armed?PALETTE.red:(dual&&this.selected().length>0?PALETTE.paper:PALETTE.ink);
         ctx.font='bold 16px '+FONT;
         ctx.textAlign='center';
         ctx.textBaseline='middle';

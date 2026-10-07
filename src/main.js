@@ -898,6 +898,7 @@ function boot() {
     };
     player.events.onDown=()=>run.playerDown();
     const reward=new RewardView();
+    reward.onArm=()=>audio.play('ui',0.8);
     const upgradeView=new UpgradeView();
     const summary=new RunSummary();
     const transition=new Transition();
