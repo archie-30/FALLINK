@@ -1,5 +1,6 @@
 import {TUNING} from '../data/tuning.js';
 import {UNLOCKS} from '../data/cards.js';
+import {ENEMIES} from '../data/enemies.js';
 import {settings,storage} from './settings.js';
 
 const MAX_LEVEL=TUNING.levels.max;
@@ -14,6 +15,7 @@ export const progress={
     bestStory:0,
     seen:[],
     beaten:[],
+    bossIntro:[],
     bestAct:0
 };
 
@@ -37,6 +39,9 @@ export function loadProgress() {
     }
     if (!Array.isArray(progress.beaten)) {
         progress.beaten=[];
+    }
+    if (!Array.isArray(progress.bossIntro)) {
+        progress.bossIntro=progress.seen.filter(id=>ENEMIES[id]&&ENEMIES[id].boss);
     }
     const q=new URLSearchParams(location.search);
     if (q.get('seen')==='all') {
@@ -100,6 +105,15 @@ export function markSeen(type) {
         return false;
     }
     progress.seen.push(id);
+    saveProgress();
+    return true;
+}
+
+export function markBossIntro(id) {
+    if (progress.bossIntro.includes(id)) {
+        return false;
+    }
+    progress.bossIntro.push(id);
     saveProgress();
     return true;
 }

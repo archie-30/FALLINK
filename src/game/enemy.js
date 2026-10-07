@@ -178,6 +178,7 @@ export class Enemy {
         this.elite=!!o.elite;
         this.dummy=!!o.dummy;
         this.immortal=!!o.immortal;
+        this.tutor=!!o.tutor;
         this.courseNum=0;
         this.courseOrig=false;
         this.copyOf=0;
@@ -366,6 +367,9 @@ export class Enemy {
 
     summonTick(dt,ctx) {
         const B=TUNING.bossScale;
+        if (this.tutor) {
+            return;
+        }
         this.minionT-=dt;
         if (this.minionT>0) {
             return;
@@ -3346,6 +3350,9 @@ class BookFinal extends Book {
     }
 
     choose() {
+        if (this.tutor) {
+            return 'sweep';
+        }
         const list=['lines','sweep','mimicBomb','mimicScatter'];
         if (this.page>=1) {
             list.push('wall','sweep');
@@ -3418,6 +3425,7 @@ class BookFinal extends Book {
             const live=h.live||L.live;
             if (h.t>=h.warn&&h.t<h.warn+live&&!h.hit&&this.segHit(p,h.ax,h.az,h.bx,h.bz,L.width)) {
                 h.hit=true;
+                p.noteDodge();
                 p.hurt(1,h.bx===h.ax?Math.sign(p.pos.x-h.ax)||1:0,h.bz===h.az?Math.sign(p.pos.z-h.az)||1:0);
             }
             if (h.t>=h.warn+live+L.fade) {
@@ -3431,6 +3439,7 @@ class BookFinal extends Book {
             const sg=this.sweepSeg();
             if (w.t>=w.warn&&w.t<w.warn+w.dur&&!w.hit&&this.segHit(p,sg.ax,sg.az,sg.bx,sg.bz,S.width)) {
                 w.hit=true;
+                p.noteDodge();
                 p.hurt(1,-Math.sin(Math.atan2(sg.bz-sg.az,sg.bx-sg.ax))*w.dir,Math.cos(Math.atan2(sg.bz-sg.az,sg.bx-sg.ax))*w.dir);
             }
             if (w.t>=w.warn&&w.t<w.warn+w.dur&&rng.next()<0.5) {
@@ -3758,7 +3767,7 @@ export class EnemyManager {
             e=new C(type,ENEMIES[type],this.parent,this.fxScene);
             pool.push(e);
         }
-        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite,dummy:o.dummy,immortal:o.immortal,tier:o.tier||0});
+        e.reset(x,z,{hpMult:o.hpMult??this.hpMult,quick:o.quick,act:this.act,elite:o.elite,dummy:o.dummy,immortal:o.immortal,tutor:o.tutor,tier:o.tier||0});
         this.list.push(e);
         if (this.onSpawned) {
             this.onSpawned(e);

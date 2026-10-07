@@ -392,6 +392,45 @@ const MOTIFS={
             ctx.fillRect(w/2+bh*0.14,cy-bh/2,bh*0.28,bh);
         }
     },
+    inkBarrier:{
+        back(ctx,w,h,k,cy) {
+            const R=Math.min(w,h)*0.26;
+            const n=14;
+            for (let i=0;i<n;i++) {
+                const q=seg(k,0.06+i*0.012,0.26+i*0.012);
+                if (q<=0) {
+                    continue;
+                }
+                const a=i/n*Math.PI*2+k*0.8;
+                const rr=R*(1.7-0.7*EASE.easeOutBack(q));
+                ctx.save();
+                ctx.translate(w/2+Math.cos(a)*rr,cy+Math.sin(a)*rr);
+                ctx.rotate(a+Math.PI/2);
+                ctx.globalAlpha*=q;
+                ctx.fillStyle=PALETTE.paper;
+                ctx.fillRect(-R*0.24,-R*0.1,R*0.48,R*0.2);
+                ctx.strokeStyle=PALETTE.ink;
+                ctx.lineWidth=3;
+                ctx.strokeRect(-R*0.24,-R*0.1,R*0.48,R*0.2);
+                ctx.restore();
+            }
+            ring(ctx,w/2,cy,R*1.22*EASE.easeOutCubic(seg(k,0.1,0.4)),3,rgba('ink',0.5),1600);
+            for (let i=0;i<10;i++) {
+                const a=hash1(i+1610)*Math.PI*2;
+                const k0=0.3+i*0.04;
+                const f=seg(k,k0,k0+0.12);
+                if (f<=0||f>=1) {
+                    continue;
+                }
+                const back=f>0.6;
+                const d=back?R*1.25+(f-0.6)*R*2:R*3-f/0.6*R*1.75;
+                bullet(ctx,w/2+Math.cos(a)*d,cy+Math.sin(a)*d,7,back?1-seg(f,0.6,1):1);
+                if (back&&f<0.75) {
+                    splat(ctx,w/2+Math.cos(a)*R*1.2,cy+Math.sin(a)*R*1.2,h*0.012,(f-0.6)*6,PALETTE.red,1620+i);
+                }
+            }
+        }
+    },
     echo:{
         back(ctx,w,h,k,cy) {
             const R=Math.hypot(w,h)*0.55;

@@ -1700,6 +1700,14 @@ export class Codex extends Panel {
         }
     }
 
+    showSolo(id,done) {
+        this.show();
+        this.tab=3;
+        this.tabAnim=3;
+        this.openDetail('enemy',id);
+        this.solo=done;
+    }
+
     detailOpen() {
         return !!this.detail&&!this.detail.closing;
     }
@@ -1819,6 +1827,12 @@ export class Codex extends Panel {
                 this.detail.t-=dt*0.3/TUNING.ui.closeTime;
                 if (this.detail.t<=0) {
                     this.detail=null;
+                    if (this.solo) {
+                        const done=this.solo;
+                        this.solo=null;
+                        this.hide();
+                        done();
+                    }
                 }
             }
             else {
@@ -2474,12 +2488,26 @@ export class Codex extends Panel {
         else {
             this.drawEnemyDetail(ctx,v);
         }
-        drawButton(ctx,this.dClose,t('menu.back'),v,1,inRect(this.dClose,this.hx??-1,this.hy??-1));
+        drawButton(ctx,this.dClose,this.solo?t('codex.soloGo'):t('menu.back'),v,1,inRect(this.dClose,this.hx??-1,this.hy??-1));
+        if (this.solo) {
+            ctx.fillStyle=PALETTE.red;
+            ctx.font='bold 15px '+FONT;
+            ctx.textAlign='right';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('codex.soloTag'),P.x+P.w-28,P.y+P.h-38);
+        }
         ctx.restore();
     }
 
     draw(ctx,art) {
         if (!this.shown()) {
+            return;
+        }
+        if (this.solo) {
+            this.layout();
+            if (this.detail) {
+                this.drawDetail(ctx,art,time.boilIndex);
+            }
             return;
         }
         const C=TUNING.codex.open;

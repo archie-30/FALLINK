@@ -475,6 +475,19 @@ export const CARDS={
         upgraded:{cost:2},
         effect:(g,t)=>g.echo(t)
     },
+    inkBarrier:{
+        id:'inkBarrier',
+        nameKey:'card.inkBarrier.name',
+        descKey:'card.inkBarrier.desc',
+        cost:3,
+        rarity:'rare',
+        type:'defense',
+        mode:'self',
+        targeting:'none',
+        params:{duration:4},
+        upgraded:{cost:2},
+        effect:(g,t,p)=>g.inkBarrier(p.duration)
+    },
     inkStorm:{
         id:'inkStorm',
         nameKey:'card.inkStorm.name',
@@ -494,7 +507,7 @@ export const UNLOCKS={
     1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','trap','paperShield','inkDash','timeStop','clone','execute','tsunami','dualWield'],
     2:['whiteout','shockwave'],
     3:['haste','mark'],
-    4:['inkMine','blot'],
+    4:['inkMine','blot','inkBarrier'],
     5:['redraw','pin'],
     6:['paperBlade','echo','chain'],
     7:['inkRain','blackHole','inkField'],

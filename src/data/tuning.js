@@ -319,7 +319,7 @@ export const TUNING={
         }
     },
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
-    pauseUi:{compactH:700,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
+    pauseUi:{compactH:840,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
     doors:{width:2.4,height:1.9,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
     minigame:{endDelay:0.9,bellShake:0.18,bell:{impulse:3.2,k:34,damp:3.4,clapK:70,clapDamp:5,flash:0.28,squash:0.1,wave:2.6,decay:1.4},tilesSearch:4000,popTime:0.35,popGap:0.04,wallRise:0.5,wallGap:0.03,wallSink:0.5},
     npc:{bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
@@ -400,6 +400,12 @@ export const TUNING={
         echoFallbackInk:2,
         shieldRadius:1.05,
         shieldSpin:2.4,
+        fortRadius:1.35,
+        fortPanels:14,
+        fortSpin:0.7,
+        fortBlink:1,
+        fortPop:0.25,
+        fortFxGap:0.12,
         dashSpeed:26,
         dashTime:0.24,
         dashLead:1.4,
@@ -458,7 +464,7 @@ export const TUNING={
         pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
         brush:{color:'ink',capacity:80,radius:0.3,size:0.3,trailWidth:0.42,drag:2.6,hidden:true},
         staple:{color:'midGray',capacity:64,radius:0.13,size:0.17,trailWidth:0.06},
-        compass:{color:'nearGray',capacity:16,radius:0.6,wallR:0.3,size:0.8,trailWidth:0.06,pierce:true,boomerang:true,model:'compass',spin:18,returnAccel:0,turnRate:12}
+        compass:{color:'nearGray',capacity:16,radius:0.6,wallR:0.3,size:0.8,trailWidth:0.06,pierce:true,boomerang:true,model:'compass',spin:18,returnAccel:0,turnRate:12,propGap:0.4}
     },
     brushStroke:{count:10,height:1.0,fade:0.3,muzzle:0,thickMin:0.3,thickGrow:0.1,arc:1.0,lead:0.35,bow:0.05},
     beam:{height:1.1,fadeIn:30,fadeOut:14,pulse:40,pulseAmp:0.08,step:0.25,mergeTime:0.35,sparks:2},
@@ -499,7 +505,7 @@ export const TUNING={
         pads:[[-7,1.5],[7,-1],[0,-3.5]],
         padR:1.3,
         dummies:[[-5,-2],[0,-3.5],[5,-2]],
-        sprayer:[0,-3.5],
+        pen:[0,-1],
         firstSpawn:0.4,
         respawn:1.2,
         startDelay:0.9,
@@ -596,12 +602,15 @@ export const TUNING={
     bossTempo:1.15,
     bossScale:{tempo:0.12,summonFirst:9,summonEvery:[16,11,8],summonCap:6,minions:[['doodle'],['doodle','bird'],['doodle','sprayer','bird']]},
     brushSwing:{start:0.4,band:0.35,bulletPad:0.3,propPad:0.3,compassClear:0.75},
+    bossIntro:{delay:0.9},
     bossDrop:{
         interval:[9,14],
         first:6,
         ink:2,
         max:2,
-        minPlayerDist:3.5
+        minPlayerDist:3.5,
+        minFoeDist:4,
+        tries:24
     },
     accent:{
         ring:0.24,

@@ -79,6 +79,8 @@ export class Player {
         this.hp=TUNING.player.maxHp;
         this.invuln=0;
         this.shield=0;
+        this.fortT=0;
+        this.fortAge=0;
         this.events={onDash:null,onFire:null,onHurt:null,onDown:null,onShield:null};
         this.build(parent);
     }
@@ -116,6 +118,7 @@ export class Player {
             registerShadow(this.shadow);
             this.root.add(this.shadow);
             this.buildShield();
+            this.buildFort();
         }
         this.moveFrame=new THREE.Group();
         this.leanGroup=new THREE.Group();
@@ -540,6 +543,43 @@ export class Player {
         this.root.add(this.shieldGroup);
     }
 
+    buildFort() {
+        const E=TUNING.effects;
+        const R=E.fortRadius;
+        const n=E.fortPanels;
+        const wd=Math.PI*2*R/n*1.08;
+        const geo=new THREE.PlaneGeometry(wd,1.5,4,1);
+        const pa=geo.attributes.position;
+        for (let i=0;i<pa.count;i++) {
+            const x=pa.getX(i);
+            const y=pa.getY(i);
+            const a=x/R;
+            pa.setXYZ(i,Math.sin(a)*R,y+0.85,Math.cos(a)*R);
+        }
+        geo.computeVertexNormals();
+        const m=toonMaterial({light:'paper',mid:'farGray',dark:'midGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide});
+        this.fortGroup=new THREE.Group();
+        for (let i=0;i<n;i++) {
+            const holder=new THREE.Group();
+            holder.rotation.y=i*Math.PI*2/n;
+            const mesh=new THREE.Mesh(geo,m);
+            mesh.rotation.z=((i%3)-1)*0.06;
+            mesh.position.y=(i%2)*0.08;
+            holder.add(mesh);
+            this.fortGroup.add(holder);
+        }
+        this.fortGroup.visible=false;
+        this.root.add(this.fortGroup);
+    }
+
+    setFort(dur) {
+        this.fortT=dur;
+        this.fortAge=0;
+        if (this.fortGroup) {
+            this.fortGroup.visible=dur>0;
+        }
+    }
+
     setShield(n) {
         this.shield=n;
         if (!this.panels) {
@@ -594,6 +634,7 @@ export class Player {
         this.reloadT=0;
         this.invuln=1.0;
         this.setShield(0);
+        this.setFort(0);
     }
 
     spawn(p) {
@@ -605,6 +646,7 @@ export class Player {
         this.hp=TUNING.player.maxHp;
         this.invuln=0;
         this.setShield(0);
+        this.setFort(0);
     }
 
     recoil() {
@@ -683,11 +725,17 @@ export class Player {
     }
 
     isInvulnerable() {
-        return this.invuln>0||(TUNING.player.dashInvuln&&(this.dashT>0||this.dashIT>0));
+        return this.invuln>0||this.fortT>0||(TUNING.player.dashInvuln&&(this.dashT>0||this.dashIT>0));
     }
 
     hurt(dmg,dx,dz) {
         const P=TUNING.player;
+        if (this.fortT>0) {
+            if (this.events.onFortHit) {
+                this.events.onFortHit(this,dx,dz);
+            }
+            return false;
+        }
         if (this.isInvulnerable()||this.hp<=0) {
             return false;
         }
@@ -723,12 +771,27 @@ export class Player {
         return true;
     }
 
+    noteDodge() {
+        if ((this.dashT>0||this.dashIT>0)&&!this.dodged) {
+            this.dodged=true;
+            if (this.events.onDodge) {
+                this.events.onDodge(this);
+            }
+        }
+    }
+
     hitBullet(x,z,r,dmg,vx,vz) {
-        const rr=TUNING.player.radius*0.8+r;
+        const rr=(this.fortT>0?TUNING.effects.fortRadius:TUNING.player.radius*0.8)+r;
         const ex=x-this.pos.x;
         const ez=z-this.pos.z;
         if (ex*ex+ez*ez>=rr*rr) {
             return false;
+        }
+        if (this.fortT>0) {
+            if (this.events.onFortHit) {
+                this.events.onFortHit(this,-ex/(Math.hypot(ex,ez)||1),-ez/(Math.hypot(ex,ez)||1));
+            }
+            return true;
         }
         if (this.isInvulnerable()) {
             if ((this.dashT>0||this.dashIT>0)&&!this.dodged) {
@@ -878,6 +941,16 @@ export class Player {
         const room=ctx.room;
         this.prev.copy(this.pos);
         this.invuln=Math.max(0,this.invuln-dt);
+        if (this.fortT>0) {
+            this.fortT-=dt;
+            this.fortAge+=dt;
+            if (this.fortT<=0) {
+                this.setFort(0);
+                if (this.events.onFortEnd) {
+                    this.events.onFortEnd(this);
+                }
+            }
+        }
         this.dashIT=Math.max(0,(this.dashIT||0)-dt);
         input.getMove(_mv);
         const moveLen=Math.hypot(_mv.x,_mv.z);
@@ -1199,6 +1272,14 @@ export class Player {
         }
         if (this.shieldGroup) {
             this.shieldGroup.rotation.y=time.game*TUNING.effects.shieldSpin;
+        }
+        if (this.fortGroup&&this.fortT>0) {
+            const E=TUNING.effects;
+            const pop=Math.min(1,this.fortAge/E.fortPop);
+            const s=0.4+0.6*EASE.easeOutBack(pop);
+            this.fortGroup.scale.set(s,s,s);
+            this.fortGroup.rotation.y=time.game*E.fortSpin;
+            this.fortGroup.visible=this.fortT>E.fortBlink||Math.floor(time.real*10)%2===0;
         }
     }
 }
