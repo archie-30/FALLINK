@@ -39,7 +39,7 @@ export class WorldMarks {
         return !!r&&x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h;
     }
 
-    drawPrompt(ctx,p,label,v,seed,sub=null) {
+    drawPrompt(ctx,p,label,v,seed,sub=null,hot=false) {
         const W=TUNING.worldMarks;
         ctx.font='bold 15px '+FONT;
         let bw=ctx.measureText(label).width+30;
@@ -52,8 +52,8 @@ export class WorldMarks {
         const y=p.y-bh+Math.sin(time.real*W.bobRate)*W.bob;
         ctx.fillStyle=rgba('paper',0.96);
         ctx.fillRect(x,y,bw,bh);
-        drawShape(ctx,sketchRect(x,y,bw,bh,{width:2,seed}),PALETTE.ink,v);
-        ctx.fillStyle=PALETTE.ink;
+        drawShape(ctx,sketchRect(x,y,bw,bh,{width:hot?3:2,seed}),hot?PALETTE.red:PALETTE.ink,v);
+        ctx.fillStyle=hot?PALETTE.red:PALETTE.ink;
         ctx.font='bold 15px '+FONT;
         ctx.fillText(label,p.x,y+W.promptH/2+1);
         if (sub) {
@@ -249,7 +249,8 @@ export class WorldMarks {
             const n=npcs.list[focused];
             game.project(n.x,n.h+W.npcLift,n.z,p);
             const sub=n.item?t('shop.'+n.item+'.desc',{price:n.price,n:SHOP.items[n.item].n||0}):null;
-            this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+t('ui.gap')+(n.label||t('npc.'+n.model)),v,2320+focused,sub);
+            const armed=touch&&npcs.armed===focused;
+            this.drawPrompt(ctx,p,armed?t('shop.confirmTap',{name:n.label}):t(touch?'npc.tap':'npc.press')+t('ui.gap')+(n.label||t('npc.'+n.model)),v,2320+focused,sub,armed);
         }
         ctx.restore();
     }

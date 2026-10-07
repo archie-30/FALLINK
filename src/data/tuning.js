@@ -331,7 +331,8 @@ export const TUNING={
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
     hand:{showTime:0.55,hideOffset:260},
     choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,descMax:5,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
-    deckPick:{maxW:1000,scale:0.75,minScale:0.35,gap:10,head:76,foot:124,btnH:44,lineH:21,maxLines:2},
+    shopArm:{time:3},
+    deckPick:{maxW:1000,backW:220,btnGap:20,scale:0.75,minScale:0.35,gap:10,head:76,foot:124,btnH:44,lineH:21,maxLines:2},
     langPick:{showLang:false,previewGap:46,btnW:240,btnH:70,gap:24,y:0.34,goW:200,goH:52,goGap:44,noteGap:24,sizeGap:58,sizeW:96,sizeH:44,sizeSep:14},
     settingsUi:{
         lang:{w:230,h:34,pad:14,item:36,openTime:0.32,closeTime:0.2,stagger:0.2,pickDecay:3,pop:0.1},

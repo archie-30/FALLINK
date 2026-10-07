@@ -8372,8 +8372,9 @@ export class DeckPicker extends Panel {
         this.hy=-1;
     }
 
-    open2(mode,list,onPick) {
+    open2(mode,list,onPick,back=null) {
         this.mode=mode;
+        this.back=back;
         this.list=list.map((c,i)=>({i,card:createCard(c.id,c.upgraded),ok:mode!=='upgrade'||!c.upgraded}));
         const ult=q=>q.card.def.rarity==='rare'?1:0;
         this.list.sort((a,b)=>ult(a)-ult(b)||(a.card.id<b.card.id?-1:(a.card.id>b.card.id?1:0)));
@@ -8411,8 +8412,17 @@ export class DeckPicker extends Panel {
         this.P={x:px,y:py,w:pw,h:ph};
         const x0=w/2-(Math.min(cols,this.list.length)*(cw+D.gap)-D.gap)/2;
         this.slots=this.list.map((q,k)=>({x:x0+(k%cols)*(cw+D.gap),y:py+D.head+Math.floor(k/cols)*(ch+D.gap),w:cw,h:ch}));
-        const bw=Math.min(220,pw-40);
-        this.okBtn={x:w/2-bw/2,y:py+ph-D.btnH-14,w:bw,h:D.btnH};
+        const by=py+ph-D.btnH-14;
+        if (this.back) {
+            const bw=Math.min(D.backW,(pw-60)/2);
+            this.backBtn={x:w/2-bw-D.btnGap/2,y:by,w:bw,h:D.btnH};
+            this.okBtn={x:w/2+D.btnGap/2,y:by,w:bw,h:D.btnH};
+        }
+        else {
+            const bw=Math.min(220,pw-40);
+            this.backBtn=null;
+            this.okBtn={x:w/2-bw/2,y:by,w:bw,h:D.btnH};
+        }
         this.gridEnd=py+D.head+gh;
         this.sc=sc;
     }
@@ -8422,6 +8432,15 @@ export class DeckPicker extends Panel {
             return false;
         }
         this.layout();
+        if (this.backBtn&&inRect(this.backBtn,x,y)) {
+            const cb=this.back.cb;
+            this.hide();
+            if (this.actions.select) {
+                this.actions.select();
+            }
+            cb();
+            return true;
+        }
         if (this.sel>=0&&inRect(this.okBtn,x,y)) {
             const idx=this.list[this.sel].i;
             const cb=this.onPick;
@@ -8526,7 +8545,10 @@ export class DeckPicker extends Panel {
             ctx.fillStyle=PALETTE.midGray;
             ctx.textAlign='center';
             ctx.textBaseline='middle';
-            ctx.fillText(t('pick.choose'),w/2,this.okBtn.y+D.btnH/2);
+            ctx.fillText(t('pick.choose'),this.okBtn.x+this.okBtn.w/2,this.okBtn.y+D.btnH/2);
+        }
+        if (this.backBtn) {
+            drawButton(ctx,this.backBtn,t('pick.'+this.mode+'.back',{n:this.back.n}),v,1,inRect(this.backBtn,this.hx,this.hy),15,false);
         }
         ctx.restore();
     }
