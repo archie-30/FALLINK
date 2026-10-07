@@ -47,6 +47,7 @@ export class PostFX {
             uEdge:{value:new THREE.Vector4(O.depthLo,O.depthHi,O.normalLo,O.normalHi)},
             uLineScale:{value:1},
             uMinLine:{value:O.minLine},
+            uAA:{value:O.aaOffset},
             uInk:{value:pal('ink').clone()},
             uPaperOff:{value:new THREE.Vector2(0,0)},
             uGrain:{value:new THREE.Vector2(P.grain,1)},
@@ -109,6 +110,9 @@ export class PostFX {
         }
         if (q.fastEdge) {
             d.FAST_EDGE='';
+        }
+        if (q.edgeAA) {
+            d.EDGE_AA='';
         }
         if (!q.wobble) {
             d.NO_WOBBLE='';

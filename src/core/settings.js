@@ -134,7 +134,7 @@ export function qualityConfig() {
 }
 
 export function pixelRatio() {
-    const cap=device.mobile?TUNING.pixelRatioCap.mobile:TUNING.pixelRatioCap.desktop;
+    const cap=device.mobile?(qualityConfig().mobileCap||TUNING.pixelRatioCap.mobile):TUNING.pixelRatioCap.desktop;
     return Math.min(device.dpr,cap,qualityConfig().pixelRatio);
 }
 

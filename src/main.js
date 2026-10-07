@@ -104,6 +104,9 @@ function boot() {
     }
     detectDevice();
     loadSettings();
+    if (!TUNING.langPick.showLang) {
+        settings.lang='zh';
+    }
     if (!settings.langChosen&&settings.tutorialSeen) {
         settings.langChosen=true;
     }

@@ -569,7 +569,7 @@ export class PauseMenu extends Panel {
     }
 }
 
-const SETTING_KEYS=['volume','music','sfx','quality','fps','jitter','assist','countdown','reduced','full','god','textSize','lang'];
+const SETTING_KEYS=['volume','music','sfx','quality','fps','jitter','assist','countdown','reduced','full','god','textSize'];
 
 const SEGS={quality:{opts:['low','mid','high'],label:k=>t('quality.'+k)},textSize:{opts:['small','mid','large'],label:k=>t('textSize.'+k)},lang:{opts:['zh','en'],label:k=>t('lang.'+k)},fps:{opts:TUNING.loop.fpsOptions,label:k=>String(k)}};
 
@@ -8542,7 +8542,7 @@ export class LangPicker extends Panel {
 
     show() {
         super.show();
-        this.pick=null;
+        this.pick=TUNING.langPick.showLang?null:'zh';
         this.pickT=0;
     }
 
@@ -8552,13 +8552,13 @@ export class LangPicker extends Panel {
         const h=this.height;
         const bw=Math.min(L.btnW,(w-60)/2);
         const cy=h*L.y;
-        this.opts=LANGS.map((k,i)=>({k,x:w/2+(i===0?-bw-L.gap/2:L.gap/2),y:cy,w:bw,h:L.btnH}));
-        const sy=cy+L.btnH+L.sizeGap;
+        this.opts=L.showLang?LANGS.map((k,i)=>({k,x:w/2+(i===0?-bw-L.gap/2:L.gap/2),y:cy,w:bw,h:L.btnH})):[];
+        const sy=L.showLang?cy+L.btnH+L.sizeGap:cy;
         const sizes=SEGS.textSize.opts;
         const sw=Math.min(L.sizeW,(w-60)/sizes.length);
         const sx=w/2-(sw*sizes.length+L.sizeSep*(sizes.length-1))/2;
         this.sizes=sizes.map((k,i)=>({k,x:sx+i*(sw+L.sizeSep),y:sy,w:sw,h:L.sizeH}));
-        this.noteY=sy+L.sizeH+L.noteGap;
+        this.noteY=sy+L.sizeH+(L.showLang?L.noteGap:L.previewGap);
         this.go={x:w/2-L.goW/2,y:this.noteY+L.goGap-L.goH/2+6,w:L.goW,h:L.goH};
         this.buttons=this.opts.concat(this.sizes,this.pick?[this.go]:[]);
     }
@@ -8619,8 +8619,10 @@ export class LangPicker extends Panel {
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('game.title'),w/2,h*0.12);
-        ctx.font='bold 20px '+FONT;
-        ctx.fillText(t('langPick.title'),w/2,this.opts[0].y-30);
+        if (this.opts.length>0) {
+            ctx.font='bold 20px '+FONT;
+            ctx.fillText(t('langPick.title'),w/2,this.opts[0].y-30);
+        }
         this.opts.forEach((o,i)=>{
             const on=this.pick===o.k;
             const e=EASE.easeOutBack(Math.min(1,(this.t-0.1-i*0.08)/0.35));
@@ -8639,8 +8641,8 @@ export class LangPicker extends Panel {
             ctx.restore();
         });
         ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold 16px '+FONT;
-        ctx.fillText(t('langPick.size'),w/2,this.sizes[0].y-18);
+        ctx.font=this.opts.length>0?'bold 16px '+FONT:'bold 20px '+FONT;
+        ctx.fillText(t(this.opts.length>0?'langPick.size':'langPick.sizeTitle'),w/2,this.sizes[0].y-(this.opts.length>0?18:30));
         this.sizes.forEach((o,i)=>{
             const on=settings.textSize===o.k;
             const e=EASE.easeOutBack(Math.min(1,(this.t-0.3-i*0.06)/0.35));
@@ -8659,11 +8661,11 @@ export class LangPicker extends Panel {
             ctx.restore();
         });
         if (this.pick) {
-            const q=EASE.easeOutCubic(Math.min(1,this.pickT/0.3));
+            const q=this.opts.length>0?EASE.easeOutCubic(Math.min(1,this.pickT/0.3)):Math.min(1,Math.max(0,(this.t-0.4)/0.3));
             ctx.globalAlpha*=q;
-            ctx.fillStyle=PALETTE.nearGray;
-            ctx.font='16px '+FONT;
-            ctx.fillText(t('langPick.note'),w/2,this.noteY);
+            ctx.fillStyle=this.opts.length>0?PALETTE.nearGray:PALETTE.ink;
+            ctx.font=this.opts.length>0?'16px '+FONT:'18px '+FONT;
+            ctx.fillText(t(this.opts.length>0?'langPick.note':'langPick.preview'),w/2,this.noteY);
             drawButton(ctx,this.go,t('langPick.go'),v,q*1.2,this.hoverIdx===this.opts.length+this.sizes.length,20);
         }
         ctx.restore();

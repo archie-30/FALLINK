@@ -17,6 +17,8 @@ export const STRINGS={
     'lang.zh':'繁體中文',
     'lang.en':'English',
     'langPick.title':'選擇語言 / Choose your language',
+    'langPick.sizeTitle':'選擇文字大小',
+    'langPick.preview':'文字大概這樣的大小可以嗎？',
     'langPick.size':'文字大小（之後也可以在設定調整）',
     'langPick.note':'之後可以隨時在「設定」裡更改語言。',
     'langPick.go':'開始',
