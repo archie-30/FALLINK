@@ -97,7 +97,43 @@ export class Hud {
     drawCourseMarks(ctx,c,enemies,project,tmp) {
         const now=time.real;
         const next=c.id==='math'?c.nextNum():0;
+        const C=TUNING.courses.music;
         ctx.save();
+        for (const q of c.rings) {
+            project(q.x,0.05,q.z,tmp);
+            const cx=tmp.x;
+            const cy=tmp.y;
+            project(q.x+C.radius,0.05,q.z,tmp);
+            const rx=Math.abs(tmp.x-cx);
+            project(q.x,0.05,q.z+C.radius,tmp);
+            const ry=Math.abs(tmp.y-cy);
+            const f=Math.min(1,q.age/C.life);
+            const late=f>0.78&&Math.floor(now*10)%2===0;
+            const col=late?PALETTE.red:PALETTE.ink;
+            const open=Math.min(1,q.age/0.25);
+            ctx.globalAlpha=open;
+            ctx.fillStyle=rgba('red',0.12);
+            ctx.beginPath();
+            ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle=col;
+            ctx.lineWidth=3;
+            ctx.beginPath();
+            ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
+            ctx.stroke();
+            const k=1+(1-f)*0.9;
+            ctx.strokeStyle=rgba('ink',0.5);
+            ctx.lineWidth=2;
+            ctx.beginPath();
+            ctx.ellipse(cx,cy,rx*k,ry*k,0,0,Math.PI*2);
+            ctx.stroke();
+            ctx.fillStyle=col;
+            ctx.font='bold '+Math.round(Math.max(14,rx*0.7))+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText('♪',cx,cy);
+        }
+        ctx.globalAlpha=1;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         for (const e of enemies.list) {
@@ -118,16 +154,6 @@ export class Hud {
                 ctx.fillStyle=on?PALETTE.paper:PALETTE.midGray;
                 ctx.font='bold '+(on?18:14)+'px '+FONT;
                 ctx.fillText(String(e.courseNum),tmp.x,tmp.y-7);
-            }
-            else if (c.id==='quiet'&&e.sleep) {
-                for (let i=0;i<3;i++) {
-                    const f=(now*TUNING.courses.ui.zzz+i/3)%1;
-                    ctx.globalAlpha=Math.sin(f*Math.PI);
-                    ctx.fillStyle=PALETTE.nearGray;
-                    ctx.font='bold '+Math.round(11+f*9)+'px '+FONT;
-                    ctx.fillText('Z',tmp.x+8+f*16,tmp.y-6-f*22);
-                }
-                ctx.globalAlpha=1;
             }
             else if (c.id==='copy'&&e.copyOf) {
                 ctx.fillStyle=rgba('paper',0.92);
@@ -770,9 +796,6 @@ export class Hud {
         }
         if (c.id==='pe') {
             return t('course.hud.time',{s:Math.max(0,Math.ceil(TUNING.courses.pe.time-c.elapsed))});
-        }
-        if (c.id==='quiet') {
-            return t('course.hud.alert',{n:Math.round(c.alert*100)});
         }
         return c.count+'/'+c.goal;
     }

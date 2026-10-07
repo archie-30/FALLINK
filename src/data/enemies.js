@@ -383,6 +383,7 @@ export const ENEMIES={
         }
     },
     scissors:{
+        summonMult:1.3,
         ink:4,
         nameKey:'enemy.scissors',
         hp:1000,

@@ -1,4 +1,7 @@
 import {TUNING} from '../data/tuning.js';
+import {circleVs} from '../core/collision.js';
+
+const _t={x:0,z:0,depth:0};
 
 export class CourseRun {
     constructor(id,plan,hooks) {
@@ -6,17 +9,18 @@ export class CourseRun {
         this.cfg=TUNING.courses[id];
         this.hooks=hooks;
         this.total=plan.waves.reduce((a,w)=>a+w.length,0);
-        this.goal=id==='math'?Math.min(this.total,this.cfg.goal):this.total;
+        this.goal=id==='math'?Math.min(this.total,this.cfg.goal):(this.cfg.goal||this.total);
         this.count=0;
         this.streak=0;
         this.counter=0;
         this.done=false;
         this.failed=false;
         this.elapsed=0;
-        this.alert=0;
-        this.woke=false;
         this.copyT=this.cfg.every||0;
         this.pulse=0;
+        this.rings=[];
+        this.ringT=id==='music'?this.cfg.first:0;
+        this.chalkT=id==='dodge'?this.cfg.first:0;
     }
 
     progress() {
@@ -51,18 +55,14 @@ export class CourseRun {
         return this.id==='pe'?this.cfg.speed:1;
     }
 
-    scoreMult() {
-        return this.id==='cram'?this.cfg.score:1;
+    dashRate() {
+        return this.id==='dodge'?1/this.cfg.dashCd:1;
     }
 
     onSpawn(e) {
         e.courseOrig=true;
         if (this.id==='math') {
             e.courseNum=++this.counter;
-        }
-        else if (this.id==='quiet'&&!this.woke) {
-            e.sleep=true;
-            e.dummy=true;
         }
     }
 
@@ -80,44 +80,17 @@ export class CourseRun {
         if (this.id==='math'&&e.courseNum>0&&e.courseNum>this.nextNum()) {
             return dmg*this.cfg.off;
         }
-        if (this.id==='quiet'&&e.sleep) {
-            this.wake(e);
-            return dmg*this.cfg.sleep;
-        }
         return dmg;
     }
 
-    wake(e) {
-        e.sleep=false;
-        e.dummy=false;
-    }
-
-    wakeAll() {
-        if (this.woke) {
+    dodged() {
+        if (this.id!=='dodge'||this.done) {
             return;
         }
-        this.woke=true;
-        this.alert=1;
-        for (const e of this.hooks.enemies.list) {
-            if (e.sleep) {
-                this.wake(e);
-            }
-        }
-        this.fail('course.quiet.woke');
-    }
-
-    noise() {
-        if (this.id==='quiet'&&!this.woke&&!this.done) {
-            this.alert=Math.min(1,this.alert+this.cfg.shot);
-            if (this.alert>=1) {
-                this.wakeAll();
-            }
-        }
-    }
-
-    hurt() {
-        if (this.id==='cram') {
-            this.fail('course.cram.hit');
+        this.count++;
+        this.pulse=0.6;
+        if (this.count>=this.goal) {
+            this.complete();
         }
     }
 
@@ -136,7 +109,9 @@ export class CourseRun {
         if (!e.courseOrig||e.def.boss) {
             return;
         }
-        this.count++;
+        if (this.id==='pe'||this.id==='copy') {
+            this.count++;
+        }
         if (this.id==='math'&&e.courseNum>0) {
             const m=this.nextNum();
             if (m===0||e.courseNum<m) {
@@ -154,6 +129,7 @@ export class CourseRun {
     update(dt,player) {
         this.pulse=Math.max(0,this.pulse-dt*2);
         if (this.done||this.failed) {
+            this.rings.length=0;
             return;
         }
         this.elapsed+=dt;
@@ -168,17 +144,88 @@ export class CourseRun {
                 this.copyOne(list);
             }
         }
-        if (this.id==='quiet'&&!this.woke) {
-            let near=false;
-            for (const e of list) {
-                if (e.sleep&&Math.hypot(e.pos.x-player.pos.x,e.pos.z-player.pos.z)<this.cfg.radius) {
-                    near=true;
+        if (this.id==='dodge') {
+            this.chalkT-=dt;
+            if (this.chalkT<=0) {
+                this.chalkT=this.cfg.every;
+                this.chalk(player);
+            }
+        }
+        if (this.id==='music') {
+            this.updateRings(dt,player);
+        }
+    }
+
+    chalk(player) {
+        const room=this.hooks.room();
+        if (!room) {
+            return;
+        }
+        const b=room.walkBounds||room.bounds;
+        const side=Math.floor(Math.random()*4);
+        const rx=b.minX+1+Math.random()*(b.maxX-b.minX-2);
+        const rz=b.minZ+1+Math.random()*(b.maxZ-b.minZ-2);
+        const x=side===0?b.minX+0.8:(side===1?b.maxX-0.8:rx);
+        const z=side===2?b.minZ+0.8:(side===3?b.maxZ-0.8:rz);
+        const a=Math.atan2(player.pos.z-z,player.pos.x-x)+(Math.random()-0.5)*2*this.cfg.spread;
+        this.hooks.bullets.spawn(x,z,Math.cos(a),Math.sin(a),this.cfg.speed,1,this.cfg.life+Math.hypot(player.pos.x-x,player.pos.z-z)/this.cfg.speed);
+        this.hooks.chalked(x,z);
+    }
+
+    ringSpot(player) {
+        const room=this.hooks.room();
+        if (!room) {
+            return null;
+        }
+        const C=this.cfg;
+        const b=room.walkBounds||room.bounds;
+        for (let i=0;i<40;i++) {
+            const x=player.pos.x+(Math.random()*2-1)*C.rangeX;
+            const z=player.pos.z+(Math.random()*2-1)*C.rangeZ;
+            const d=Math.hypot(x-player.pos.x,z-player.pos.z);
+            if (x<b.minX+2||x>b.maxX-2||z<b.minZ+2||z>b.maxZ-2||d<C.minFar||this.rings.some(q=>Math.hypot(q.x-x,q.z-z)<C.radius*3)) {
+                continue;
+            }
+            let ok=true;
+            for (const c of room.colliders) {
+                if (circleVs(x,z,C.radius+0.4,c,_t)) {
+                    ok=false;
                     break;
                 }
             }
-            this.alert=Math.max(0,Math.min(1,this.alert+(near?this.cfg.near:-this.cfg.decay)*dt));
-            if (this.alert>=1) {
-                this.wakeAll();
+            if (ok) {
+                return {x,z};
+            }
+        }
+        return null;
+    }
+
+    updateRings(dt,player) {
+        const C=this.cfg;
+        for (let i=this.rings.length-1;i>=0;i--) {
+            const q=this.rings[i];
+            q.age+=dt;
+            if (Math.hypot(player.pos.x-q.x,player.pos.z-q.z)<C.radius+0.3) {
+                this.rings.splice(i,1);
+                this.count++;
+                this.pulse=0.6;
+                this.hooks.stepped(q.x,q.z);
+                if (this.count>=this.goal) {
+                    this.complete();
+                    return;
+                }
+            }
+            else if (q.age>=C.life) {
+                this.rings.splice(i,1);
+                this.hooks.missed(q.x,q.z);
+            }
+        }
+        this.ringT-=dt;
+        if (this.ringT<=0&&this.rings.length<C.max) {
+            this.ringT=C.every;
+            const p=this.ringSpot(player);
+            if (p) {
+                this.rings.push({x:p.x,z:p.z,age:0});
             }
         }
     }
@@ -212,7 +259,8 @@ export class CourseRun {
         if (this.id==='pe'&&this.elapsed>this.cfg.time) {
             this.fail('course.pe.late');
         }
-        if (!this.failed&&this.id!=='math') {
+        this.rings.length=0;
+        if (!this.failed&&(this.id==='pe'||this.id==='copy')) {
             this.count=this.goal;
             this.complete();
         }

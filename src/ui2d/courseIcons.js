@@ -29,23 +29,31 @@ const GLYPHS={
         ctx.lineWidth=k*0.12;
         ctx.strokeRect(-k*0.2,-k*0.25,k*1.05,k*1.1);
     },
-    quiet(ctx,k,col,v) {
-        ctx.font='bold '+Math.round(k*1.5)+'px '+FONT;
-        ctx.textAlign='center';
-        ctx.textBaseline='middle';
-        ctx.fillText('Z',-k*0.28,k*0.28);
-        ctx.font='bold '+Math.round(k*1.0)+'px '+FONT;
-        ctx.fillText('z',k*0.55,-k*0.5);
-    },
-    cram(ctx,k,col,v) {
+    dodge(ctx,k,col,v) {
         ctx.lineWidth=k*0.2;
-        ctx.strokeRect(-k*0.8,-k*0.9,k*1.6,k*1.8);
         ctx.beginPath();
-        ctx.moveTo(-k*0.4,-k*0.9);
-        ctx.lineTo(-k*0.4,k*0.9);
+        ctx.moveTo(-k*0.9,k*0.5);
+        ctx.lineTo(k*0.1,-k*0.5);
         ctx.stroke();
-        ctx.fillRect(k*0.1,-k*0.5,k*0.45,k*0.18);
-        ctx.fillRect(k*0.1,-k*0.1,k*0.45,k*0.18);
+        ctx.save();
+        ctx.translate(k*0.35,-k*0.7);
+        ctx.rotate(0.8);
+        ctx.fillRect(-k*0.25,-k*0.5,k*0.5,k*1.1);
+        ctx.restore();
+        ctx.beginPath();
+        ctx.arc(k*0.55,k*0.55,k*0.28,0,Math.PI*2);
+        ctx.fill();
+    },
+    music(ctx,k,col,v) {
+        ctx.lineWidth=k*0.2;
+        ctx.beginPath();
+        ctx.ellipse(-k*0.35,k*0.55,k*0.42,k*0.3,-0.4,0,Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(k*0.02,k*0.45);
+        ctx.lineTo(k*0.02,-k*0.85);
+        ctx.lineTo(k*0.75,-k*0.55);
+        ctx.stroke();
     }
 };
 
