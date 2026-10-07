@@ -38,6 +38,7 @@ export const TUNING={
         smallMaxBoost:1.3,
         depthBoost:0.4,
         smallMinWidth:0.6,
+        minLine:0.9,
         hullWidth:0.035,
         mobileHull:0.7,
         lineGrain:0.2

@@ -46,6 +46,7 @@ export class PostFX {
             uLineFade:{value:new THREE.Vector2(O.fadeNear,O.fadeFar)},
             uEdge:{value:new THREE.Vector4(O.depthLo,O.depthHi,O.normalLo,O.normalHi)},
             uLineScale:{value:1},
+            uMinLine:{value:O.minLine},
             uInk:{value:pal('ink').clone()},
             uPaperOff:{value:new THREE.Vector2(0,0)},
             uGrain:{value:new THREE.Vector2(P.grain,1)},
