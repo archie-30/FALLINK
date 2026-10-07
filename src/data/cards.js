@@ -336,7 +336,7 @@ export const CARDS={
         mode:'sweep',
         targeting:'direction',
         range:16,
-        params:{damage:60,width:8,length:18},
+        params:{damage:75,width:8,length:18},
         upgraded:{cost:3},
         effect:(g,t,p)=>g.tsunami(t.dx,t.dz,p.damage,p.width,p.length)
     },
