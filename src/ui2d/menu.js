@@ -6,7 +6,7 @@ import {hash1} from '../core/rng.js';
 import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
-import {settings,STICK_DEFAULTS,device} from '../core/settings.js';
+import {settings,STICK_DEFAULTS,device,textScale} from '../core/settings.js';
 import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel,STARTING_DECK,unlockedCards,TUTORIAL_DECK,TUTORIAL_ULT,TUTORIAL_MERGE} from '../data/cards.js';
 import {progress,xpToNext,hasSeen,effectiveLevel,godMode,trainable} from '../core/progress.js';
 import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
@@ -569,9 +569,9 @@ export class PauseMenu extends Panel {
     }
 }
 
-const SETTING_KEYS=['volume','music','sfx','quality','fps','jitter','assist','countdown','reduced','full','god'];
+const SETTING_KEYS=['volume','music','sfx','quality','fps','jitter','assist','countdown','reduced','full','god','textSize'];
 
-const SEGS={quality:{opts:['low','mid','high'],label:k=>t('quality.'+k)},fps:{opts:TUNING.loop.fpsOptions,label:k=>String(k)}};
+const SEGS={quality:{opts:['low','mid','high'],label:k=>t('quality.'+k)},textSize:{opts:['small','mid','large'],label:k=>t('textSize.'+k)},fps:{opts:TUNING.loop.fpsOptions,label:k=>String(k)}};
 
 const MUTE_KEYS=['volume','music','sfx','jitter'];
 
@@ -622,6 +622,9 @@ export class SettingsMenu extends Panel {
         }
         if (key==='fps') {
             return Math.max(0,SEGS.fps.opts.indexOf(settings.fpsCap));
+        }
+        if (key==='textSize') {
+            return Math.max(0,SEGS.textSize.opts.indexOf(settings.textSize));
         }
         if (key==='reduced') {
             return settings.reducedMotion?1:0;
@@ -901,6 +904,9 @@ export class SettingsMenu extends Panel {
                     if (r.key==='quality') {
                         settings.quality=opts[i];
                         settings.qualityAuto=false;
+                    }
+                    else if (r.key==='textSize') {
+                        settings.textSize=opts[i];
                     }
                     else {
                         settings.fpsCap=opts[i];
@@ -3867,7 +3873,7 @@ export class LevelView extends Panel {
         const pw=Math.min(680,w-32);
         const py=Math.max(12,h*0.05);
         this.P={x:w/2-pw/2,y:py,w:pw,h:h-py*2};
-        const head=h<600?112:150;
+        const head=(h<600?112:150)+Math.round(14*(textScale()-1)*2);
         this.view={x:this.P.x+18,y:this.P.y+head,w:pw-36,h:this.P.h-head-(h<600?62:76)};
         this.backBtn={x:w/2-90,y:this.P.y+this.P.h-(h<600?54:64),w:180,h:h<600?42:48};
         this.buttons=[this.backBtn];
@@ -3995,7 +4001,7 @@ export class LevelView extends Panel {
         ctx.fillStyle=PALETTE.nearGray;
         const src=wrapText(ctx,t('levels.sources',{kill:L.xpKill,room:L.xpRoom,boss:L.xpBoss,act:L.xpAct,win:L.xpVictory}),bw);
         for (let i=0;i<src.length&&i<2;i++) {
-            ctx.fillText(src[i],bx,by+42+i*16);
+            ctx.fillText(src[i],bx,by+42+i*Math.round(16*textScale()));
         }
         ctx.save();
         ctx.beginPath();
@@ -7365,9 +7371,15 @@ export class WeaponView extends Panel {
             ctx.textAlign='left';
             ctx.textBaseline='middle';
             const tw=cw-ch*0.98-14;
-            fitText(ctx,t('weapon.'+id+'.name'),ch*0.98,ch*0.38,tw,small?18:22,'bold ');
+            ctx.font=(small?14:16)+'px '+FONT;
+            const subLines=wrapText(ctx,locked?t('codex.locked',{level:WEAPONS[id].unlock}):t('weapon.'+id+'.short'),tw).slice(0,2);
+            const subH=Math.round((small?15:18)*textScale());
+            fitText(ctx,t('weapon.'+id+'.name'),ch*0.98,subLines.length>1?ch*0.28:ch*0.38,tw,small?18:22,'bold ');
             ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
-            fitText(ctx,locked?t('codex.locked',{level:WEAPONS[id].unlock}):t('weapon.'+id+'.short'),ch*0.98,ch*0.68,tw,small?14:16,'');
+            ctx.font=(small?14:16)+'px '+FONT;
+            for (let q=0;q<subLines.length;q++) {
+                ctx.fillText(subLines[q],ch*0.98,(subLines.length>1?ch*0.56:ch*0.68)+q*subH);
+            }
             if (eqOn) {
                 const k=et/Q.time;
                 for (let d=0;d<Q.drops;d++) {

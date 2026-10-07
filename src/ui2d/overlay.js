@@ -1,7 +1,7 @@
 import {PALETTE,rgba} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
-import {device,settings} from '../core/settings.js';
+import {device,settings,textScale} from '../core/settings.js';
 import {time} from '../core/loop.js';
 import {EASE} from '../core/easing.js';
 import {hash1} from '../core/rng.js';
@@ -13,10 +13,44 @@ import {cardCost} from '../game/card.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
+const FONT_CACHE=new Map();
+
+function scaledFont(v,k) {
+    const key=k+'|'+v;
+    let out=FONT_CACHE.get(key);
+    if (out===undefined) {
+        const T=TUNING.ui.text;
+        out=v.replace(/(\d+(?:\.\d+)?)px/,(m,n)=>{
+            const px=Number(n);
+            return px>=T.minPx&&px<=T.maxPx?Math.round(px*k)+'px':m;
+        });
+        FONT_CACHE.set(key,out);
+    }
+    return out;
+}
+
+function installFontScale(ctx) {
+    const d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ctx),'font');
+    ctx.fontK=1;
+    if (!d||!d.set) {
+        return;
+    }
+    Object.defineProperty(ctx,'font',{
+        get() {
+            return d.get.call(this);
+        },
+        set(v) {
+            d.set.call(this,this.fontK===1?v:scaledFont(v,this.fontK));
+        },
+        configurable:true
+    });
+}
+
 export class Overlay {
     constructor(canvas) {
         this.canvas=canvas;
         this.ctx=canvas.getContext('2d');
+        installFontScale(this.ctx);
         this.width=1;
         this.height=1;
         this.dpr=1;
@@ -65,7 +99,10 @@ export class Overlay {
         ctx.lineJoin='round';
         game.transition.draw(ctx,this.width,this.height);
         const dying=game.run.state==='dead';
+        const K=textScale();
+        ctx.fontK=1;
         if (game.mode==='play'&&dying) {
+            ctx.fontK=K;
             game.summary.draw(ctx);
             game.revivePopup.draw(ctx);
         }
@@ -105,6 +142,7 @@ export class Overlay {
             }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
             game.coach.touch=input.lastDevice==='touch';
+            ctx.fontK=K;
             game.coach.drawStrip(ctx,game.art);
             this.hud.drawBanner(ctx,this.width,this.height,game.dt);
             game.ultCutin.draw(ctx,this.width,this.height,game.art);
@@ -138,6 +176,7 @@ export class Overlay {
                 }
             }
         }
+        ctx.fontK=K;
         if (game.mode!=='play') {
             game.summary.draw(ctx);
         }

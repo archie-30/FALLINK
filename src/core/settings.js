@@ -19,6 +19,7 @@ export const settings={
     aimAssist:true,
     aimGuide:true,
     resumeCount:true,
+    textSize:'mid',
     volume:0.8,
     fpsCap:60,
     fpsAuto:true,
@@ -137,4 +138,8 @@ export function boilScale() {
 
 export function shakeScale() {
     return (settings.reducedMotion?TUNING.reducedMotion.shake:1);
+}
+
+export function textScale() {
+    return TUNING.ui.text[settings.textSize]||1;
 }
