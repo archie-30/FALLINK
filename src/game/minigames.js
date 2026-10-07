@@ -1172,12 +1172,23 @@ const GAMES={
             g.box(0.36,2.4,0.14,'light',0,1.3,0.02,g.meter);
             g.slider=g.box(0.62,0.16,0.2,'accent',0,0.2,0.05,g.meter);
             g.mt=0;
-            const bx=g.range(-P.binX,P.binX);
-            const bz=g.range(P.binZ[0],P.binZ[1]);
-            g.bin={x:bx,z:bz};
-            g.cyl(P.binR*0.85,P.binR*0.7,1.0,'dark',bx,0.5,bz);
-            g.ring(P.binR*0.85,'light',bx,bz).position.y=1.02;
-            g.disc(P.binR,'cover',bx,bz,0.02);
+            // two bins, one on each side of the field so both stay readable from the launch pad
+            g.bins=[];
+            const flip=g.r()<0.5?-1:1;
+            for (let i=0;i<P.bins;i++) {
+                const bx=(i%2===0?flip:-flip)*g.range(P.binMinX,P.binX);
+                const bz=g.range(P.binZ[0],P.binZ[1]);
+                g.cyl(P.binR*0.85,P.binR*0.7,1.0,'dark',bx,0.5,bz);
+                const rim=g.ring(P.binR*0.85,'light',bx,bz);
+                rim.position.y=1.02;
+                g.disc(P.binR,'cover',bx,bz,0.02);
+                const done=g.ring(P.binR*0.85,'accent',bx,bz);
+                done.position.y=1.03;
+                const fill=g.disc(P.binR*0.8,'accent',bx,bz,1.0);
+                done.visible=false;
+                fill.visible=false;
+                g.bins.push({x:bx,z:bz,hit:false,done,fill});
+            }
             g.aim=g.flat(0.12,3,'midGray',px,pz,0.05);
             g.plane=new THREE.Group();
             g.add(g.plane);
@@ -1188,9 +1199,33 @@ const GAMES={
         },
         begin(g) {
             g.place(g.P.pad[0],g.P.pad[1]);
-            g.throws=g.P.throws;
+            g.misses=g.P.misses;
+            g.hits=0;
             g.mt=0;
             g.fly=null;
+        },
+        // camera framing: while the player stands on the launch pad, keep the pad and every bin still in play on screen
+        view(g,pl) {
+            if (g.ended) {
+                return null;
+            }
+            const P=g.P;
+            const near=g.fly||g.inside(pl,P.pad[0],P.pad[1],P.padR*1.8);
+            if (!near) {
+                return null;
+            }
+            const pts=[[P.pad[0],P.pad[1]]];
+            for (const b of g.bins) {
+                if (!b.hit) {
+                    pts.push([b.x,b.z]);
+                }
+            }
+            return {
+                minX:Math.min(...pts.map(q=>q[0])),
+                maxX:Math.max(...pts.map(q=>q[0])),
+                minZ:Math.min(...pts.map(q=>q[1])),
+                maxZ:Math.max(...pts.map(q=>q[1]))
+            };
         },
         power(g) {
             const x=(g.mt*g.a(g.P.meterRate))%2;
@@ -1236,20 +1271,39 @@ const GAMES={
             }
             g.fly=null;
             g.burst(f.x1,f.z1,'farGray',8,0.3);
-            if (Math.hypot(f.x1-g.bin.x,f.z1-g.bin.z)<P.binR) {
+            const hit=g.bins.find(q=>!q.hit&&Math.hypot(f.x1-q.x,f.z1-q.z)<P.binR);
+            if (hit) {
+                hit.hit=true;
+                hit.done.visible=true;
+                hit.fill.visible=true;
+                g.hits++;
                 g.plane.visible=false;
-                g.burst(g.bin.x,g.bin.z,'red',14,1.1);
-                g.win();
+                g.burst(hit.x,hit.z,'red',14,1.1);
+                if (g.hits>=g.bins.length) {
+                    g.win();
+                }
+                else {
+                    g.sound('equip',1.1);
+                    g.say(hit.x,hit.z,'mg.plane.hit',{n:g.hits,total:g.bins.length});
+                }
                 return;
             }
-            g.throws--;
-            g.say(f.x1,f.z1,Math.hypot(f.x0-g.bin.x,f.z0-g.bin.z)>Math.hypot(f.x0-f.x1,f.z0-f.z1)?'mg.plane.short':'mg.plane.long');
-            if (g.throws<=0) {
+            g.misses--;
+            let near=null;
+            for (const q of g.bins) {
+                if (!q.hit&&(!near||Math.hypot(f.x1-q.x,f.z1-q.z)<Math.hypot(f.x1-near.x,f.z1-near.z))) {
+                    near=q;
+                }
+            }
+            if (near) {
+                g.say(f.x1,f.z1,Math.hypot(f.x0-near.x,f.z0-near.z)>Math.hypot(f.x0-f.x1,f.z0-f.z1)?'mg.plane.short':'mg.plane.long');
+            }
+            if (g.misses<=0) {
                 g.lose();
             }
         },
         info(g) {
-            return {key:'mg.plane.info',params:{n:g.throws}};
+            return {key:'mg.plane.info',params:{n:g.misses,hit:g.hits,total:g.bins.length}};
         }
     },
     maze:{
@@ -1921,6 +1975,15 @@ export class MiniGames {
         if (g&&this.running&&!g.ended&&GAMES[g.id].hit) {
             GAMES[g.id].hit(g);
         }
+    }
+
+    view(player) {
+        const g=this.g;
+        if (!g||!this.running||g.ended) {
+            return null;
+        }
+        const def=GAMES[g.id];
+        return def.view?def.view(g,player):null;
     }
 
     wantsInteract(player) {
