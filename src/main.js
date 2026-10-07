@@ -295,6 +295,19 @@ function boot() {
                 s.dealt+=dmg;
                 enemies.damage(e,dmg,nx,nz,false,m>1);
             }
+            if (game.room) {
+                for (const pc of game.room.pieces.slice()) {
+                    if (pc.state!=='alive'||!(pc.kind==='barrel'||pc.kind==='crate'||pc.kind==='target')||s.hit.has(pc)) {
+                        continue;
+                    }
+                    const d=inArc(pc.x,pc.z,pc.radius+S.propPad);
+                    if (d<0) {
+                        continue;
+                    }
+                    s.hit.add(pc);
+                    game.room.damagePiece(pc,Math.max(...s.W.bands));
+                }
+            }
             enemyBullets.killWhere((bx,bz)=>inArc(bx,bz,S.bulletPad)>=0,(bx,bz)=>particles.burst(bx,1,bz,2,{color:'farGray',speed:[1,3],up:[1,2]}));
             if (s.life<=0) {
                 swings.splice(i,1);
@@ -3051,7 +3064,7 @@ function boot() {
     if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={guide,overlay,confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={ctx,guide,overlay,confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();
