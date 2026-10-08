@@ -404,18 +404,23 @@ export class RelicGacha extends Panel {
             const sc=ap*(1+(hv?0.06:0)+Math.sin(pu*Math.PI)*0.2);
             ctx.scale(sc,sc);
             if (sel) {
-                ctx.fillStyle=rgba('red',0.08);
+                const bw=ts+L.gapX-6;
+                const top=-ts/2-(small?6:8);
+                const bh=ts+(small?28:34);
+                const rr=small?8:10;
+                const bx=-bw/2;
                 ctx.beginPath();
-                ctx.arc(0,0,ts/2+8,0,Math.PI*2);
+                ctx.moveTo(bx+rr,top);
+                ctx.arcTo(bx+bw,top,bx+bw,top+bh,rr);
+                ctx.arcTo(bx+bw,top+bh,bx,top+bh,rr);
+                ctx.arcTo(bx,top+bh,bx,top,rr);
+                ctx.arcTo(bx,top,bx+bw,top,rr);
+                ctx.closePath();
+                ctx.fillStyle=rgba('red',0.08);
                 ctx.fill();
                 ctx.strokeStyle=PALETTE.red;
-                ctx.lineWidth=2;
-                ctx.setLineDash([5,4]);
-                ctx.lineDashOffset=-time.real*14;
-                ctx.beginPath();
-                ctx.arc(0,0,ts/2+8,0,Math.PI*2);
+                ctx.lineWidth=2.4;
                 ctx.stroke();
-                ctx.setLineDash([]);
             }
             drawRelicIcon(ctx,id,0,own&&sel?Math.sin(time.real*2+i)*2:0,ts/2/50,v,!own);
             if (!own) {
