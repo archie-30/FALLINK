@@ -6,7 +6,7 @@
 
 https://archie-30.github.io/INKRAGE/
 
-遊戲介紹頁（單一 HTML，展示所有玩法）：https://archie-30.github.io/INKRAGE/intro.html （原始檔為 [intro.html](intro.html)，可直接用瀏覽器開啟）
+遊戲介紹頁（單一 HTML）：https://archie-30.github.io/INKRAGE/intro.html （原始檔為 [intro.html](intro.html)，可直接用瀏覽器開啟）
 
 （需先在 GitHub 開啟 Pages，推送到 `main` 後會自動部署。）
 

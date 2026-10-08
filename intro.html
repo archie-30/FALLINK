@@ -5,76 +5,44 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F2F0EB">
 <title>INKRAGE 狂墨</title>
-<meta name="description" content="INKRAGE 狂墨：在筆記本上展開的手繪 3D 射擊 × 牌組構築遊戲。完整玩法介紹。">
+<meta name="description" content="INKRAGE 狂墨：在筆記本上展開的手繪射擊 × 牌組構築遊戲（開發中）。">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23F2F0EB'/%3E%3Cpath d='M32 8C32 8 14 30 14 41a18 18 0 0 0 36 0C50 30 32 8 32 8z' fill='%231A1A1A'/%3E%3Cpath d='M41 38a9 9 0 0 1-9 11' stroke='%23D62828' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 :root{
-    --paper:#F2F0EB;
-    --paper2:#E9E6DF;
-    --card:#FBFAF7;
-    --far:#D6D3CC;
-    --mid:#9A9892;
-    --near:#4A4946;
-    --ink:#1A1A1A;
-    --red:#D62828;
-    --dred:#8C1C1C;
-    --gold:#E8B931;
-    --goldD:#A87A12;
-    --blue:#3B6FB6;
-    --green:#3E9A57;
-    --grid:rgba(26,26,26,0.055);
-    --line:var(--ink);
+    --paper:#F2F0EB;--paper2:#E9E6DF;--card:#FBFAF7;--far:#D6D3CC;--mid:#9A9892;--near:#4A4946;
+    --ink:#1A1A1A;--red:#D62828;--dred:#8C1C1C;--gold:#E8B931;
+    --grid:rgba(26,26,26,0.055);--line:var(--ink);
     --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
-    --gut:clamp(16px,4vw,40px);
+    --gut:clamp(16px,5vw,64px);
 }
 *{box-sizing:border-box}
-html{scroll-behavior:auto;-webkit-text-size-adjust:100%;overflow-x:hidden;overflow-x:clip}
-body{
-    margin:0;
-    color:var(--ink);
-    font-family:var(--font);
-    font-size:16px;
-    line-height:1.7;
-    background:
-        linear-gradient(var(--grid) 1px,transparent 1px) 0 0/34px 34px,
-        linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/34px 34px,
-        var(--paper);
-    overflow-x:hidden;
-    overflow-x:clip;
-}
-body.lock{overflow:hidden}
+html{-webkit-text-size-adjust:100%;overflow-x:hidden;overflow-x:clip}
+body{margin:0;color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.7;overflow-x:hidden;overflow-x:clip;
+    background:linear-gradient(var(--grid) 1px,transparent 1px) 0 0/34px 34px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/34px 34px,var(--paper)}
 ::selection{background:var(--red);color:#fff}
 a{color:inherit}
-h1,h2,h3,h4{margin:0;line-height:1.25;font-weight:900}
+h1,h2,h3,h4{margin:0;line-height:1.15;font-weight:900}
 p{margin:0}
 button{font:inherit;color:inherit;cursor:pointer}
 .red{color:var(--red)}
 .mut{color:var(--near)}
-.small{font-size:13px}
-.grain{
-    position:fixed;inset:0;pointer-events:none;z-index:90;opacity:0.07;mix-blend-mode:multiply;
+.grain{position:fixed;inset:0;pointer-events:none;z-index:90;opacity:.07;mix-blend-mode:multiply;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
-    animation:grain 0.9s steps(3) infinite;
-}
+    animation:grain .9s steps(3) infinite}
 @keyframes grain{0%{background-position:0 0}33%{background-position:-37px 21px}66%{background-position:29px -43px}}
 
-/* ---------- 手繪框 ---------- */
+/* 手繪框 */
 .sk{position:relative;background:var(--card)}
 .sk::before,.sk::after{content:"";position:absolute;pointer-events:none;border-color:var(--line);border-style:solid;border-width:0}
-.sk::before{inset:-5px 0;border-left-width:2.5px;border-right-width:2.5px;transform:rotate(0.35deg)}
-.sk::after{inset:0 -6px;border-top-width:2.5px;border-bottom-width:2.5px;transform:rotate(-0.25deg)}
-.sk.thin::before,.sk.thin::after{border-width:0}
-.sk.thin::before{border-left-width:1.5px;border-right-width:1.5px}
-.sk.thin::after{border-top-width:1.5px;border-bottom-width:1.5px}
-.sk.r{--line:var(--red)}
-.hatch{background-image:repeating-linear-gradient(-45deg,rgba(26,26,26,0.5) 0 1.2px,transparent 1.2px 5px)}
-.boil{animation:boil 0.36s steps(1) infinite}
+.sk::before{inset:-5px 0;border-left-width:2.5px;border-right-width:2.5px;transform:rotate(.35deg)}
+.sk::after{inset:0 -6px;border-top-width:2.5px;border-bottom-width:2.5px;transform:rotate(-.25deg)}
+.boil{animation:boil .36s steps(1) infinite}
 @keyframes boil{0%{filter:url(#wob0)}33%{filter:url(#wob1)}66%{filter:url(#wob2)}}
 
-/* ---------- 讀取 ---------- */
+/* 讀取 */
 #loader{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--paper);transition:opacity .5s ease,transform .5s ease}
 #loader.done{opacity:0;transform:scale(1.04);pointer-events:none}
 .ld-stage{position:relative;width:120px;height:110px}
@@ -87,32 +55,32 @@ button{font:inherit;color:inherit;cursor:pointer}
 @keyframes ld-splash{0%,68%{opacity:0;transform:scale(.4)}72%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(3.2,1.6)}}
 @keyframes ld-bar{0%{left:-40%}100%{left:100%}}
 
-/* ---------- 導覽 ---------- */
-.nav{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:14px;padding:10px var(--gut);background:rgba(242,240,235,.93);backdrop-filter:blur(4px);transform:translateY(-110%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+/* 按鈕 */
+.btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 28px;font-weight:900;font-size:17px;text-decoration:none;background:var(--card);border:0;transition:transform .15s}
+.btn:hover{transform:translateY(-2px) rotate(-.6deg)}
+.btn:active{transform:translateY(1px) scale(.98)}
+.btn.ink{background:var(--ink);color:var(--paper)}
+.btn.r{color:var(--red);--line:var(--red)}
+.btn.sm{padding:6px 16px;font-size:14px}
+
+/* 導覽 */
+.nav{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:center;gap:16px;padding:10px var(--gut);background:rgba(242,240,235,.93);backdrop-filter:blur(4px);transform:translateY(-110%);transition:transform .4s cubic-bezier(.2,.8,.2,1)}
 .nav.show{transform:none}
 .nav::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='4' preserveAspectRatio='none'%3E%3Cpath d='M0 2 Q37 0.5 75 2.2 T150 1.8 T225 2.4 T300 1.6' stroke='%231A1A1A' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") 0 0/300px 4px repeat-x}
-.nav .logo{font-weight:900;letter-spacing:3px;font-size:20px;text-decoration:none;white-space:nowrap}
-.nav .links{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.nav .logo{font-weight:900;letter-spacing:3px;font-size:20px;text-decoration:none}
+.beta{display:inline-block;font-size:11px;font-weight:900;letter-spacing:.08em;color:var(--red);border:2px solid var(--red);padding:0 6px;transform:rotate(-4deg);white-space:nowrap}
+.nav .links{display:flex;gap:6px;flex:1;justify-content:center;overflow-x:auto;scrollbar-width:none}
 .nav .links::-webkit-scrollbar{display:none}
-.nav .links a{flex:none;text-decoration:none;font-weight:700;font-size:14px;padding:4px 10px;position:relative;white-space:nowrap}
+.nav .links a{flex:none;text-decoration:none;font-weight:700;font-size:14px;padding:4px 10px;position:relative}
 .nav .links a::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:3px;background:var(--red);transform:scaleX(0);transform-origin:left;transition:transform .25s}
 .nav .links a:hover::after,.nav .links a.on::after{transform:scaleX(1)}
-.nav .play{flex:none}
 
-/* ---------- 按鈕 ---------- */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 24px;font-weight:900;font-size:17px;text-decoration:none;background:var(--card);border:0;transition:transform .15s}
-.btn:hover{transform:translateY(-2px) rotate(-.5deg)}
-.btn:active{transform:translateY(1px) scale(.98)}
-.btn.r{color:var(--red)}
-.btn.solid{background:var(--ink);color:var(--paper)}
-.btn.solid::before,.btn.solid::after{--line:var(--ink)}
-.btn.sm{padding:6px 14px;font-size:14px}
-
-/* ---------- 開場 ---------- */
-#hero{position:relative;min-height:100vh;min-height:100svh;display:grid;grid-template-columns:2fr 1fr;overflow:hidden}
-.stage{position:relative;min-height:520px;cursor:crosshair}
-#heroCv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
-.hud{position:absolute;left:22px;top:22px;pointer-events:none;width:min(320px,60%)}
+/* ===== 開場 ===== */
+#hero{position:relative;height:100vh;height:100svh;min-height:620px;overflow:hidden}
+#stage{position:absolute;inset:0}
+#heroCv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;left:28px;top:24px;width:min(300px,40%);pointer-events:none;transform:translateX(-120%);transition:transform .8s .9s cubic-bezier(.2,1.2,.3,1)}
+body.ready .hud{transform:none}
 .pencil{position:relative;height:22px;display:flex;align-items:center}
 .pencil .body{position:relative;flex:1;height:100%;border:2px solid var(--ink);border-right:0;background:var(--card);overflow:hidden}
 .pencil .body i{position:absolute;inset:0;right:auto;width:100%;background:var(--paper2);transition:width .3s}
@@ -129,218 +97,173 @@ button{font:inherit;color:inherit;cursor:pointer}
 .inkb .n small{font-size:15px;color:var(--near);font-weight:700}
 .inkb .n.pop{animation:pop .35s}
 @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.35);color:var(--red)}100%{transform:scale(1)}}
-.score{position:absolute;right:20px;top:16px;text-align:right;pointer-events:none}
-.score b{display:block;font-size:34px;line-height:1;font-weight:900;transition:color .2s}
-.score span{font-size:13px;color:var(--near)}
-.score b.bump{animation:pop .35s}
-.hand{position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:flex;gap:12px;align-items:flex-end;pointer-events:none}
-.hand .slot{position:relative;width:94px;height:118px;transition:transform .3s cubic-bezier(.2,.9,.3,1.3),opacity .3s}
+.score{display:none}
+.hand{position:absolute;left:30%;bottom:62px;transform:translate(-50%,130%);display:flex;gap:12px;align-items:flex-end;pointer-events:none;transition:transform .8s 1.1s cubic-bezier(.2,1.2,.3,1)}
+body.ready .hand{transform:translateX(-50%)}
+.hand .slot{position:relative;width:90px;height:112px;transition:transform .3s cubic-bezier(.2,.9,.3,1.3),opacity .3s}
 .hand .slot .key{position:absolute;left:50%;top:-30px;transform:translateX(-50%);width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;background:var(--card);border:2px solid var(--ink)}
 .hand .slot.ult .key{border-color:var(--red);color:var(--red)}
 .hand .slot.play{transform:translateY(-70px) scale(1.1) rotate(-4deg);opacity:0}
 .hand .slot.enter{transform:translateY(60px);opacity:0;transition:none}
 .hand .slot.poor{animation:shake .3s}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
-.stage .tip-hint{position:absolute;left:50%;top:14px;transform:translateX(-50%);font-size:13px;color:var(--near);background:rgba(242,240,235,.8);padding:2px 10px;white-space:nowrap;pointer-events:none}
-.titlecol{position:relative;display:flex;flex-direction:column;justify-content:center;padding:60px clamp(20px,3vw,48px) 60px clamp(28px,4vw,56px);background:rgba(242,240,235,.82)}
-.sep{position:absolute;left:0;top:0;bottom:0;width:20px;pointer-events:none}
-.sep svg{width:100%;height:100%;overflow:visible}
-.sep .drop{position:absolute;left:5px;width:8px;height:12px;background:var(--ink);border-radius:50% 50% 50% 50%/60% 60% 40% 40%;animation:drip 7s linear infinite}
-@keyframes drip{0%{top:-20px;opacity:0}5%{opacity:1}80%{opacity:1}100%{top:100%;opacity:0}}
-.logo-big{font-size:clamp(46px,6.2vw,92px);letter-spacing:.02em;font-weight:900;line-height:1;position:relative;display:inline-block}
-.logo-big .u{display:block;height:10px;margin-top:6px}
-.logo-big .u path{stroke-dasharray:600;stroke-dashoffset:600;animation:draw 1.2s .6s cubic-bezier(.6,0,.2,1) forwards}
-@keyframes draw{to{stroke-dashoffset:0}}
-.tag{margin-top:12px;color:var(--near);letter-spacing:.12em;font-size:clamp(14px,1.3vw,17px)}
-.menu{display:flex;flex-direction:column;gap:22px;margin-top:38px}
-.menu .btn{width:100%;font-size:20px;padding:13px 10px}
-.menu .note{text-align:center;font-size:13px;color:var(--near);margin-top:-14px}
-.ver{position:absolute;left:clamp(28px,4vw,56px);bottom:18px;font-size:12px;color:var(--mid)}
-.scrolldown{position:absolute;left:33%;bottom:132px;transform:translateX(-50%);font-size:12px;color:var(--near);display:none}
 
-/* ---------- 區段 ---------- */
-section.pg{position:relative;padding:110px var(--gut) 60px;max-width:1240px;margin:0 auto}
-.pghead{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:34px}
-.pgno{font-weight:900;font-size:13px;letter-spacing:.2em;color:var(--red);border:2px solid var(--red);padding:2px 10px;transform:rotate(-3deg);background:var(--card)}
-.pghead h2{font-size:clamp(30px,4.4vw,52px);position:relative}
-.pghead h2 svg{position:absolute;left:-4px;right:-4px;bottom:-12px;width:calc(100% + 8px);height:14px;overflow:visible}
-.pghead h2 svg path{stroke-dasharray:900;stroke-dashoffset:900;transition:stroke-dashoffset 1s .2s cubic-bezier(.6,0,.2,1)}
-.pghead.in h2 svg path{stroke-dashoffset:0}
-.pghead .lead{flex:1 1 320px;color:var(--near);max-width:560px}
-.reveal{opacity:0;transform:translateY(30px) rotate(-.8deg) scale(.985);transition:opacity .55s,transform .75s cubic-bezier(.2,1.2,.3,1)}
-.reveal.in{opacity:1;transform:none}
-.grid{display:grid;gap:26px}
-.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
-.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
-.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
-.box{padding:22px 22px 20px}
-.box h3{font-size:21px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
-.box p+p{margin-top:8px}
-.box ul{margin:8px 0 0;padding-left:1.2em}
-.box li{margin:3px 0}
-.chip{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border:1.5px solid var(--ink);margin:2px 4px 2px 0;background:var(--card);white-space:nowrap}
+#heroPanel{position:absolute;top:0;right:0;bottom:0;width:43%;min-width:440px;z-index:2;display:flex;flex-direction:column;justify-content:center;padding:60px clamp(24px,4vw,64px) 60px 18%;
+    transform:translate(60%,-14%) rotate(4deg);opacity:0;transition:transform 1s .2s cubic-bezier(.2,1,.25,1),opacity .6s .2s}
+body.ready #heroPanel{transform:none;opacity:1}
+#heroPanel .bg{position:absolute;inset:0;z-index:-1;background:var(--paper);clip-path:polygon(16% 0,100% 0,100% 100%,0 100%);box-shadow:none}
+#heroPanel .bg::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(transparent 0 33px,rgba(59,111,182,.12) 33px 34px)}
+#heroPanel .edge{position:absolute;inset:0;z-index:-1;pointer-events:none;width:100%;height:100%;overflow:visible}
+.kicker{font-weight:900;font-size:13px;letter-spacing:.3em;color:var(--near)}
+.logo-big{font-size:clamp(46px,4.5vw,78px);letter-spacing:.01em;font-weight:900;line-height:1;margin-top:10px;white-space:nowrap}
+.logo-big .ch{display:inline-block;transform:translateY(-120%) rotate(-12deg);opacity:0;transition:transform .7s cubic-bezier(.2,1.5,.4,1),opacity .3s}
+body.ready .logo-big .ch{transform:none;opacity:1}
+.uline{display:block;width:100%;height:12px;margin-top:6px}
+.uline path{stroke-dasharray:700;stroke-dashoffset:700;transition:stroke-dashoffset 1.1s 1.4s cubic-bezier(.6,0,.2,1)}
+body.ready .uline path{stroke-dashoffset:0}
+.tag{margin-top:14px;font-size:clamp(15px,1.35vw,19px);font-weight:700;letter-spacing:.08em}
+.hero-desc{margin-top:10px;color:var(--near);max-width:30em}
+.cta{display:flex;gap:18px;flex-wrap:wrap;margin-top:34px}
+.devstamp{position:absolute;right:clamp(18px,3vw,48px);top:clamp(70px,12vh,120px);border:4px solid var(--red);color:var(--red);font-weight:900;padding:4px 12px 6px;line-height:1.2;text-align:center;transform:rotate(14deg) scale(3);opacity:0;background:rgba(251,250,247,.5);border-radius:4px;transition:transform .45s 1.9s cubic-bezier(.3,1.6,.5,1),opacity .2s 1.9s}
+.devstamp b{display:block;font-size:22px;letter-spacing:.15em}
+.devstamp small{font-size:11px;letter-spacing:.1em}
+body.ready .devstamp{transform:rotate(14deg) scale(1);opacity:.92}
+.scrollcue{position:absolute;left:30%;bottom:150px;transform:translateX(-50%);display:none}
+
+/* ===== 斜向跑馬燈 ===== */
+.bands{position:relative;height:190px;margin:-95px 0 -40px;z-index:5;pointer-events:none}
+.band{position:absolute;left:-10%;right:-10%;top:50%;height:58px;margin-top:-29px;display:flex;align-items:center;overflow:hidden;white-space:nowrap;font-weight:900;font-size:24px;letter-spacing:.06em}
+.band.a{background:var(--ink);color:var(--paper);transform:rotate(-3.5deg)}
+.band.b{background:var(--red);color:#fff;transform:rotate(3deg);height:48px;margin-top:-24px;font-size:19px}
+.mq{display:flex;flex:none;will-change:transform}
+.band .mq>span,.hazard .mq>span{padding:0 22px;display:inline-flex;align-items:center;gap:22px}
+.band .mq>span::after{content:"✦";font-size:.8em;opacity:.7}
+
+/* ===== 區段標題 ===== */
+section{position:relative}
+.wrap{max-width:1240px;margin:0 auto;padding:0 var(--gut)}
+.eyebrow{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.25em;color:var(--red);border:2px solid var(--red);padding:2px 10px;transform:rotate(-3deg);background:var(--card)}
+.big{font-size:clamp(38px,6vw,84px);letter-spacing:.01em;margin-top:18px}
+.split{overflow:hidden;padding-bottom:.08em}
+.split .ch{display:inline-block;transform:translateY(105%);transition:transform .7s cubic-bezier(.2,1,.3,1)}
+.split.in .ch{transform:none}
+.lead{color:var(--near);font-size:clamp(15px,1.4vw,18px);max-width:34em;margin-top:14px}
+
+/* 揭示：直、橫、斜 */
+.rv,.rv-l,.rv-r,.rv-d,.rv-dr{opacity:0;transition:opacity .6s,transform .9s cubic-bezier(.2,1.1,.3,1)}
+.rv{transform:translateY(50px)}
+.rv-l{transform:translateX(-90px)}
+.rv-r{transform:translateX(90px)}
+.rv-d{transform:translate(-70px,70px) rotate(-6deg)}
+.rv-dr{transform:translate(70px,70px) rotate(6deg)}
+.in.rv,.in.rv-l,.in.rv-r,.in.rv-d,.in.rv-dr{opacity:1;transform:none}
+
+/* ===== 橫向捲動玩法 ===== */
+#play .intro{padding:150px 0 40px}
+.hs{position:relative;height:400vh}
+.hs-sticky{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden}
+.hs-track{display:flex;height:100%;width:400vw;will-change:transform;overflow:hidden}
+.hpanel{position:relative;width:100vw;height:100%;flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:center;gap:clamp(20px,5vw,80px);padding:70px max(var(--gut),calc((100vw - 1240px)/2 + 64px)) 70px}
+.hpanel .num{position:absolute;left:max(var(--gut),calc((100vw - 1240px)/2 + 40px));top:8vh;font-size:clamp(140px,24vw,340px);font-weight:900;line-height:1;color:transparent;-webkit-text-stroke:2px rgba(26,26,26,.16);pointer-events:none;z-index:0}
+.hpanel .txt{position:relative;z-index:1}
+.hpanel h3{font-size:clamp(34px,4.6vw,64px)}
+.hpanel p{font-size:clamp(16px,1.5vw,20px);color:var(--near);margin-top:16px;max-width:22em}
+.hpanel .tags{margin-top:20px;display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-block;font-size:13px;font-weight:700;padding:2px 10px;border:2px solid var(--ink);background:var(--card)}
 .chip.r{border-color:var(--red);color:var(--red)}
-.chip.f{background:var(--ink);color:var(--paper)}
-.tape{position:absolute;top:-12px;left:50%;width:84px;height:24px;margin-left:-42px;background:rgba(214,211,204,.75);transform:rotate(-4deg);box-shadow:0 1px 0 rgba(0,0,0,.06)}
-.note-paper{background:var(--card);background-image:repeating-linear-gradient(transparent 0 27px,rgba(59,111,182,.16) 27px 28px);padding:28px 24px 20px}
-.subh{font-size:26px;margin:64px 0 22px;display:flex;align-items:center;gap:12px}
-.subh::before{content:"";width:14px;height:14px;background:var(--red);transform:rotate(45deg)}
-.icn{width:44px;height:44px;flex:none}
-.icn svg{width:100%;height:100%;overflow:visible}
+.ill{position:relative;height:min(56vh,440px);z-index:1}
+.ill .frame{position:absolute;inset:0;overflow:hidden;background:linear-gradient(var(--grid) 1px,transparent 1px) 0 0/22px 22px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/22px 22px,#F7F5F0}
+.ill canvas,.ill svg.full{position:absolute;inset:0;width:100%;height:100%}
+.hs-bar{position:absolute;left:var(--gut);right:var(--gut);bottom:28px;display:flex;align-items:center;gap:16px;font-weight:900;font-size:14px;z-index:3}
+.hs-bar .rail{flex:1;height:4px;background:rgba(26,26,26,.12);position:relative}
+.hs-bar .rail i{position:absolute;left:0;top:-1px;bottom:-1px;width:0;background:var(--ink)}
+.hs-bar .rail b{position:absolute;top:50%;width:14px;height:14px;margin:-7px;background:var(--red);transform:rotate(45deg)}
 
-/* 核心循環 */
-.loop{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:10px}
-.loop .arrow{align-self:center;width:54px}
-.loop .arrow path{stroke-dasharray:6 6;animation:dash 1s linear infinite}
-@keyframes dash{to{stroke-dashoffset:-24}}
-.step{padding:22px;text-align:center}
-.step .big{width:96px;height:96px;margin:0 auto 10px}
-.step .big svg{width:100%;height:100%;overflow:visible}
-.step h3{font-size:22px}
-.mech{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:26px;margin-top:40px}
-.demo{height:150px;margin:-6px -6px 14px;position:relative;overflow:hidden;background:
-    linear-gradient(var(--grid) 1px,transparent 1px) 0 0/20px 20px,
-    linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/20px 20px,#F6F4EF}
-.demo svg{position:absolute;inset:0;width:100%;height:100%}
-.demo canvas{position:absolute;inset:0;width:100%;height:100%}
+/* 卡牌合成動畫（純 CSS） */
+.mcard{position:absolute;top:50%;left:50%;width:118px;height:160px;margin:-80px -59px;background:var(--card);border:2.5px solid var(--ink);background-image:repeating-linear-gradient(transparent 0 15px,rgba(26,26,26,.07) 15px 16px);display:flex;flex-direction:column;align-items:center;padding-top:12px;font-weight:900;box-shadow:3px 4px 0 rgba(26,26,26,.12)}
+.mcard svg{width:80%;margin-top:14px;overflow:visible}
+.mcard .cst{position:absolute;left:-10px;top:-12px;width:30px;height:36px}
+.mcard.c1{animation:m1 4s infinite cubic-bezier(.6,0,.3,1)}
+.mcard.c2{animation:m2 4s infinite}
+.mcard.c3{animation:m3 4s infinite cubic-bezier(.6,0,.3,1)}
+.mcard.up{animation:mu 4s infinite;box-shadow:inset 0 0 0 4px var(--card),inset 0 0 0 5.5px var(--ink),3px 4px 0 rgba(26,26,26,.12)}
+.mcard.up::after{content:"★";position:absolute;right:0;bottom:0;width:30px;height:30px;background:linear-gradient(135deg,transparent 50%,var(--ink) 50%);color:var(--paper);font-size:11px;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 4px 2px 0}
+@keyframes m1{0%,15%{transform:translateX(-140px) rotate(-8deg);opacity:1}45%{transform:translateX(0) rotate(4deg);opacity:1}50%,100%{transform:none;opacity:0}}
+@keyframes m3{0%,15%{transform:translateX(140px) rotate(8deg);opacity:1}45%{transform:translateX(0) rotate(-4deg);opacity:1}50%,100%{transform:none;opacity:0}}
+@keyframes m2{0%,40%{transform:none;opacity:1;filter:none}46%{transform:scale(1.08);filter:drop-shadow(0 0 14px #E8B931)}50%,100%{opacity:0}}
+@keyframes mu{0%,49%{opacity:0;transform:scale(1.4)}55%{opacity:1;transform:scale(.95)}60%,92%{opacity:1;transform:scale(1)}100%{opacity:0}}
+.mflash{position:absolute;inset:0;background:radial-gradient(circle,#fff 25%,rgba(255,255,255,0) 60%);opacity:0;animation:mf 4s infinite}
+@keyframes mf{0%,47%{opacity:0}51%{opacity:1}65%,100%{opacity:0}}
 
-/* 操作 */
-.kbd{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;font-weight:900;font-size:13px;background:var(--card);border:2px solid var(--ink);box-shadow:2px 3px 0 var(--ink);margin:2px 3px 2px 0;transform:rotate(-1deg)}
-.ctl{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;align-items:center}
-.ctl>div:nth-child(odd){white-space:nowrap}
-.joy{position:relative;height:200px;margin:-6px -6px 16px;background:#F6F4EF;overflow:hidden}
-.joy .stick{position:absolute;bottom:22px;width:110px;height:110px;border-radius:50%;border:2.5px solid var(--ink)}
-.joy .stick i{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px;border-radius:50%;background:var(--ink)}
-.joy .L{left:26px}
-.joy .L i{animation:stickL 3.4s ease-in-out infinite}
-.joy .R{right:60px;border-color:var(--red)}
-.joy .R::before{content:"";position:absolute;inset:24px;border-radius:50%;border:2px dashed var(--ink)}
-.joy .R i{animation:stickR 3s ease-in-out infinite}
-@keyframes stickL{0%,100%{transform:none}20%{transform:translate(28px,-14px)}45%{transform:translate(-24px,-20px)}70%{transform:translate(-10px,26px)}}
-@keyframes stickR{0%,100%{transform:none}25%{transform:translate(12px,-8px)}50%{transform:translate(34px,-10px);background:var(--red)}75%{transform:translate(-30px,14px);background:var(--red)}}
-.joy .skill{position:absolute;width:36px;height:36px;border-radius:50%;border:2px solid var(--ink);background:var(--card);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900}
-.joy .skill.pulse{animation:skillPulse 2.4s infinite}
-@keyframes skillPulse{0%,70%,100%{transform:none;box-shadow:0 0 0 0 rgba(214,40,40,0)}78%{transform:rotate(-12deg);box-shadow:0 0 0 6px rgba(214,40,40,.35)}86%{transform:rotate(10deg);box-shadow:0 0 0 14px rgba(214,40,40,0)}}
-
-/* 模式 */
-.actbar{position:relative;height:60px;margin:18px 6px 6px}
-.actbar svg{width:100%;height:100%;overflow:visible}
-.doors{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:26px 22px}
-.door{position:relative;text-align:center;padding:16px 10px 14px;cursor:pointer;user-select:none}
-.door .frame{position:relative;width:86px;height:116px;margin:0 auto 10px;border:3px solid var(--ink);border-bottom:0;background:#fff;overflow:hidden;perspective:300px}
-.door .leaf{position:absolute;inset:0;background:var(--card);border-right:2px solid var(--ink);transform-origin:left center;transition:transform .55s cubic-bezier(.3,.8,.3,1);z-index:2}
-.door .leaf::after{content:"";position:absolute;right:10px;top:54%;width:8px;height:8px;border-radius:50%;background:var(--ink)}
-.door .page{position:absolute;left:50%;top:50%;width:34px;height:44px;margin:-22px -17px;background:#fff;border:2px solid var(--ink);animation:spin 2.4s linear infinite;box-shadow:0 0 22px 8px rgba(232,185,49,.45)}
+/* 門 */
+.doors3{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(14px,3vw,40px);padding-bottom:40px}
+.door{text-align:center;font-weight:900}
+.door .fr{position:relative;width:clamp(70px,8vw,104px);height:clamp(96px,11vw,140px);border:3px solid var(--ink);border-bottom:0;background:#fff;overflow:hidden;perspective:300px;margin-bottom:8px}
+.door .lf{position:absolute;inset:0;background:var(--card);border-right:2px solid var(--ink);transform-origin:left center;z-index:2}
+.door .lf::after{content:"";position:absolute;right:10px;top:54%;width:8px;height:8px;border-radius:50%;background:var(--ink)}
+.door.open .lf{animation:dopen 3.6s infinite cubic-bezier(.3,.8,.3,1)}
+@keyframes dopen{0%,20%{transform:none}35%,80%{transform:rotateY(-80deg)}95%,100%{transform:none}}
+.door .pg{position:absolute;left:50%;top:50%;width:34px;height:44px;margin:-22px -17px;background:#fff;border:2px solid var(--ink);animation:spin 2.4s linear infinite;box-shadow:0 0 26px 10px rgba(232,185,49,.5)}
 @keyframes spin{to{transform:rotateY(360deg)}}
-.door .spark{position:absolute;width:4px;height:4px;background:var(--gold);border-radius:50%;bottom:10px;animation:rise 1.6s linear infinite;opacity:0}
-@keyframes rise{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-90px);opacity:0}}
-.door:hover .leaf,.door.open .leaf{transform:rotateY(-78deg)}
-.door .lbl{font-weight:900;font-size:17px}
-.door .lbl small{display:block;font-weight:400;font-size:12px;color:var(--near)}
-.door.sel{--line:var(--red)}
-.door-info{margin-top:30px;min-height:120px}
-.tt{width:100%;border-collapse:collapse;table-layout:fixed;background:var(--card)}
-.tt th,.tt td{border:2px solid var(--ink);padding:8px 6px;text-align:center}
-.tt th{font-size:14px;background:var(--paper2)}
-.tt td{cursor:pointer;font-weight:900;height:64px;transition:background .2s}
-.tt td small{display:block;font-weight:400;font-size:11px;color:var(--near)}
-.tt td:hover,.tt td.on{background:#fff;color:var(--red)}
-.tt td.boss{background:var(--ink);color:var(--paper);cursor:default}
-.tt td.boss small{color:var(--far)}
-.tt td.dim{color:var(--mid);cursor:default;font-weight:400}
-.course-pop{margin-top:22px}
-.cprog{height:12px;border:2px solid var(--ink);position:relative;margin-top:12px;background:#fff}
-.cprog i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);width:0;transition:width .5s}
+.door .lb{font-size:15px}
+.door.open .lb{color:var(--red)}
+.actdots{position:absolute;left:10%;right:10%;bottom:26px;display:flex;align-items:center;justify-content:space-between}
+.actdots::before{content:"";position:absolute;left:0;right:0;top:50%;height:2.5px;background:var(--ink)}
+.actdots i{position:relative;width:16px;height:16px;border-radius:50%;border:2.5px solid var(--ink);background:var(--card);animation:dot 4.2s infinite}
+.actdots i:last-child{border-radius:0;transform:rotate(45deg);width:20px;height:20px}
+@keyframes dot{0%{background:var(--card);border-color:var(--ink)}8%,12%{background:var(--red);border-color:var(--red);transform:translateY(-8px)}20%,100%{background:var(--ink);border-color:var(--ink);transform:none}}
 
-/* 寶箱 */
-.chests{display:flex;justify-content:center;gap:clamp(18px,5vw,70px);margin:26px 0 8px;flex-wrap:wrap}
-.chest{position:relative;width:130px;height:150px;cursor:pointer;border:0;background:none;padding:0}
-.chest svg{width:100%;height:100%;overflow:visible}
-.chest .lid{transform-origin:20px 62px;transition:transform .4s cubic-bezier(.3,1.6,.5,1)}
-.chest.open .lid{transform:rotate(-38deg)}
-.chest:hover:not(.open) svg{animation:wiggle .5s}
-@keyframes wiggle{0%,100%{transform:none}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
-.chest.bite svg{animation:bite .18s 5}
-@keyframes bite{0%,100%{transform:none}50%{transform:translateY(-8px) scale(1.06)}}
-.chest .teeth{opacity:0}
-.chest.bite .teeth{opacity:1}
-.chest .loot{position:absolute;left:50%;top:10px;transform:translate(-50%,20px) scale(.3);opacity:0;font-weight:900;white-space:nowrap;transition:all .5s cubic-bezier(.2,1.5,.4,1)}
-.chest.open .loot{transform:translate(-50%,-34px) scale(1);opacity:1}
-.chest-res{text-align:center;min-height:28px;font-weight:700}
+/* ===== 模式：斜切 ===== */
+#modes{padding:150px 0 0}
+.split2{position:relative;height:min(86vh,720px);min-height:540px;margin-top:50px;--a:58%;--b:42%}
+.split2 .side{position:absolute;inset:0;transition:clip-path .6s cubic-bezier(.3,1,.3,1);overflow:hidden}
+.split2 .nb{clip-path:polygon(0 0,var(--a) 0,var(--b) 100%,0 100%);background:var(--paper);background-image:repeating-linear-gradient(transparent 0 33px,rgba(59,111,182,.14) 33px 34px)}
+.split2 .nb::before{content:"";position:absolute;left:calc(var(--gut) + 40px);top:0;bottom:0;width:2px;background:rgba(214,40,40,.4)}
+.split2 .tt{clip-path:polygon(var(--a) 0,100% 0,100% 100%,var(--b) 100%);background:var(--ink);color:var(--paper)}
+.split2:has(.nb:hover){--a:68%;--b:52%}
+.split2:has(.tt:hover){--a:48%;--b:32%}
+.split2 .content{position:absolute;top:50%;transform:translateY(-50%);max-width:min(440px,38vw)}
+.split2 .nb .content{left:calc(var(--gut) + 70px)}
+.split2 .tt .content{right:var(--gut);text-align:right}
+.split2 h3{font-size:clamp(36px,5vw,72px)}
+.split2 .content p{margin-top:14px;font-size:clamp(15px,1.4vw,18px)}
+.split2 .tt .content p{color:var(--far)}
+.split2 .nb .content p{color:var(--near)}
+.mlabel{font-weight:900;letter-spacing:.3em;font-size:12px;color:var(--red)}
+.ticker{position:absolute;top:0;bottom:0;right:var(--gut);width:44%;overflow:hidden;-webkit-mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent)}
+.ticker .col{display:flex;flex-direction:column;animation:tick 12s linear infinite}
+.ticker .col div{font-size:clamp(34px,4vw,56px);font-weight:900;line-height:1.5;color:transparent;-webkit-text-stroke:1.5px rgba(242,240,235,.13);white-space:nowrap;text-align:right;font-size:clamp(50px,7vw,110px)!important;line-height:1.3!important}
+.ticker .col div.hl{-webkit-text-stroke:1.5px rgba(214,40,40,.6)}
+.split2 .content{z-index:1}
+@keyframes tick{to{transform:translateY(-50%)}}
+.pages{position:absolute;left:calc(var(--gut) + 70px);bottom:9%;display:flex;gap:10px;align-items:center}
+.pages i{width:14px;height:14px;border-radius:50%;border:2.5px solid var(--ink);background:var(--card);animation:dot 5s infinite}
+.pages i.boss{border-radius:0;transform:rotate(45deg)}
+.extra-modes{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:40px var(--gut) 0;color:var(--near)}
 
-/* 商店 */
-.shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:22px}
-.item{padding:16px 14px 14px;text-align:center}
-.item .tagp{display:inline-block;background:var(--ink);color:var(--paper);font-weight:900;font-size:12px;padding:0 8px;transform:rotate(-2deg);margin-bottom:6px}
-.item h4{font-size:17px}
-.item p{font-size:13px;color:var(--near)}
-
-/* 小遊戲 */
-.mgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:22px}
-.mg{padding:14px 14px 14px;display:flex;flex-direction:column}
-.mg .art{height:96px;margin:-4px -4px 10px;background:#F6F4EF;position:relative;overflow:hidden}
-.mg .art svg{width:100%;height:100%}
-.mg h4{font-size:17px;display:flex;justify-content:space-between;align-items:baseline}
-.mg h4 small{font-size:11px;color:var(--mid);font-weight:700}
-.mg p{font-size:13px;color:var(--near)}
-
-/* 奇遇 */
-.encs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:26px}
-.enc{padding:28px 18px 16px}
-.enc h4{font-size:18px}
-.enc .q{font-size:13px;color:var(--near);margin:4px 0 10px}
-.opt{display:block;width:100%;text-align:left;background:#FFF8C9;border:0;padding:7px 10px 7px;margin-top:8px;font-size:13px;line-height:1.5;position:relative;transform:rotate(-.6deg);box-shadow:1px 2px 0 rgba(0,0,0,.12);transition:transform .2s}
-.opt:nth-child(odd){transform:rotate(.5deg)}
-.opt b{display:block;font-size:14px}
-.opt.pick{transform:translateY(-6px) rotate(-1deg);box-shadow:2px 6px 0 rgba(0,0,0,.15)}
-.opt.pick::after{content:"再點一次確定";position:absolute;right:8px;top:6px;color:var(--red);font-weight:900;font-size:11px}
-.opt.done{background:var(--ink);color:var(--paper)}
-.opt.done::after{content:"已選擇";position:absolute;right:8px;top:6px;color:var(--gold);font-weight:900;font-size:11px}
-
-/* 卡牌 */
-.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;align-items:center}
-.fbtn{border:2px solid var(--ink);background:var(--card);font-weight:900;font-size:14px;padding:4px 12px;transition:background .2s,color .2s}
-.fbtn.on{background:var(--ink);color:var(--paper)}
-.fbtn.r.on{background:var(--red);border-color:var(--red)}
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:26px 20px}
-.gc{position:relative;aspect-ratio:3/4.2;perspective:900px;cursor:pointer;transition:transform .25s}
-.gc:hover{transform:translateY(-6px) rotate(-1deg)}
-.gc .in3{position:absolute;inset:0;transition:transform .6s cubic-bezier(.3,.8,.3,1);transform-style:preserve-3d}
-.gc.flip .in3{transform:rotateY(180deg)}
-.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--card);border:2.5px solid var(--ink);background-image:repeating-linear-gradient(transparent 0 15px,rgba(26,26,26,.07) 15px 16px);display:flex;flex-direction:column;align-items:center;padding:12px 10px 10px;box-shadow:3px 4px 0 rgba(26,26,26,.12)}
-.face.back{transform:rotateY(180deg);align-items:stretch;font-size:12px;line-height:1.55;overflow:auto;padding:12px 11px}
-.gc.rare .face{border-color:var(--red)}
-.gc.rare .face .nm{color:var(--red)}
-.face .cost{position:absolute;left:-10px;top:-12px;width:34px;height:40px}
-.face .cost svg{width:100%;height:100%}
-.face .nm{font-weight:900;font-size:17px;margin-top:2px}
-.face .art{flex:1;width:100%;display:flex;align-items:center;justify-content:center}
-.face .art svg{width:86%;max-height:100%;overflow:visible}
-.face .meta{font-size:11px;color:var(--near);display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
-.face.back h5{margin:0 0 4px;font-size:14px}
-.face.back .up{margin-top:8px;padding-top:6px;border-top:1.5px dashed var(--ink)}
-.face.back .up b{color:var(--red)}
-.gc.upg .face.front{box-shadow:inset 0 0 0 4px var(--card),inset 0 0 0 5.5px var(--ink),3px 4px 0 rgba(26,26,26,.12)}
-.gc.upg.rare .face.front{box-shadow:inset 0 0 0 4px var(--card),inset 0 0 0 5.5px var(--red),3px 4px 0 rgba(26,26,26,.12)}
-.gc.upg .face.front::after{content:"★";position:absolute;right:0;bottom:0;width:30px;height:30px;background:linear-gradient(135deg,transparent 50%,var(--ink) 50%);color:var(--paper);font-size:11px;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 4px 2px 0}
-.gc.upg.rare .face.front::after{background:linear-gradient(135deg,transparent 50%,var(--red) 50%)}
-.merge{display:flex;align-items:center;justify-content:center;gap:20px;min-height:260px;position:relative}
-.merge .gc{width:150px;flex:none;transition:transform .55s cubic-bezier(.6,0,.3,1),opacity .3s}
-.merge.charge .gc{filter:drop-shadow(0 0 10px rgba(232,185,49,.9))}
-.flash{position:absolute;inset:-20px;background:radial-gradient(circle,#fff 30%,rgba(255,255,255,0) 70%);opacity:0;pointer-events:none}
-.flash.go{animation:flash .6s}
-@keyframes flash{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+/* ===== 卡牌扇形 ===== */
+#cards{padding:170px 0 120px;text-align:center}
+.fan{position:relative;height:clamp(300px,40vw,420px);margin-top:50px}
+.fan .card{position:absolute;left:50%;top:40px;width:clamp(120px,13vw,170px);aspect-ratio:3/4.2;margin-left:calc(clamp(120px,13vw,170px)/-2);background:var(--card);border:2.5px solid var(--ink);background-image:repeating-linear-gradient(transparent 0 15px,rgba(26,26,26,.07) 15px 16px);display:flex;flex-direction:column;align-items:center;padding:12px 8px;transform-origin:50% 140%;box-shadow:3px 5px 0 rgba(26,26,26,.12);cursor:pointer;transition:box-shadow .2s}
+.fan .card .nm{font-weight:900;font-size:clamp(14px,1.4vw,18px)}
+.fan .card.rare{border-color:var(--red)}
+.fan .card.rare .nm{color:var(--red)}
+.fan .card svg.art{width:86%;margin:auto 0;overflow:visible}
+.fan .card .cst{position:absolute;left:-10px;top:-12px;width:32px;height:38px}
+.fan .card .tp{font-size:11px;color:var(--near)}
+.fan .card:hover{box-shadow:6px 12px 0 rgba(26,26,26,.15);z-index:20}
+.cardnote{margin-top:30px;color:var(--near)}
 
 /* 特殊技演出 */
 #cutin{position:fixed;inset:0;z-index:150;pointer-events:none;display:none;overflow:hidden}
 #cutin.on{display:block}
 #cutin .dim{position:absolute;inset:0;background:rgba(26,26,26,.55);animation:fadeIn .2s}
-#cutin .band{position:absolute;left:-10%;right:-10%;top:50%;height:min(38vh,260px);margin-top:calc(min(38vh,260px)/-2);background:var(--paper);transform:skewY(-6deg) translateX(-110%);animation:band 1.7s cubic-bezier(.2,.9,.2,1) forwards;overflow:hidden;border-top:5px solid var(--ink);border-bottom:5px solid var(--ink)}
-#cutin .band .lines{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 60px,rgba(26,26,26,.1) 60px 62px);animation:streak .3s linear infinite}
+#cutin .band2{position:absolute;left:-10%;right:-10%;top:50%;height:min(38vh,260px);margin-top:calc(min(38vh,260px)/-2);background:var(--paper);transform:skewY(-6deg) translateX(-110%);animation:band 1.7s cubic-bezier(.2,.9,.2,1) forwards;overflow:hidden;border-top:5px solid var(--ink);border-bottom:5px solid var(--ink)}
+#cutin .band2 .lines{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 60px,rgba(26,26,26,.1) 60px 62px);animation:streak .3s linear infinite}
 @keyframes streak{to{background-position:-124px 0}}
-#cutin .band .who{position:absolute;left:8%;top:50%;width:min(28vh,190px);height:min(28vh,190px);transform:translateY(-50%) skewY(6deg)}
+#cutin .who{position:absolute;left:8%;top:50%;width:min(28vh,190px);height:min(28vh,190px);transform:translateY(-50%) skewY(6deg)}
 #cutin .ttl{position:absolute;left:0;right:0;top:50%;text-align:center;font-weight:900;font-size:clamp(46px,11vw,140px);color:var(--red);transform:translate(0,-50%) scale(3);opacity:0;animation:slam 1.7s forwards;text-shadow:4px 4px 0 var(--ink);letter-spacing:.06em}
-#cutin .sub{position:absolute;left:0;right:0;top:calc(50% + min(19vh,130px) + 14px);text-align:center;color:var(--paper);font-weight:900;font-size:clamp(14px,2vw,20px);opacity:0;animation:fadeIn .3s .6s forwards}
+#cutin .sub{position:absolute;left:5%;right:5%;top:calc(50% + min(19vh,130px) + 14px);text-align:center;color:var(--paper);font-weight:900;font-size:clamp(14px,2vw,20px);opacity:0;animation:fadeIn .3s .6s forwards}
 #cutin .white{position:absolute;inset:0;background:#fff;opacity:0;animation:whiteHit 1.7s forwards}
 @keyframes band{0%{transform:skewY(-6deg) translateX(-110%)}18%{transform:skewY(-6deg) translateX(0)}82%{transform:skewY(-6deg) translateX(2%)}100%{transform:skewY(-6deg) translateX(110%)}}
 @keyframes slam{0%,15%{transform:translate(0,-50%) scale(3) rotate(-8deg);opacity:0}28%{transform:translate(0,-50%) scale(.92) rotate(-3deg);opacity:1}34%{transform:translate(0,-50%) scale(1.04) rotate(-3deg)}80%{transform:translate(0,-50%) scale(1.08) rotate(-3deg);opacity:1}100%{transform:translate(0,-50%) scale(1.6) rotate(-3deg);opacity:0}}
@@ -349,166 +272,148 @@ section.pg{position:relative;padding:110px var(--gut) 60px;max-width:1240px;marg
 body.quake{animation:quake .35s}
 @keyframes quake{0%,100%{transform:none}20%{transform:translate(-8px,5px)}40%{transform:translate(7px,-6px)}60%{transform:translate(-5px,-3px)}80%{transform:translate(4px,4px)}}
 
-/* 武器 */
-.wpn{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:30px}
-.wlist{display:flex;flex-direction:column;gap:14px}
-.wrow{display:flex;align-items:center;gap:14px;padding:10px 14px;background:var(--card);text-align:left;border:0;width:100%}
-.wrow .ic{width:58px;height:40px;flex:none}
-.wrow .ic svg{width:100%;height:100%;overflow:visible}
-.wrow b{font-size:18px;display:block;line-height:1.3}
-.wrow small{color:var(--near);font-size:12px}
-.wrow .wlv{margin-left:auto;font-size:11px;color:var(--mid);font-weight:700;white-space:nowrap}
-.wrow.on{background:var(--paper2)}
-.wrow.on::before,.wrow.on::after{border-width:0;border-color:var(--ink)}
-.wrow.on .eq{display:inline-block}
-.eq{display:none;background:var(--red);color:#fff;font-size:11px;font-weight:900;padding:0 6px;transform:rotate(6deg);margin-left:6px}
-.wdemo{height:280px;margin-bottom:18px}
-.wdemo canvas{width:100%;height:100%;display:block}
-.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px;margin-top:14px}
-.stat b{font-size:14px}
-.stat span{font-size:13px;color:var(--near);margin-left:8px}
-.bars{display:flex;gap:4px;margin-top:4px}
-.bars i{flex:1;height:10px;background:var(--far);transition:background .3s}
-.bars i.on{background:var(--ink)}
-.stat.d .bars i.on{background:var(--red)}
-.relics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
-.relic{padding:18px 14px 14px;text-align:center}
-.relic .ic{width:64px;height:64px;margin:0 auto 6px}
-.relic:hover .ic{animation:wiggle .5s}
+/* ===== 武器跑馬燈 ===== */
+#arsenal{padding:60px 0 140px}
+.arsenal-head{display:flex;align-items:flex-end;justify-content:space-between;gap:30px;flex-wrap:wrap}
+.rows{margin-top:50px;display:grid;gap:18px}
+.row{overflow:hidden;white-space:nowrap;padding:8px 0}
+.row .mq{gap:18px}
+.wchip{display:inline-flex;align-items:center;gap:14px;padding:12px 26px 12px 16px;background:var(--card);border:2.5px solid var(--ink);flex:none;font-weight:900;font-size:22px}
+.wchip svg{width:64px;height:42px;overflow:visible}
+.wchip small{font-size:13px;color:var(--near);font-weight:700}
+.cchip{display:inline-flex;align-items:center;gap:8px;padding:6px 18px;border:2px solid var(--ink);font-weight:900;font-size:17px;flex:none;background:var(--paper)}
+.cchip.r{border-color:var(--red);color:var(--red)}
+.cchip i{width:18px;height:22px;display:inline-block}
 
-/* 敵人 */
-.foes{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:24px}
-.foe{padding:16px 16px 14px}
-.foe .pic{height:120px;display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:6px}
-.foe .pic svg{height:100%;overflow:visible}
-.foe h4{font-size:19px;display:flex;align-items:baseline;gap:8px}
-.foe h4 small{font-size:12px;color:var(--near);font-weight:700}
-.foe p{font-size:13px;color:var(--near)}
-.foe .nu{position:absolute;right:0;top:0;font-size:11px;font-weight:900;color:var(--red);border:1.5px solid var(--red);padding:0 6px;transform:rotate(5deg)}
-.foe:hover .bob{animation:bob .5s ease-in-out infinite alternate}
-.bob{animation:bob 1.6s ease-in-out infinite alternate}
-@keyframes bob{from{transform:translateY(0)}to{transform:translateY(-6px)}}
-.bosses{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:30px}
-.boss{padding:18px 18px 16px;overflow:hidden}
-.boss .arena{position:relative;height:190px;margin:-6px -6px 12px;background:#F6F4EF;overflow:hidden}
-.boss .arena .b{position:absolute;left:50%;top:52%;width:120px;height:120px;margin:-60px;transition:transform .3s;--bc:var(--card)}
-.boss .arena .b svg{width:100%;height:100%;overflow:visible}
-.boss.evo .arena .b{animation:evolve 1.6s cubic-bezier(.4,0,.2,1) forwards}
-.boss.f2 .arena .b{transform:scale(1.3);--bc:#F2B8B0}
-@keyframes evolve{0%{transform:scale(1) rotate(0)}70%{transform:scale(1.32) rotate(720deg)}80%{transform:scale(1.42) rotate(720deg)}100%{transform:scale(1.3) rotate(720deg)}}
-.bubble{position:absolute;left:58%;top:10px;background:var(--red);color:#fff;font-weight:900;font-size:13px;padding:4px 10px;white-space:nowrap;opacity:0;transform:scale(.4);transform-origin:left bottom;transition:all .25s cubic-bezier(.2,1.6,.4,1);z-index:3}
+/* ===== 頭目：斜帶 ===== */
+#bosses{padding:150px 0 170px;color:var(--paper);isolation:isolate}
+#bosses::before{content:"";position:absolute;left:0;right:0;top:40px;bottom:40px;background:var(--ink);transform:skewY(-5deg);z-index:-1}
+#bosses .eyebrow{background:var(--ink)}
+#bosses .lead{color:var(--far)}
+.blist{display:flex;justify-content:center;gap:clamp(10px,3vw,40px);margin-top:70px;flex-wrap:nowrap;padding:0 var(--gut)}
+.bs{position:relative;flex:0 1 190px;text-align:center;will-change:transform}
+.bs .disc{position:relative;aspect-ratio:1;background:var(--paper);border-radius:50%;display:flex;align-items:center;justify-content:center;--bc:var(--card);transition:background .3s;cursor:pointer}
+.bs .disc svg{width:72%;height:72%;overflow:visible;transition:transform .2s}
+.bs .disc::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px dashed rgba(242,240,235,.35)}
+.bs.evo .disc svg{animation:evolve 1.4s cubic-bezier(.4,0,.2,1) forwards}
+.bs.evo .disc{--bc:#F2B8B0;background:#FBE3DF}
+@keyframes evolve{0%{transform:scale(1) rotate(0)}70%{transform:scale(1.25) rotate(720deg)}80%{transform:scale(1.35) rotate(720deg)}100%{transform:scale(1.2) rotate(720deg)}}
+.bs h4{margin-top:16px;font-size:clamp(15px,1.6vw,20px)}
+.bs small{display:block;color:var(--mid);font-size:12px}
+.bubble{position:absolute;left:50%;top:-14px;background:var(--red);color:#fff;font-weight:900;font-size:13px;padding:4px 10px;white-space:nowrap;opacity:0;transform:translateX(-30%) scale(.4);transform-origin:left bottom;transition:all .25s cubic-bezier(.2,1.6,.4,1);z-index:3}
 .bubble::after{content:"";position:absolute;left:12px;bottom:-8px;border:4px solid transparent;border-top:6px solid var(--red);border-left:6px solid var(--red)}
-.bubble.on{opacity:1;transform:none}
-.bhp{height:12px;border:2px solid var(--ink);position:relative;background:#fff;margin-bottom:12px}
-.bhp i{position:absolute;left:0;top:0;bottom:0;width:100%;background:var(--ink);transition:width 1.4s cubic-bezier(.4,0,.2,1)}
-.bhp .tick{position:absolute;top:-6px;bottom:-6px;width:3px;background:var(--red)}
-.boss h4{font-size:22px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.boss h4 small{font-size:12px;color:var(--near);font-weight:700}
-.moves{font-size:13px;margin:8px 0 0;padding-left:1.1em}
-.moves li{margin:3px 0}
-.moves.p2{color:var(--mid);transition:color .4s}
-.boss.f2 .moves.p2{color:var(--red)}
-.p2h{font-weight:900;font-size:13px;margin-top:10px;color:var(--mid)}
-.boss.f2 .p2h{color:var(--red)}
+.bs.evo .bubble{opacity:1;transform:translateX(-30%)}
+.march{margin-top:70px;overflow:hidden;position:relative;height:110px}
+.march::after{content:"";position:absolute;left:0;right:0;bottom:14px;height:2px;background:rgba(242,240,235,.3)}
+.march .mq{gap:60px;align-items:flex-end;height:100%}
+.march svg{width:84px;height:88px;flex:none;overflow:visible;animation:hop .6s ease-in-out infinite alternate}
+.march svg:nth-child(2n){animation-delay:-.3s}
+@keyframes hop{to{transform:translateY(-8px)}}
+.march .foe{display:flex;flex-direction:column;align-items:center;flex:none;padding:0 6px}
+.march .foe span{font-size:12px;color:var(--far);font-weight:700}
 
-/* 成長 */
-.lvtrack{display:grid;grid-template-columns:repeat(15,minmax(0,1fr));gap:4px;margin:10px 0 6px}
-.lv{position:relative;text-align:center;font-weight:900;font-size:13px;padding:30px 0 6px;border-bottom:4px solid var(--far);transition:border-color .3s}
-.lv.on{border-color:var(--ink)}
-.lv .ch{position:absolute;left:50%;top:0;width:26px;height:24px;margin-left:-13px}
-.lv .ch svg{width:100%;height:100%}
-.lv.on .ch{animation:chestJump 1.2s infinite}
-@keyframes chestJump{0%,60%,100%{transform:none;filter:none}70%{transform:translateY(-6px) rotate(-6deg);filter:drop-shadow(0 0 6px var(--gold))}80%{transform:translateY(0) rotate(4deg)}}
-.lvinfo{min-height:52px;font-size:14px}
-.swatches{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;margin-top:10px}
-.sw{aspect-ratio:1;border:2px solid var(--ink);cursor:pointer;padding:0;transition:transform .15s}
-.sw:hover{transform:scale(1.12) rotate(-4deg)}
-.sw.on{outline:3px solid var(--red);outline-offset:2px}
-.accs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.accs button{border:1.5px solid var(--ink);background:var(--card);font-size:12px;padding:2px 8px;font-weight:700}
-.accs button.on{background:var(--ink);color:var(--paper)}
-.dress{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:center}
-.dress svg{width:100%;overflow:visible}
-.achs{display:grid;gap:10px}
-.ach{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card)}
-.ach b{font-size:15px}
-.ach small{display:block;font-size:12px;color:var(--near)}
-.dots{margin-left:auto;display:flex;gap:4px}
-.dots i{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink)}
-.dots i.on{background:var(--ink)}
-.result{position:relative;padding:30px 28px 26px;max-width:520px;margin:0 auto}
-.result .row{display:flex;justify-content:space-between;border-bottom:1.5px dashed rgba(26,26,26,.25);padding:6px 0;font-size:15px}
-.result .tot{font-size:46px;font-weight:900;color:var(--red);text-align:right;margin-top:8px;font-family:"Comic Sans MS",var(--font)}
-.stamp{position:absolute;right:-18px;top:30px;border:5px solid var(--red);color:var(--red);font-weight:900;font-size:28px;padding:6px 14px;transform:rotate(-14deg) scale(3);opacity:0;letter-spacing:.08em;background:rgba(251,250,247,.6);border-radius:6px;mix-blend-mode:multiply}
-.result.in .stamp{animation:stamp .5s .5s cubic-bezier(.3,1.6,.5,1) forwards}
-@keyframes stamp{to{transform:rotate(-14deg) scale(1);opacity:.92}}
-.confetti{position:absolute;width:8px;height:12px;pointer-events:none;z-index:5}
+/* ===== 更多 ===== */
+#more{padding:120px 0 100px}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px;margin-top:50px}
+.tile{padding:26px 24px 22px}
+.tile .ic{width:64px;height:54px;margin-bottom:10px}
+.tile .ic svg{width:100%;height:100%;overflow:visible}
+.tile h4{font-size:22px}
+.tile p{color:var(--near);margin-top:6px;font-size:15px}
+.tile:hover .ic{animation:wig .5s}
+@keyframes wig{0%,100%{transform:none}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
 
-/* 細節 */
-.taunts{position:relative;height:150px;margin:-6px -6px 12px;background:#F6F4EF;overflow:hidden}
+/* ===== 開發中 ===== */
+#dev{padding:110px 0 120px;overflow:hidden}
+.hazard{position:absolute;left:-5%;right:-5%;height:44px;display:flex;align-items:center;overflow:hidden;white-space:nowrap;font-weight:900;font-size:16px;letter-spacing:.2em;color:var(--paper);
+    background:repeating-linear-gradient(-45deg,var(--ink) 0 26px,#2E2D2B 26px 52px)}
+.hazard.t{top:40px;transform:rotate(-2deg)}
+.hazard.b{bottom:40px;transform:rotate(1.5deg)}
+.hazard .mq>span::after{content:"▲";color:var(--gold)}
+.devnote{position:relative;max-width:760px;margin:60px auto 0;padding:56px clamp(24px,5vw,60px) 44px;transform:rotate(-1.5deg);background:#FFFBEA;background-image:repeating-linear-gradient(transparent 0 31px,rgba(59,111,182,.16) 31px 32px);box-shadow:4px 8px 0 rgba(26,26,26,.1)}
+.devnote .tape{position:absolute;top:-14px;width:110px;height:28px;background:rgba(214,211,204,.8)}
+.devnote .tape.l{left:30px;transform:rotate(-8deg)}
+.devnote .tape.r{right:30px;transform:rotate(7deg)}
+.devnote h2{font-size:clamp(34px,5vw,58px)}
+.devnote p{margin-top:16px;font-size:clamp(15px,1.4vw,18px)}
+.devnote .st{position:absolute;right:-14px;top:-26px;border:5px solid var(--red);color:var(--red);font-weight:900;font-size:26px;letter-spacing:.12em;padding:4px 14px;border-radius:6px;transform:rotate(16deg) scale(3);opacity:0;background:rgba(255,251,234,.6)}
+.devnote.in .st{animation:stamp .5s .5s cubic-bezier(.3,1.6,.5,1) forwards}
+@keyframes stamp{to{transform:rotate(16deg) scale(1);opacity:.92}}
+.devnote ul{margin:14px 0 0;padding-left:1.2em;color:var(--near)}
+.prog{margin-top:22px}
+.prog .bar{height:16px;border:2.5px solid var(--ink);background:#fff;position:relative;overflow:hidden}
+.prog .bar i{position:absolute;left:0;top:0;bottom:0;width:0;background:repeating-linear-gradient(-45deg,var(--ink) 0 8px,var(--near) 8px 16px);transition:width 1.6s .4s cubic-bezier(.3,1,.3,1)}
+.devnote.in .prog .bar i{width:var(--w)}
+.prog .lb{display:flex;justify-content:space-between;font-size:13px;font-weight:900;margin-top:4px}
 
-/* 頁尾 */
-footer{position:relative;text-align:center;padding:90px var(--gut) 60px;margin-top:60px}
-footer .big{font-size:clamp(40px,8vw,96px);font-weight:900;letter-spacing:.03em}
-footer p{color:var(--near);margin-top:6px}
-footer .fine{font-size:12px;color:var(--mid);margin-top:30px}
+/* ===== 頁尾 ===== */
+footer{position:relative;text-align:center;padding:120px var(--gut) 70px}
+footer .huge{font-size:clamp(52px,11vw,150px);font-weight:900;letter-spacing:.02em;line-height:1.05}
+footer p{color:var(--near);margin-top:10px}
+footer .fine{font-size:12px;color:var(--mid);margin-top:40px}
 
 /* 轉場 */
 #door{position:fixed;inset:0;z-index:140;pointer-events:none;display:none}
 #door.on{display:block}
 #door canvas{width:100%;height:100%;display:block}
 
-/* 傷害數字（DOM） */
-.dmg{position:absolute;font-weight:900;font-size:20px;pointer-events:none;animation:dmg .8s forwards;text-shadow:0 0 3px #fff,0 0 3px #fff}
-@keyframes dmg{0%{transform:translate(-50%,0) scale(.4);opacity:0}20%{transform:translate(-50%,-14px) scale(1.4);opacity:1}100%{transform:translate(-50%,-40px) scale(1);opacity:0}}
+/* 小卡（開場手牌） */
+.gc{position:relative}
+.gc .in3{position:absolute;inset:0}
+.face{position:absolute;inset:0;background:var(--card);border:2.5px solid var(--ink);background-image:repeating-linear-gradient(transparent 0 15px,rgba(26,26,26,.07) 15px 16px);display:flex;flex-direction:column;align-items:center;padding:12px 10px 10px;box-shadow:3px 4px 0 rgba(26,26,26,.12)}
+.gc.rare .face{border-color:var(--red)}
+.gc.rare .face .nm{color:var(--red)}
+.face .cost{position:absolute;left:-10px;top:-12px;width:34px;height:40px}
+.face .cost svg{width:100%;height:100%}
+.face .nm{font-weight:900;font-size:17px;margin-top:2px}
+.face .art{flex:1;width:100%;display:flex;align-items:center;justify-content:center}
+.face .art svg{width:86%;max-height:100%;overflow:visible}
 
 /* RWD */
 @media (max-width:1000px){
-    .g4,.relics{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .doors{grid-template-columns:repeat(4,minmax(0,1fr))}
-    .wpn{grid-template-columns:1fr}
+    .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .ticker{display:none}
 }
 @media (max-width:820px){
-    #hero{grid-template-columns:1fr;grid-template-rows:auto auto}
-    .titlecol{order:-1;padding:70px 20px 26px;text-align:center}
-    .sep{display:none}
-    .menu{flex-direction:row;flex-wrap:wrap;justify-content:center;gap:16px;margin-top:22px}
-    .menu .btn{width:auto;font-size:17px;padding:10px 22px}
-    .menu .note{display:none}
-    .ver{display:none}
-    .stage{min-height:min(78vh,560px)}
-    .g2,.g3{grid-template-columns:1fr}
-    .loop{grid-template-columns:1fr}
-    .loop .arrow{transform:rotate(90deg);justify-self:center;width:40px}
-    .doors{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .dress{grid-template-columns:1fr}
-    .dress svg{max-width:200px;margin:0 auto;display:block}
-    .lvtrack{grid-template-columns:repeat(8,minmax(0,1fr));row-gap:14px}
-    .swatches{grid-template-columns:repeat(7,minmax(0,1fr))}
-    .hand .slot{width:72px;height:92px}
-    .hud{left:14px;top:14px;width:min(240px,55%)}
-    .tt th,.tt td{padding:6px 2px;font-size:12px}
-    .tt td{height:56px}
-    .nav .play{display:none}
-    .wlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    .wrow{padding:8px 10px;gap:8px}
-    .wrow .ic{width:40px;height:30px}
-    .wrow b{font-size:16px}
-    .wrow small,.wrow .wlv{display:none}
-    .stage .tip-hint{top:auto;bottom:140px}
-}
-@media (max-width:520px){
-    .g4,.relics{grid-template-columns:1fr}
-    .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 16px}
-    .stats{grid-template-columns:1fr}
-    .merge .gc{width:104px}
-    .merge{gap:10px}
-    .bosses{grid-template-columns:1fr}
-    .tt td small{display:none}
+    #hero{height:auto;min-height:0;display:flex;flex-direction:column}
+    #heroPanel{position:relative;width:100%;min-width:0;padding:84px 22px 70px;text-align:center;align-items:center;transform:translateY(-30%);order:-1}
+    #heroPanel .bg{clip-path:polygon(0 0,100% 0,100% 86%,0 100%)}
+    .logo-big{font-size:clamp(50px,16vw,80px)}
+    .cta{justify-content:center;margin-top:24px}
+    .devstamp{top:20px;right:14px}
+    .devstamp b{font-size:16px}
+    #heroPanel .edge{display:none}
+    #stage{position:relative;height:72vh;min-height:460px;margin-top:-30px}
+    .hud{top:44px!important}
+    .hand{bottom:46px}
+    .fan{height:300px}
+    .fan .card{width:104px;margin-left:-52px;padding:8px 6px}
+    .fan .card .cst{width:24px;height:30px;left:-8px;top:-10px}
+    .hand .slot{width:70px;height:88px}
+    .hud{width:min(220px,55%)}
+    .nav .links{display:none}
+    .nav{justify-content:space-between}
+    .hpanel{grid-template-columns:1fr;grid-template-rows:auto auto;align-content:center;gap:24px;padding:70px 22px 80px}
+    .hpanel .num{top:auto;bottom:70px;right:10px;left:auto;font-size:150px}
+    .ill{height:38vh}
+    .split2{height:auto;min-height:0;display:flex;flex-direction:column}
+    .split2 .side{position:relative;inset:auto;height:420px}
+    .split2 .nb{clip-path:polygon(0 0,100% 0,100% 88%,0 100%)}
+    .split2 .tt{clip-path:polygon(0 12%,100% 0,100% 100%,0 100%);margin-top:-50px}
+    .split2:has(.nb:hover),.split2:has(.tt:hover){--a:58%;--b:42%}
+    .split2 .content{max-width:none;left:22px!important;right:22px!important;text-align:left!important}
+    .pages{left:22px}
+    .blist{flex-wrap:wrap;gap:30px 18px}
+    .bs{flex:0 1 40%}
+    .tiles{grid-template-columns:1fr}
+    .bands{margin:-70px 0 -30px;height:150px}
+    .band{font-size:18px;height:46px;margin-top:-23px}
+    .band.b{font-size:15px;height:40px;margin-top:-20px}
+    .wchip{font-size:18px;padding:8px 18px 8px 10px}
+    .wchip svg{width:48px;height:32px}
 }
 @media (prefers-reduced-motion:reduce){
-    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
-    .reveal{opacity:1;transform:none}
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0s!important}
 }
 </style>
 </head>
@@ -517,311 +422,208 @@ footer .fine{font-size:12px;color:var(--mid);margin-top:30px}
     <filter id="wob0"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="1"/><feDisplacementMap in="SourceGraphic" scale="3.2"/></filter>
     <filter id="wob1"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="3.2"/></filter>
     <filter id="wob2"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="13"/><feDisplacementMap in="SourceGraphic" scale="3.2"/></filter>
-    <pattern id="hat" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="5" height="5" fill="none"/><line x1="0" y1="0" x2="0" y2="5" stroke="#1A1A1A" stroke-width="1.3" opacity=".55"/></pattern>
-    <pattern id="hatR" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#D62828" stroke-width="1.3" opacity=".6"/></pattern>
+    <pattern id="hat" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#1A1A1A" stroke-width="1.3" opacity=".55"/></pattern>
 </svg>
 <div class="grain"></div>
-
 <div id="loader"><div class="ld-stage"><div class="ld-drop"></div><div class="ld-splash"></div></div><div class="ld-title">INKRAGE</div><div class="ld-bar"><i></i></div></div>
 
 <nav class="nav" id="nav">
     <a class="logo" href="#hero" data-go>INKRAGE</a>
+    <span class="beta">開發中・BETA</span>
     <div class="links">
-        <a href="#core" data-go>核心玩法</a>
-        <a href="#controls" data-go>操作</a>
+        <a href="#play" data-go>玩法</a>
         <a href="#modes" data-go>模式</a>
-        <a href="#pages" data-go>頁面與事件</a>
         <a href="#cards" data-go>卡牌</a>
-        <a href="#weapons" data-go>武器與遺物</a>
-        <a href="#enemies" data-go>敵人與頭目</a>
-        <a href="#growth" data-go>成長與收集</a>
-        <a href="#details" data-go>戰場細節</a>
+        <a href="#bosses" data-go>頭目</a>
+        <a href="#dev" data-go>開發進度</a>
     </div>
-    <a class="btn sk sm r play" href="https://archie-30.github.io/INKRAGE/">立即遊玩</a>
+    <a class="btn sk sm r" href="https://archie-30.github.io/INKRAGE/">立即遊玩</a>
 </nav>
 
-<!-- ================= 開場 ================= -->
+<!-- 開場 -->
 <header id="hero">
-    <div class="stage" id="stage">
-        <canvas id="heroCv" aria-label="遊戲畫面示範：主角在筆記本紙上射擊塗鴉敵人"></canvas>
+    <div id="stage">
+        <canvas id="heroCv" aria-label="遊戲畫面示範：主角自動射擊塗鴉敵人"></canvas>
         <div class="hud">
             <div class="pencil"><div class="body"><i id="hpBar"></i></div><div class="tip"></div></div>
             <div class="hp" id="hpTxt">生命 10 / 10</div>
             <div class="inkb">
-                <div class="bottle"><svg viewBox="0 0 44 58"><defs><clipPath id="bclip"><path d="M10 14h24v6l6 8v26H4V28l6-8z"/></clipPath></defs><rect id="inkFill" x="0" y="58" width="44" height="58" fill="#1A1A1A" clip-path="url(#bclip)"/><path d="M14 2h16v8H14zM10 14h24v6l6 8v26H4V28l6-8z" fill="none" stroke="#1A1A1A" stroke-width="2.4" stroke-linejoin="round"/><path d="M36 32h-5M36 40h-5M36 48h-5" stroke="#9A9892" stroke-width="1.4"/></svg></div>
-                <div><div class="n" id="inkTxt">3<small> / 10</small></div><div class="small" style="font-weight:700">墨水</div></div>
+                <div class="bottle"><svg viewBox="0 0 44 58"><defs><clipPath id="bclip"><path d="M10 14h24v6l6 8v26H4V28l6-8z"/></clipPath></defs><rect id="inkFill" x="0" y="58" width="44" height="58" fill="#1A1A1A" clip-path="url(#bclip)"/><path d="M14 2h16v8H14zM10 14h24v6l6 8v26H4V28l6-8z" fill="none" stroke="#1A1A1A" stroke-width="2.4" stroke-linejoin="round"/></svg></div>
+                <div><div class="n" id="inkTxt">3<small> / 10</small></div><div style="font-weight:700;font-size:13px">墨水</div></div>
             </div>
         </div>
-        <div class="score"><span>分數</span><b id="scoreTxt">0</b></div>
-        <div class="tip-hint" id="hint">滑鼠移到畫面上瞄準・按住左鍵射擊</div>
+        <div class="score"><b id="scoreTxt">0</b></div>
         <div class="hand" id="hand"></div>
     </div>
-    <div class="titlecol">
-        <div class="sep"><svg viewBox="0 0 20 1000" preserveAspectRatio="none"><path id="sepPath" d="M10 0 Q6 250 10 500 T10 1000" stroke="#1A1A1A" stroke-width="2.2" fill="none" vector-effect="non-scaling-stroke"/></svg><i class="drop"></i><i class="drop" style="animation-delay:-3.4s"></i></div>
-        <div>
-            <h1 class="logo-big boil">INKRAGE<svg class="u" viewBox="0 0 400 10" preserveAspectRatio="none" width="100%"><path d="M2 6 Q100 2 200 5 T330 5" stroke="#1A1A1A" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M330 5 Q360 3 398 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h1>
-            <div class="tag">狂墨 · 手繪射擊 × 牌組構築</div>
-            <p style="margin-top:18px;max-width:420px">整個世界都畫在一本筆記本上。用鋼筆射擊、用墨水出牌，一頁一頁打倒塗鴉敵人與頭目，組出只屬於你的牌組。</p>
+    <div id="heroPanel">
+        <div class="bg"></div>
+        <svg class="edge" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M16 0 L0 100" stroke="#1A1A1A" stroke-width="2.6" vector-effect="non-scaling-stroke" fill="none"/><path d="M17.2 0 L1.4 100" stroke="#1A1A1A" stroke-width="1.2" vector-effect="non-scaling-stroke" fill="none" opacity=".5"/></svg>
+        <div class="devstamp"><b>開發中</b><small>BETA v0.9.55</small></div>
+        <div class="kicker">手繪射擊 × 牌組構築</div>
+        <h1 class="logo-big boil" id="logo">INKRAGE</h1>
+        <svg class="uline" viewBox="0 0 400 12" preserveAspectRatio="none"><path d="M2 7 Q100 2 200 6 T320 6" stroke="#1A1A1A" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M320 6 Q360 3 398 7" stroke="#D62828" stroke-width="6" fill="none" stroke-linecap="round"/></svg>
+        <div class="tag">整個世界，都畫在一本筆記本上。</div>
+        <p class="hero-desc">用鋼筆射擊、用墨水出牌，一頁一頁打倒塗鴉敵人。</p>
+        <div class="cta">
+            <a class="btn sk ink" href="https://archie-30.github.io/INKRAGE/">立即遊玩</a>
+            <a class="btn sk" href="#play" data-go>看看怎麼玩</a>
         </div>
-        <div class="menu">
-            <a class="btn sk" href="https://archie-30.github.io/INKRAGE/">立即遊玩</a>
-            <div class="note">網頁版免安裝・支援電腦與平板</div>
-            <a class="btn sk" href="#core" data-go>看看怎麼玩</a>
-            <div class="note">往下翻頁，所有玩法一次看完</div>
-        </div>
-        <div class="ver">beta v0.9.55</div>
     </div>
 </header>
 
+<div class="bands" aria-hidden="true">
+    <div class="band a"><div class="mq" data-speed="70"><span>射擊 × 牌組構築</span><span>手繪筆記本世界</span><span>42 張卡牌</span><span>7 把文具武器</span><span>5 隻頭目</span><span>16 種小遊戲</span><span>免安裝・電腦與平板</span></div></div>
+    <div class="band b"><div class="mq" data-speed="-55"><span>仍在開發中</span><span>WORK IN PROGRESS</span><span>BETA v0.9.55</span><span>內容持續更新</span></div></div>
+</div>
+
 <main>
-<!-- ================= 核心玩法 ================= -->
-<section class="pg" id="core">
-    <div class="pghead reveal"><span class="pgno">第 1 頁</span><h2>射擊 × 墨水 × 卡牌<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M2 9 Q80 3 150 8 T298 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h2><p class="lead">INKRAGE 把雙搖桿射擊和牌組構築縫在一起：子彈打倒敵人換來墨水，墨水拿來施放卡牌，卡牌讓你打得更狠。</p></div>
-    <div class="loop">
-        <div class="step sk reveal"><div class="big"><svg viewBox="0 0 100 100"><circle cx="30" cy="55" r="14" fill="#fff" stroke="#1A1A1A" stroke-width="3"/><path d="M42 50 L58 44" stroke="#1A1A1A" stroke-width="4" stroke-linecap="round"/><g class="shot"><path d="M62 43 l10 -3" stroke="#1A1A1A" stroke-width="5" stroke-linecap="round"><animateTransform attributeName="transform" type="translate" values="0 0;22 -7" dur=".5s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur=".5s" repeatCount="indefinite"/></path></g><circle cx="86" cy="36" r="9" fill="#9A9892" stroke="#1A1A1A" stroke-width="2.5"/><text x="80" y="18" font-size="13" font-weight="900" fill="#1A1A1A">10</text></svg></div><h3>射擊</h3><p class="mut">移動、瞄準、按住射擊。彈匣 12 發打完自動裝填，衝刺可短暫無敵。</p></div>
-        <svg class="arrow" viewBox="0 0 54 30"><path d="M2 15 H44" stroke="#1A1A1A" stroke-width="3" fill="none"/><path d="M38 6 L50 15 L38 24" stroke="#1A1A1A" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
-        <div class="step sk reveal"><div class="big"><svg viewBox="0 0 100 100"><path d="M50 12 C50 12 24 44 24 60 a26 26 0 0 0 52 0 C76 44 50 12 50 12z" fill="#1A1A1A"><animateTransform attributeName="transform" type="scale" values="1;1.06;1" dur="1.4s" repeatCount="indefinite" additive="sum"/></path><path d="M60 58 a10 10 0 0 1 -10 12" stroke="#F2F0EB" stroke-width="4" fill="none" stroke-linecap="round"/><text x="74" y="30" font-size="16" font-weight="900" fill="#D62828">+1</text></svg></div><h3>收集墨水</h3><p class="mut">擊倒敵人得到墨水（上限 10），不同敵人給的量不同；頭目給 4 點、精英加倍。</p></div>
-        <svg class="arrow" viewBox="0 0 54 30"><path d="M2 15 H44" stroke="#1A1A1A" stroke-width="3" fill="none"/><path d="M38 6 L50 15 L38 24" stroke="#1A1A1A" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
-        <div class="step sk reveal"><div class="big"><svg viewBox="0 0 100 100"><g transform="rotate(-10 40 55)"><rect x="18" y="26" width="40" height="56" fill="#FBFAF7" stroke="#1A1A1A" stroke-width="3"/></g><g transform="rotate(8 62 52)"><rect x="44" y="22" width="40" height="56" fill="#FBFAF7" stroke="#D62828" stroke-width="3"/><path d="M64 38 l6 12 -12 0z" fill="#D62828"/></g><path d="M40 18 C40 18 33 27 33 31 a7 7 0 0 0 14 0 C47 27 40 18 40 18z" fill="#1A1A1A"/><text x="37" y="34" font-size="9" fill="#fff" font-weight="900">2</text></svg></div><h3>出牌構築</h3><p class="mut">花墨水施放卡牌。每場戰鬥後挑新卡，3 張相同的卡自動合成強化版。</p></div>
+<!-- 玩法：橫向捲動 -->
+<section id="play">
+    <div class="wrap intro">
+        <span class="eyebrow rv">HOW TO PLAY</span>
+        <h2 class="big split">一枝筆，寫完一整本。</h2>
+        <p class="lead rv">往下捲，翻過四頁筆記。</p>
     </div>
-
-    <div class="mech">
-        <div class="box sk reveal"><div class="demo"><canvas id="dodgeCv"></canvas></div><h3>衝刺與完美閃避</h3><p>衝刺期間與之後約 0.3 秒無敵。用衝刺穿過敵彈、線條或橫掃攻擊就是<b class="red">完美閃避</b>：立即回 1 點墨水，畫面以角色為中心放射狀模糊，整個遊戲放慢到約 30% 再平順加速。</p></div>
-        <div class="box sk reveal"><div class="demo"><svg viewBox="0 0 300 150"><g id="handDemo"></g></svg></div><h3>手牌：2 張 + 特殊技格</h3><p>手上 2 張一般牌加 1 格特殊技。出牌 1 秒後補牌；抽牌堆用完會自動洗牌 2 秒，洗完<b>墨水 +5</b>。墨水不夠時卡牌會震動閃紅。</p></div>
-        <div class="box sk reveal"><div class="demo"><svg viewBox="0 0 300 150"><g transform="translate(150 78)"><g><animateTransform attributeName="transform" type="rotate" values="0;360" dur="3s" repeatCount="indefinite"/><path d="M-26 -26 h10 M-26 -26 v10 M26 -26 h-10 M26 -26 v10 M-26 26 h10 M-26 26 v-10 M26 26 h-10 M26 26 v-10" stroke="#D62828" stroke-width="3.5" fill="none"/></g><circle r="17" fill="#9A9892" stroke="#1A1A1A" stroke-width="3"/><circle r="17" fill="url(#hat)"/><path d="M0 -50 l-7 -10 h14z" fill="#D62828"><animateTransform attributeName="transform" type="translate" values="0 0;0 -5;0 0" dur=".8s" repeatCount="indefinite"/></path><path d="M-24 40 a28 12 0 0 0 48 0" stroke="#1A1A1A" stroke-width="2.5" fill="none" stroke-dasharray="4 5"/></g><g transform="translate(60 110)"><circle r="10" fill="#fff" stroke="#1A1A1A" stroke-width="2.5"/><circle r="22" fill="none" stroke="#1A1A1A" stroke-width="2" stroke-dasharray="40 200"><animate attributeName="stroke-dasharray" values="0 200;138 200" dur="1.1s" repeatCount="indefinite"/></circle><text x="-22" y="40" font-size="12" font-weight="700" fill="#1A1A1A">裝填中…</text></g></svg></div><h3>輔助瞄準與裝填</h3><p>靠近敵人時會輔助鎖定：敵人身上出現旋轉的紅色鎖定框與頭頂箭頭，準心變紅。換彈時準心外圍有一圈進度環。</p></div>
-        <div class="box sk reveal"><div class="demo"><svg viewBox="0 0 300 150"><g transform="translate(150 80)"><g id="hpArc"></g><circle r="20" fill="#4A4946" stroke="#1A1A1A" stroke-width="3"/><circle r="20" fill="url(#hat)"/><path d="M-30 -42 l6 -6 6 6 6 -6 6 6 6 -6 6 6 6 -6 6 6" stroke="#D62828" stroke-width="3" fill="none"/></g></svg></div><h3>血量刻度與精英</h3><p>敵人腳下用刻度弧線顯示血量，剛失去的血以紅色標示。精英敵人與頭目頭上有一圈紅色墨冠，精英外框是暗紅色、給雙倍墨水。</p></div>
-    </div>
-</section>
-
-<!-- ================= 操作 ================= -->
-<section class="pg" id="controls">
-    <div class="pghead reveal"><span class="pgno">第 2 頁</span><h2>兩種握法<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M2 9 Q80 3 150 8 T298 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h2><p class="lead">電腦用鍵盤滑鼠，平板手機用雙搖桿加技能鍵。切換裝置時介面上的說明會自動跟著換。</p></div>
-    <div class="grid g2">
-        <div class="box sk reveal">
-            <h3>鍵盤＋滑鼠</h3>
-            <div class="ctl" style="margin-top:14px">
-                <div><span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span></div><div>移動</div>
-                <div><span class="kbd">滑鼠</span></div><div>瞄準；按住左鍵射擊（靠近敵人會輔助鎖定）</div>
-                <div><span class="kbd">R</span></div><div>裝填（彈匣打完也會自動裝填）</div>
-                <div><span class="kbd">Space</span><span class="kbd">右鍵</span></div><div>衝刺，期間無敵</div>
-                <div><span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span></div><div>選牌（3 為特殊技），左鍵指定位置施放；再按同一個數字鍵直接朝滑鼠施放</div>
-                <div><span class="kbd">Tab</span></div><div>查看牌組（抽牌堆／棄牌堆）</div>
-                <div><span class="kbd">F</span></div><div>與角色、寶箱互動；站在門裡確認進入下一頁</div>
-                <div><span class="kbd">Esc</span><span class="kbd">P</span></div><div>暫停／取消瞄準</div>
-            </div>
-            <p class="mut small" style="margin-top:12px">鉛筆牆：選牌後按住左鍵在地上畫出路徑，放開就長出牆。</p>
-        </div>
-        <div class="box sk reveal">
-            <div class="joy"><div class="stick L"><i></i></div><div class="stick R"><i></i></div>
-                <div class="skill" style="right:178px;bottom:30px">衝刺</div>
-                <div class="skill pulse" style="right:170px;bottom:90px">1</div>
-                <div class="skill" style="right:124px;bottom:142px">2</div>
-                <div class="skill" style="right:62px;bottom:150px;border-color:#D62828;color:#D62828">特</div>
-            </div>
-            <h3>觸控雙搖桿</h3>
-            <ul>
-                <li><b>左搖桿</b>移動；<b>右搖桿</b>內圈只轉向，推到外圈（紅圈）才射擊。</li>
-                <li>技能鍵繞著右搖桿：衝刺、卡牌 1、卡牌 2、特殊技。按住技能鍵拖曳直接瞄準，放開即施放；點一下右搖桿自動瞄準最近敵人。</li>
-                <li>按住技能鍵時衝刺鍵變成紅色叉叉，滑過去放開就取消。</li>
-                <li>可互動時衝刺鍵會變成「互動」鍵並微微晃動；太久沒出牌，技能鍵會輪流晃一下提醒。</li>
-            </ul>
-        </div>
-    </div>
-</section>
-
-<!-- ================= 模式 ================= -->
-<section class="pg" id="modes">
-    <div class="pghead reveal"><span class="pgno">第 3 頁</span><h2>四種玩法模式<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M2 9 Q80 3 150 8 T298 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h2><p class="lead">寫完一整本筆記，或在永遠上不完的課表裡挑戰最高分。另有訓練場與新手教學。</p></div>
-
-    <div class="box sk reveal">
-        <h3><span class="icn"><svg viewBox="0 0 44 44"><rect x="8" y="5" width="28" height="34" fill="#fff" stroke="#1A1A1A" stroke-width="2.5"/><path d="M8 5 v34" stroke="#D62828" stroke-width="4"/><path d="M14 14h16M14 20h16M14 26h10" stroke="#9A9892" stroke-width="2"/></svg></span>筆記本模式</h3>
-        <p>一頁一頁往下寫。共 <b>3 幕</b>，每幕 6 頁加 1 頁頭目。過關後上方的門打開，2～3 扇門標示下一頁的類型，先看好再選自己的路線。頭目每次從五隻中隨機抽（同一局不重複），越後面的幕頭目越強、還會召喚小兵。</p>
-        <div class="actbar"><svg id="actSvg" viewBox="0 0 700 60" preserveAspectRatio="xMidYMid meet"></svg></div>
-        <p class="mut small" style="text-align:center">▲ 進入每一頁時畫面上方的進度條：走過的點塗黑、目前所在頁是紅點、最後的菱形是頭目頁</p>
-        <p style="margin-top:14px">第 3 幕頭目倒下後會開兩扇門：<span class="chip">收筆結算</span>或<span class="chip r">繼續寫下去</span>——進入延長寫作，強度接續課表模式、每 5 頁一隻頭目，分數持續累積。</p>
-    </div>
-
-    <h3 class="subh reveal">課表模式：永遠上不完的課</h3>
-    <div class="grid g2" style="align-items:start">
-        <div class="reveal">
-            <table class="tt" id="tt"></table>
-            <p class="mut small" style="margin-top:10px">每 5 頁為一幕：前 4 頁各抽一堂不同的課，第 5 頁打隨機頭目。點課表裡的課看說明。</p>
-        </div>
-        <div class="note-paper sk thin reveal course-pop" id="coursePop" style="margin-top:0"><div class="tape"></div></div>
-    </div>
-
-    <div class="grid g2" style="margin-top:40px">
-        <div class="box sk reveal">
-            <h3><span class="icn"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="16" fill="none" stroke="#1A1A1A" stroke-width="2.5"/><circle cx="22" cy="22" r="9" fill="none" stroke="#D62828" stroke-width="2.5"/><circle cx="22" cy="22" r="3" fill="#1A1A1A"/></svg></span>訓練場</h3>
-            <p>試用所有已解鎖的卡牌與武器。自選初始手牌、切換地圖與障礙物、讓敵人無限血量或不攻擊、召喚遇過的頭目，還能從右邊那扇門進去<b>測試全部 16 種小遊戲</b>。</p>
-        </div>
-        <div class="box sk reveal">
-            <h3><span class="icn"><svg viewBox="0 0 44 44"><path d="M8 34 L30 12 l4 4 L12 38 H8z" fill="#E0B43C" stroke="#1A1A1A" stroke-width="2.5" stroke-linejoin="round"/><path d="M30 12 l4 -4 4 4 -4 4" fill="#D62828" stroke="#1A1A1A" stroke-width="2.5" stroke-linejoin="round"/></svg></span>新手教學</h3>
-            <p>第一次進遊戲會直接帶進教學場地，一步一步親手操作：走進紅圈、打倒塗鴉、<b>迎著巨筆暴君的橫掃衝刺穿過去</b>、施放與取消技能、查看牌組。之後隨時可以從設定再玩一次。</p>
-        </div>
-    </div>
-</section>
-
-<!-- ================= 頁面與事件 ================= -->
-<section class="pg" id="pages">
-    <div class="pghead reveal"><span class="pgno">第 4 頁</span><h2>每一扇門後面<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M2 9 Q80 3 150 8 T298 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h2><p class="lead">筆記本模式每一頁都是一張實際走進去的地圖。門上會標示類型——點一扇門打開看看（每次至少有一扇是戰鬥）。</p></div>
-    <div class="doors reveal" id="doors"></div>
-    <div class="door-info box sk thin reveal" id="doorInfo"></div>
-
-    <h3 class="subh reveal">寶箱頁：三選一，其中一個會咬人</h3>
-    <div class="box sk reveal">
-        <p style="text-align:center">三個寶箱只能開一個：稀有卡、補給，以及會咬人的<b class="red">假寶箱</b>（伏擊戰）。挑一個吧。</p>
-        <div class="chests" id="chests"></div>
-        <div class="chest-res" id="chestRes"></div>
-        <div style="text-align:center;margin-top:10px"><button class="btn sk sm" id="chestReset">重新擺放</button></div>
-    </div>
-
-    <h3 class="subh reveal">文具店：用分數購物</h3>
-    <p class="mut reveal" style="margin:-8px 0 22px">商品陳列在老闆前方的展示台上，走過去按互動就能買。每次從 9 種商品中隨機上架 3 種（不會跟上一間一樣），花掉的分數從結算扣除。</p>
-    <div class="shop reveal" id="shop"></div>
-
-    <h3 class="subh reveal">事件頁：16 種小遊戲</h3>
-    <p class="mut reveal" style="margin:-8px 0 22px">和角落的主持人說話，它會用一張筆記紙說明玩法。過關從獎勵池抽一項（加分、卡牌、回血、墨水、升級……），失敗則從懲罰池抽一項（扣血、扣分、卡片降級、伏擊戰……），越後面的幕越難。</p>
-    <div class="mgs" id="mgs"></div>
-
-    <h3 class="subh reveal">奇遇頁：每個選項都有代價</h3>
-    <p class="mut reveal" style="margin:-8px 0 22px">8 種奇怪遭遇輪流出現。選項寫在便條紙上——點一下抬起、再點一次確定，和遊戲裡一樣。</p>
-    <div class="encs" id="encs"></div>
-
-    <div class="grid g2" style="margin-top:44px">
-        <div class="box sk reveal"><h3><span class="icn"><svg viewBox="0 0 44 44"><rect x="13" y="12" width="18" height="26" rx="3" fill="#fff" stroke="#1A1A1A" stroke-width="2.5"/><rect x="16" y="5" width="12" height="8" fill="#1A1A1A"/><path d="M22 20v10M17 25h10" stroke="#D62828" stroke-width="3"/></svg></span>修正液休息</h3><p>出現機率較低的喘息頁：回復生命（生命 4 以下固定 +2，否則 +1～2），或選一張卡升級。</p></div>
-        <div class="box sk reveal"><h3><span class="icn"><svg viewBox="0 0 44 44"><path d="M22 5 l5 10 11 2 -8 8 2 11 -10 -5 -10 5 2 -11 -8 -8 11 -2z" fill="none" stroke="#D62828" stroke-width="2.5" stroke-linejoin="round"/></svg></span>挑戰頁</h3><p>戰鬥加上條件：<span class="chip">不受傷</span><span class="chip">限時</span><span class="chip">不使用卡牌</span>。達成可加分並從稀有卡中挑一張，失敗則拿一般獎勵。</p></div>
-    </div>
-</section>
-
-<!-- ================= 卡牌 ================= -->
-<section class="pg" id="cards">
-    <div class="pghead reveal"><span class="pgno">第 5 頁</span><h2>42 張卡牌<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M2 9 Q80 3 150 8 T298 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h2><p class="lead">攻擊、地形、防禦、輔助四大類，紅框的是<b class="red">特殊技</b>。點卡牌翻面看完整效果與強化版數值；可以依墨水費用篩選，和遊戲裡的圖鑑一樣。</p></div>
-    <div class="filters reveal" id="filters"></div>
-    <div class="cards" id="cardGrid"></div>
-
-    <div class="grid g2" style="margin-top:56px">
-        <div class="box sk reveal">
-            <h3>卡牌合成</h3>
-            <p>牌組裡有 3 張相同的一般牌時會合成為 1 張<b>強化版</b>（雙層內框、角落塗黑加星號）；3 張相同的特殊技也會合成，效果不變但<b>費用 −1</b>。</p>
-            <div class="merge" id="merge"></div>
-            <div style="text-align:center"><button class="btn sk sm" id="mergeBtn">合成！</button></div>
-        </div>
-        <div class="box sk r reveal">
-            <h3 class="red">特殊技演出</h3>
-            <p>施放特殊技時遊戲會暫停，播放約 1.7 秒的全螢幕手繪演出，在震撼的重擊音效與畫面震動那一瞬間才真正發動。紅墨處決先瞄準再劃叉、重畫讓手牌費用變紅色的 0 並蓋上 FREE、墨漩渦把敵人吸進去再爆炸……</p>
-            <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:22px" id="ultBtns"></div>
-            <p class="mut small" style="margin-top:14px">特殊技格已滿時，抽到的特殊技會直接進棄牌堆。「回聲」能免費再放一次上一張特殊技。</p>
-        </div>
-    </div>
-</section>
-
-<!-- ================= 武器 ================= -->
-<section class="pg" id="weapons">
-    <div class="pghead reveal"><span class="pgno">第 6 頁</span><h2>七把文具武器<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M2 9 Q80 3 150 8 T298 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h2><p class="lead">每局帶一把主武器出門，升級解鎖更多。每把都有自己的射擊音效、槍口閃光與後座力。選一把看示範。</p></div>
-    <div class="wpn">
-        <div class="wlist reveal" id="wlist"></div>
-        <div class="reveal">
-            <div class="wdemo sk"><canvas id="wCv"></canvas></div>
-            <h3 id="wName" style="font-size:30px"></h3>
-            <p id="wDesc" class="mut"></p>
-            <div class="stats" id="wStats"></div>
-        </div>
-    </div>
-
-    <h3 class="subh reveal">遺物：每局帶一個</h3>
-    <p class="mut reveal" style="margin:-8px 0 22px">等級 3 解鎖，用金幣購買後隨時配戴或卸下，每局只有一個生效。</p>
-    <div class="relics" id="relics"></div>
-</section>
-
-<!-- ================= 敵人 ================= -->
-<section class="pg" id="enemies">
-    <div class="pghead reveal"><span class="pgno">第 7 頁</span><h2>塗鴉敵人與頭目<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M2 9 Q80 3 150 8 T298 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h2><p class="lead">敵人循序登場，每頁最多 3 種並輪流換班；每隻小怪都有自己的攻擊節奏，不會同時開火。</p></div>
-    <div class="foes" id="foes"></div>
-
-    <h3 class="subh reveal">五隻頭目，半血進化</h3>
-    <p class="mut reveal" style="margin:-8px 0 22px">血量降到紅色刻度時會鎖血、邊旋轉邊變大、身體轉紅並冒出台詞，進入第二型態加入新招式。按「進化」看看。</p>
-    <div class="bosses" id="bosses"></div>
-</section>
-
-<!-- ================= 成長 ================= -->
-<section class="pg" id="growth">
-    <div class="pghead reveal"><span class="pgno">第 8 頁</span><h2>成長與收集<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M2 9 Q80 3 150 8 T298 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h2><p class="lead">每局結束依表現獲得經驗。升級解鎖新卡牌與武器，金幣換外觀與遺物，成就分三階慢慢解。</p></div>
-
-    <div class="box sk reveal">
-        <h3>等級 1 → 15</h3>
-        <p class="mut">每級新增 2～3 張卡牌，一解鎖就進入獎勵卡池。等級 5、10、15 有等級寶箱（5 金幣＋1 個顏色＋1 個配飾）。點等級看看解鎖了什麼。</p>
-        <div class="lvtrack" id="lvTrack"></div>
-        <div class="lvinfo" id="lvInfo"></div>
-    </div>
-
-    <div class="grid g2" style="margin-top:30px">
-        <div class="box sk reveal">
-            <h3>角色外觀</h3>
-            <div class="dress">
-                <svg id="dressSvg" viewBox="0 0 200 240"></svg>
-                <div>
-                    <p class="mut small">20 種布色 × 8 種點綴色，加上頭、眼、頸、背四個部位的配飾。可以存 4 組自訂套組。點顏色和配飾換換看：</p>
-                    <div class="swatches" id="swatches"></div>
-                    <div class="accs" id="accs"></div>
+    <div class="hs" id="hs">
+        <div class="hs-sticky">
+            <div class="hs-track" id="hsTrack">
+                <div class="hpanel">
+                    <div class="num">01</div>
+                    <div class="txt"><h3>射擊・閃避</h3><p>移動、瞄準、按住射擊。用衝刺穿過子彈就是<b class="red">完美閃避</b>，時間會瞬間放慢。</p><div class="tags"><span class="chip">雙搖桿</span><span class="chip">衝刺無敵</span><span class="chip r">完美閃避</span></div></div>
+                    <div class="ill sk"><div class="frame"><canvas id="dodgeCv"></canvas></div></div>
+                </div>
+                <div class="hpanel">
+                    <div class="num">02</div>
+                    <div class="txt"><h3>收集墨水</h3><p>打倒敵人會滴下墨水。墨水就是出牌的費用，打得越兇、牌出得越多。</p><div class="tags"><span class="chip">上限 10</span><span class="chip">精英加倍</span></div></div>
+                    <div class="ill sk"><div class="frame"><svg class="full" id="inkSvg" viewBox="0 0 400 300"></svg></div></div>
+                </div>
+                <div class="hpanel">
+                    <div class="num">03</div>
+                    <div class="txt"><h3>出牌構築</h3><p>手上 2 張牌加 1 格特殊技。每場戰鬥後挑新卡，3 張相同的卡會自動合成強化版。</p><div class="tags"><span class="chip">42 張卡牌</span><span class="chip r">特殊技演出</span><span class="chip">3 合 1</span></div></div>
+                    <div class="ill sk"><div class="frame" id="mergeIll"><div class="mflash"></div></div></div>
+                </div>
+                <div class="hpanel">
+                    <div class="num">04</div>
+                    <div class="txt"><h3>挑一扇門</h3><p>過關後上方會開 2～3 扇門：戰鬥、寶箱、文具店、小遊戲、奇遇……先看好再選你的路。</p><div class="tags"><span class="chip">8 種頁面</span><span class="chip">每幕一隻頭目</span></div></div>
+                    <div class="ill sk"><div class="frame">
+                        <div class="doors3">
+                            <div class="door"><div class="fr"><div class="lf"></div></div><div class="lb">寶箱頁</div></div>
+                            <div class="door open"><div class="fr"><div class="lf"></div><div class="pg"></div></div><div class="lb">精英戰</div></div>
+                            <div class="door"><div class="fr"><div class="lf"></div></div><div class="lb">文具店</div></div>
+                        </div>
+                        <div class="actdots"><i></i><i style="animation-delay:.6s"></i><i style="animation-delay:1.2s"></i><i style="animation-delay:1.8s"></i><i style="animation-delay:2.4s"></i><i style="animation-delay:3s"></i><i style="animation-delay:3.6s"></i></div>
+                    </div></div>
                 </div>
             </div>
-        </div>
-        <div class="box sk reveal">
-            <h3>金幣與成就</h3>
-            <p class="mut small">成就依類別排列，可累計的成就分成 Ⅰ／Ⅱ／Ⅲ 三階，每一階各給 1 金幣。金幣用來快速解鎖顏色（2）、配飾（5）與遺物（15）。</p>
-            <div class="achs" style="margin-top:12px">
-                <div class="ach sk thin"><div><b>翻頁不停</b><small>清除 30／60／90 頁</small></div><div class="dots"><i class="on"></i><i class="on"></i><i></i></div></div>
-                <div class="ach sk thin"><div><b>完美答卷</b><small>無傷擊敗一個頭目</small></div><div class="dots"><i class="on"></i></div></div>
-                <div class="ach sk thin"><div><b>閃身步</b><small>7 秒內成功衝刺閃過攻擊數次</small></div><div class="dots"><i class="on"></i><i></i><i></i></div></div>
-                <div class="ach sk thin"><div><b>易燃易爆炸</b><small>被油桶炸死一次</small></div><div class="dots"><i></i></div></div>
-                <div class="ach sk thin"><div><b>搖頭晃腦</b><small>連續原地旋轉好幾圈</small></div><div class="dots"><i></i></div></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="grid g2" style="margin-top:30px;align-items:center">
-        <div class="reveal">
-            <h3 style="font-size:24px;margin-bottom:10px">結算：像批改作業</h3>
-            <p>死亡或寫完一本就進入結算。破紀錄會蓋上「創新高分！」印章、放煙火灑紙片；底部的「本局明細」紙條逐頁列出擊倒、出牌、用時與分數。</p>
-            <p style="margin-top:10px">結算寶箱依表現給 0～3 個顏色或配飾（筆記本：清除 5 頁戰鬥、擊敗頭目、寫完整本；課表：到達第 5、12、20 頁）。中途關掉遊戲也沒關係，下次會問你要「繼續遊玩」還是「立即結算」。</p>
-        </div>
-        <div class="result note-paper sk thin reveal" id="result">
-            <div class="tape"></div>
-            <div style="font-weight:900;font-size:20px;margin-bottom:8px">本局結算 · 筆記本模式</div>
-            <div class="row"><span>清除頁數</span><b>21</b></div>
-            <div class="row"><span>擊倒敵人</span><b>184</b></div>
-            <div class="row"><span>擊敗頭目</span><b>3</b></div>
-            <div class="row"><span>出牌次數</span><b>97</b></div>
-            <div class="tot" id="resTot">0</div>
-            <div class="stamp">創新高分！</div>
+            <div class="hs-bar"><span id="hsNo">01</span><div class="rail"><i id="hsFill"></i><b id="hsDot" style="left:0"></b></div><span>04</span></div>
         </div>
     </div>
 </section>
 
-<!-- ================= 細節 ================= -->
-<section class="pg" id="details">
-    <div class="pghead reveal"><span class="pgno">第 9 頁</span><h2>戰場上的小細節<svg viewBox="0 0 300 14" preserveAspectRatio="none"><path d="M2 9 Q80 3 150 8 T298 6" stroke="#D62828" stroke-width="5" fill="none" stroke-linecap="round"/></svg></h2><p class="lead">場景、房間規則與頭目的垃圾話，都是戰術的一部分。</p></div>
-    <div class="grid g3">
-        <div class="box sk reveal"><div class="demo"><svg viewBox="0 0 300 150"><g transform="translate(150 84)"><circle r="0" fill="none" stroke="#D62828" stroke-width="3"><animate attributeName="r" values="0;0;60" keyTimes="0;.6;1" dur="2.2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;0" keyTimes="0;.6;1" dur="2.2s" repeatCount="indefinite"/></circle><g><animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;.6;.62;.98;1" dur="2.2s" repeatCount="indefinite"/><ellipse cx="0" cy="-26" rx="22" ry="7" fill="#D6D3CC" stroke="#1A1A1A" stroke-width="2.5"/><path d="M-22 -26 v40 a22 7 0 0 0 44 0 v-40" fill="#4A4946" stroke="#1A1A1A" stroke-width="2.5"/><path d="M-22 -26 v40 a22 7 0 0 0 44 0 v-40" fill="url(#hat)"/><path d="M-22 -8 a22 7 0 0 0 44 0" stroke="#D62828" stroke-width="3" fill="none"/></g><text x="0" y="5" text-anchor="middle" font-weight="900" font-size="22" fill="#D62828" opacity="0">BOOM<animate attributeName="opacity" values="0;0;1;0" keyTimes="0;.6;.7;1" dur="2.2s" repeatCount="indefinite"/></text></g></svg></div><h3>墨水桶與紙箱</h3><p>墨水桶射爆會範圍爆炸，站太近會被炸掉 3 點生命。紙箱打破可能掉出墨水或生命。</p></div>
-        <div class="box sk reveal"><div class="demo" style="background:#F6F4EF"><svg viewBox="0 0 300 150"><defs><radialGradient id="fog"><stop offset=".35" stop-color="#F6F4EF" stop-opacity="0"/><stop offset=".7" stop-color="#F6F4EF" stop-opacity=".93"/></radialGradient></defs><g stroke="#1A1A1A" stroke-width="2" fill="#D6D3CC"><rect x="30" y="30" width="30" height="30"/><rect x="230" y="90" width="34" height="26"/><circle cx="250" cy="34" r="12" fill="#4A4946"/><circle cx="50" cy="114" r="12" fill="#4A4946"/></g><g><animateTransform attributeName="transform" type="translate" values="-40 0;40 0;-40 0" dur="5s" repeatCount="indefinite"/><rect x="-150" y="-80" width="600" height="310" fill="url(#fog)"/><circle cx="150" cy="75" r="10" fill="#fff" stroke="#1A1A1A" stroke-width="2.5"/></g></svg></div><h3>房間特殊規則</h3><p><span class="chip">白霧</span>以你為中心之外都被擦淡　<span class="chip r">精英</span>敵人更強、墨水加倍　<span class="chip">急速</span>一切都更快。</p></div>
-        <div class="box sk reveal"><div class="taunts" id="taunts"></div><h3>嘲諷</h3><p>頭目與精英活著的時候會不時冒出紅色對話框嘲諷你，共 36 句隨機輪替。頭目戰中場上也會不定時掉落少量墨水。</p></div>
+<!-- 模式：斜切 -->
+<section id="modes">
+    <div class="wrap">
+        <span class="eyebrow rv">MODES</span>
+        <h2 class="big split">兩種寫法。</h2>
+    </div>
+    <div class="split2">
+        <div class="side nb">
+            <div class="content rv-l">
+                <div class="mlabel">MODE 01</div>
+                <h3>筆記本模式</h3>
+                <p>3 幕、每幕 6 頁加一隻頭目。<br>選門、選路，把一整本寫完。</p>
+            </div>
+            <div class="pages"><i></i><i style="animation-delay:.7s"></i><i style="animation-delay:1.4s"></i><i style="animation-delay:2.1s"></i><i style="animation-delay:2.8s"></i><i style="animation-delay:3.5s"></i><i class="boss" style="animation-delay:4.2s"></i></div>
+        </div>
+        <div class="side tt">
+            <div class="ticker"><div class="col" id="ticker"></div></div>
+            <div class="content rv-r">
+                <div class="mlabel">MODE 02</div>
+                <h3>課表模式</h3>
+                <p>永遠上不完的課。每頁一堂特殊規則的課，<br>每 5 頁一隻頭目，挑戰最高分。</p>
+            </div>
+        </div>
+    </div>
+    <div class="extra-modes rv"><span class="chip">訓練場：自由試卡</span><span class="chip">新手教學：一步一步帶你玩</span></div>
+</section>
+
+<!-- 卡牌扇形 -->
+<section id="cards">
+    <div class="wrap">
+        <span class="eyebrow rv">CARDS</span>
+        <h2 class="big split">墨水，就是你的手牌。</h2>
+        <p class="lead rv" style="margin-left:auto;margin-right:auto">攻擊、地形、防禦、輔助，紅框的是特殊技。</p>
+    </div>
+    <div class="fan" id="fan"></div>
+    <div class="rv" style="margin-top:20px"><button class="btn sk r" id="ultBtn">看一段特殊技演出</button></div>
+</section>
+
+<!-- 武器 -->
+<section id="arsenal">
+    <div class="wrap arsenal-head">
+        <div><span class="eyebrow rv">ARSENAL</span><h2 class="big split">七把文具武器。</h2></div>
+        <p class="lead rv-r" style="max-width:24em">鋼筆、自動鉛筆、毛筆、釘書機、螢光筆、圓規、彩色筆——每把手感都不一樣，升級解鎖。</p>
+    </div>
+    <div class="rows">
+        <div class="row"><div class="mq" id="wRow" data-speed="-60"></div></div>
+        <div class="row"><div class="mq" id="cRow" data-speed="45"></div></div>
+    </div>
+</section>
+
+<!-- 頭目 -->
+<section id="bosses">
+    <div class="wrap">
+        <span class="eyebrow rv">BOSSES</span>
+        <h2 class="big split">五隻頭目，半血進化。</h2>
+        <p class="lead rv">血量見底時會鎖血、邊轉邊變大、全身轉紅，然後換一套新招式。滑過或點一下看看。</p>
+    </div>
+    <div class="blist" id="blist"></div>
+    <div class="march"><div class="mq" id="march" data-speed="-40"></div></div>
+</section>
+
+<!-- 更多 -->
+<section id="more">
+    <div class="wrap">
+        <span class="eyebrow rv">AND MORE</span>
+        <h2 class="big split">還有更多頁。</h2>
+        <div class="tiles" id="tiles"></div>
+    </div>
+</section>
+
+<!-- 開發中 -->
+<section id="dev">
+    <div class="hazard t" aria-hidden="true"><div class="mq" data-speed="50"><span>WORK IN PROGRESS</span><span>仍在開發中</span><span>BETA v0.9.55</span></div></div>
+    <div class="hazard b" aria-hidden="true"><div class="mq" data-speed="-50"><span>內容可能隨版本調整</span><span>WORK IN PROGRESS</span><span>持續更新</span></div></div>
+    <div class="wrap">
+        <div class="devnote rv" id="devnote">
+            <div class="tape l"></div><div class="tape r"></div>
+            <div class="st">BETA</div>
+            <span class="eyebrow">STATUS</span>
+            <h2 style="margin-top:14px">這本筆記還沒寫完。</h2>
+            <p>INKRAGE 目前是 <b>beta v0.9.55</b>，仍在積極開發中。玩法、數值、畫面與介面都還會持續調整，現在看到的內容不代表最終成品。</p>
+            <ul>
+                <li>可能會遇到 bug 或還在調整的平衡</li>
+                <li>版本更新頻繁，存檔會盡量保留</li>
+                <li>目前只提供繁體中文</li>
+            </ul>
+            <div class="prog"><div class="bar"><i style="--w:72%"></i></div><div class="lb"><span>開發進度（示意）</span><span>v0.9.55 → v1.0</span></div></div>
+        </div>
     </div>
 </section>
 </main>
 
 <footer>
-    <div class="big boil">拿起筆吧。</div>
-    <p>免安裝、離線可玩・電腦與平板・繁體中文</p>
-    <div style="margin-top:28px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap">
-        <a class="btn sk r" href="https://archie-30.github.io/INKRAGE/">立即遊玩</a>
+    <div class="huge split">拿起筆吧。</div>
+    <p class="rv">免安裝、離線可玩・電腦與平板</p>
+    <div class="rv" style="margin-top:30px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap">
+        <a class="btn sk ink" href="https://archie-30.github.io/INKRAGE/">立即遊玩（Beta）</a>
         <a class="btn sk" href="#hero" data-go>回到封面</a>
     </div>
-    <p class="fine">INKRAGE beta v0.9.55・不蒐集個人資料、沒有廣告與內購・本遊戲的程式、美術、文字、音效與音樂全部由 AI 生成</p>
+    <p class="fine">INKRAGE beta v0.9.55・遊戲仍在開發中・不蒐集個人資料、沒有廣告與內購・本遊戲的程式、美術、文字、音效與音樂全部由 AI 生成</p>
 </footer>
 
 <div id="door"><canvas id="doorCv"></canvas></div>
-<div id="cutin"><div class="dim"></div><div class="band"><div class="lines"></div><div class="who" id="cutWho"></div></div><div class="ttl" id="cutTtl"></div><div class="sub" id="cutSub"></div><div class="white"></div></div>
+<div id="cutin"><div class="dim"></div><div class="band2"><div class="lines"></div><div class="who" id="cutWho"></div></div><div class="ttl" id="cutTtl"></div><div class="sub" id="cutSub"></div><div class="white"></div></div>
 <script>
 'use strict';
 const $=(s,r=document)=>r.querySelector(s);
@@ -898,82 +700,6 @@ function cardHTML(c,up=false){
     </div></div>`;
 }
 
-const DOORS=[
-    {k:'fight',n:'一般戰',s:'清光這頁的敵人',d:'最基本的戰鬥頁。打倒所有敵人後上方的門才會打開，接著從 2～3 張卡中挑一張加入牌組（可跳過）。敵人種類循序漸進地登場，新敵人出現時標題會提示。'},
-    {k:'elite',n:'精英戰',s:'第 2 幕起出現',d:'敵人頭上戴紅色墨冠、外框暗紅，更硬也更兇，但擊倒給的墨水加倍，獎勵也更好。精英活著時還會不停嘲諷你。'},
-    {k:'challenge',n:'挑戰頁',s:'戰鬥＋條件',d:'戰鬥再加上一個條件：不受傷、限時，或不使用卡牌。達成可以加分並從稀有卡中挑一張，失敗就是一般獎勵。'},
-    {k:'chest',n:'寶箱頁',s:'三選一',d:'三個寶箱只能開一個，分別是稀有卡、補給（生命、墨水、分數），以及會咬人的假寶箱——打開就是伏擊戰。下面可以直接試開。'},
-    {k:'shop',n:'文具店',s:'用分數買東西',d:'商品擺在老闆前方的展示台上，價格牌在商品上方，分數不夠時價格變紅。和老闆說話或買過一樣東西後門就會打開。'},
-    {k:'event',n:'事件頁',s:'小遊戲',d:'每次都是一個小遊戲，不能跳過。16 種輪流出現、剛玩過的會先避開，數值隨幕數變難。過關抽獎勵，失敗抽懲罰，同一種獎懲不會連續抽到兩次。'},
-    {k:'odd',n:'奇遇頁',s:'選項都有代價',d:'8 種奇怪遭遇：打翻的墨水瓶、會說話的橡皮擦、塗鴉牆、同學的筆記、扭蛋機……每個選項都有代價，有的還會觸發伏擊戰。'},
-    {k:'rest',n:'修正液休息',s:'少見的喘息',d:'回復生命，或是選一張卡升級。出現機率比較低，看到了要好好把握。'}
-];
-const SHOP=[
-    {k:'buy',n:'挑一張卡',p:600,d:'三選一，不能跳過'},
-    {k:'rare',n:'稀有卡包',p:1100,d:'三張特殊技選一'},
-    {k:'upgrade',n:'升級一張卡',p:700,d:'自己挑要升級哪張'},
-    {k:'upgrade2',n:'隨機加工',p:650,d:'隨機升級 2 張卡'},
-    {k:'patch',n:'貼個 OK 繃',p:400,d:'生命 +2'},
-    {k:'bigPatch',n:'大包紗布',p:750,d:'生命 +4'},
-    {k:'remove',n:'修正帶',p:500,d:'挑一張卡移除；反悔可退一半'},
-    {k:'ink',n:'補充墨水',p:300,d:'墨水 +4，可以超過上限一次'},
-    {k:'swap',n:'武器交換',p:900,d:'三把武器選一把換上'}
-];
-const SHOPICON={
-    buy:`<rect x="10" y="6" width="22" height="30" fill="#fff" stroke="${K}" stroke-width="2.5" transform="rotate(-8 21 21)"/><rect x="22" y="8" width="22" height="30" fill="#fff" stroke="${K}" stroke-width="2.5"/>`,
-    rare:`<rect x="12" y="8" width="22" height="30" fill="#fff" stroke="${R}" stroke-width="2.5" transform="rotate(-8 23 23)"/><rect x="20" y="6" width="22" height="30" fill="#fff" stroke="${R}" stroke-width="2.5"/><path d="M31 14 l3 6 6 1 -4.5 4 1 6 -5.5 -3 -5.5 3 1 -6 -4.5 -4 6 -1z" fill="${R}"/>`,
-    upgrade:`<rect x="14" y="6" width="24" height="32" fill="#fff" stroke="${K}" stroke-width="2.5"/><path d="M26 30 V14 M19 21 l7 -7 7 7" stroke="${R}" stroke-width="3.5" fill="none"/>`,
-    upgrade2:`<rect x="8" y="10" width="18" height="26" fill="#fff" stroke="${K}" stroke-width="2.5"/><rect x="28" y="10" width="18" height="26" fill="#fff" stroke="${K}" stroke-width="2.5"/><path d="M17 30 V18 M12 23 l5 -5 5 5 M37 30 V18 M32 23 l5 -5 5 5" stroke="${R}" stroke-width="2.5" fill="none"/>`,
-    patch:`<g transform="rotate(-30 26 22)"><rect x="6" y="14" width="40" height="16" rx="8" fill="#EDD6A6" stroke="${K}" stroke-width="2.5"/><rect x="19" y="14" width="14" height="16" fill="#fff" stroke="${K}" stroke-width="2"/></g>`,
-    bigPatch:`<rect x="10" y="10" width="32" height="26" fill="#fff" stroke="${K}" stroke-width="2.5"/><path d="M26 15 v16 M18 23 h16" stroke="${R}" stroke-width="4"/>`,
-    remove:`<rect x="8" y="14" width="30" height="18" rx="3" fill="#fff" stroke="${K}" stroke-width="2.5"/><rect x="36" y="18" width="10" height="10" fill="${G2}" stroke="${K}" stroke-width="2"/><path d="M14 23 h16" stroke="${G1}" stroke-width="5"/>`,
-    ink:`${drop(26,24,1.6)}<path d="M38 8 v10 M33 13 h10" stroke="${R}" stroke-width="3"/>`,
-    swap:`<path d="M10 16 h28 l-6 -6 M42 30 h-28 l6 6" stroke="${K}" stroke-width="3" fill="none" stroke-linejoin="round"/>`
-};
-const MG=[
-    {n:'記憶音鈴',d:'看音鈴亮起的順序（4～6 下），再走過去照順序敲響。',a:`${[40,80,120,160].map((x,i)=>`<g transform="translate(${x} 30)"><g><animateTransform attributeName="transform" type="rotate" values="0;14;-14;0;0" keyTimes="0;.06;.14;.2;1" dur="3.2s" begin="${[0,1.6,.8,2.4][i]}s" repeatCount="indefinite"/><path d="M-14 26 Q-14 0 0 0 Q14 0 14 26z" fill="${G1}" stroke="${K}" stroke-width="2.5"><animate attributeName="fill" values="${G1};${R};${G1};${G1}" keyTimes="0;.06;.2;1" dur="3.2s" begin="${[0,1.6,.8,2.4][i]}s" repeatCount="indefinite"/></path><circle cy="30" r="4" fill="${K}"/></g></g>`).join('')}`},
-    {n:'塗鴉靶場',d:'限時用武器打倒 6 個紙靶。主持人是戴帽子的教練，別打錯。',a:`${[50,100,150].map((x,i)=>`<g transform="translate(${x} 50)"><g><animateTransform attributeName="transform" type="scale" values="1 1;1 1;1 0;1 0;1 1" keyTimes="0;.3;.38;.9;1" dur="2.4s" begin="${i*.6}s" repeatCount="indefinite"/><circle r="18" fill="#fff" stroke="${K}" stroke-width="2.5"/><circle r="10" fill="none" stroke="${R}" stroke-width="2.5"/><circle r="3" fill="${K}"/></g></g>`).join('')}`},
-    {n:'描線練習',d:'沿著地上的虛線從起點走到終點，偏離太遠就失敗。',a:`<path id="trP" d="M20 70 C60 10 90 90 130 40 S170 30 182 50" fill="none" stroke="${K}" stroke-width="2.5" stroke-dasharray="6 6"/><circle cx="20" cy="70" r="5" fill="${K}"/><circle cx="182" cy="50" r="7" fill="none" stroke="${R}" stroke-width="3"/><circle r="7" fill="#fff" stroke="${K}" stroke-width="2.5"><animateMotion dur="3s" repeatCount="indefinite" path="M20 70 C60 10 90 90 130 40 S170 30 182 50"/></circle>`},
-    {n:'推橡皮擦',d:'用身體把大橡皮擦推進紅圈。',a:`<circle cx="160" cy="50" r="22" fill="none" stroke="${R}" stroke-width="3"/><g><animateTransform attributeName="transform" type="translate" values="0 0;0 0;90 0;90 0" keyTimes="0;.15;.85;1" dur="3s" repeatCount="indefinite"/><rect x="50" y="36" width="36" height="28" fill="#fff" stroke="${K}" stroke-width="2.5"/><rect x="50" y="36" width="12" height="28" fill="${R}" stroke="${K}" stroke-width="2.5"/><circle cx="36" cy="50" r="9" fill="${G1}" stroke="${K}" stroke-width="2.5"/></g>`},
-    {n:'倒墨水',d:'站在踏板上墨水就會上升，在紅線附近離開踏板，溢出就失敗。',a:`<defs><clipPath id="pourC"><rect x="80" y="14" width="40" height="70"/></clipPath></defs><rect x="80" y="84" width="40" height="0" fill="${K}" clip-path="url(#pourC)"><animate attributeName="y" values="84;30;30;84" keyTimes="0;.7;.95;1" dur="3s" repeatCount="indefinite"/><animate attributeName="height" values="0;54;54;0" keyTimes="0;.7;.95;1" dur="3s" repeatCount="indefinite"/></rect><rect x="80" y="14" width="40" height="70" fill="none" stroke="${K}" stroke-width="3"/>${ln(72,32,128,32,R,3)}`},
-    {n:'踩格子',d:'把每一格白色地板都踩黑，同一格不能踩兩次，也不能踩打叉的墨漬格。',a:`${Array.from({length:10},(_,i)=>{const c=i%5,r=Math.floor(i/5);const ord=[0,1,2,3,4,9,8,7,6,5].indexOf(i);return i==6?`<rect x="${40+c*24}" y="${24+r*24}" width="22" height="22" fill="${G1}" stroke="${K}" stroke-width="2"/><path d="M${44+c*24} ${28+r*24} l14 14 M${58+c*24} ${28+r*24} l-14 14" stroke="${R}" stroke-width="2.5"/>`:`<rect x="${40+c*24}" y="${24+r*24}" width="22" height="22" fill="#fff" stroke="${K}" stroke-width="2"><animate attributeName="fill" values="#fff;#fff;${K};${K};#fff" keyTimes="0;${(ord/12).toFixed(2)};${(ord/12+.02).toFixed(2)};.95;1" dur="4s" repeatCount="indefinite"/></rect>`}).join('')}`},
-    {n:'找不同',d:'兩張圖上的東西一個個蹦出來，站到 B 圖不一樣的格子裡圈出來。可以錯一次。',a:`<rect x="20" y="14" width="74" height="68" fill="#fff" stroke="${K}" stroke-width="2.5"/><rect x="106" y="14" width="74" height="68" fill="#fff" stroke="${K}" stroke-width="2.5"/><circle cx="40" cy="36" r="8" fill="${K}"/><rect x="62" y="54" width="16" height="16" fill="${G2}"/><circle cx="126" cy="36" r="8" fill="${K}"/><path d="M148 70 l8 -16 8 16z" fill="${G2}"/><circle cx="156" cy="62" r="16" fill="none" stroke="${R}" stroke-width="3" stroke-dasharray="101" stroke-dashoffset="101"><animate attributeName="stroke-dashoffset" values="101;101;0;0" keyTimes="0;.4;.6;1" dur="3s" repeatCount="indefinite"/></circle>`},
-    {n:'翻牌配對',d:'站在牌上翻牌，一次兩張，配錯太多次就失敗。',a:`${[0,1,2,3].map(i=>`<g transform="translate(${46+i*36} 48)"><g><animateTransform attributeName="transform" type="scale" values="1 1;0 1;1 1;1 1;0 1;1 1" keyTimes="0;.1;.2;.7;.8;.9" dur="3.6s" begin="${[0,.9,1.8,.45][i]}s" repeatCount="indefinite"/><rect x="-14" y="-20" width="28" height="40" fill="${i%2?'#fff':K}" stroke="${K}" stroke-width="2.5"/>${i%2?`<circle r="6" fill="${R}"/>`:''}</g></g>`).join('')}`},
-    {n:'躲墨雨',d:'墨雲飄在上空，地上的影子越來越大，墨滴落下時別站在影子裡。',a:`${cloud(100,22)}<ellipse cx="100" cy="80" rx="0" ry="0" fill="${K}" opacity=".3"><animate attributeName="rx" values="4;24;24" keyTimes="0;.6;1" dur="1.6s" repeatCount="indefinite"/><animate attributeName="ry" values="1;7;7" keyTimes="0;.6;1" dur="1.6s" repeatCount="indefinite"/></ellipse><g>${drop(0,0,1)}<animateTransform attributeName="transform" type="translate" values="100 30;100 30;100 78" keyTimes="0;.6;1" dur="1.6s" repeatCount="indefinite"/></g><g transform="translate(150 70)"><circle r="7" fill="#fff" stroke="${K}" stroke-width="2.5"/></g>`},
-    {n:'骰子賭運',d:'站上「大」或「小」下注，猜中骰子點數的大小。',a:`<g transform="translate(100 38)"><g><animateTransform attributeName="transform" type="rotate" values="0;360;360" keyTimes="0;.5;1" dur="2s" repeatCount="indefinite"/><rect x="-16" y="-16" width="32" height="32" rx="5" fill="#fff" stroke="${K}" stroke-width="3"/><circle cx="-7" cy="-7" r="3.5" fill="${R}"/><circle r="3.5" fill="${R}"/><circle cx="7" cy="7" r="3.5" fill="${R}"/></g></g><rect x="30" y="66" width="40" height="22" fill="#fff" stroke="${K}" stroke-width="2.5"/><text x="50" y="82" text-anchor="middle" font-weight="900" font-size="14">大</text><rect x="130" y="66" width="40" height="22" fill="#fff" stroke="${K}" stroke-width="2.5"/><text x="150" y="82" text-anchor="middle" font-weight="900" font-size="14">小</text>`},
-    {n:'紙飛機',d:'看準力道條丟出紙飛機，左右兩個垃圾桶都要投進，最多失誤 4 次。',a:`<path d="M150 62 h24 l-4 28 h-16z" fill="${G1}" stroke="${K}" stroke-width="2.5"/><path d="M20 76 h22 v8 h-22z" fill="${K}"/><g><animateMotion dur="2.2s" repeatCount="indefinite" rotate="auto" path="M30 70 Q100 -10 162 66"/><path d="M-10 -5 L12 0 L-10 6 L-5 0z" fill="#fff" stroke="${K}" stroke-width="2"/></g>`},
-    {n:'書本迷宮',d:'書牆從起點往外依序升起，限時走到紅色星星。開始前看不到路線。',a:`<path d="M30 14 H170 V82 H30z M30 40 H80 M110 14 V56 M60 62 H140 M140 30 V62 M80 40 V82" fill="none" stroke="${K}" stroke-width="5" stroke-linecap="square"/><path d="M155 72 l3 6 6 1 -4.5 4 1 6 -5.5 -3 -5.5 3 1 -6 -4.5 -4 6 -1z" fill="${R}" transform="translate(0 -10)"/><circle r="6" fill="#fff" stroke="${K}" stroke-width="2.5"><animateMotion dur="4s" repeatCount="indefinite" path="M45 27 H95 V50 H125 V72 H152"/></circle>`},
-    {n:'節奏踩點',d:'音符從天上掉進三個圈圈，落地時站在那個圈裡接住它。',a:`${[60,100,140].map((x,i)=>`<ellipse cx="${x}" cy="76" rx="16" ry="6" fill="none" stroke="${K}" stroke-width="2.5"/><g><animateTransform attributeName="transform" type="translate" values="${x} 0;${x} 72" dur="1.2s" begin="${[0,.4,.8][i]}s" repeatCount="indefinite"/><circle r="5" fill="${i==1?R:K}"/>${ln(5,0,5,-14,i==1?R:K,2)}</g>`).join('')}`},
-    {n:'跟著影子走',d:'記住影子走過叉叉的順序，再照順序踩一遍。影子會留下淡去的紅色墨跡。',a:`${[[40,30],[100,70],[160,30],[130,60]].map(([x,y])=>`<path d="M${x-6} ${y-6} l12 12 M${x+6} ${y-6} l-12 12" stroke="${K}" stroke-width="3"/>`).join('')}<path d="M40 30 L100 70 L160 30 L130 60" fill="none" stroke="${R}" stroke-width="4" stroke-dasharray="190" stroke-dashoffset="190" opacity=".6"><animate attributeName="stroke-dashoffset" values="190;0;0" keyTimes="0;.7;1" dur="3s" repeatCount="indefinite"/></path><circle r="8" fill="${G3}" opacity=".7"><animateMotion dur="3s" keyPoints="0;1;1" keyTimes="0;.7;1" calcMode="linear" repeatCount="indefinite" path="M40 30 L100 70 L160 30 L130 60"/></circle>`},
-    {n:'滾彈珠',d:'用身體把彈珠撞進紅圈，避開黑洞。',a:`<circle cx="70" cy="30" r="10" fill="${K}"/><circle cx="120" cy="70" r="10" fill="${K}"/><circle cx="170" cy="40" r="15" fill="none" stroke="${R}" stroke-width="3"/><circle r="7" fill="#fff" stroke="${K}" stroke-width="2.5"><animateMotion dur="3s" repeatCount="indefinite" path="M30 60 Q90 56 110 40 T170 40"/></circle>`},
-    {n:'猜杯子',d:'記住墨珠在哪個杯子底下（3～5 個杯子），打亂後站到你猜的杯子前面。',a:`${[60,100,140].map((x,i)=>`<g><animateTransform attributeName="transform" type="translate" values="${['0 0;20 -12;40 0;40 0;20 -12;0 0','0 0;-20 8;-40 0;-40 0;-20 8;0 0','0 0;0 0;0 0;0 0;0 0;0 0'][i]}" keyTimes="0;.15;.3;.7;.85;1" dur="2.6s" repeatCount="indefinite"/><path d="M${x-16} 76 L${x-11} 34 H${x+11} L${x+16} 76z" fill="${i==0?'#fff':G1}" stroke="${K}" stroke-width="2.5"/>${i==0?`<circle cx="${x}" cy="84" r="4" fill="${K}"/>`:''}</g>`).join('')}`}
-];
-const ENC=[
-    {n:'打翻的墨水瓶',q:'頁角有一灘還沒乾的墨水，正冒著奇怪的泡泡。',o:[['把筆沾進去','墨水 +5，但被濺到失去 2 生命。'],['把它吸乾','弄髒作業扣 300 分，吸飽墨水的筆讓一張隨機卡升級。'],['繞過去','什麼也不做。']]},
-    {n:'會說話的橡皮擦',q:'「讓我幫你把牌組擦亮一點吧？不過我有時候會擦過頭……」',o:[['讓它擦擦看','隨機兩張卡升級，但隨機一張卡會被擦掉。'],['把它擦掉','開戰！打贏後從三張稀有卡中選一張。'],['不理它','什麼也不做。']]},
-    {n:'塗鴉牆',q:'整面牆畫滿了危險又漂亮的圖案。',o:[['臨摹一張','失去 3 生命，獲得一張隨機稀有卡。'],['簽上大名','+800 分，但下一場一般戰變成精英戰。'],['只是看看','什麼也不做。']]},
-    {n:'同學的筆記',q:'有人把筆記忘在桌上，字跡工整得可怕。',o:[['偷抄一頁','獲得一張隨機普通卡，但被抓到扣 300 分。'],['還給他','做了好事心情愉快，回復 1 生命。']]},
-    {n:'扭蛋機',q:'投幣口歪歪的，好像什麼都能投進去。',o:[['投入 2 生命','35% 稀有卡／45% 普通卡／20% 卡住吃掉你一張卡'],['投入 600 分','40% 隨機升級兩張／45% 只有 3 墨水／15% 卡住吃卡'],['不玩了','什麼也不做。']]},
-    {n:'削鉛筆機',q:'轉動把手的聲音聽起來很危險。',o:[['削尖一點','隨機升級兩張卡，失去 3 生命。'],['削到變短','隨機一張卡被削掉，回復 2 生命。'],['別碰它','什麼也不做。']]},
-    {n:'打翻的咖啡',q:'咖啡還是溫的，香味讓人放鬆……手卻有點抖。',o:[['喝一口','回復 2 生命，但一張已升級的卡失去升級。'],['不喝了','什麼也不做。']]},
-    {n:'塗鴉幽靈',q:'一隻沒畫完的幽靈擋在門前，不處理就走不了。',o:[['抓住它','精英伏擊！打贏 +1000 分並從三張稀有卡中選一張。'],['放它走','它順手偷走你一張隨機的卡。']]}
-];
-const COURSES=[
-    {k:'math',n:'數學課',i:'照數字順序打，從 1 數到 5！',fx:['每次隨機 2 隻敵人頭上標同一個數字，打倒其中一隻就換下 2 隻標下一個數字','沒標數字的敵人，傷害 −60%'],ch:'打倒標著 5 的敵人，再清掉剩下的敵人',rw:'墨水補滿',ic:`<text x="22" y="30" text-anchor="middle" font-size="22" font-weight="900">1+</text>`},
-    {k:'pe',n:'體育課',i:'跑起來，趕在時間內結束！',fx:['你的速度 +20%','敵人與敵彈也 +20%'],ch:'90 秒內清場',rw:'1 金幣',ic:`<circle cx="22" cy="22" r="14" fill="none" stroke="${K}" stroke-width="3"/>${ln(22,22,22,12)}${ln(22,22,30,26,R)}`},
-    {k:'copy',n:'資訊課',i:'敵人會分身，找出本尊！',fx:['每 6 秒複製一隻敵人','副本只有一半血，本尊倒下副本就消失'],ch:'擊倒所有本尊',rw:'回復 2 點生命',ic:`<rect x="6" y="8" width="22" height="18" fill="#fff" stroke="${K}" stroke-width="2.5"/><rect x="16" y="18" width="22" height="18" fill="#fff" stroke="${R}" stroke-width="2.5" stroke-dasharray="3 3"/>`},
-    {k:'dodge',n:'訓導課',i:'老師氣得丟粉筆，看準時機閃過去！',fx:['每 1.6 秒老師從附近丟一支粉筆（出手前地上先出現紅圈）','衝刺冷卻 −40%'],ch:'衝刺閃過子彈 4 次',rw:'1 金幣',ic:`<rect x="6" y="18" width="30" height="8" rx="3" fill="#fff" stroke="${K}" stroke-width="2.5" transform="rotate(-25 21 22)"/><circle cx="34" cy="34" r="6" fill="none" stroke="${R}" stroke-width="2.5"/>`},
-    {k:'music',n:'音樂課',i:'跟著節奏，踩進地上的圈圈！',fx:['戰鬥時地上不時出現圈圈（會避開敵人）','圈圈 3 秒後消失，外圈往內縮、快消失時閃紅'],ch:'踩中 5 個圈圈',rw:'回復 1 點生命並補滿墨水',ic:`<circle cx="14" cy="32" r="6" fill="${K}"/><circle cx="32" cy="28" r="6" fill="${K}"/>${ln(20,32,20,8)}${ln(38,28,38,6)}${ln(20,8,38,6,K,4)}`}
-];
-const WPN=[
-    {k:'pen',n:'鋼筆',lv:1,s:'均衡單發',d:'最基本的武器。射出單發墨彈，傷害、射速與射程都中等，好上手。',st:{dmg:3,rate:3,range:3,mag:2},t:{dmg:'10',rate:'每秒 8.3 發',range:'中',mag:'12 發／換彈 1.1s'}},
-    {k:'pencil',n:'自動鉛筆',lv:3,s:'高射速・大彈匣',d:'按住就連續射出細小筆芯。單發傷害低、散布較大，但射速很快、彈匣有 26 發，適合壓制成群敵人。',st:{dmg:1,rate:4,range:3,mag:5},t:{dmg:'5',rate:'每秒 11 發',range:'中',mag:'26 發／換彈 1.4s'}},
-    {k:'brush',n:'毛筆',lv:5,s:'橫掃墨痕・可擦敵彈',d:'揮出一道橫向的帶飛白墨痕往前掃，整條墨痕都有判定，離得越近越痛（30／20／15）。墨痕掃過的敵彈會被擦掉；連續兩次揮空會返還 1 發。',st:{dmg:5,rate:1,range:2,mag:1},t:{dmg:'15～30',rate:'0.62 秒一揮',range:'約 5.5',mag:'6 發／換彈 1.2s'}},
-    {k:'stapler',n:'釘書機',lv:5,s:'三連點射・減速',d:'每次扣下射出三連發書釘。被釘中的敵人會短暫減速，方便拉開距離或集中火力。',st:{dmg:3,rate:2,range:3,mag:3},t:{dmg:'12',rate:'0.5 秒三連發',range:'中',mag:'18 發／換彈 1.3s'}},
-    {k:'highlighter',n:'螢光筆',lv:8,s:'持續光束・會過熱',d:'按住放出黃色螢光光束，穿透線上所有敵人、碰牆才停。彈匣代表熱度：放開會慢慢冷卻，過熱要等 3 秒。',st:{dmg:3,rate:5,range:3,mag:3},t:{dmg:'5／每 0.1 秒',rate:'持續',range:'到牆為止',mag:'熱度 30'}},
-    {k:'compass',n:'圓規',lv:10,s:'回力鏢・冷卻制',d:'丟出高速旋轉的圓規，飛到最遠處再以同樣速度飛回手上；去回都穿透、會打掉敵彈、撞牆彈回。不用彈藥，冷卻 1.8 秒。',st:{dmg:4,rate:1,range:4,mag:1},t:{dmg:'20',rate:'冷卻 1.8 秒',range:'遠',mag:'—'}},
-    {k:'crayon',n:'彩色筆',lv:13,s:'隨機三色彈',d:'每一發獨立隨機射出三種顏色之一：紅色 20%・傷害 28、藍色 40%・傷害 10、綠色 40%・傷害 5。',st:{dmg:3,rate:3,range:3,mag:3},t:{dmg:'5／10／28',rate:'每秒 6.7 發',range:'中',mag:'16 發／換彈 1.2s'}}
-];
 const WICON={
     pen:`<g transform="rotate(-30 30 20)"><rect x="4" y="15" width="38" height="10" fill="${G2}" stroke="${K}" stroke-width="2.5"/><rect x="4" y="15" width="7" height="10" fill="#fff" stroke="${K}" stroke-width="2.5"/><path d="M42 15 L56 20 L42 25z" fill="${K}"/></g>`,
     pencil:`<g transform="rotate(-30 30 20)"><rect x="4" y="15" width="38" height="10" fill="#C49A52" stroke="${K}" stroke-width="2.5"/><rect x="4" y="15" width="6" height="10" fill="${R}" stroke="${K}" stroke-width="2.5"/><path d="M42 15 L54 20 L42 25z" fill="#fff" stroke="${K}" stroke-width="2"/></g>`,
@@ -983,22 +709,6 @@ const WICON={
     compass:`<path d="M30 4 L16 36 M30 4 L44 36" stroke="${G3}" stroke-width="4" stroke-linecap="round"/><circle cx="30" cy="5" r="3.5" fill="#fff" stroke="${K}" stroke-width="2"/>${ln(44,36,46,40,K,2)}`,
     crayon:`<g transform="rotate(-30 30 20)"><rect x="4" y="14" width="36" height="12" fill="${'#3B6FB6'}" stroke="${K}" stroke-width="2.5"/><path d="M40 14 L52 20 L40 26z" fill="${R}" stroke="${K}" stroke-width="2"/><path d="M12 14 v12 M18 14 v12" stroke="#3E9A57" stroke-width="3"/></g>`
 };
-const RELICS=[
-    {n:'備用筆芯',s:'彈匣多一點',d:'依武器增加彈匣容量：鋼筆 +2、自動鉛筆 +4、毛筆 +1、釘書機 +3、螢光筆 +4、彩色筆 +3。',ic:`<rect x="10" y="12" width="40" height="8" fill="${G2}" stroke="${K}" stroke-width="2.5" transform="rotate(-20 30 16)"/><rect x="14" y="26" width="40" height="8" fill="${G2}" stroke="${K}" stroke-width="2.5" transform="rotate(-20 34 30)"/><rect x="18" y="40" width="40" height="8" fill="${R}" stroke="${K}" stroke-width="2.5" transform="rotate(-20 38 44)"/>`},
-    {n:'立可白',s:'第一次受傷免傷',d:'每局第一次受到傷害時，完全抵銷這次傷害。',ic:`<rect x="18" y="14" width="28" height="40" rx="5" fill="#fff" stroke="${K}" stroke-width="3"/><rect x="24" y="4" width="16" height="10" fill="${K}"/>${ln(24,32,40,32,R,4)}`},
-    {n:'削鉛筆機',s:'換彈更快',d:'換彈時間縮短 12%。',ic:`<rect x="12" y="20" width="40" height="32" rx="4" fill="${G1}" stroke="${K}" stroke-width="3"/><circle cx="32" cy="36" r="8" fill="#fff" stroke="${K}" stroke-width="2.5"/>${ln(52,28,60,16)}<circle cx="60" cy="14" r="4" fill="${R}"/>`},
-    {n:'急救貼布',s:'擊敗頭目回血',d:'每擊敗一隻頭目，回復 1 點生命。',ic:`<g transform="rotate(-35 32 32)"><rect x="6" y="22" width="52" height="20" rx="10" fill="#EDD6A6" stroke="${K}" stroke-width="3"/><rect x="24" y="22" width="16" height="20" fill="#fff" stroke="${K}" stroke-width="2"/></g>`}
-];
-const FOES=[
-    {k:'doodle',n:'塗鴉兵',hp:38,ink:1,d:'走位並射出單發紅色子彈。第一頁就登場的老朋友。'},
-    {k:'blob',n:'墨團',hp:52,ink:1.5,d:'跳躍接近，死亡時分裂成兩隻小墨團。'},
-    {k:'sprayer',n:'散彈兵',hp:46,ink:1.5,d:'靠近到中距離，一次噴出 5 發扇形散彈（射程短）。'},
-    {k:'stamp',n:'橡皮印章兵',hp:64,ink:1.5,d:'跳向你預判的位置重重蓋下，留下踩到會減速的墨印；落地後短暫僵直。精英版連跳兩次並噴出環狀彈。'},
-    {k:'cloud',n:'墨雲',hp:44,ink:1.5,d:'飄在空中保持距離，在你腳下畫紅圈降下墨滴，爆開並留下減速墨漬。'},
-    {k:'bird',n:'摺紙鳥',hp:26,ink:1,d:'在空中盤旋，突然俯衝。'},
-    {k:'compassE',n:'圓規手',hp:58,ink:1.5,d:'保持距離，發射環狀彈幕。'},
-    {k:'eraserM',n:'橡皮怪',hp:90,ink:2,d:'衝撞玩家，還會擦掉你畫的牆。'}
-];
 const FOEART={
     doodle:`<ellipse cx="50" cy="96" rx="26" ry="7" fill="url(#hat)"/><rect x="34" y="50" width="32" height="40" fill="${G1}" stroke="${K}" stroke-width="3"/><rect x="34" y="50" width="32" height="40" fill="url(#hat)" opacity=".5"/><circle cx="50" cy="34" r="17" fill="#fff" stroke="${K}" stroke-width="3"/><path d="M42 32 h4 M54 32 h4" stroke="${K}" stroke-width="3"/><rect x="62" y="62" width="20" height="7" fill="${K}"/>`,
     blob:`<ellipse cx="50" cy="96" rx="28" ry="6" fill="url(#hat)"/><path d="M20 84 Q16 50 40 40 Q56 30 72 46 Q90 62 80 86 Q50 96 20 84z" fill="${K}"/><circle cx="42" cy="58" r="6" fill="#fff"/><circle cx="62" cy="58" r="6" fill="#fff"/><circle cx="43" cy="59" r="2.5" fill="${K}"/><circle cx="61" cy="59" r="2.5" fill="${K}"/><circle cx="86" cy="40" r="5" fill="${K}"/><circle cx="14" cy="60" r="3" fill="${K}"/>`,
@@ -1009,13 +719,6 @@ const FOEART={
     compassE:`<ellipse cx="50" cy="98" rx="24" ry="6" fill="url(#hat)"/><path d="M50 18 L28 92 M50 18 L72 92" stroke="${G3}" stroke-width="7" stroke-linecap="round"/><circle cx="50" cy="20" r="9" fill="#fff" stroke="${K}" stroke-width="3"/><circle cx="50" cy="56" r="26" fill="none" stroke="${R}" stroke-width="2" stroke-dasharray="4 5"/>`,
     eraserM:`<ellipse cx="50" cy="98" rx="34" ry="7" fill="url(#hat)"/><rect x="14" y="40" width="72" height="52" rx="6" fill="#fff" stroke="${K}" stroke-width="3"/><rect x="14" y="40" width="26" height="52" rx="6" fill="${R}" stroke="${K}" stroke-width="3"/><path d="M50 58 l10 6 M80 58 l-10 6" stroke="${K}" stroke-width="3.5"/><path d="M54 78 h22" stroke="${K}" stroke-width="3"/>`
 };
-const BOSSES=[
-    {k:'bottle',n:'巨型墨瓶',hp:900,th:.5,weak:'背後紅色裂縫受到兩倍傷害',p1:['螺旋彈、扇形彈、環狀彈','丟出減速墨漬','召喚墨團'],p2:['倒下沿紅線翻滾衝撞兩次，沿路灑下減速墨漬','滾完會暈一下'],say:'就這？'},
-    {k:'scissors',n:'剪刀魔',hp:1000,th:.5,weak:'撞牆卡住時受到兩倍傷害',p1:['衝刺剪擊（路徑留下的子彈 1.3 秒後往兩側射出）','十字剪、旋轉彈幕'],p2:['繞著你高速轉圈並射出三連發','衝刺連衝三次'],say:'擦掉你只要一下下。'},
-    {k:'book',n:'墨跡之書',hp:1300,th:.5,weak:'攤開休息時受到兩倍傷害',p1:['缺口彈幕牆、墨水雨','重擊、召喚小兵'],p2:['飛起來撲向紅圈位置連壓兩次','落地震出一圈子彈'],say:'這頁就是你的終點。'},
-    {k:'exam',n:'考卷魔王',hp:1100,th:.5,weak:'整題沒被打中就算答對，它會攤開休息、受到兩倍傷害',p1:['選擇題：紅圈依序爆開','是非題：✗ 那半邊會被劃掉','填空題：4×3 格只有畫 ○ 的 3 格安全','安靜作答：開火會被喊「作弊！」'],p2:['期末考：加入申論題等新題型','出題節奏更快'],say:'老師會給你不及格！'},
-    {k:'pen',n:'巨筆暴君',hp:1400,th:1/3,weak:'每三次攻擊喘息一次，這時受到三倍傷害；墨水管全打掉前只受 50% 傷害',p1:['畫線：紅線變粗墨線，一定有一條穿過你','筆桿橫掃（貼近筆尖或衝刺可躲）','仿寫爆墨紅圈、有缺口的彈幕牆'],p2:['剩三分之一進化：沿紅線高速書寫衝刺 3 次','路線留下約 2 秒的粗墨線'],say:'你的筆跡好醜。'}
-];
 const BOSSART={
     bottle:`<ellipse cx="60" cy="112" rx="40" ry="8" fill="url(#hat)"/><rect x="42" y="4" width="36" height="16" fill="${K}"/><path d="M36 20 h48 v10 l14 16 v58 H22 V46 l14 -16z" fill="var(--bc)" stroke="${K}" stroke-width="3.5" stroke-linejoin="round"/><path d="M22 70 H98 V104 H22z" fill="${K}" opacity=".85"/><path d="M40 52 l12 6 M80 52 l-12 6" stroke="${K}" stroke-width="4"/><path d="M84 30 l-6 14 8 6 -6 14" stroke="${R}" stroke-width="3" fill="none"/>`,
     scissors:`<ellipse cx="60" cy="112" rx="36" ry="7" fill="url(#hat)"/><circle cx="36" cy="88" r="16" fill="var(--bc)" stroke="${K}" stroke-width="5"/><circle cx="84" cy="88" r="16" fill="var(--bc)" stroke="${K}" stroke-width="5"/><path d="M46 76 L82 6 L66 66z" fill="${G2}" stroke="${K}" stroke-width="3"/><path d="M74 76 L38 6 L54 66z" fill="${G1}" stroke="${K}" stroke-width="3"/><circle cx="60" cy="62" r="5" fill="${R}"/>`,
@@ -1024,9 +727,6 @@ const BOSSART={
     pen:`<ellipse cx="60" cy="114" rx="30" ry="6" fill="url(#hat)"/><path d="M40 20 l6 -14 6 10 8 -12 8 12 6 -10 6 14z" fill="${R}" stroke="${K}" stroke-width="2.5"/><rect x="40" y="20" width="40" height="52" fill="var(--bc)" stroke="${K}" stroke-width="3.5"/><rect x="40" y="56" width="40" height="16" fill="${R}" stroke="${K}" stroke-width="3"/><path d="M40 72 H80 L60 112z" fill="${K}"/><path d="M50 38 l8 4 M70 38 l-8 4" stroke="${K}" stroke-width="3.5"/>`
 };
 const TAUNTS=['就這？','你的墨水好像不太夠喔。','再畫快一點啊！','我還以為你會更強。','這就是你的全力？','連我的影子都碰不到。','回去重寫吧！','你的筆尖在發抖喔。','哈，打偏了！','我都快睡著了。','你確定你會畫畫？','塗鴉而已嘛。','擦掉你只要一下下。','來啊，再靠近一點。','你的筆芯斷了嗎？','這頁就是你的終點。','橡皮擦都比你有威脅。','別躲了，我看到你了。','你的手速不太行喔。','再多練練吧，菜鳥。','我才是這頁的主角。','墨水快見底了吧？','畫錯了吧？哈哈！','這麼慢，是在描線嗎？','小心別被我擦掉囉。','你只會亂塗嗎？','笑死，完全沒感覺。','還不放棄嗎？','你的作業要遲交了喔。','今天就到這裡吧。','我還沒認真呢。','你的筆跡好醜。','老師會給你不及格！','抓不到我吧～','就這樣而已？','就這點程度？'];
-const UNLOCK={1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','trap','paperShield','execute','tsunami'],2:['inkDash','whiteout','dualWield'],3:['shockwave','bounceBall'],4:['haste','mark'],5:['clone','stamp','inkBarrier'],6:['inkMine','blot'],7:['timeStop','pin'],8:['sketchLeap','redraw'],9:['paperBlade','echo'],10:['chain','ruler','blackHole'],11:['inkRain','inkField'],12:['reflect','puppet'],13:['inkWell','barrage'],14:['clusterBomb','giantPen'],15:['freezeAll','inkStorm']};
-const LVEXTRA={1:'武器：鋼筆',3:'武器：自動鉛筆・遺物系統開放',5:'武器：毛筆、釘書機・等級寶箱',8:'武器：螢光筆',10:'武器：圓規・等級寶箱',13:'武器：彩色筆',15:'等級寶箱・滿級'};
-const TONES={paper:['#F2F0EB','#D6D3CC','#9A9892'],gray:['#D6D3CC','#9A9892','#1A1A1A'],charcoal:['#9A9892','#4A4946','#1A1A1A'],graphite:['#6E6D69','#3A3937','#121212'],vermilion:['#EBA59C','#C8554A','#5E1B16'],rose:['#F0C4C0','#D08A86','#6E3A38'],indigo:['#B3C0D6','#5E7399','#222C45'],teal:['#B5D1CB','#5E948A','#23403B'],moss:['#C3CCA8','#7A8A5B','#323A22'],amber:['#EDD6A6','#C49A52','#5A4019'],kraft:['#DECBAA','#AC8E64','#4E3E28'],wisteria:['#D0C1DC','#8D72A6','#3B2A4B'],sky:['#C6DDEE','#6E9CC2','#26405A'],mint:['#CDE8D8','#6FAE8C','#264A38'],coral:['#F4C7B4','#E07A5F','#6A2A1C'],lemon:['#F3E7A6','#D6BC45','#5E5016'],plum:['#D9B8CC','#8E4D72','#40202F'],cocoa:['#D2B8A3','#7E5A44','#35241A'],slate:['#C3C9D1','#6B7683','#262C33'],peach:['#F6DCC8','#E0A784','#6B4330']};
 </script>
 <script>
 'use strict';
@@ -1075,24 +775,6 @@ function splat(c,x,y,s,col=K){
     for (let i=0;i<7;i++){const a=rand(0,6.28),d=rand(s*0.6,s*1.2);c.beginPath();c.arc(x+Math.cos(a)*d,y+Math.sin(a)*d,rand(s*0.25,s*0.55),0,6.28);c.fill()}
     for (let i=0;i<10;i++){const a=rand(0,6.28),d=rand(s*1.4,s*2.8);c.beginPath();c.arc(x+Math.cos(a)*d,y+Math.sin(a)*d,rand(1,2.6),0,6.28);c.fill()}
 }
-
-/* ================= 讀取、揭示、導覽 ================= */
-window.addEventListener('load',()=>setTimeout(()=>$('#loader').classList.add('done'),REDUCED?0:500));
-setTimeout(()=>$('#loader').classList.add('done'),3500);
-const revIO=new IntersectionObserver(es=>es.forEach(e=>{if (e.isIntersecting){e.target.classList.add('in');revIO.unobserve(e.target)}}),{threshold:0.12,rootMargin:'0px 0px -40px 0px'});
-function observeReveal(root=document){$$('.reveal:not(.in)',root).forEach(el=>revIO.observe(el))}
-
-const nav=$('#nav');
-const navIO=new IntersectionObserver(es=>es.forEach(e=>nav.classList.toggle('show',!e.isIntersecting)),{threshold:0.25});
-navIO.observe($('#hero'));
-const secIO=new IntersectionObserver(es=>es.forEach(e=>{
-    if (!e.isIntersecting) return;
-    $$('.nav .links a').forEach(a=>{
-        const on=a.getAttribute('href')==='#'+e.target.id;
-        a.classList.toggle('on',on);
-        if (on) a.scrollIntoView({block:'nearest',inline:'nearest'});
-    });
-}),{rootMargin:'-45% 0px -50% 0px'});
 $$('section.pg').forEach(s=>secIO.observe(s));
 
 /* ================= 進門轉場：集中線 → 白光 → 新的一頁 ================= */
@@ -1145,24 +827,26 @@ document.addEventListener('click',e=>{
     doorTo(a.getAttribute('href'));
 });
 
-/* ================= 開場：可互動的戰鬥示範 ================= */
+/* ================= 開場：自動戰鬥示範 ================= */
 (function(){
     const cv=$('#heroCv'),stage=$('#stage');
     let c,W,H,dpr,SC=1;
-    const decal=document.createElement('canvas'),dc=decal.getContext('2d');
+    let stains=[],playX1=0;
     const boxes=[];
     function layout(){
         const f=fitCanvas(cv);c=f.c;dpr=f.dpr;
         SC=clamp(Math.min(f.w,f.h*1.3)/620,0.8,1.55);W=f.w/SC;H=f.h/SC;
-        decal.width=cv.width;decal.height=cv.height;dc.setTransform(dpr*SC,0,0,dpr*SC,0,0);
+        const pn=$('#heroPanel'),sr=cv.getBoundingClientRect(),pr=pn.getBoundingClientRect();
+        playX1=innerWidth>820?(pr.left-sr.left)/SC-20:W-30;
+        $('#hand').style.left=((30+playX1)/2*SC)+'px';
+        $('.hud').style.left=innerWidth>820?'28px':'14px';
         boxes.length=0;
-        const sm=W<600;
-        [[.18,.42,46,40,.4],[.8,.3,40,52,-.3],[.72,.7,52,34,.2],[.3,.72,30,30,.7]].forEach(([x,y,s,h,r],i)=>{if (!(sm&&i==3)) boxes.push({x:W*x,y:H*y,s:sm?s*.75:s,h:sm?h*.75:h,r})});
+        const sm=playX1<600;
+        [[.16,.42,46,40,.4],[.76,.32,40,52,-.3],[.7,.72,52,34,.2],[.3,.74,30,30,.7]].forEach(([x,y,s,h,r],i)=>{if (!(sm&&i==3)) boxes.push({x:playX1*x,y:H*y,s:sm?s*.75:s,h:sm?h*.75:h,r})});
     }
     const S={hp:10,ink:3,score:0,mag:12,reload:0,cool:0,dashCD:0,dash:0,dx:0,dy:0,inv:0,shield:0,shT:0,ts:1,slow:0,blur:0,flash:0,cut:null,vortex:null};
-    const pl={x:0,y:0,aim:-Math.PI/2,tx:0,ty:0,retarget:0,hurt:0};
+    const pl={x:200,y:200,aim:-Math.PI/2,tx:0,ty:0,retarget:0,hurt:0};
     let foes=[],shots=[],eshots=[],parts=[],texts=[],bombs=[],homers=[];
-    let mouse=null,mouseDown=false,lastMouse=-9;
     const deck=['scatter','bomb','paperShield','homing','pierce','whiteout','shockwave'];
     let deckI=0,hand=[],ult='blackHole',playT=2.5;
     const handEl=$('#hand');
@@ -1200,7 +884,7 @@ document.addEventListener('click',e=>{
         if (pop==='score'){scoreTxt.classList.remove('bump');void scoreTxt.offsetWidth;scoreTxt.classList.add('bump')}
     }
     function text(x,y,str,col=K,size=20,life=0.9){texts.push({x,y,str,col,size,t:0,life})}
-    function bounds(){return {x0:30,x1:W-30,y0:175/SC,y1:H-175/SC}}
+    function bounds(){return {x0:30,x1:playX1,y0:(innerWidth>820?175:200)/SC,y1:H-(innerWidth>820?235:215)/SC}}
     function spawn(){
         const b=bounds();
         const side=Math.floor(rand(0,4));
@@ -1217,7 +901,7 @@ document.addEventListener('click',e=>{
         text(f.x,f.y-30,`+${g} 墨水`,K,15,1.1);
         hud('ink');hud('score');
         for (let i=0;i<9;i++){const a=rand(0,6.28),sp=rand(80,260);parts.push({x:f.x,y:f.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:rand(0,6),vr:rand(-12,12),s:rand(4,9),t:0,life:rand(0.4,0.8),col:i%3?K:G2})}
-        splat(dc,f.x,f.y+4,f.small?6:11,'rgba(26,26,26,0.85)');
+        stain(f.x,f.y+4,f.small?6:11,'rgba(26,26,26,0.85)');
         if (f.type=='blob'&&!f.small){
             for (let i=0;i<2;i++) foes.push({type:'blob',small:true,x:f.x+(i?14:-14),y:f.y,hp:14,max:14,r:9,t:rand(0.6,1.2),hop:0,lost:0,born:0.3,k:rand(0,999),vx:0,vy:0,elite:false});
         }
@@ -1273,18 +957,12 @@ document.addEventListener('click',e=>{
     function reset(){
         layout();
         Object.assign(S,{hp:10,ink:3,score:0,mag:12,reload:0,cool:0,dashCD:0,dash:0,inv:0,shield:0,ts:1,slow:0,blur:0,flash:0,cut:null,vortex:null});
-        pl.x=W*0.45;pl.y=H*0.55;pl.tx=pl.x;pl.ty=pl.y;
+        pl.x=playX1*0.5;pl.y=H*0.55;pl.tx=pl.x;pl.ty=pl.y;
         foes=[];shots=[];eshots=[];parts=[];texts=[];bombs=[];homers=[];
-        dc.clearRect(0,0,W,H);
+        stains=[];
         renderHand();hud();
         for (let i=0;i<3;i++) spawn();
     }
-    stage.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect();mouse={x:(e.clientX-r.left)/SC,y:(e.clientY-r.top)/SC};lastMouse=performance.now()/1000});
-    stage.addEventListener('pointerleave',()=>{mouse=null;mouseDown=false});
-    stage.addEventListener('pointerdown',e=>{if (e.pointerType==='mouse'&&e.button!==0) return;const r=cv.getBoundingClientRect();mouse={x:(e.clientX-r.left)/SC,y:(e.clientY-r.top)/SC};lastMouse=performance.now()/1000;mouseDown=true});
-    window.addEventListener('pointerup',()=>{mouseDown=false});
-    stage.addEventListener('contextmenu',e=>{e.preventDefault();if (S.dashCD<=0) doDash(pl.aim+Math.PI/2)});
-    if (matchMedia('(pointer:coarse)').matches) $('#hint').textContent='點一下畫面朝那裡射擊';
 
     function doDash(a){S.dash=0.17;S.dx=Math.cos(a)*820;S.dy=Math.sin(a)*820;S.inv=0.48;S.dashCD=1.1;S.dodged=false}
     function perfect(){
@@ -1301,11 +979,9 @@ document.addEventListener('click',e=>{
         S.blur=Math.max(0,S.blur-dt);S.flash=Math.max(0,S.flash-dt);
         const b=bounds();
         // 主角
-        const manual=mouse&&now-lastMouse<2.5;
         const tg=nearest(pl.x,pl.y);
         let want=pl.aim;
-        if (manual) want=Math.atan2(mouse.y-(pl.y-10),mouse.x-pl.x);
-        else if (tg) want=Math.atan2(tg.y-pl.y,tg.x-pl.x);
+        if (tg) want=Math.atan2(tg.y-pl.y,tg.x-pl.x);
         let da=((want-pl.aim+Math.PI*3)%(Math.PI*2))-Math.PI;pl.aim+=da*Math.min(1,d*12);
         pl.retarget-=d;
         if (pl.retarget<=0){
@@ -1321,7 +997,7 @@ document.addEventListener('click',e=>{
         // 射擊與裝填
         S.cool-=d;
         if (S.reload>0){S.reload-=d;if (S.reload<=0) S.mag=12}
-        else if (S.cool<=0&&(manual?mouseDown:!!tg)){
+        else if (S.cool<=0&&tg){
             shoot(pl.aim+rand(-0.04,0.04));S.cool=0.15;S.mag--;
             if (S.mag<=0) S.reload=1.1;
         }
@@ -1351,7 +1027,7 @@ document.addEventListener('click',e=>{
             if (bo.t>=bo.dur&&!bo.done){
                 bo.done=true;
                 parts.push({ring:true,x:bo.tx,y:bo.ty,t:0,life:0.4,R:95,red:true});
-                splat(dc,bo.tx,bo.ty,16,'rgba(26,26,26,0.6)');
+                stain(bo.tx,bo.ty,16,'rgba(26,26,26,0.6)');
                 for (const f of foes){const dd=Math.hypot(f.x-bo.tx,f.y-bo.ty);if (dd<95) hurtFoe(f,40*(1-dd/95*0.4))}
             }
         }
@@ -1361,7 +1037,7 @@ document.addEventListener('click',e=>{
             for (const f of foes){const dx=v.x-f.x,dy=v.y-f.y,dd=Math.hypot(dx,dy)||1;if (dd<230){f.x+=dx/dd*Math.min(dd,200*d);f.y+=dy/dd*Math.min(dd,200*d)}}
             if (v.t>=v.dur){
                 parts.push({ring:true,x:v.x,y:v.y,t:0,life:0.55,R:160,red:true});
-                splat(dc,v.x,v.y,24,'rgba(26,26,26,0.7)');
+                stain(v.x,v.y,24,'rgba(26,26,26,0.7)');
                 for (const f of foes) if (Math.hypot(f.x-v.x,f.y-v.y)<170) hurtFoe(f,foes.length===1?100:70,R);
                 S.vortex=null;
             }
@@ -1406,7 +1082,15 @@ document.addEventListener('click',e=>{
         for (const p of parts){p.t+=d;if (p.vx!==undefined){p.x+=p.vx*d;p.y+=p.vy*d;p.vx*=0.9;p.vy*=0.9;p.r+=p.vr*d}}
         parts=parts.filter(p=>p.t<p.life);
         for (const t of texts) t.t+=dt;
+        for (const st of stains) st.t+=dt;
+        stains=stains.filter(st=>st.t<st.life);
         texts=texts.filter(t=>t.t<t.life);
+    }
+    function stain(x,y,s){
+        const b=[[0,0,s]];
+        for (let i=0;i<7;i++){const a=rand(0,6.28),d=rand(s*0.6,s*1.2);b.push([Math.cos(a)*d,Math.sin(a)*d*0.6,rand(s*0.25,s*0.55)])}
+        for (let i=0;i<9;i++){const a=rand(0,6.28),d=rand(s*1.4,s*2.6);b.push([Math.cos(a)*d,Math.sin(a)*d*0.6,rand(1,2.4)])}
+        stains.push({x,y,b,t:0,life:2.6});
     }
     function pushOut(o){
         for (const bx of boxes){const dx=o.x-bx.x,dy=(o.y-bx.y)*1.4,d=Math.hypot(dx,dy)||1,r=bx.s*0.75+12;if (d<r){o.x+=dx/d*(r-d);o.y+=dy/d*(r-d)/1.4}}
@@ -1512,8 +1196,8 @@ document.addEventListener('click',e=>{
         for (let x=(W/2)%64;x<W;x+=64){c.moveTo(x,0);c.lineTo(x,H)}
         for (let y=(H/2)%64;y<H;y+=64){c.moveTo(0,y);c.lineTo(W,y)}
         c.stroke();
-        c.drawImage(decal,0,0,W,H);
-        // 音樂圈？不用。墨漩渦
+        for (const st of stains){const a=Math.min(1,(st.life-st.t)/1.4)*0.85;c.fillStyle=`rgba(26,26,26,${a*Math.min(1,st.t*8)})`;for (const [dx,dy,r] of st.b){c.beginPath();c.arc(st.x+dx,st.y+dy,r,0,6.28);c.fill()}}
+        // 墨漩渦
         if (S.vortex){
             const v=S.vortex,p=v.t/v.dur;
             c.save();c.translate(v.x,v.y);c.rotate(-v.t*8);c.strokeStyle=K;c.lineWidth=3;
@@ -1540,11 +1224,6 @@ document.addEventListener('click',e=>{
         for (const h of homers){c.fillStyle=K;c.beginPath();c.arc(h.x,h.y,5,0,6.28);c.fill();c.strokeStyle='rgba(26,26,26,0.3)';c.lineWidth=2;c.beginPath();c.moveTo(h.x,h.y);c.lineTo(h.x-h.vx*0.05,h.y-h.vy*0.05);c.stroke()}
         for (const bo of bombs){const p=bo.t/bo.dur,x=lerp(bo.sx,bo.tx,p),y=lerp(bo.sy,bo.ty,p)-Math.sin(p*Math.PI)*90;c.fillStyle=K;c.beginPath();c.arc(x,y-10,9,0,6.28);c.fill();c.strokeStyle=R;c.lineWidth=2;c.setLineDash([5,5]);c.beginPath();c.ellipse(bo.tx,bo.ty,95,57,0,0,6.28);c.stroke();c.setLineDash([])}
         for (const e of eshots){const a=Math.atan2(e.vy,e.vx);c.strokeStyle=R;c.lineWidth=3.2;c.lineCap='round';c.beginPath();c.moveTo(e.x,e.y);c.lineTo(e.x-Math.cos(a)*26,e.y-Math.sin(a)*26);c.stroke()}
-        // 準心
-        if (mouse&&performance.now()/1000-lastMouse<2.5){
-            const {x,y}=mouse;c.strokeStyle=tgLock?R:K;c.lineWidth=2;c.beginPath();c.arc(x,y,9,0,6.28);c.moveTo(x-16,y);c.lineTo(x-11,y);c.moveTo(x+11,y);c.lineTo(x+16,y);c.moveTo(x,y-16);c.lineTo(x,y-11);c.moveTo(x,y+11);c.lineTo(x,y+16);c.stroke();
-            c.fillStyle=c.strokeStyle;c.fillRect(x-1,y-1,2,2);
-        }
         // 文字
         const ff=getComputedStyle(document.body).fontFamily;
         for (const t of texts){
@@ -1586,12 +1265,6 @@ document.addEventListener('click',e=>{
     document.addEventListener('visibilitychange',()=>{if (document.hidden) running=false;else if (stage.getBoundingClientRect().bottom>0&&!REDUCED&&!running){running=true;last=performance.now();requestAnimationFrame(loop)}});
 })();
 
-/* 分隔線輕輕擺動 */
-(function(){
-    const p=$('#sepPath');if (!p||REDUCED) return;
-    let t=0;
-    setInterval(()=>{t+=0.11;const a=Math.sin(t)*4,b=Math.cos(t*0.8)*4;p.setAttribute('d',`M10 0 Q${10+a} 250 10 500 T10 1000 M10 500 Q${10+b} 750 10 1000`)},110);
-})();
 </script>
 <script>
 'use strict';
@@ -1601,9 +1274,9 @@ document.addEventListener('click',e=>{
     function draw(now){
         if (!running) return;
         if (!f||f.w===0) f=fitCanvas(cv);
-        const {c,w,h}=f,T=((now-t0)/1000)%3.2;
+        const {c}=f,k=clamp(f.h/170,1,2.4),w=f.w/k,h=f.h/k,T=((now-t0)/1000)%3.2;c.setTransform(f.dpr*k,0,0,f.dpr*k,0,0);
         c.clearRect(0,0,w,h);
-        const cy=h*0.7;
+        const cy=h*0.66;
         // 時間：0~1.2 走，1.2 衝刺穿過子彈，慢動作到 1.9
         let slow=T>1.2&&T<1.9?lerp(0.3,1,(T-1.2)/0.7):1;
         const px=T<1.2?lerp(w*0.18,w*0.38,T/1.2):T<1.45?lerp(w*0.38,w*0.66,ease((T-1.2)/0.25)):w*0.66+(T-1.45)*20;
@@ -1633,406 +1306,184 @@ document.addEventListener('click',e=>{
     window.addEventListener('resize',()=>{if (running) f=fitCanvas(cv)});
 })();
 
-/* 手牌示範 */
+
+/* ================= 讀取完成 → 開場進場 ================= */
 (function(){
-    const g=$('#handDemo');
-    const ids=['scatter','pencilWall','homing','bomb','trap','paperShield'];
-    let n=0,draw=4,ink=6;
-    function card(x,id,extra=''){const cd=CARD[id];return `<g transform="translate(${x} 30)" ${extra}><rect width="54" height="76" fill="${W}" stroke="${cd.r?R:K}" stroke-width="2.5"/><text x="27" y="17" text-anchor="middle" font-size="11" font-weight="900" fill="${cd.r?R:K}">${cd.n}</text><g transform="translate(5 26) scale(.55)">${ICON[id]}</g><path transform="translate(0 0) scale(.55)" d="M4 -12 C4 -12 -7 2 -7 8 a11 11 0 0 0 22 0 C15 2 4 -12 4 -12z" fill="${cd.r?R:K}"/><text x="2.5" y="8" text-anchor="middle" font-size="9" font-weight="900" fill="#fff">${cd.c}</text></g>`}
-    function render(play){
-        const a=ids[n%ids.length],b=ids[(n+1)%ids.length];
-        g.innerHTML=`<g transform="translate(14 0)"><rect x="0" y="40" width="44" height="62" fill="${K}"/><rect x="4" y="36" width="44" height="62" fill="${G3}" stroke="${K}" stroke-width="2"/>${drop(26,68,1,'#fff')}<text x="24" y="118" text-anchor="middle" font-size="10" fill="${G3}">抽牌堆 ${draw}</text></g>`+
-            card(80,a,play?'class="pl"':'')+card(146,b)+
-            `<g transform="translate(212 30)"><rect width="54" height="76" fill="${W}" stroke="${R}" stroke-width="2.5" stroke-dasharray="5 4"/><text x="27" y="44" text-anchor="middle" font-size="12" font-weight="900" fill="${R}">特殊技</text></g>`+
-            `<text x="150" y="134" text-anchor="middle" font-size="11" fill="${G3}">墨水 ${ink} / 10</text>`;
-        if (play&&!REDUCED){const pl=$('.pl',g);pl.animate([{transform:'translate(80px,30px)'},{transform:'translate(80px,-10px) rotate(-6deg)',opacity:1},{transform:'translate(120px,-60px) rotate(-12deg)',opacity:0}],{duration:700,easing:'cubic-bezier(.3,.8,.3,1)',fill:'forwards'})}
-    }
-    render(false);
-    setInterval(()=>{
-        if (draw<=0){
-            g.innerHTML+=`<text x="40" y="22" text-anchor="middle" font-size="12" font-weight="900" fill="${R}">洗牌中… 墨水 +5</text>`;
-            draw=4;ink=Math.min(10,ink+5);setTimeout(()=>render(false),900);return;
-        }
-        render(true);
-        setTimeout(()=>{n++;draw--;ink=Math.max(0,ink-2);render(false)},1000);
-    },2200);
+    const logo=$('#logo');
+    logo.innerHTML=[...logo.textContent].map((c,i)=>`<span class="ch" style="transition-delay:${0.5+i*0.07}s">${c}</span>`).join('');
+    let done=false;
+    const go=()=>{if (done) return;done=true;$('#loader').classList.add('done');setTimeout(()=>document.body.classList.add('ready'),REDUCED?0:150)};
+    window.addEventListener('load',()=>setTimeout(go,REDUCED?0:450));
+    setTimeout(go,3500);
 })();
 
-/* 血量刻度示範 */
-(function(){
-    const g=$('#hpArc');let hp=12,lost=0;
-    function r(){
-        let o='';
-        for (let i=0;i<12;i++){const a=Math.PI*0.12+i/11*Math.PI*0.76;const on=i<hp,ls=!on&&i<hp+lost;o+=`<line x1="${Math.cos(a)*34}" y1="${12+Math.sin(a)*17}" x2="${Math.cos(a)*44}" y2="${12+Math.sin(a)*22}" stroke="${on?R:ls?R:'rgba(26,26,26,.12)'}" stroke-width="3.5" opacity="${ls?.5:1}"/>`}
-        g.innerHTML=o;
-    }
-    r();
-    setInterval(()=>{if (hp<=0){hp=12;lost=0}else{lost=2;hp-=2;setTimeout(()=>{lost=0;r()},500)}r()},1100);
-})();
-
-/* ================= 筆記本進度條 ================= */
-(function(){
-    const svg=$('#actSvg');let act=0,cur=0;
-    function render(){
-        const x0=110,x1=670,n=7;
-        let o=`<text x="10" y="37" font-size="20" font-weight="900" fill="${K}">第 ${act+1} 幕</text><path d="M${x0} 30 Q${(x0+x1)/2} 27 ${x1} 31" stroke="${K}" stroke-width="2.5" fill="none"/>`;
-        for (let i=0;i<n;i++){
-            const x=x0+i*(x1-x0)/(n-1),done=i<cur,now=i==cur;
-            const fill=now?R:done?K:W,stroke=now?R:K;
-            const jump=now&&!REDUCED?`<animateTransform attributeName="transform" type="translate" values="0 0;0 -10;0 0" dur=".5s" fill="freeze"/>`:'';
-            if (i==n-1) o+=`<g><path d="M${x} 16 L${x+14} 30 L${x} 44 L${x-14} 30z" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>${jump}</g><text x="${x}" y="60" text-anchor="middle" font-size="12" fill="${G3}">頭目</text>`;
-            else o+=`<g><circle cx="${x}" cy="30" r="${now?10:8}" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>${jump}</g>`;
-        }
-        svg.innerHTML=o;
-    }
-    render();
-    whenVisible(svg,()=>{if (!svg._t) svg._t=setInterval(()=>{cur++;if (cur>6){cur=0;act=(act+1)%3}render()},1100)},()=>{clearInterval(svg._t);svg._t=0});
-})();
-
-/* ================= 課表 ================= */
-(function(){
-    const tt=$('#tt'),pop=$('#coursePop');
-    const days=['週一','週二','週三','週四','週五'];
-    function build(){
-        let h='<tr><th style="width:60px"></th>'+days.map((d,i)=>`<th>${d}<br><small style="font-weight:400">第 ${i+1} 頁</small></th>`).join('')+'</tr>';
-        for (let r=0;r<3;r++){
-            const cs=shuffle(COURSES).slice(0,4);
-            h+=`<tr><th>第 ${r+1} 幕</th>`+cs.map(c=>`<td data-k="${c.k}">${c.n}<small>${c.i.slice(0,6)}…</small></td>`).join('')+`<td class="boss">頭目<small>隨機一隻</small></td></tr>`;
-        }
-        h+=`<tr><th>…</th><td class="dim" colspan="5">頁數無限，越來越難（每 5 頁一幕）</td></tr>`;
-        tt.innerHTML=h;
-    }
-    function show(k,cell){
-        const c=COURSES.find(x=>x.k===k);
-        $$('td.on',tt).forEach(t=>t.classList.remove('on'));
-        $$(`td[data-k="${k}"]`,tt).forEach(t=>t.classList.add('on'));
-        pop.innerHTML=`<div class="tape"></div><div style="display:flex;align-items:center;gap:12px"><span class="icn"><svg viewBox="0 0 44 44">${c.ic}</svg></span><h3 style="font-size:28px">${c.n}</h3></div><p style="margin:6px 0 10px;font-weight:700">${c.i}</p><p class="small" style="font-weight:900">特殊效果</p><ul style="margin:2px 0 8px;padding-left:1.2em">${c.fx.map(x=>`<li>${x}</li>`).join('')}</ul><p class="small" style="font-weight:900">挑戰</p><p>${c.ch}</p><div class="cprog"><i></i></div><p class="small" style="font-weight:900;margin-top:10px">挑戰完成獎勵</p><p class="red" style="font-weight:900">${c.rw}</p>`;
-        if (!REDUCED){pop.animate([{transform:'rotate(-2deg) translateY(10px)',opacity:0},{transform:'none',opacity:1}],{duration:350,easing:'cubic-bezier(.2,1.4,.4,1)'})}
-        setTimeout(()=>{const i=$('.cprog i',pop);if (i) i.style.width='100%'},300);
-    }
-    build();show('math');
-    tt.addEventListener('click',e=>{const td=e.target.closest('td[data-k]');if (td) show(td.dataset.k,td)});
-})();
-
-/* ================= 門 ================= */
-(function(){
-    const wrap=$('#doors'),info=$('#doorInfo');
-    wrap.innerHTML=DOORS.map((d,i)=>`<div class="door sk thin" data-i="${i}" tabindex="0" role="button"><div class="frame"><div class="leaf"></div><div class="page"></div>${[0,1,2,3].map(j=>`<i class="spark" style="left:${18+j*16}px;animation-delay:${j*0.4}s"></i>`).join('')}</div><div class="lbl">${d.n}<small>${d.s}</small></div></div>`).join('');
-    function sel(i){
-        $$('.door',wrap).forEach((el,j)=>{el.classList.toggle('open',i==j);el.classList.toggle('sel',i==j)});
-        const d=DOORS[i];
-        info.innerHTML=`<h3>${d.n}</h3><p>${d.d}</p><p class="mut small" style="margin-top:8px">走進門裡按 F（觸控點提示框）確認——畫面四周出現黑色集中線指向門口，白光擴散到全白，下一頁再從白紙上畫出來。</p>`;
-        if (!REDUCED) info.animate([{clipPath:'inset(0 100% 0 0)'},{clipPath:'inset(-20px -20px -20px -20px)'}],{duration:500,easing:'cubic-bezier(.6,0,.2,1)'});
-    }
-    wrap.addEventListener('click',e=>{const d=e.target.closest('.door');if (d) sel(+d.dataset.i)});
-    wrap.addEventListener('keydown',e=>{if (e.key==='Enter'||e.key===' '){const d=e.target.closest('.door');if (d){e.preventDefault();sel(+d.dataset.i)}}});
-    sel(0);
-})();
-
-/* ================= 寶箱 ================= */
-(function(){
-    const wrap=$('#chests'),res=$('#chestRes');
-    const chestSVG=`<svg viewBox="0 0 130 150"><ellipse cx="65" cy="136" rx="52" ry="8" fill="url(#hat)"/><path d="M14 66 H116 V128 H14z" fill="#DECBAA" stroke="${K}" stroke-width="3.5"/><path d="M14 66 H116 V128 H14z" fill="url(#hat)" opacity=".4"/><rect x="56" y="70" width="18" height="20" fill="${K}"/><g class="teeth">${[0,1,2,3,4,5].map(i=>`<path d="M${22+i*16} 66 l8 14 8 -14z" fill="#fff" stroke="${K}" stroke-width="2"/>`).join('')}<circle cx="44" cy="96" r="6" fill="${R}"/><circle cx="86" cy="96" r="6" fill="${R}"/></g><g class="lid"><path d="M10 64 Q65 22 120 64z" fill="#C9AD7E" stroke="${K}" stroke-width="3.5"/><path d="M10 64 Q65 22 120 64z" fill="url(#hat)" opacity=".4"/><rect x="58" y="50" width="14" height="14" fill="${R}" stroke="${K}" stroke-width="2.5"/></g></svg>`;
-    const LOOT={rare:['<span class="red">稀有卡！</span>','從三張特殊技中挑一張'],supply:['補給','生命 +1・墨水 +3・+300 分'],mimic:['<span class="red">咬！</span>','假寶箱！伏擊戰開始']};
-    function setup(){
-        const types=shuffle(['rare','supply','mimic']);
-        wrap.innerHTML=types.map(t=>`<button class="chest" data-t="${t}" aria-label="寶箱">${chestSVG}<div class="loot">${LOOT[t][0]}</div></button>`).join('');
-        res.textContent='';
-    }
-    wrap.addEventListener('click',e=>{
-        const ch=e.target.closest('.chest');
-        if (!ch||wrap.dataset.done==='1') return;
-        wrap.dataset.done='1';
-        const t=ch.dataset.t;
-        ch.classList.add('open');
-        if (t==='mimic'){ch.classList.add('bite');document.body.classList.remove('quake');void document.body.offsetWidth;if (!REDUCED) document.body.classList.add('quake')}
-        $$('.chest',wrap).forEach(o=>{if (o!==ch) o.style.opacity=.35});
-        res.innerHTML=LOOT[t][1];
-    });
-    $('#chestReset').addEventListener('click',()=>{wrap.dataset.done='';setup()});
-    setup();
-})();
-
-/* ================= 文具店 ================= */
-(function(){
-    const wrap=$('#shop');
-    let wallet=3000,pend=null,pt=0;
-    wrap.innerHTML=`<div class="item sk" style="grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;text-align:left"><div><b style="font-size:18px">老闆</b>：<span id="shopSay">歡迎光臨！架上的東西走過去就能買～</span></div><div>你的分數 <b id="wallet" style="font-size:22px">3,000</b></div></div>`+
-        SHOP.map(s=>`<button class="item sk" data-k="${s.k}" style="border:0"><div class="icn" style="margin:0 auto 6px;width:52px;height:46px"><svg viewBox="0 0 52 46">${SHOPICON[s.k]}</svg></div><span class="tagp">${s.p} 分</span><h4>${s.n}</h4><p>${s.d}</p><p class="st small" style="font-weight:900;min-height:1.5em"></p></button>`).join('');
-    const say=$('#shopSay'),wl=$('#wallet');
-    function clearPend(){if (pend){$('.st',pend).textContent='';pend.style.removeProperty('--line')}pend=null}
-    wrap.addEventListener('click',e=>{
-        const it=e.target.closest('button.item');if (!it) return;
-        const s=SHOP.find(x=>x.k===it.dataset.k);
-        if (it.dataset.sold){say.textContent='這個已經賣完囉。';return}
-        if (pend!==it){
-            clearPend();pend=it;it.style.setProperty('--line',R);
-            $('.st',it).innerHTML='<span class="red">再點一次，確認購買</span>';
-            clearTimeout(pt);pt=setTimeout(clearPend,3000);return;
-        }
-        clearTimeout(pt);clearPend();
-        if (wallet<s.p){say.textContent='分數不夠喔……';if (!REDUCED) it.animate([{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'none'}],{duration:260});return}
-        wallet-=s.p;wl.textContent=wallet.toLocaleString();
-        it.dataset.sold='1';it.style.opacity=.55;
-        $('.st',it).innerHTML='<span style="border:2px solid #D62828;color:#D62828;padding:0 6px;display:inline-block;transform:rotate(-8deg)">已售出</span>';
-        say.textContent='謝謝惠顧！';
-    });
-})();
-
-/* ================= 小遊戲、奇遇 ================= */
-$('#mgs').innerHTML=MG.map((m,i)=>`<div class="mg sk thin reveal"><div class="art"><svg viewBox="0 0 200 96">${m.a}</svg></div><h4>${m.n}<small>#${String(i+1).padStart(2,'0')}</small></h4><p>${m.d}</p></div>`).join('');
-$('#encs').innerHTML=ENC.map((e,i)=>`<div class="enc note-paper sk thin reveal"><div class="tape"></div><h4>${e.n}</h4><p class="q">${e.q}</p><div>${e.o.map(o=>`<button class="opt"><b>${o[0]}</b>${o[1]}</button>`).join('')}</div></div>`).join('');
-$('#encs').addEventListener('click',e=>{
-    const b=e.target.closest('.opt');if (!b) return;
-    const box=b.parentNode;
-    if (b.classList.contains('done')){$$('.opt',box).forEach(o=>o.classList.remove('done','pick'));return}
-    if (b.classList.contains('pick')){$$('.opt',box).forEach(o=>o.classList.remove('pick'));b.classList.add('done');return}
-    $$('.opt',box).forEach(o=>o.classList.remove('pick','done'));b.classList.add('pick');
+/* ================= 文字逐字、揭示 ================= */
+$$('.split').forEach(el=>{
+    el.innerHTML=[...el.textContent].map((c,i)=>c===' '?' ':`<span class="ch" style="transition-delay:${i*0.045}s">${c}</span>`).join('');
 });
+const revIO=new IntersectionObserver(es=>es.forEach(e=>{if (e.isIntersecting){e.target.classList.add('in');revIO.unobserve(e.target)}}),{threshold:0.15,rootMargin:'0px 0px -60px 0px'});
 
-/* ================= 卡牌圖鑑 ================= */
-(function(){
-    const grid=$('#cardGrid'),fl=$('#filters');
-    let kind='all',cost='all';
-    fl.innerHTML=`<span class="small" style="font-weight:900;margin-right:4px">種類</span>`+[['all','全部'],['common','一般牌'],['rare','特殊技']].map(([k,n])=>`<button class="fbtn${k=='rare'?' r':''}" data-kind="${k}">${n}</button>`).join('')+
-        `<span class="small" style="font-weight:900;margin:0 4px 0 14px">費用</span>`+['all',1,2,3,4,5].map(c=>`<button class="fbtn" data-cost="${c}">${c=='all'?'全部':c+' 墨'}</button>`).join('')+
-        `<span class="small mut" style="margin-left:auto" id="cardCount"></span>`;
-    function render(){
-        $$('[data-kind]',fl).forEach(b=>b.classList.toggle('on',b.dataset.kind==kind));
-        $$('[data-cost]',fl).forEach(b=>b.classList.toggle('on',b.dataset.cost==String(cost)));
-        const list=CARDS.filter(c=>(kind=='all'||(kind=='rare')==!!c.r)&&(cost=='all'||c.c==cost)).sort((a,b)=>a.r-b.r||a.lv-b.lv||a.c-b.c);
-        grid.innerHTML=list.map(c=>cardHTML(c)).join('')||'<p class="mut">沒有符合的卡牌。</p>';
-        $('#cardCount').textContent=`${list.length} 張`;
-        if (!REDUCED) $$('.gc',grid).forEach((el,i)=>el.animate([{transform:'translateY(30px) rotate(-4deg) scale(.9)',opacity:0},{transform:'none',opacity:1}],{duration:420,delay:Math.min(i*28,500),easing:'cubic-bezier(.2,1.3,.4,1)',fill:'backwards'}));
+/* ================= 導覽 ================= */
+const nav=$('#nav');
+new IntersectionObserver(es=>es.forEach(e=>nav.classList.toggle('show',!e.isIntersecting)),{threshold:0.2}).observe($('#hero'));
+const secIO=new IntersectionObserver(es=>es.forEach(e=>{
+    if (!e.isIntersecting) return;
+    $$('.nav .links a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id));
+}),{rootMargin:'-45% 0px -50% 0px'});
+$$('main section').forEach(s=>secIO.observe(s));
+
+/* ================= 跑馬燈（速度跟著捲動加快、反向） ================= */
+const marquees=[];
+function initMarquee(el){
+    const base=+el.dataset.speed||50;
+    const html=el.innerHTML;
+    el.innerHTML=html+html;
+    let guard=0;
+    while (el.scrollWidth<innerWidth*2.4&&guard++<6) el.innerHTML+=html+html;
+    marquees.push({el,base,x:0,half:0});
+}
+function measureMarquees(){marquees.forEach(m=>{m.half=m.el.scrollWidth/2})}
+
+/* ================= 捲動引擎 ================= */
+let scrollV=0,lastY=scrollY,dir=1;
+const hs=$('#hs'),track=$('#hsTrack'),panels=$$('.hpanel',track);
+const fanEl=$('#fan'),blist=$('#blist');
+function onFrame(dt){
+    const y=scrollY,dy=y-lastY;lastY=y;
+    if (Math.abs(dy)>0.5) dir=dy>0?1:-1;
+    scrollV=lerp(scrollV,Math.abs(dy)/Math.max(dt,0.001),0.12);
+    const boost=1+Math.min(scrollV/400,5);
+    for (const m of marquees){
+        if (!m.half) continue;
+        m.x-=m.base*boost*dir*dt;
+        if (m.x<-m.half) m.x+=m.half;
+        if (m.x>0) m.x-=m.half;
+        m.el.style.transform=`translate3d(${m.x}px,0,0)`;
     }
-    fl.addEventListener('click',e=>{const b=e.target.closest('button');if (!b) return;if (b.dataset.kind) kind=b.dataset.kind;if (b.dataset.cost) cost=b.dataset.cost=='all'?'all':+b.dataset.cost;render()});
-    document.addEventListener('click',e=>{const g=e.target.closest('.cards .gc, .merge .gc');if (g) g.classList.toggle('flip')});
-    render();
-})();
-
-/* 合成 */
-(function(){
-    const m=$('#merge'),btn=$('#mergeBtn');
-    let state=0;
-    function setup(){m.innerHTML=[0,1,2].map(()=>cardHTML(CARD.scatter)).join('')+'<div class="flash"></div>';state=0;btn.textContent='合成！';m.classList.remove('charge')}
-    btn.addEventListener('click',()=>{
-        if (state==1) return;
-        if (state==2){setup();return}
-        state=1;
-        const cs=$$('.gc',m);
-        const gap=cs[1].getBoundingClientRect().left-cs[0].getBoundingClientRect().left;
-        cs[0].style.transform=`translateX(${gap}px) rotate(6deg)`;cs[2].style.transform=`translateX(${-gap}px) rotate(-6deg)`;
-        setTimeout(()=>{m.classList.add('charge');if (!REDUCED) cs[1].animate([{transform:'scale(1)'},{transform:'scale(1.08) rotate(2deg)'},{transform:'scale(1.04) rotate(-2deg)'},{transform:'scale(1.1)'}],{duration:600})},550);
-        setTimeout(()=>{
-            $('.flash',m).classList.add('go');
-            cs[0].style.opacity=0;cs[2].style.opacity=0;
-            const tmp=document.createElement('div');tmp.innerHTML=cardHTML(CARD.scatter,true);
-            const up=tmp.firstChild;m.replaceChild(up,cs[1]);
-            if (!REDUCED) up.animate([{transform:'scale(1.3)',filter:'brightness(2)'},{transform:'scale(1)',filter:'none'}],{duration:500,easing:'cubic-bezier(.2,1.4,.4,1)'});
-            m.classList.remove('charge');state=2;btn.textContent='再來一次';
-        },1200);
+    // 橫向捲動
+    const r=hs.getBoundingClientRect(),vh=innerHeight;
+    const p=clamp(-r.top/(r.height-vh),0,1);
+    const maxX=(panels.length-1)*innerWidth;
+    track.style.transform=`translate3d(${-p*maxX}px,0,0)`;
+    $('#hsFill').style.width=p*100+'%';$('#hsDot').style.left=p*100+'%';
+    $('#hsNo').textContent='0'+(Math.min(3,Math.round(p*3))+1);
+    panels.forEach((pn,i)=>{
+        const local=p*3-i;            // 0 時正對畫面
+        const t=$('.txt',pn),il=$('.ill',pn);
+        t.style.transform=`translateY(${local*-90}px)`;t.style.opacity=1-Math.min(1,Math.abs(local)*1.1);
+        il.style.transform=`translate(${local*-60}px,${local*60}px) rotate(${local*-8}deg)`;
     });
-    setup();
-})();
-
-/* 特殊技演出 */
-(function(){
-    const wrap=$('#ultBtns'),cut=$('#cutin');
-    const ults=CARDS.filter(c=>c.r);
-    wrap.innerHTML=ults.map(c=>`<button class="btn sk sm r" data-id="${c.id}">${c.n}</button>`).join('');
-    let busy=false;
-    wrap.addEventListener('click',e=>{
-        const b=e.target.closest('button');if (!b||busy) return;
-        const c=CARD[b.dataset.id];
-        if (REDUCED){alert(c.n+'：'+c.d);return}
-        busy=true;
-        $('#cutTtl').textContent=c.n;$('#cutSub').textContent=c.d;
-        $('#cutWho').innerHTML=`<svg viewBox="0 0 80 60" style="width:100%;height:100%;overflow:visible">${ICON[c.id]}</svg>`;
-        cut.classList.remove('on');void cut.offsetWidth;cut.classList.add('on');
-        setTimeout(()=>{document.body.classList.remove('quake');void document.body.offsetWidth;document.body.classList.add('quake')},1450);
-        setTimeout(()=>{cut.classList.remove('on');document.body.classList.remove('quake');busy=false},1750);
+    // 卡牌扇形
+    const fr=fanEl.getBoundingClientRect();
+    const fp=ease(clamp((vh-fr.top)/(vh*0.75),0,1));
+    const cards=fanEl.children,n=cards.length,mid=(n-1)/2,small=innerWidth<820;
+    for (let i=0;i<n;i++){
+        const o=i-mid;
+        const ang=o*(small?7:11)*fp,dx=o*(small?33:Math.min(118,innerWidth*0.085))*fp,dy=o*o*(small?5:9)*fp+(1-fp)*120;
+        cards[i].style.transform=`translate(${dx}px,${dy}px) rotate(${ang}deg)`;
+    }
+    // 頭目視差（橫 + 斜）
+    const br=blist.getBoundingClientRect();
+    const bp=clamp((vh-br.top)/(vh+br.height),0,1)-0.5;
+    $$('.bs',blist).forEach((b,i)=>{
+        const sp=[-1,0.6,-0.3,0.8,-0.9][i];
+        b.style.transform=`translate(${bp*sp*70}px,${bp*(i%2?-70:70)}px)`;
     });
+}
+let lastT=performance.now();
+function frame(now){
+    const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
+    onFrame(dt);
+    requestAnimationFrame(frame);
+}
+
+/* ================= 墨水插圖 ================= */
+(function(){
+    const svg=$('#inkSvg');
+    svg.innerHTML=`<defs><clipPath id="bc2"><path d="M150 90 h100 v22 l26 34 v124 H124 V146 l26 -34z"/></clipPath></defs>
+        <rect x="100" y="270" width="200" height="200" fill="${K}" clip-path="url(#bc2)"><animate attributeName="y" values="270;250;250;210;210;170;170;130;130;270" keyTimes="0;.1;.2;.3;.45;.55;.7;.8;.95;1" dur="6s" repeatCount="indefinite"/></rect>
+        <path d="M160 52h80v36h-80zM150 90 h100 v22 l26 34 v124 H124 V146 l26 -34z" fill="none" stroke="${K}" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M268 170h-20M268 200h-20M268 230h-20" stroke="${G2}" stroke-width="3"/>
+        ${[0,1,2,3].map(i=>`<g><animateTransform attributeName="transform" type="translate" values="${[60,330,90,310][i]} -30;${[60,330,90,310][i]} -30;${[60,330,90,310][i]} 150" keyTimes="0;${(i*0.22).toFixed(2)};${(i*0.22+0.12).toFixed(2)}" dur="6s" repeatCount="indefinite" additive="sum"/>${drop(0,0,1.6)}</g>`).join('')}
+        ${[0,1,2,3].map(i=>`<text x="${[60,330,90,310][i]}" y="200" text-anchor="middle" font-weight="900" font-size="26" fill="${R}" opacity="0">+${[1,1.5,1,2][i]}<animate attributeName="opacity" values="0;0;1;0" keyTimes="0;${(i*0.22+0.12).toFixed(2)};${(i*0.22+0.15).toFixed(2)};${(i*0.22+0.3).toFixed(2)}" dur="6s" repeatCount="indefinite"/></text>`).join('')}`;
 })();
 
-/* ================= 武器 ================= */
+/* 合成插圖 */
 (function(){
-    const list=$('#wlist'),cv=$('#wCv');
-    let cur=0,f,running=false,last=0,st={};
-    list.innerHTML=WPN.map((w,i)=>`<button class="wrow sk thin" data-i="${i}"><span class="ic"><svg viewBox="0 0 60 40">${WICON[w.k]}</svg></span><span><b>${w.n}<span class="eq">已裝備</span></b><small>${w.s}</small></span><span class="wlv">等級 ${w.lv}</span></button>`).join('');
-    function sel(i){
-        cur=i;const w=WPN[i];
-        $$('.wrow',list).forEach((el,j)=>el.classList.toggle('on',i==j));
-        $('#wName').textContent=w.n;$('#wDesc').textContent=w.d;
-        const lab={dmg:'傷害',rate:'射速',range:'射程',mag:'彈匣'};
-        $('#wStats').innerHTML=Object.keys(lab).map(k=>`<div class="stat${k=='dmg'?' d':''}"><b>${lab[k]}</b><span>${w.t[k]}</span><div class="bars">${[1,2,3,4,5].map(n=>`<i class="${n<=w.st[k]?'on':''}"></i>`).join('')}</div></div>`).join('');
-        st={t:0,cool:0.3,shots:[],nums:[],burst:0,beam:0,comp:null,sweep:null,hit:0,mag:0};
-    }
-    list.addEventListener('click',e=>{const b=e.target.closest('.wrow');if (b) sel(+b.dataset.i)});
-    function num(x,y,v,col){st.nums.push({x,y,v,col,t:0})}
-    function step(dt){
-        const {w:Wd,h:Hd}=f,px=Wd*0.16,py=Hd*0.55,tx=Wd*0.78,ty=Hd*0.55,k=WPN[cur].k;
-        st.t+=dt;st.cool-=dt;st.hit=Math.max(0,st.hit-dt);
-        const fire=(o)=>st.shots.push(Object.assign({x:px+20,y:py,vx:520,vy:0,c:K,d:10,len:10,w:5,life:1.2,t:0},o));
-        if (k=='pen'&&st.cool<=0){fire({});st.cool=0.32}
-        if (k=='pencil'&&st.cool<=0){fire({vx:700,vy:rand(-40,40),c:G2,d:5,len:12,w:2});st.cool=0.12}
-        if (k=='stapler'&&st.cool<=0){st.burst=3;st.cool=1.1}
-        if (k=='stapler'&&st.burst>0&&(st.bt=(st.bt||0)-dt)<=0){fire({c:G2,d:12,len:8,w:4,vx:600});st.burst--;st.bt=0.09}
-        if (k=='crayon'&&st.cool<=0){const r=Math.random();fire(r<0.2?{c:R,d:28}:r<0.6?{c:'#3B6FB6',d:10}:{c:'#3E9A57',d:5});st.cool=0.3}
-        if (k=='brush'&&st.cool<=0){st.sweep={t:0};st.cool=1.3;st.hitOnce=false}
-        if (k=='highlighter'){st.beam=(st.t%3)<2;if (st.beam&&(st.tick=(st.tick||0)-dt)<=0){st.tick=0.2;num(tx,ty-30,5,K);st.hit=0.1}}
-        if (k=='compass'&&st.cool<=0&&!st.comp){st.comp={t:0,hit1:false,hit2:false};st.cool=1.8}
-        for (const s of st.shots){s.t+=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;if (!s.done&&s.x>=tx-14&&Math.abs(s.y-ty)<34){s.done=true;num(tx+rand(-10,10),ty-36,s.d,s.c==R?R:K);st.hit=0.12}}
-        st.shots=st.shots.filter(s=>!s.done&&s.x<Wd+20);
-        if (st.sweep){st.sweep.t+=dt;const r=lerp(20,tx-px+10,ease(Math.min(1,st.sweep.t/0.45)));if (!st.hitOnce&&r>=tx-px-14){st.hitOnce=true;num(tx,ty-40,15,K);st.hit=0.15}if (st.sweep.t>0.7) st.sweep=null}
-        if (st.comp){const c=st.comp;c.t+=dt;const T=1.1,p=c.t/T;c.x=px+Math.sin(Math.min(1,p)*Math.PI)*(tx-px+50);if (!c.hit1&&p>0.35){c.hit1=true;num(tx,ty-36,20,K);st.hit=0.12}if (!c.hit2&&p>0.65){c.hit2=true;num(tx,ty-50,20,K);st.hit=0.12}if (p>=1) st.comp=null}
-        for (const n of st.nums) n.t+=dt;
-        st.nums=st.nums.filter(n=>n.t<0.8);
-    }
-    function draw(){
-        const {c,w:Wd,h:Hd}=f,px=Wd*0.16,py=Hd*0.55,tx=Wd*0.78,ty=Hd*0.55,k=WPN[cur].k;
-        c.clearRect(0,0,Wd,Hd);
-        c.strokeStyle='rgba(26,26,26,0.07)';c.lineWidth=1;c.beginPath();for (let x=0;x<Wd;x+=26){c.moveTo(x,0);c.lineTo(x,Hd)}for (let y=0;y<Hd;y+=26){c.moveTo(0,y);c.lineTo(Wd,y)}c.stroke();
-        // 主角（俯視圈）
-        rCircle(c,px,py,16,1,'#fff',K,3);rCircle(c,px,py,7,5,G2,null);
-        c.fillStyle=K;c.fillRect(px+14,py-3,16,6);
-        // 靶子
-        const sh=st.hit>0?rand(-3,3):0;
-        c.save();c.translate(tx+sh,ty);
-        hatchClip(c,()=>{c.beginPath();c.ellipse(0,30,22,7,0,0,6.28)},0,30,24,0.45,3.5);
-        c.fillStyle=st.hit>0?'#fff':G1;c.fillRect(-13,-10,26,36);c.strokeStyle=K;c.lineWidth=2.5;c.strokeRect(-13,-10,26,36);
-        rCircle(c,0,-24,13,9,'#fff',K,2.5);
-        c.strokeStyle=K;c.lineWidth=2;c.beginPath();c.moveTo(-6,-28);c.lineTo(-2,-24);c.moveTo(-2,-28);c.lineTo(-6,-24);c.moveTo(2,-28);c.lineTo(6,-24);c.moveTo(6,-28);c.lineTo(2,-24);c.stroke();
-        c.restore();
-        // 子彈
-        for (const s of st.shots){c.strokeStyle=s.c;c.lineWidth=s.w;c.lineCap='round';c.beginPath();c.moveTo(s.x,s.y);c.lineTo(s.x-s.len,s.y-s.vy*0.02);c.stroke()}
-        if (k=='highlighter'&&st.beam){c.strokeStyle='rgba(232,185,49,0.75)';c.lineWidth=12+Math.sin(st.t*40)*2;c.lineCap='butt';c.beginPath();c.moveTo(px+28,py);c.lineTo(Wd,py);c.stroke();c.strokeStyle='rgba(255,255,255,0.8)';c.lineWidth=3;c.beginPath();c.moveTo(px+28,py);c.lineTo(Wd,py);c.stroke()}
-        if (k=='highlighter'){const heat=st.beam?(st.t%3)/2:1-((st.t%3)-2);c.fillStyle=G1;c.fillRect(px-30,py+34,60,6);c.fillStyle=heat>0.8?R:K;c.fillRect(px-30,py+34,60*clamp(heat,0,1),6)}
-        if (st.sweep){
-            const r=lerp(20,tx-px+10,ease(Math.min(1,st.sweep.t/0.45))),a=1-Math.max(0,st.sweep.t-0.45)/0.25;
-            c.save();c.globalAlpha=clamp(a,0,1);c.strokeStyle=K;c.lineCap='round';
-            for (let i=0;i<5;i++){c.lineWidth=7-i;c.beginPath();c.arc(px,py,r-i*5,-0.5+i*0.03,0.5-i*0.04);c.stroke()}
-            c.restore();
-            c.fillStyle='rgba(214,40,40,0.06)';const L=tx-px+10;[0,1,2].forEach(i=>{c.beginPath();c.moveTo(px,py);c.arc(px,py,L*(i+1)/3,-0.5,0.5);c.closePath();c.fill()});
-            c.font=`700 11px ${getComputedStyle(document.body).fontFamily}`;c.fillStyle=G2;c.textAlign='center';['30','20','15'].forEach((t,i)=>c.fillText(t,px+L*(i+0.5)/3,py+Hd*0.32));
-        }
-        if (st.comp){const c2=st.comp;c.save();c.translate(c2.x,py);c.rotate(st.t*18);c.strokeStyle=G3;c.lineWidth=5;c.lineCap='round';c.beginPath();c.moveTo(0,0);c.lineTo(-10,20);c.moveTo(0,0);c.lineTo(10,20);c.stroke();c.fillStyle='#fff';c.strokeStyle=K;c.lineWidth=2;c.beginPath();c.arc(0,0,5,0,6.28);c.fill();c.stroke();c.restore()}
-        if (k=='compass'&&!st.comp){c.fillStyle=G1;c.fillRect(px-30,py+34,60,6);c.fillStyle=K;c.fillRect(px-30,py+34,60*clamp(1-st.cool/1.8,0,1),6)}
-        const ff=getComputedStyle(document.body).fontFamily;
-        for (const n of st.nums){const p=n.t/0.8,sc=p<0.15?lerp(0.4,1.4,p/0.15):1.1;c.save();c.globalAlpha=1-p;c.translate(n.x,n.y-p*28);c.scale(sc,sc);c.font=`900 18px ${ff}`;c.textAlign='center';c.lineWidth=4;c.strokeStyle=P;c.strokeText(n.v,0,0);c.fillStyle=n.col;c.fillText(n.v,0,0);c.restore()}
-    }
-    function loop(now){if (!running) return;const dt=Math.min(0.05,(now-last)/1000);last=now;step(dt);draw();requestAnimationFrame(loop)}
-    sel(0);
-    whenVisible(cv,()=>{f=fitCanvas(cv);if (!running&&!REDUCED){running=true;last=performance.now();requestAnimationFrame(loop)} else draw()},()=>running=false);
-    window.addEventListener('resize',()=>{f=fitCanvas(cv)});
+    const ill=$('#mergeIll'),c=CARD.scatter;
+    const one=(cls,up)=>`<div class="mcard ${cls}"><div class="cst">${costBadge(c.c)}</div>${c.n}${up?'+':''}<svg viewBox="0 0 80 60">${ICON.scatter}</svg></div>`;
+    ill.insertAdjacentHTML('afterbegin',one('c1')+one('c3')+one('c2')+one('up',true));
 })();
-$('#relics').innerHTML=RELICS.map(r=>`<div class="relic sk reveal"><div class="ic"><svg viewBox="0 0 64 64" style="width:100%;height:100%;overflow:visible">${r.ic}</svg></div><h4 style="font-size:18px">${r.n}</h4><p class="small red" style="font-weight:900">${r.s}</p><p class="small mut">${r.d}</p></div>`).join('');
 
-/* ================= 敵人與頭目 ================= */
-$('#foes').innerHTML=FOES.map((e,i)=>`<div class="foe sk reveal"><div class="pic"><svg viewBox="0 0 100 104" class="bob" style="animation-delay:${-i*0.3}s">${FOEART[e.k]}</svg>${i<1?'':`<span class="nu">約第 ${[1,3,5,7,9,11,13,15][i]} 頁</span>`}</div><h4>${e.n}<small>生命 ${e.hp}・墨水 ${e.ink}</small></h4><p>${e.d}</p></div>`).join('');
+/* 課表跑馬燈（直向） */
 (function(){
-    const wrap=$('#bosses');
-    wrap.innerHTML=BOSSES.map((b,i)=>`<div class="boss sk reveal" data-i="${i}"><div class="arena"><div class="bubble">${b.say}</div><div class="b"><svg viewBox="0 0 120 120">${BOSSART[b.k]}</svg></div></div><div class="bhp"><i></i><span class="tick" style="left:${b.th*100}%"></span></div><h4>${b.n}<small>生命 ${b.hp}・擊倒墨水 4</small></h4><p class="small"><b>弱點：</b>${b.weak}</p><ul class="moves">${b.p1.map(m=>`<li>${m}</li>`).join('')}</ul><div class="p2h">第二型態（${b.th==.5?'半血':'剩三分之一'}）</div><ul class="moves p2">${b.p2.map(m=>`<li>${m}</li>`).join('')}</ul><div style="margin-top:12px"><button class="btn sk sm r evo">進化</button></div></div>`).join('');
-    wrap.addEventListener('click',e=>{
-        const btn=e.target.closest('.evo');if (!btn) return;
-        const card=btn.closest('.boss'),b=BOSSES[+card.dataset.i],bar=$('.bhp i',card),bub=$('.bubble',card);
-        if (card.classList.contains('f2')||card.classList.contains('evo')){card.classList.remove('f2','evo');bar.style.width='100%';bub.classList.remove('on');btn.textContent='進化';return}
-        btn.textContent='……';
-        bar.style.width=b.th*100+'%';
-        setTimeout(()=>{card.classList.add('evo');bub.textContent=b.say;bub.classList.add('on')},REDUCED?0:1300);
-        setTimeout(()=>{card.classList.remove('evo');card.classList.add('f2');btn.textContent='重來';setTimeout(()=>bub.classList.remove('on'),1600)},REDUCED?0:2900);
+    const names=['數學課','體育課','資訊課','訓導課','音樂課','頭目！'];
+    const col=$('#ticker');
+    const html=names.map(n=>`<div class="${n==='頭目！'?'hl':''}">${n}</div>`).join('');
+    col.innerHTML=html+html;
+})();
+
+/* ================= 卡牌扇形 ================= */
+(function(){
+    const ids=['pencilWall','scatter','bomb','blackHole','paperShield','execute','homing'];
+    fanEl.innerHTML=ids.map(id=>{const c=CARD[id];return `<div class="card${c.r?' rare':''}" data-id="${id}"><div class="cst">${costBadge(c.c,c.r)}</div><div class="nm">${c.n}</div><svg class="art" viewBox="0 0 80 60">${ICON[id]}</svg><div class="tp">${c.r?'特殊技':TYPE[c.t]}</div></div>`}).join('');
+    fanEl.addEventListener('click',e=>{const cd=e.target.closest('.card');if (cd&&CARD[cd.dataset.id].r) playCut(cd.dataset.id)});
+})();
+let cutBusy=false;
+function playCut(id){
+    if (cutBusy) return;
+    const c=CARD[id],cut=$('#cutin');
+    if (REDUCED) return;
+    cutBusy=true;
+    $('#cutTtl').textContent=c.n;$('#cutSub').textContent=c.d;
+    $('#cutWho').innerHTML=`<svg viewBox="0 0 80 60" style="width:100%;height:100%;overflow:visible">${ICON[c.id]}</svg>`;
+    cut.classList.remove('on');void cut.offsetWidth;cut.classList.add('on');
+    setTimeout(()=>{document.body.classList.remove('quake');void document.body.offsetWidth;document.body.classList.add('quake')},1450);
+    setTimeout(()=>{cut.classList.remove('on');document.body.classList.remove('quake');cutBusy=false},1750);
+}
+$('#ultBtn').addEventListener('click',()=>playCut(pick(CARDS.filter(c=>c.r)).id));
+
+/* ================= 武器、卡名列 ================= */
+(function(){
+    const W7=[['pen','鋼筆','均衡單發'],['pencil','自動鉛筆','高射速'],['brush','毛筆','橫掃墨痕'],['stapler','釘書機','三連點射'],['highlighter','螢光筆','持續光束'],['compass','圓規','回力鏢'],['crayon','彩色筆','隨機三色']];
+    $('#wRow').innerHTML=W7.map(([k,n,s])=>`<span class="wchip"><svg viewBox="0 0 60 40">${WICON[k]}</svg><span>${n}<br><small>${s}</small></span></span>`).join('');
+    $('#cRow').innerHTML=CARDS.map(c=>`<span class="cchip${c.r?' r':''}"><i><svg viewBox="0 0 34 40" width="18" height="22"><path d="M17 1 C17 1 3 18 3 26 a14 14 0 0 0 28 0 C31 18 17 1 17 1z" fill="${c.r?R:K}"/></svg></i>${c.n}</span>`).join('');
+})();
+
+/* ================= 頭目 ================= */
+(function(){
+    const B=[['bottle','巨型墨瓶','就這？'],['scissors','剪刀魔','擦掉你只要一下下。'],['book','墨跡之書','這頁就是你的終點。'],['exam','考卷魔王','老師會給你不及格！'],['pen','巨筆暴君','你的筆跡好醜。']];
+    blist.innerHTML=B.map(([k,n,say],i)=>`<div class="bs"><div class="rv${i%2?'-dr':'-d'}" style="transition-delay:${i*0.08}s"><div class="bubble">${say}</div><div class="disc"><svg viewBox="0 0 120 120">${BOSSART[k]}</svg></div><h4>${n}</h4><small>第二型態：${['翻滾衝撞','高速繞圈','飛撲重壓','期末考','書寫衝刺'][i]}</small></div></div>`).join('');
+    $$('.bs',blist).forEach(b=>{
+        let t=0;
+        const on=()=>{clearTimeout(t);if (b.classList.contains('evo')) return;b.classList.add('evo');t=setTimeout(()=>b.classList.remove('evo'),3200)};
+        b.addEventListener('mouseenter',on);b.addEventListener('click',on);
     });
+    const F=[['doodle','塗鴉兵'],['blob','墨團'],['sprayer','散彈兵'],['stamp','印章兵'],['cloud','墨雲'],['bird','摺紙鳥'],['compassE','圓規手'],['eraserM','橡皮怪']];
+    $('#march').innerHTML=F.map(([k,n])=>`<div class="foe"><svg viewBox="0 0 100 104">${FOEART[k].replace(/fill="url\(#hat\)"/g,'fill="none"').replace(/#1A1A1A/g,'#F2F0EB')}</svg><span>${n}</span></div>`).join('');
 })();
 
-/* ================= 等級 ================= */
+/* ================= 更多 ================= */
 (function(){
-    const tr=$('#lvTrack'),info=$('#lvInfo');
-    const chest=`<svg viewBox="0 0 26 24"><path d="M2 10 H24 V22 H2z" fill="#E8B931" stroke="${K}" stroke-width="2"/><path d="M1 10 Q13 0 25 10z" fill="#C49A52" stroke="${K}" stroke-width="2"/><rect x="11" y="9" width="4" height="5" fill="${R}"/></svg>`;
-    tr.innerHTML=Array.from({length:15},(_,i)=>`<div class="lv" data-l="${i+1}" role="button" tabindex="0">${[5,10,15].includes(i+1)?`<span class="ch">${chest}</span>`:''}${i+1}</div>`).join('');
-    function show(l){
-        $$('.lv',tr).forEach(el=>el.classList.toggle('on',+el.dataset.l<=l));
-        const cards=(UNLOCK[l]||[]).map(id=>`<span class="chip${CARD[id].r?' r':''}">${CARD[id].n}</span>`).join('');
-        info.innerHTML=`<b>等級 ${l}</b>　${l==1?'初始卡牌：':'解鎖卡牌：'}${cards}${LVEXTRA[l]?`<span class="chip f">${LVEXTRA[l]}</span>`:''}`;
-    }
-    tr.addEventListener('click',e=>{const el=e.target.closest('.lv');if (el) show(+el.dataset.l)});
-    tr.addEventListener('keydown',e=>{if (e.key==='Enter'){const el=e.target.closest('.lv');if (el) show(+el.dataset.l)}});
-    show(5);
-    let auto=1,timer=0;
-    whenVisible(tr,()=>{if (!timer&&!REDUCED) timer=setInterval(()=>{auto=auto%15+1;show(auto)},1500)},()=>{clearInterval(timer);timer=0});
-    tr.addEventListener('pointerdown',()=>{clearInterval(timer);timer=-1});
+    const T=[
+        ['16 種小遊戲','記憶音鈴、紙飛機、躲墨雨、猜杯子……事件頁每次都不一樣。',`<path d="M10 36 Q32 -6 54 30" fill="none" stroke="${K}" stroke-width="2.5" stroke-dasharray="4 4"/><path d="M48 24 L62 30 L48 36 L52 30z" fill="#fff" stroke="${K}" stroke-width="2.5"/><path d="M4 44 h16 l-3 10 h-10z" fill="${G1}" stroke="${K}" stroke-width="2.5"/>`],
+        ['8 種奇遇','會說話的橡皮擦、扭蛋機、塗鴉幽靈——每個選項都有代價。',`<rect x="8" y="8" width="44" height="40" fill="#FFF8C9" stroke="${K}" stroke-width="2.5" transform="rotate(-6 30 28)"/><text x="30" y="38" text-anchor="middle" font-size="26" font-weight="900" fill="${R}">?</text>`],
+        ['文具店與寶箱','用分數買卡、補血、換武器；三個寶箱裡有一個會咬人。',`<path d="M8 26 H52 V50 H8z" fill="#DECBAA" stroke="${K}" stroke-width="2.5"/><path d="M6 26 Q30 2 54 26z" fill="#C9AD7E" stroke="${K}" stroke-width="2.5"/><rect x="26" y="22" width="8" height="8" fill="${R}"/>`],
+        ['訓練場','所有解鎖的卡牌、武器、頭目，隨你召喚、隨你試。',`<circle cx="30" cy="28" r="22" fill="none" stroke="${K}" stroke-width="2.5"/><circle cx="30" cy="28" r="12" fill="none" stroke="${R}" stroke-width="2.5"/><circle cx="30" cy="28" r="3.5" fill="${K}"/>`],
+        ['角色外觀','20 種布色、32 種配飾，存成自己的套組。',`<circle cx="30" cy="20" r="12" fill="#fff" stroke="${K}" stroke-width="2.5"/><path d="M30 0 Q40 12 38 14 a8 8 0 0 1 -16 0 Q20 12 30 0z" fill="${K}"/><rect x="18" y="32" width="24" height="20" fill="#C8554A" stroke="${K}" stroke-width="2.5"/>`],
+        ['等級與成就','15 個等級解鎖新卡與武器，成就分三階慢慢解。',`<path d="M30 4 l7 14 16 2 -12 11 3 16 -14 -8 -14 8 3 -16 -12 -11 16 -2z" fill="#E8B931" stroke="${K}" stroke-width="2.5" stroke-linejoin="round"/>`]
+    ];
+    const dirs=['rv-l','rv','rv-r','rv-d','rv','rv-dr'];
+    $('#tiles').innerHTML=T.map(([h,p,ic],i)=>`<div class="tile sk ${dirs[i]}" style="transition-delay:${(i%3)*0.08}s"><div class="ic"><svg viewBox="0 0 60 56">${ic}</svg></div><h4>${h}</h4><p>${p}</p></div>`).join('');
 })();
 
-/* 角色外觀 */
-(function(){
-    const svg=$('#dressSvg'),sw=$('#swatches'),ac=$('#accs');
-    let tone='gray',hat='drop';
-    const HATS={
-        drop:`<path d="M100 22 Q122 52 118 62 A18 18 0 0 1 82 62 Q78 52 100 22z" fill="${K}"/>`,
-        crown:`<path d="M74 66 L76 36 L88 50 L100 30 L112 50 L124 36 L126 66z" fill="#E8B931" stroke="${K}" stroke-width="3" stroke-linejoin="round"/>`,
-        beret:`<ellipse cx="96" cy="58" rx="34" ry="12" fill="${R}" stroke="${K}" stroke-width="3"/><circle cx="96" cy="44" r="4" fill="${K}"/>`,
-        topHat:`<rect x="78" y="22" width="44" height="40" fill="${K}"/><rect x="66" y="58" width="68" height="8" fill="${K}"/><rect x="78" y="48" width="44" height="6" fill="${R}"/>`,
-        catEars:`<path d="M72 64 L74 34 L94 54z M128 64 L126 34 L106 54z" fill="${K}"/><path d="M78 56 L79 42 L88 52z M122 56 L121 42 L112 52z" fill="#F0C4C0"/>`,
-        none:''
-    };
-    const HN={drop:'墨滴帽',crown:'紙皇冠',beret:'貝雷帽',topHat:'高禮帽',catEars:'貓耳',none:'不戴'};
-    function render(){
-        const [l,m,d]=TONES[tone];
-        svg.innerHTML=`<ellipse cx="100" cy="226" rx="56" ry="10" fill="url(#hat)"/>
-            <rect x="74" y="178" width="20" height="44" fill="${d}" stroke="${K}" stroke-width="3"/><rect x="106" y="178" width="20" height="44" fill="${d}" stroke="${K}" stroke-width="3"/>
-            <rect x="46" y="124" width="22" height="50" rx="8" fill="${m}" stroke="${K}" stroke-width="3" transform="rotate(10 57 124)"/><rect x="132" y="124" width="22" height="50" rx="8" fill="${m}" stroke="${K}" stroke-width="3" transform="rotate(-24 143 124)"/>
-            <rect x="66" y="116" width="68" height="70" rx="6" fill="${l}" stroke="${K}" stroke-width="3.5"/><rect x="66" y="116" width="68" height="70" rx="6" fill="url(#hat)" opacity=".35"/>
-            <circle cx="100" cy="144" r="4" fill="${d}"/><circle cx="100" cy="160" r="4" fill="${d}"/><rect x="66" y="172" width="68" height="8" fill="${d}"/>
-            <path d="M68 116 Q100 132 132 116 L132 108 Q100 122 68 108z" fill="${R}" stroke="${K}" stroke-width="2.5"/>
-            <circle cx="100" cy="82" r="36" fill="#fff" stroke="${K}" stroke-width="3.5"/><path d="M100 46 a36 36 0 0 1 30 54 a40 40 0 0 0 -30 -54z" fill="url(#hat)" opacity=".4"/>
-            <rect x="86" y="74" width="6" height="12" rx="3" fill="${K}"/><rect x="108" y="74" width="6" height="12" rx="3" fill="${K}"/><path d="M92 94 q8 8 16 0" stroke="${K}" stroke-width="3" fill="none" stroke-linecap="round"/>
-            ${HATS[hat]}
-            <g transform="rotate(-30 156 150)"><rect x="150" y="150" width="34" height="8" fill="${G2}" stroke="${K}" stroke-width="2"/><path d="M184 150 l10 4 -10 4z" fill="${K}"/></g>`;
-        if (!REDUCED) svg.animate([{transform:'scale(1,.94) translateY(6px)'},{transform:'scale(1,1.03)'},{transform:'none'}],{duration:300});
-        $$('.sw',sw).forEach(b=>b.classList.toggle('on',b.dataset.t==tone));
-        $$('button',ac).forEach(b=>b.classList.toggle('on',b.dataset.h==hat));
-    }
-    sw.innerHTML=Object.keys(TONES).map(t=>`<button class="sw" data-t="${t}" style="background:linear-gradient(135deg,${TONES[t][0]} 50%,${TONES[t][1]} 50%)" aria-label="${t}"></button>`).join('');
-    ac.innerHTML=Object.keys(HATS).map(h=>`<button data-h="${h}">${HN[h]}</button>`).join('')+'<span class="small mut" style="align-self:center">＋眼鏡、圍巾、披風、紙翅膀…共 32 種</span>';
-    sw.addEventListener('click',e=>{const b=e.target.closest('.sw');if (b){tone=b.dataset.t;render()}});
-    ac.addEventListener('click',e=>{const b=e.target.closest('button');if (b){hat=b.dataset.h;render()}});
-    render();
-})();
-
-/* 結算：計分＋印章＋紙片 */
-(function(){
-    const r=$('#result'),tot=$('#resTot');
-    const io=new IntersectionObserver(es=>es.forEach(e=>{
-        if (!e.isIntersecting) return;io.disconnect();
-        const T=48260,t0=performance.now();
-        (function up(now){const p=Math.min(1,(now-t0)/1100);tot.textContent=Math.round(T*ease(p)).toLocaleString();if (p<1) requestAnimationFrame(up)})(t0);
-        if (REDUCED) return;
-        setTimeout(()=>{
-            for (let i=0;i<34;i++){
-                const d=document.createElement('i');d.className='confetti';
-                d.style.left='78%';d.style.top='18%';d.style.background=pick([R,K,'#E8B931','#3B6FB6',G2]);
-                r.appendChild(d);
-                const a=rand(-Math.PI,0),sp=rand(90,240);
-                d.animate([{transform:'translate(0,0) rotate(0)',opacity:1},{transform:`translate(${Math.cos(a)*sp}px,${Math.sin(a)*sp+220}px) rotate(${rand(-720,720)}deg)`,opacity:0}],{duration:rand(1100,1700),easing:'cubic-bezier(.2,.6,.4,1)',fill:'forwards'}).onfinish=()=>d.remove();
-            }
-        },900);
-    }),{threshold:0.5});
-    io.observe(r);
-})();
-
-/* 嘲諷 */
-(function(){
-    const box=$('#taunts');
-    box.innerHTML=`<svg viewBox="0 0 300 150" style="position:absolute;inset:0;width:100%;height:100%"><g transform="translate(150 90) scale(.62) translate(-60 -60)">${BOSSART.bottle.replace(/var\(--bc\)/g,W)}</g><g transform="translate(60 112) scale(.4) translate(-50 -60)">${FOEART.doodle}</g><g transform="translate(244 112) scale(.4) translate(-50 -60)"><path d="M10 -6 l6 -8 6 8 6 -8 6 8 6 -8 6 8" stroke="${R}" stroke-width="5" fill="none" transform="translate(16 0)"/>${FOEART.blob}</g></svg><div class="bubble" style="left:50%;top:8px"></div>`;
-    const bub=$('.bubble',box);let i=0;
-    function next(){
-        bub.classList.remove('on');
-        setTimeout(()=>{bub.textContent=TAUNTS[i++%TAUNTS.length];const spots=[['44%','8px'],['8%','40px'],['62%','40px']];const [l,t]=pick(spots);bub.style.left=l;bub.style.top=t;bub.classList.add('on')},250);
-    }
-    let tm=0;
-    whenVisible(box,()=>{if (!tm){next();tm=setInterval(next,2000)}},()=>{clearInterval(tm);tm=0});
-})();
-
-observeReveal();
-$$('.pghead').forEach(h=>revIO.observe(h));
+/* ================= 啟動 ================= */
+$$('.mq').forEach(initMarquee);
+measureMarquees();
+window.addEventListener('resize',measureMarquees);
+document.fonts&&document.fonts.ready.then(measureMarquees);
+$$('.rv,.rv-l,.rv-r,.rv-d,.rv-dr,.split').forEach(el=>revIO.observe(el));
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>
