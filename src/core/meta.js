@@ -4,7 +4,7 @@ import {ACC_SLOTS,ACC_DEFAULT,BASIC_TONES,BASIC_ACC} from '../data/cosmetics.js'
 import {ACHIEVEMENTS,ACH_LEGACY,achKey,achUnits} from '../data/achievements.js';
 import {TUNING} from '../data/tuning.js';
 import {EARLY_WEAPONS,WEAPONS} from '../data/weapons.js';
-import {RELIC_ORDER} from '../data/relics.js';
+import {RELIC_ORDER,RELIC_STARTERS} from '../data/relics.js';
 
 const M=TUNING.meta;
 
@@ -170,10 +170,29 @@ function unlock(item) {
     }
 }
 
-export function grant(n,accFirst=0) {
+export function gradeOf(score,mode) {
+    const G=TUNING.summaryUi.grade[mode==='endless'?'endless':'story'];
+    for (const [g,min] of G) {
+        if (score>=min) {
+            return g;
+        }
+    }
+    return G[G.length-1][0];
+}
+
+export function grantCoins(n) {
+    if (n<=0) {
+        return [];
+    }
+    progress.dots+=n;
+    saveProgress();
+    return [{kind:'dots',n}];
+}
+
+export function grant(n,accFirst=0,noDots=false) {
     const out=[];
     for (let i=0;i<n;i++) {
-        if (i>=accFirst&&Math.random()<M.dotChance) {
+        if (!noDots&&i>=accFirst&&Math.random()<M.dotChance) {
             const q=M.dotRange[0]+Math.floor(Math.random()*(M.dotRange[1]-M.dotRange[0]+1));
             progress.dots+=q;
             out.push({kind:'dots',n:q});
@@ -304,6 +323,32 @@ export function equippedRelic() {
 export function equipRelic(id) {
     progress.relic=id&&ownsRelic(id)?id:'';
     saveProgress();
+}
+
+export function relicOwned(id) {
+    return godMode()||RELIC_STARTERS.includes(id)||progress.relics.includes(id);
+}
+
+export function relicPool() {
+    return RELIC_ORDER.filter(relicOwned);
+}
+
+export function relicLocked() {
+    return RELIC_ORDER.filter(id=>!relicOwned(id));
+}
+
+export function pullRelic() {
+    const left=relicLocked();
+    const p=relicPrice();
+    if (left.length===0||progress.dots<p) {
+        return '';
+    }
+    const id=left[Math.floor(Math.random()*left.length)];
+    progress.dots-=p;
+    progress.relics.push(id);
+    checkAch(true);
+    saveProgress();
+    return id;
 }
 
 export function earnDots(n) {

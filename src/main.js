@@ -39,10 +39,11 @@ import {Pickups} from './game/pickup.js';
 import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
+import {RelicGacha} from './ui2d/gacha.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
-import {initMeta,clampSkin,grantLevelChest,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
-import {startRelic,relic,takeGuard} from './game/relic.js';
+import {initMeta,gradeOf,grantCoins,clampSkin,grantLevelChest,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen,pullRelic} from './core/meta.js';
+import {startRelic,relic,takeGuard,hasRelic,flashRelic,tickRelics,dmgMult,killRelic,pageRelic,perfectRelic,dripRelic,usePhoenix,inkMaxBonus,cardRelic,holdRelic,lowHp,relicState,restoreRelic,addRelic,removeRelic,gamblerMult} from './game/relic.js';
 import {saveRunSnap,loadRunSnap,clearRunSnap} from './core/runSave.js';
 import {GuidePopup,courseGuide,modeGuide,modesGuide} from './ui2d/guide.js';
 import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast,ConfirmPopup} from './ui2d/meta.js';
@@ -301,7 +302,7 @@ function boot() {
                 const m=e.damageMult(e.pos.x,e.pos.z);
                 const nx=(e.pos.x-s.x)/(d||1);
                 const nz=(e.pos.z-s.z)/(d||1);
-                const dmg=band*m;
+                const dmg=band*m*cutter(e.pos.x,e.pos.z);
                 s.dealt+=dmg;
                 enemies.damage(e,dmg,nx,nz,false,m>1);
             }
@@ -365,7 +366,7 @@ function boot() {
             const pz=ez-dz*t;
             if (px*px+pz*pz<(e.def.radius+hw)*(e.def.radius+hw)) {
                 const m=e.damageMult(x+dx*t,z+dz*t);
-                enemies.damage(e,PW.damage*m,dx,dz,true,m>1);
+                enemies.damage(e,PW.damage*m*cutter(e.pos.x,e.pos.z),dx,dz,true,m>1);
             }
         }
         beamMerge=false;
@@ -613,6 +614,9 @@ function boot() {
         showKeys:()=>input.lastDevice==='mouse'&&!device.mobile,
         onPlayStart:card=>{
             hand.idleT=0;
+            if (card&&run.mode!=='training') {
+                cardRelic(card.def.rarity==='rare');
+            }
             if (card&&!isUlt(card.id)) {
                 tutNotify('card');
             }
@@ -645,7 +649,7 @@ function boot() {
         const e=enemies.nearest(x,z,40);
         return e?e.pos:null;
     };
-    const hitEnemies=(x,z,r,dmg,vx,vz,sys,i)=>enemies.hitBullet(x,z,r,dmg,vx,vz,sys,i);
+    const hitEnemies=(x,z,r,dmg,vx,vz,sys,i)=>enemies.hitBullet(x,z,r,sys.tag[i]&TUNING.relics.weaponTag?dmg*cutter(x,z):dmg,vx,vz,sys,i);
     pierceBullets.onHit=(x,z,r,dmg,vx,vz,sys,i)=>{
         const e=hitEnemies(x,z,r,dmg,vx,vz,sys,i);
         if (e) {
@@ -739,7 +743,7 @@ function boot() {
             }
         }
     };
-    enemies.dmgHook=(e,dmg)=>e.tutor?0:(run.course&&run.state==='combat'?run.course.damage(e,dmg):dmg);
+    enemies.dmgHook=(e,dmg)=>e.tutor?0:(run.course&&run.state==='combat'?run.course.damage(e,dmg):dmg)*dmgMult();
     enemies.onKill=(e,dx,dz)=>{
         const x=e.pos.x;
         const z=e.pos.z;
@@ -752,6 +756,10 @@ function boot() {
             return;
         }
         ink.add((e.def.ink||1)*(e.elite?TUNING.ink.eliteMult:1));
+        const bits=killRelic(e.type==='blobSmall');
+        if (bits>0) {
+            ink.add(bits);
+        }
         if (run.mode==='training') {
             trainStats.kills++;
         }
@@ -771,10 +779,6 @@ function boot() {
                 const got=earnDots(TUNING.meta.dotBoss);
                 if (got>0) {
                     overlay.hud.toast(t('run.dotsGain',{n:got}));
-                }
-                if (relic.id==='bandage'&&player.hp<TUNING.player.maxHp) {
-                    player.hp=Math.min(TUNING.player.maxHp,player.hp+TUNING.relics.bandage.heal);
-                    overlay.hud.toast(t('relic.healed',{n:TUNING.relics.bandage.heal}));
                 }
             }
         }
@@ -844,6 +848,7 @@ function boot() {
     function perfectDodge(p) {
         const D=TUNING.dodgeFx;
         ink.add(D.ink);
+        perfectRelic();
         if (time.real-dodgeFxAt<D.cooldown) {
             return;
         }
@@ -996,6 +1001,20 @@ function boot() {
         particles.burst(piece.x,0.8,piece.z,10,{color:'midGray',speed:[2,5],up:[2,5]});
     };
     player.events.onDown=()=>run.playerDown();
+    player.events.onAttacked=()=>{
+        if (hasRelic('masochist')&&run.state==='combat') {
+            ink.add(TUNING.relics.masochist.ink);
+            flashRelic('masochist');
+        }
+    };
+    const cutter=(x,z)=>{
+        const C=TUNING.relics.boxCutter;
+        if (!hasRelic('boxCutter')||Math.hypot(x-player.pos.x,z-player.pos.z)>C.range) {
+            return 1;
+        }
+        flashRelic('boxCutter',0.35);
+        return C.mult;
+    };
     const reward=new RewardView();
     reward.onArm=()=>audio.play('ui',0.8);
     const upgradeView=new UpgradeView();
@@ -1276,7 +1295,7 @@ function boot() {
                     parts.push(t('course.rw.score',{n:R.score}));
                 }
                 if (R.hp) {
-                    player.hp=Math.min(TUNING.player.maxHp,player.hp+R.hp);
+                    player.hp=Math.min(player.maxHp,player.hp+R.hp);
                     parts.push(t('course.rw.hp',{n:R.hp}));
                 }
                 if (R.ink) {
@@ -1297,14 +1316,33 @@ function boot() {
         onSpawn:e=>{
             particles.burst(e.pos.x,0.4,e.pos.z,e.def.boss?30:PT.spawnPuff,{color:'midGray',speed:[1,4],up:[1,4],size:[0.1,0.2],life:[0.3,0.6]});
         },
+        pageStart:plan=>{
+            const R=TUNING.relics;
+            if (hasRelic('inkVial')&&ink.value<R.inkVial.min) {
+                ink.value=R.inkVial.min;
+                flashRelic('inkVial');
+            }
+            if (hasRelic('amulet')&&(plan.elite||plan.boss)) {
+                player.setShield(player.shield+R.amulet.shields);
+                flashRelic('amulet');
+            }
+            if (plan.node==='shop') {
+                flashRelic('coupon',1.5);
+            }
+        },
         onCleared:plan=>{
             audio.play('clear');
+            const patch=plan.ambush?0:pageRelic();
+            if (patch>0) {
+                player.hp=Math.min(player.maxHp,player.hp+patch);
+                overlay.hud.toast(t('relic.healed',{n:patch}));
+            }
             enemyBullets.killWhere(()=>true,(x,z)=>particles.burst(x,1.0,z,1,{color:'farGray',speed:[0.5,2],up:[1,2]}));
             chalkBullets.killWhere(()=>true,null);
             fx.slowMo(0.4,0.6);
             if (plan.boss) {
                 const heal=TUNING.run.bossHeal;
-                player.hp=Math.min(TUNING.player.maxHp,player.hp+heal);
+                player.hp=Math.min(player.maxHp,player.hp+heal);
                 overlay.hud.banner(t('run.cleared'),t('run.healed',{hp:heal}),1.6);
             }
             else {
@@ -1363,7 +1401,7 @@ function boot() {
         },
         toast:(key,params,card)=>overlay.hud.toast(t(key,{...params,name:card?t(CARDS[card].nameKey):''})),
         hp:()=>player.hp,
-        saveRun:data=>saveRunSnap({...data,hp:player.hp,ink:ink.value,weapon:player.weaponId,relic:relic.id,guard:relic.guard}),
+        saveRun:data=>saveRunSnap({...data,hp:player.hp,ink:ink.value,weapon:player.weaponId,relic:relicState()}),
         clearRun:()=>clearRunSnap(),
         showReport:(title,lines,cb)=>{
             const SK={'note.score':1,'note.scoreLoss':-1,'note.paid':-1};
@@ -1378,6 +1416,26 @@ function boot() {
         },
         gameInfo:()=>minis.info(),
         resume:()=>resumePlay(),
+        takeRelic:(id,done)=>{
+            addRelic(id);
+            player.hp=Math.min(player.hp,player.maxHp);
+            audio.play('clear',1.3);
+            particles.burst(player.pos.x,1.4,player.pos.z,24,{color:'red',speed:[2,6],up:[3,7],size:[0.08,0.2]});
+            overlay.hud.toast(t('library.got',{name:t('relic.'+id+'.name')}));
+            if (relic.list.length<=TUNING.relics.max) {
+                done();
+                return;
+            }
+            fx.paused=true;
+            hand.cancelTargeting();
+            choice.open2({kind:'drop',options:relic.list.map(q=>({id:q,fresh:q===id}))},k=>{
+                const out=relic.list[k];
+                removeRelic(out);
+                player.hp=Math.min(player.hp,player.maxHp);
+                overlay.hud.toast(t('drop.done',{name:t('relic.'+out+'.name')}));
+                done();
+            });
+        },
         openChoice:(spec,cb)=>{
             fx.paused=true;
             hand.cancelTargeting();
@@ -1390,7 +1448,7 @@ function boot() {
         },
         heal:n=>{
             const before=player.hp;
-            player.hp=Math.min(TUNING.player.maxHp,player.hp+n);
+            player.hp=Math.min(player.maxHp,player.hp+n);
             return player.hp-before;
         },
         hurt:n=>{
@@ -1429,6 +1487,23 @@ function boot() {
             fx.cameraShake(0.8);
         },
         canRevive:()=>reviveReady(),
+        phoenix:()=>{
+            if ((run.mode!=='story'&&run.mode!=='endless')||!usePhoenix()) {
+                return false;
+            }
+            const PH=TUNING.relics.phoenix;
+            player.hp=PH.hp;
+            player.invuln=PH.invuln;
+            renderer.post.resetDeath();
+            music.recover();
+            audio.play('clear',1.4);
+            fx.flash('red',0.5,0.6);
+            fx.cameraShake(0.5);
+            rings.spawn(player.pos.x,player.pos.z,3,'red',0.6);
+            particles.burst(player.pos.x,1,player.pos.z,30,{color:'red',speed:[3,8],up:[3,8],size:[0.08,0.2]});
+            overlay.hud.toast(t('relic.phoenixUp'));
+            return true;
+        },
         openRevive:cb=>{
             fx.paused=true;
             hand.cancelTargeting();
@@ -1488,10 +1563,10 @@ function boot() {
             }
             flushMeta();
             const levels=progress.level-lvBefore;
-            const items=scoring&&!godMode()?grant(runChestCount(stats,run.mode)+levels,levels):[];
+            const items=scoring&&!godMode()?grant(runChestCount(stats,run.mode)+levels,levels,true).concat(grantCoins(TUNING.meta.gradeCoins[gradeOf(stats.score,run.mode)]||0)):[];
             summary.show(victory,stats,quit,toMenu=>{
                 audio.play('ui');
-                player.hp=TUNING.player.maxHp;
+                player.hp=player.maxHp;
                 ink.value=TUNING.ink.start;
                 renderer.post.resetDeath();
                 if (toMenu) {
@@ -1505,7 +1580,7 @@ function boot() {
                 }
                 else {
                     effects.lastUlt=null;
-                    startRelic(run.mode==='story'||run.mode==='endless'?equippedRelic():'');
+                    startRelic([]);
                     equipWeapon(true);
                     run.start(startIds(),run.mode);
                 }
@@ -1559,7 +1634,8 @@ function boot() {
         }
         audio.play('ui');
         hand.cancelTargeting();
-        if (input.lastDevice==='touch'&&run.plan&&run.plan.node==='shop'&&npcs.focus>0&&npcs.armed!==npcs.focus) {
+        const pickRelic=run.plan&&run.plan.node==='library'&&npcs.list[npcs.focus]&&npcs.list[npcs.focus].relic&&!(run.lib&&run.lib.relic);
+        if (input.lastDevice==='touch'&&run.plan&&(run.plan.node==='shop'&&npcs.focus>0||pickRelic)&&npcs.armed!==npcs.focus) {
             npcs.armed=npcs.focus;
             buyArmT=TUNING.shopArm.time;
             return true;
@@ -1569,6 +1645,7 @@ function boot() {
     }
     function enterMenu() {
         coach.reset();
+        overlay.hud.openRelicInfo('');
         clearWorld();
         player.setArmed(true,true);
         doors.clear();
@@ -1623,12 +1700,12 @@ function boot() {
         coach.reset();
         mainMenu.hide();
         game.mode='play';
-        player.hp=TUNING.player.maxHp;
+        player.hp=player.maxHp;
         ink.value=TUNING.ink.start;
         trainFixed=[];
         pendingGuide=null;
         pendingBoss=null;
-        startRelic(mode==='story'||mode==='endless'?equippedRelic():'');
+        startRelic([]);
         equipWeapon(mode!=='training');
         if (mode==='tutorial') {
             player.setWeapon('pen');
@@ -1654,14 +1731,19 @@ function boot() {
         trainFixed=[];
         pendingGuide=null;
         pendingBoss=null;
-        startRelic(s.relic||'');
-        relic.guard=s.guard||0;
+        if (s.relic&&typeof s.relic==='object') {
+            restoreRelic(s.relic);
+        }
+        else {
+            startRelic(s.relic||'');
+            relic.guard=s.guard||0;
+        }
         player.setWeapon(WEAPONS[s.weapon]?s.weapon:'pen');
         resetTrainStats();
         deck.provider=null;
         effects.lastUlt=null;
         run.restore(s);
-        player.hp=Math.max(1,Math.min(TUNING.player.maxHp,s.hp||TUNING.player.maxHp));
+        player.hp=Math.max(1,Math.min(player.maxHp,s.hp||player.maxHp));
         ink.value=Math.max(0,s.ink??TUNING.ink.start);
         if (settle) {
             run.quit();
@@ -1866,7 +1948,7 @@ function boot() {
         training:()=>startGame('training'),
         weapon:()=>{
             audio.play('ui');
-            weaponView.show();
+            relicView.show();
         },
         skin:()=>{
             audio.play('ui');
@@ -1939,6 +2021,28 @@ function boot() {
                 return false;
             });
         },
+        equipWeapon:id=>{
+            settings.weapon=id;
+            saveSettings();
+            equipWeapon();
+            audio.play('reload');
+        },
+        buyWeapon:id=>{
+            audio.play('ui');
+            const item={kind:'weapon',value:id};
+            buyPrompt.open2(item,settings.skin,()=>{
+                if (buy(item)) {
+                    skinEditor.walletK=1;
+                    skinEditor.pulse['w'+id]=1;
+                    settings.weapon=id;
+                    saveSettings();
+                    equipWeapon();
+                    return true;
+                }
+                return false;
+            });
+        },
+        locked:()=>audio.play('fail'),
         dice:()=>audio.play('draw',1.3),
         fail:()=>audio.play('fail'),
         changed:(skin,big)=>{
@@ -2050,6 +2154,22 @@ function boot() {
         back:()=>{
             audio.play('ui');
             weaponView.hide();
+        }
+    });
+    const relicView=new RelicGacha({
+        select:()=>audio.play('ui'),
+        fail:()=>audio.play('fail'),
+        pull:()=>{
+            const id=pullRelic();
+            if (id) {
+                audio.play('draw',0.8);
+            }
+            return id;
+        },
+        sfx:k=>audio.play(k==='drop'?'card':'clear',k==='drop'?0.8:1.3),
+        back:()=>{
+            audio.play('ui');
+            relicView.hide();
         }
     });
     const langPick=new LangPicker({
@@ -2272,7 +2392,7 @@ function boot() {
         }
     });
     let pendingLevel=null;
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,popup,guide,choice,deckPick,levelUp,achView,chestView,buyPrompt,revivePopup,confirmPop];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,relicView,popup,guide,choice,deckPick,levelUp,achView,chestView,buyPrompt,revivePopup,confirmPop];
     setGate(()=>game.mode==='play'&&(run.mode==='story'||run.mode==='endless')&&!godMode());
     setAchHold(()=>game.mode==='play'&&run.mode==='training');
     const input=new Input(container);
@@ -2362,6 +2482,19 @@ function boot() {
             if (revivePopup.open) {
                 return revivePopup.down(x,y);
             }
+            if (game.mode==='play'&&overlay.hud.relicInfo) {
+                overlay.hud.openRelicInfo('');
+                audio.play('ui');
+                return true;
+            }
+            if (game.mode==='play'&&(pauseMenu.open||run.state!=='combat')&&!reward.open&&!choice.open&&!deckPick.open&&!summary.open&&!upgradeView.open) {
+                const rid=overlay.hud.hitRelic(x,y,overlay.width);
+                if (rid) {
+                    overlay.hud.openRelicInfo(rid);
+                    audio.play('ui');
+                    return true;
+                }
+            }
             if (levelUp.open) {
                 return levelUp.down(x,y);
             }
@@ -2379,6 +2512,9 @@ function boot() {
             }
             if (levelView.open) {
                 return levelView.down(x,y);
+            }
+            if (relicView.open) {
+                return relicView.down(x,y);
             }
             if (weaponView.open) {
                 return weaponView.down(x,y);
@@ -2617,6 +2753,12 @@ function boot() {
             levelView.hide();
             return;
         }
+        if (relicView.open) {
+            if (!relicView.anim) {
+                relicView.actions.back();
+            }
+            return;
+        }
         if (weaponView.open) {
             weaponView.actions.back();
             return;
@@ -2654,7 +2796,7 @@ function boot() {
     // false when the system may close the app (second back press within 2 s on the idle main menu).
     let lastExitBack=-1e9;
     window.__inkrageBack=()=>{
-        const idleMenu=game.mode==='menu'&&!popup.open&&!guide.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!skinEditor.open&&!trainingPicker.open&&!achView.open&&!chestView.open&&!buyPrompt.open&&!confirmPop.open;
+        const idleMenu=game.mode==='menu'&&!popup.open&&!guide.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!relicView.open&&!skinEditor.open&&!trainingPicker.open&&!achView.open&&!chestView.open&&!buyPrompt.open&&!confirmPop.open;
         if (idleMenu) {
             const now=performance.now();
             if (now-lastExitBack<2000) {
@@ -2796,7 +2938,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,popup,guide,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
+    const gameUi={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,relicView,popup,guide,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -2949,7 +3091,7 @@ function boot() {
         shared.uMist.value.x+=(player.pos.x-shared.uMist.value.x)*Math.min(1,dt*TUNING.fog.mist.follow);
         shared.uMist.value.y+=(player.pos.z-shared.uMist.value.y)*Math.min(1,dt*TUNING.fog.mist.follow);
         if (run.mode==='training'&&game.mode==='play') {
-            player.hp=TUNING.player.maxHp;
+            player.hp=player.maxHp;
             if (ink.value<TUNING.training.ink) {
                 ink.value=TUNING.training.ink;
             }
@@ -2965,9 +3107,21 @@ function boot() {
             }
         }
         if (run.tutorial()&&game.mode==='play') {
-            player.hp=TUNING.player.maxHp;
+            player.hp=player.maxHp;
             if (hand.visible()) {
                 ink.value=ink.max;
+            }
+        }
+        ink.max=TUNING.ink.max+inkMaxBonus();
+        tickRelics(dt);
+        if (overlay.hud.relicInfo&&game.mode==='play'&&run.state==='combat') {
+            overlay.hud.openRelicInfo('');
+        }
+        holdRelic('lastStand',lowHp(player.hp));
+        if (game.mode==='play'&&run.state==='combat'&&!fx.cutin&&run.mode!=='training') {
+            const drip=dripRelic(dt);
+            if (drip>0) {
+                ink.add(drip);
             }
         }
         const cr=game.mode==='play'&&run.course&&run.state==='combat'?run.course:null;
@@ -2985,7 +3139,7 @@ function boot() {
                 floatText(x,z,t('pickup.ink',{n}));
             }
             else {
-                player.hp=Math.min(TUNING.player.maxHp,player.hp+P.pickupHeal);
+                player.hp=Math.min(player.maxHp,player.hp+P.pickupHeal);
                 floatText(x,z,t('pickup.heal',{n:P.pickupHeal}));
             }
             particles.burst(x,1,z,10,{color:type==='ink'?'ink':'farGray',speed:[1,3],up:[2,5]});
@@ -3034,7 +3188,7 @@ function boot() {
     function updateDamageFx(dt) {
         bleed=Math.max(0,bleed-DF.bleedDecay*dt);
         let low=0;
-        const f=player.hp/TUNING.player.maxHp;
+        const f=player.hp/player.maxHp;
         if (f<DF.lowHp&&player.hp>0) {
             const prev=Math.floor(heart);
             heart+=dt*DF.heartRate;
@@ -3343,7 +3497,7 @@ function boot() {
     if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={ctx,guide,overlay,confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={ctx,guide,overlay,confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,relicView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

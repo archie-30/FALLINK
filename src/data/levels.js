@@ -191,6 +191,54 @@ export const PEACE_LAYOUTS={
     ]
 };
 
+const LIB_DECOR=[
+    {type:'shelf',x:-14,z:-12,w:7,h:6,d:1.4,rot:0.05},
+    {type:'shelf',x:-5,z:-13,w:7,h:7,d:1.4,rot:0},
+    {type:'arch',x:4,z:-15,w:6,h:6},
+    {type:'shelf',x:13,z:-12.5,w:7,h:6.5,d:1.4,rot:-0.06},
+    {type:'shelf',x:-20,z:-3,w:6,h:5.5,d:1.4,rot:1.45},
+    {type:'shelf',x:20.5,z:-2,w:6,h:5.5,d:1.4,rot:-1.5},
+    {type:'tome',x:-19,z:7,s:2.2,rot:0.5},
+    {type:'tome',x:19,z:8.5,s:1.8,rot:-0.7},
+    {type:'books',x:-16,z:4,w:2.6,d:3.4,rot:0.4,count:6},
+    {type:'books',x:16.5,z:4.5,w:2.2,d:3,rot:-0.3,count:5},
+    {type:'books',x:9,z:-18,w:3,d:4,rot:0.2,count:7},
+    {type:'candle',x:-15,z:-8,r:0.4,h:1.8},
+    {type:'candle',x:15,z:-8.5,r:0.35,h:1.4},
+    {type:'candle',x:-17,z:9,r:0.3,h:1.1},
+    {type:'candle',x:1,z:-11,r:0.35,h:1.5},
+    {type:'crumple',x:-8,z:13,r:1.6},
+    {type:'tome',x:6,z:13.5,s:1.5,rot:0.2},
+    {type:'candle',x:9,z:12,r:0.3,h:1.0}
+];
+
+export const LIBRARY={
+    size:[24,16],
+    spawn:[0,4],
+    wallHeight:0.7,
+    wallThickness:0.6,
+    spawnPoints:PEACE_SPAWNS,
+    base:[],
+    decor:LIB_DECOR,
+    props:[
+        {type:'shelf',x:-10.6,z:-6.6,w:2.4,h:2.6,d:0.9,rot:0.6,solid:[2.4,0.9]},
+        {type:'books',x:-10.6,z:5.5,w:1.4,d:1.8,rot:0.3,count:4},
+        {type:'candle',x:-6,z:-5.5,r:0.18,h:0.7},
+        {type:'candle',x:-6,z:4,r:0.16,h:0.5},
+        {type:'runes',x:7,z:-0.6,r:3.4,count:10},
+        {type:'candle',x:3.2,z:-3.6,r:0.2,h:0.9},
+        {type:'candle',x:10.8,z:-3.4,r:0.2,h:1.1},
+        {type:'candle',x:3.6,z:2.6,r:0.16,h:0.6},
+        {type:'candle',x:10.5,z:2.4,r:0.18,h:0.7},
+        {type:'tome',x:10.4,z:-5.8,s:0.7,rot:-0.4,solid:[2.2,1.6]},
+        {type:'shelf',x:11,z:5.6,w:2.2,h:2.2,d:0.8,rot:-0.5,solid:[2.2,0.8]},
+        {type:'sheet',x:-3,z:1,w:2.4,d:3,rot:0.25}
+    ].concat(LIB_DECOR),
+    keepers:[[-7.5,-2.6],[-7.5,1.8]],
+    librarian:[7,-3.6],
+    relics:[[4,1.4],[7,2.6],[10,1.4]]
+};
+
 export const TRAINING={
     layout:room([
         {type:'pillar',x:-12,z:-6.5,r:0.7,h:2.8},

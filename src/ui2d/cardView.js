@@ -5,6 +5,7 @@ import {sketchLine,sketchRect,sketchCircle,sketchPath,sketchPolygon,hatchFill,re
 import {cardName,cardDesc,cardCost,cardKey,cardParams,freeCards} from '../game/card.js';
 import {unlockLevel} from '../data/cards.js';
 import {RNG} from '../core/rng.js';
+import {carbonFree} from '../game/relic.js';
 
 export const CARD_W=TUNING.cards.width;
 export const CARD_H=TUNING.cards.height;
@@ -854,7 +855,7 @@ export function drawCost(ctx,card,flash,v) {
     ctx.fillStyle=PALETTE.ink;
     ctx.fill(DROP);
     drawShape(ctx,sketchPath([[0,-17],[7,-8],[13,3],[11,12],[0,18],[-11,12],[-13,3],[-7,-8],[0,-17]],{width:1.4,seed:88,overshoot:1}),PALETTE.ink,v);
-    const free=freeCards.left>0&&card.def.rarity!=='rare';
+    const free=(freeCards.left>0||carbonFree())&&card.def.rarity!=='rare';
     ctx.fillStyle=flash||free?PALETTE.red:PALETTE.paper;
     ctx.font='bold '+(free?17:15)+'px '+FONT;
     ctx.textAlign='center';

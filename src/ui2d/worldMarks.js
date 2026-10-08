@@ -4,6 +4,7 @@ import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,drawShape} from './sketch.js';
+import {relicParams} from '../data/relics.js';
 import {drawChoiceIcon,CHOICE_ICONS} from './menu.js';
 import {NOTEBOOK} from '../data/notebook.js';
 
@@ -223,6 +224,17 @@ export class WorldMarks {
             if (npcs.focus===i&&doors.focus<0) {
                 focused=i;
             }
+            else if (n.relic) {
+                const y=p.y-W.bangH+Math.sin(time.real*W.bobRate+i)*W.bob;
+                ctx.font='bold 13px '+FONT;
+                const label=n.label;
+                const tw=ctx.measureText(label).width+16;
+                ctx.fillStyle=rgba('paper',0.95);
+                ctx.fillRect(p.x-tw/2,y-11,tw,22);
+                drawShape(ctx,sketchRect(p.x-tw/2,y-11,tw,22,{width:1.4,seed:2400+i}),PALETTE.ink,v);
+                ctx.fillStyle=PALETTE.ink;
+                ctx.fillText(label,p.x,y+1);
+            }
             else if (n.item) {
                 const poor=game.run.stats.score<n.price;
                 const y=p.y-W.bangH+Math.sin(time.real*W.bobRate+i)*W.bob;
@@ -248,9 +260,11 @@ export class WorldMarks {
         if (focused>=0) {
             const n=npcs.list[focused];
             game.project(n.x,n.h+W.npcLift,n.z,p);
-            const sub=n.item?t('shop.'+n.item+'.desc',{price:n.price,n:SHOP.items[n.item].n||0}):null;
+            const sub=n.item?t('shop.'+n.item+'.desc',{price:n.price,n:SHOP.items[n.item].n||0}):(n.relic?t('relic.'+n.relic+'.desc',relicParams(n.relic)):null);
             const armed=touch&&npcs.armed===focused;
-            this.drawPrompt(ctx,p,armed?t('shop.confirmTap',{name:n.label}):t(touch?'npc.tap':'npc.press')+t('ui.gap')+(n.label||t('npc.'+n.model)),v,2320+focused,sub,armed);
+            const taken=n.relic&&game.run.lib&&game.run.lib.relic;
+            const head=taken?n.label+t('ui.sep')+t('library.viewOnly'):(n.relic?t('library.take',{name:n.label}):(n.label||t('npc.'+n.model)));
+            this.drawPrompt(ctx,p,armed?t(n.relic?'library.confirmTap':'shop.confirmTap',{name:n.label}):(taken?head:t(touch?'npc.tap':'npc.press')+t('ui.gap')+head),v,2320+focused,sub,armed);
         }
         ctx.restore();
     }

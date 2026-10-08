@@ -229,6 +229,36 @@ void main() {
 }
 `;
 
+export const ICON_VERT=`
+varying vec2 vUv;
+varying vec3 vViewNormal;
+varying float vDepth;
+void main() {
+    vUv=uv;
+    vec4 vp=modelViewMatrix*vec4(position,1.0);
+    vViewNormal=normalize(normalMatrix*normal);
+    vDepth=-vp.z;
+    gl_Position=projectionMatrix*vp;
+}
+`;
+
+export const ICON_FRAG=`
+${GBUF_OUT}
+uniform sampler2D tIcon;
+uniform float uFar;
+varying vec2 vUv;
+varying vec3 vViewNormal;
+varying float vDepth;
+void main() {
+    vec4 c=texture2D(tIcon,vUv);
+    if (c.a<0.5) {
+        discard;
+    }
+    gl_FragColor=vec4(c.rgb,1.0);
+    gBuf=vec4(normalize(vViewNormal)*0.5+0.5,vDepth/uFar);
+}
+`;
+
 export const DASH_FRAG=`
 ${OCCLUDE}
 uniform vec3 uColor;

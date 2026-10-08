@@ -1,8 +1,9 @@
 import*as THREE from 'three';
-import {toonMaterial} from '../render/materials.js';
+import {toonMaterial,iconMaterial} from '../render/materials.js';
 import {makeCircle} from '../core/collision.js';
 import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
+import {drawRelicIcon} from '../ui2d/relicIcons.js';
 
 const TONES={
     cover:{light:'farGray',mid:'midGray',dark:'nearGray'},
@@ -266,6 +267,83 @@ const MODELS={
         }
         return {r:0.65,h:1.3,still:true};
     },
+    cardKeeper(body) {
+        body.add(cyl(0.48,0.56,1.3,'light',0,0.65,0));
+        body.add(bx(1.05,0.1,0.6,'dark',0,1.32,0));
+        for (let i=0;i<4;i++) {
+            const c=bx(0.42,0.6,0.04,i===3?'cover':'light',-0.3+i*0.2,1.62,0.2-i*0.05);
+            c.rotation.z=-0.35+i*0.23;
+            body.add(c);
+        }
+        body.add(ball(0.36,'light',0,2.1,0));
+        body.add(cyl(0.38,0.38,0.06,'dark',0,2.3,0,14));
+        body.add(cyl(0.22,0.26,0.32,'dark',0,2.48,0,12));
+        eyes(body,2.12,0.32,0.13,0.06);
+        body.add(bx(0.08,0.4,0.05,'accent',0,0.85,0.55));
+        return {r:0.85,h:2.8};
+    },
+    ultKeeper(body) {
+        body.add(cyl(0.42,0.62,1.4,'dark',0,0.7,0));
+        body.add(ball(0.38,'light',0,1.75,0));
+        const hood=cyl(0.05,0.46,0.7,'dark',0,2.05,-0.04,12);
+        body.add(hood);
+        eyes(body,1.78,0.33,0.13,0.07,'accent');
+        const star=new THREE.Group();
+        star.position.set(0.55,1.4,0.35);
+        for (let i=0;i<3;i++) {
+            const b=bx(0.42,0.1,0.06,'accent',0,0,0);
+            b.rotation.z=i*Math.PI/3;
+            star.add(b);
+        }
+        body.add(star);
+        body.add(cyl(0.04,0.04,1.8,'dark',-0.62,0.9,0.15,6));
+        body.add(ball(0.13,'accent',-0.62,1.86,0.15));
+        return {r:0.85,h:2.6};
+    },
+    librarian(body,root) {
+        body.add(cyl(0.38,0.7,1.6,'dark',0,0.8,0));
+        body.add(cyl(0.45,0.45,0.1,'cover',0,1.62,0,12));
+        body.add(ball(0.36,'light',0,1.95,0));
+        body.add(cyl(0.02,0.56,0.95,'ink',0,2.55,0,10));
+        body.add(cyl(0.6,0.6,0.05,'ink',0,2.12,0,16));
+        for (const sx of [-1,1]) {
+            const lens=cyl(0.1,0.1,0.03,'light',sx*0.13,1.98,0.33,10);
+            lens.rotation.x=Math.PI/2;
+            body.add(lens);
+        }
+        body.add(bx(0.1,0.03,0.03,'ink',0,1.98,0.34));
+        body.add(ball(0.04,'ink',-0.13,1.98,0.35),ball(0.04,'ink',0.13,1.98,0.35));
+        body.add(bx(0.18,0.5,0.1,'light',0,1.62,0.4));
+        const book=bx(0.6,0.08,0.44,'cover',0,1.2,0.62);
+        book.rotation.x=0.35;
+        body.add(book);
+        body.add(bx(0.26,0.02,0.36,'light',-0.14,1.25,0.62));
+        body.add(bx(0.26,0.02,0.36,'light',0.14,1.25,0.62));
+        root.add(cyl(0.08,0.18,1.0,'dark',-1.0,0.5,0.7,8));
+        root.add(bx(0.8,0.06,0.6,'dark',-1.0,1.03,0.7));
+        const open=bx(0.66,0.06,0.46,'light',-1.0,1.09,0.7);
+        open.rotation.x=-0.25;
+        root.add(open);
+        return {r:1.0,h:3.0};
+    },
+    relic(body,root,s) {
+        root.add(cyl(0.38,0.48,0.75,'cover',0,0.375,0,8));
+        root.add(cyl(0.5,0.5,0.08,'dark',0,0.78,0,8));
+        root.add(cyl(0.48,0.5,0.06,'dark',0,0.03,0,8));
+        const c=document.createElement('canvas');
+        c.width=128;
+        c.height=128;
+        drawRelicIcon(c.getContext('2d'),s.relic,64,64,1.3,0);
+        const tex=new THREE.CanvasTexture(c);
+        tex.colorSpace=THREE.NoColorSpace;
+        const icon=new THREE.Mesh(geo('relicIcon',()=>new THREE.PlaneGeometry(1.1,1.1)),iconMaterial(tex));
+        icon.position.y=1.55;
+        icon.rotation.x=-TUNING.npc.iconTilt;
+        const spin=new THREE.Group();
+        spin.add(icon);
+        body.add(spin);
+        return {r:0.65,h:1.9,float:true,still:true,icon:spin};
+    },
     chest(body) {
         body.add(bx(1.2,0.65,0.85,'cover',0,0.33,0));
         body.add(bx(1.24,0.1,0.89,'dark',0,0.62,0));
@@ -302,7 +380,7 @@ export class Npcs {
             const info=MODELS[s.model](body,root,s);
             room.group.add(root);
             room.addPiece('npc',root,[makeCircle(s.x,s.z,info.r)],{x:s.x,z:s.z,radius:info.r,erasable:false});
-            this.list.push({model:s.model,item:s.item||null,label:s.label||null,price:s.price||0,root,body,x:s.x,z:s.z,r:info.r,h:info.h,lid:info.lid||null,float:!!info.float,still:!!info.still,used:false,sealed:false,t:Math.random()*6,yaw:0,pop:0,open:0});
+            this.list.push({model:s.model,item:s.item||null,label:s.label||null,price:s.price||0,relic:s.relic||null,root,body,x:s.x,z:s.z,r:info.r,h:info.h,lid:info.lid||null,icon:info.icon||null,float:!!info.float,still:!!info.still,used:false,sealed:false,t:Math.random()*6,yaw:0,pop:0,open:0});
         }
     }
 
@@ -351,6 +429,16 @@ export class Npcs {
             n.body.position.y=n.sealed||still?0:bob;
             const sq=1+(still?0:Math.sin(n.t*N.bobRate*2)*N.squash)+Math.sin(n.pop*Math.PI)*N.popScale;
             n.body.scale.set(1/Math.sqrt(sq),n.sealed?N.sealedScale:sq,1/Math.sqrt(sq));
+            if ((n.model==='item'||n.model==='relic')&&n.used) {
+                n.gone=Math.min(1,(n.gone||0)+dt*N.goneRate);
+                const g=Math.max(0.001,1-EASE.easeInCubic(n.gone));
+                n.body.scale.set(g,g,g);
+                n.body.position.y=n.gone*N.goneLift;
+                n.body.visible=n.gone<1;
+            }
+            if (n.icon) {
+                n.icon.rotation.y=Math.sin(n.t*N.iconSway)*0.35;
+            }
             if (n.lid) {
                 n.open+=((n.used&&!n.sealed?1:0)-n.open)*Math.min(1,dt*N.lidRate);
                 n.lid.rotation.x=-N.lidOpen*EASE.easeOutBack(Math.min(1,n.open));

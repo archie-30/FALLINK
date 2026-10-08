@@ -25,7 +25,7 @@ import {ACC_SLOTS,ACC_DEFAULT} from '../data/cosmetics.js';
 import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,levelChestsReady,randomSkin,ownsRelic,equippedRelic,relicPrice,relicsUnlocked} from '../core/meta.js';
 import {drawAcc,drawAccIcon,drawLock,drawWallet,drawCoin,drawMiniChest,drawItemIcon} from './meta.js';
 import {drawRelicIcon} from './relicIcons.js';
-import {RELIC_ORDER} from '../data/relics.js';
+import {RELIC_ORDER,RELIC_TINT,relicParams} from '../data/relics.js';
 
 function lerp1(a,b,f) {
     return a+(b-a)*Math.max(0,Math.min(1,f));
@@ -2732,7 +2732,7 @@ export class RunSummary {
             ctx.fillText(g,bx+pad,yy);
             ctx.font=(on?'bold ':'')+'13px '+FONT;
             ctx.fillStyle=PALETTE.ink;
-            ctx.fillText(label,bx+pad+26,yy+1);
+            ctx.fillText(label,bx+pad+32,yy+1);
             yy+=20;
         }
         ctx.restore();
@@ -2965,7 +2965,7 @@ export class RunSummary {
                 ctx.fillStyle=PALETTE.red;
                 ctx.textAlign='center';
                 ctx.textBaseline='middle';
-                ctx.fillText(this.grade(),0,3);
+                ctx.fillText(this.grade(),0,3,R*1.8);
             }
             ctx.restore();
             this.gradeRect={x:gx-R*1.2,y:gy-R*1.1,w:R*2.4,h:R*2.2};
@@ -4061,7 +4061,7 @@ function drawTone(ctx,x,y,r,tones,sel,v,seed,locked=false) {
     }
 }
 
-const SKIN_TABS=['colors','acc'];
+const SKIN_TABS=['colors','acc','weapon'];
 
 export class SkinEditor extends Panel {
     constructor(actions) {
@@ -4310,6 +4310,22 @@ export class SkinEditor extends Panel {
             const cur=this.skin();
             const split=this.outfitSel;
             this.outfitSel=-1;
+            if (q.weapon) {
+                if (q.ok) {
+                    if ((settings.weapon||'pen')!==q.weapon) {
+                        this.actions.equipWeapon(q.weapon);
+                        this.burst(q.x+q.h*0.55,q.y+q.h/2,[PALETTE.red,PALETTE.ink],14);
+                    }
+                }
+                else if (q.rnd) {
+                    this.say('weapon.random.locked',{n:RANDOM_WEAPON.min});
+                    this.actions.locked();
+                }
+                else {
+                    this.actions.buyWeapon(q.weapon);
+                }
+                return;
+            }
             if (q.preset) {
                 if (!presetOwned(q.preset)) {
                     this.actions.bundle(q.preset);
@@ -4679,6 +4695,88 @@ export class SkinEditor extends Panel {
         return y;
     }
 
+    drawWeapons(ctx,P,y,v,small) {
+        const U=TUNING.weaponUi;
+        const lv=effectiveLevel();
+        const ch=small?U.rowHSmall:U.rowH;
+        const x=P.x+18;
+        const w=P.w-36;
+        const list=[RANDOM_WEAPON.id,...WEAPON_ORDER];
+        ctx.font='12px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        const hl=wrapText(ctx,t('weapon.hint'),w);
+        for (const ln of hl) {
+            ctx.fillText(ln,x,y);
+            y+=16;
+        }
+        y+=6;
+        for (let i=0;i<list.length;i++) {
+            const id=list[i];
+            const rnd=id===RANDOM_WEAPON.id;
+            const unlocked=weaponUnlocked(id,lv);
+            const eq=(settings.weapon||'pen')===id;
+            const r={x,y,w,h:ch};
+            const hv=inRect(r,this.hx,this.hy);
+            const pu=this.pulse['w'+id]||0;
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.tabT-i*0.05)/0.45)));
+            ctx.save();
+            ctx.translate(x+w/2,y+ch/2);
+            const sc=ap*(1+(hv?0.02:0)+Math.sin(pu*Math.PI)*0.06);
+            ctx.scale(sc,sc);
+            ctx.rotate(Math.sin(pu*Math.PI*3)*0.02);
+            ctx.translate(-w/2,-ch/2);
+            ctx.fillStyle=eq?rgba('red',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.92));
+            ctx.fillRect(0,0,w,ch);
+            drawShape(ctx,sketchRect(0,0,w,ch,{width:eq?2.6:1.4,seed:1700+i}),eq?PALETTE.red:(unlocked?PALETTE.ink:PALETTE.midGray),v);
+            const bob=eq?Math.sin(time.real*3)*2:0;
+            drawWeaponIcon(ctx,id,ch*0.55,ch*0.5+bob,ch/100,v,!unlocked);
+            const tw=w-ch*1.15-(eq?70:12);
+            ctx.textAlign='left';
+            ctx.textBaseline='middle';
+            ctx.fillStyle=unlocked?PALETTE.ink:PALETTE.midGray;
+            fitText(ctx,t('weapon.'+id+'.name'),ch*1.1,ch*0.33,tw,small?16:19,'bold ');
+            let sub=t('weapon.'+id+'.short');
+            let red=false;
+            if (!unlocked) {
+                red=true;
+                sub=rnd?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('codex.locked',{level:WEAPONS[id].unlock})+t('ui.sep')+t('weapon.early',{n:TUNING.meta.price.weapon});
+            }
+            ctx.fillStyle=red?PALETTE.red:PALETTE.nearGray;
+            fitText(ctx,sub,ch*1.1,ch*0.7,tw,small?12:14,'');
+            if (eq) {
+                ctx.save();
+                ctx.translate(w-10,10);
+                ctx.rotate(0.12);
+                ctx.fillStyle=PALETTE.red;
+                ctx.fillRect(-58,-2,62,20);
+                ctx.fillStyle=PALETTE.paper;
+                ctx.font='bold 12px '+FONT;
+                ctx.textAlign='center';
+                ctx.fillText(t('weapon.equipped'),-27,8);
+                ctx.restore();
+            }
+            else if (!unlocked&&!rnd) {
+                drawLock(ctx,w-18,ch/2,0.6,PALETTE.midGray);
+            }
+            ctx.restore();
+            this.hits.push({x,y,w,h:ch,weapon:id,key:'w'+id,ok:unlocked,rnd});
+            y+=ch+U.listGap;
+        }
+        const id=settings.weapon||'pen';
+        ctx.font=(small?12:13)+'px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        y+=4;
+        for (const ln of wrapText(ctx,t('weapon.'+id+'.desc',weaponParams(id)),w)) {
+            ctx.fillText(ln,x,y);
+            y+=17;
+        }
+        return y+8;
+    }
+
     draw(ctx) {
         if (!this.shown()) {
             return;
@@ -4716,12 +4814,14 @@ export class SkinEditor extends Panel {
         ctx.clip();
         y+=4-this.scroll;
         const y0=y;
-        const slide=(1-EASE.easeOutCubic(this.tabT))*TUNING.metaUi.tab.slide*(this.tab==='acc'?1:-1)*4;
-        y=this.drawOutfits(ctx,P,y,v,small,cur);
+        const slide=(1-EASE.easeOutCubic(this.tabT))*TUNING.metaUi.tab.slide*(this.tab==='colors'?-1:1)*4;
+        if (this.tab!=='weapon') {
+            y=this.drawOutfits(ctx,P,y,v,small,cur);
+        }
         ctx.save();
         ctx.translate(slide,0);
         ctx.globalAlpha=Math.min(1,0.3+this.tabT);
-        y=this.tab==='acc'?this.drawAccs(ctx,P,y,v,small,cur):this.drawColors(ctx,P,y,v,small,cur);
+        y=this.tab==='weapon'?this.drawWeapons(ctx,P,y,v,small):(this.tab==='acc'?this.drawAccs(ctx,P,y,v,small,cur):this.drawColors(ctx,P,y,v,small,cur));
         ctx.restore();
         this.contentH=y-y0+6;
         ctx.restore();
@@ -6143,7 +6243,7 @@ export class Coach extends Panel {
                 ctx.font='bold 16px '+FONT;
                 ctx.textAlign='center';
                 ctx.textBaseline='bottom';
-                ctx.fillText(t(j?'menu.codex':'menu.weapon'),rx+cw/2,gy+chh-6);
+                ctx.fillText(t(j?'menu.codex':'menu.skin'),rx+cw/2,gy+chh-6);
                 const q=EASE.easeOutBack(Math.max(0,Math.min(1,(k-0.25-j*0.1)/0.12)));
                 if (q<=0) {
                     continue;
@@ -6986,20 +7086,6 @@ export function weaponParams(id) {
         out[k+'d']=c.damage;
     }
     return out;
-}
-
-function relicParams(id) {
-    const R=TUNING.relics;
-    if (id==='refill') {
-        return {...R.refill,n:Object.values(R.refill).length};
-    }
-    if (id==='sharpener') {
-        return {pct:Math.round((1-R.sharpener.reload)*100)};
-    }
-    if (id==='bandage') {
-        return {n:R.bandage.heal};
-    }
-    return {};
 }
 
 export class WeaponView extends Panel {
@@ -8066,7 +8152,7 @@ export class InfoPopup extends Panel {
     }
 }
 
-export const CHOICE_ICONS={battle:'battle',elite:'elite',challenge:'challenge',treasure:'treasure',shop:'shop',event:'event',encounter:'event',start:'next',swap:'pen',home:'leave',games:'event',back:'leave',rest:'rest',heal:'heal',upgrade:'upgrade',buy:'card',remove:'remove',leave:'leave',finish:'flag',continue:'pen',boss:'boss',next:'next',act:'book'};
+export const CHOICE_ICONS={battle:'battle',elite:'elite',challenge:'challenge',treasure:'treasure',shop:'shop',event:'event',encounter:'event',start:'next',swap:'pen',home:'leave',games:'event',back:'leave',rest:'rest',heal:'heal',upgrade:'upgrade',buy:'card',remove:'remove',leave:'leave',finish:'flag',continue:'pen',boss:'boss',next:'next',act:'book',library:'book',drop:'remove'};
 
 export function drawChoiceIcon(ctx,kind,x,y,r,v,red) {
     const col=red?PALETTE.red:PALETTE.ink;
@@ -8246,6 +8332,9 @@ export class ChoicePanel extends Panel {
         const s=this.spec;
         if (s.kind==='swap') {
             return ['weapon.'+o.id+'.name','weapon.'+o.id+'.short'];
+        }
+        if (s.kind==='drop') {
+            return ['relic.'+o.id+'.name','relic.'+o.id+'.short'];
         }
         const base=s.kind==='event'?'event.'+s.id+'.'+o.id:s.kind+'.'+o.id;
         return [base,base+'.desc'];
@@ -8430,6 +8519,22 @@ export class ChoicePanel extends Panel {
             ctx.fill();
             if (this.spec.kind==='swap') {
                 drawWeaponIcon(ctx,o.id,r.w/2,C.iconY,C.cardIconR/55,v,false);
+            }
+            else if (this.spec.kind==='drop') {
+                drawRelicIcon(ctx,o.id,r.w/2,C.iconY,C.cardIconR/46,v,false);
+                if (o.fresh) {
+                    ctx.save();
+                    ctx.translate(r.w-8,14);
+                    ctx.rotate(0.2);
+                    ctx.fillStyle=PALETTE.red;
+                    ctx.fillRect(-34,-10,38,20);
+                    ctx.fillStyle=PALETTE.paper;
+                    ctx.font='bold 12px '+FONT;
+                    ctx.textAlign='center';
+                    ctx.textBaseline='middle';
+                    ctx.fillText(t('drop.new'),-15,1);
+                    ctx.restore();
+                }
             }
             else {
                 drawChoiceIcon(ctx,CHOICE_ICONS[o.id]||'event',r.w/2,C.iconY,C.cardIconR,v,red);
