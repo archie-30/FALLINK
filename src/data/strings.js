@@ -1344,6 +1344,7 @@ export const STRINGS={
     'skin.tab.weapon':'武器',
     'gacha.coins':'持有金幣',
     'gacha.pullFree':'抽一次（開發者模式免費）',
+    'gacha.lockedDesc':'尚未解鎖，用扭蛋抽到後才能查看效果。',
     'gacha.title':'遺物',
     'gacha.machine':'遺物扭蛋機',
     'gacha.pull':'抽一次 · {n}',

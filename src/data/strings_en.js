@@ -1342,6 +1342,7 @@ export const STRINGS_EN={
     'skin.tab.weapon':'Weapon',
     'gacha.coins':'Coins',
     'gacha.pullFree':'Pull (free in developer mode)',
+    'gacha.lockedDesc':'Locked. Pull it from the capsule machine to see its effect.',
     'gacha.title':'Relics',
     'gacha.machine':'Relic Capsule Machine',
     'gacha.pull':'Pull · {n}',
