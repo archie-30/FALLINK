@@ -37,7 +37,11 @@ export function initMeta() {
     }
     P.ach=[...new Set(P.ach.map(id=>ACH_LEGACY[id]||id))].filter(id=>keys.has(id));
     P.achChests=Math.max(0,Math.min(Math.floor(achUnits()/M.chestEvery),Math.floor(Number(P.achChests)||0)));
-    P.relics=P.relics.filter(id=>RELIC_ORDER.includes(id));
+    if (P.relicV!==M.relicV) {
+        P.relics=[];
+        P.relicV=M.relicV;
+    }
+    P.relics=P.relics.filter(id=>RELIC_ORDER.includes(id)&&!RELIC_STARTERS.includes(id));
     delete P.relic;
     if (!P.modeSeen||typeof P.modeSeen!=='object'||Array.isArray(P.modeSeen)) {
         P.modeSeen={};
@@ -302,6 +306,9 @@ export function relicLocked() {
 }
 
 export function pullRelic() {
+    if (godMode()) {
+        return RELIC_ORDER[Math.floor(Math.random()*RELIC_ORDER.length)];
+    }
     const left=relicLocked();
     const p=relicPrice();
     if (left.length===0||progress.dots<p) {
