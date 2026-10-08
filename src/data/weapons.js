@@ -118,8 +118,8 @@ export const WEAPONS={
         pellets:1,
         colors:[
             {sys:'crayonR',chance:20,damage:28},
-            {sys:'crayonB',chance:30,damage:10},
-            {sys:'crayonG',chance:50,damage:5}
+            {sys:'crayonB',chance:40,damage:10},
+            {sys:'crayonG',chance:40,damage:5}
         ],
         flashColor:'red',
         stats:{dmg:3,rate:3,range:3,mag:3}

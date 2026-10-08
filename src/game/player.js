@@ -373,6 +373,25 @@ export class Player {
         q=grp('headwear','paperBoat',H);
         put(q,cyl(0.24,0.24,0.12,3),m.paper,0,0.37,-0.02,-Math.PI/2,0,0,true).scale.set(1.25,1,1);
         put(q,box(0.44,0.03,0.14),m.ink,0,0.26,-0.02);
+        q=grp('headwear','topHat',H);
+        put(q,cyl(0.32,0.32,0.03,14),m.hat,0,0.27,-0.02,-0.1,0,0,true);
+        put(q,cyl(0.2,0.21,0.34,12),m.hat,0,0.45,-0.04,-0.1,0,0,true);
+        put(q,cyl(0.212,0.212,0.06,12),m.ink,0,0.32,-0.03,-0.1,0,0);
+        q=grp('headwear','cap',H);
+        put(q,new THREE.SphereGeometry(0.31,12,6,0,Math.PI*2,0,Math.PI*0.45),m.hat,0,0.05,-0.01,-0.1,0,0,true);
+        put(q,box(0.32,0.025,0.24),m.gear,0,0.17,0.3,0.12,0,0,true);
+        put(q,ball(0.03,6,4),m.gear,0,0.36,-0.04);
+        q=grp('eyewear','shades',H);
+        for (const sx of [-1,1]) {
+            put(q,box(0.15,0.085,0.02),m.ink,sx*0.1,0.04,0.3,0,sx*0.12,0);
+            put(q,box(0.012,0.012,0.2),m.ink,sx*0.2,0.06,0.2,0,sx*0.25,0);
+        }
+        put(q,box(0.06,0.014,0.014),m.ink,0,0.06,0.31);
+        q=grp('eyewear','mask',H);
+        put(q,box(0.3,0.15,0.04),m.paper,0,-0.1,0.27,0,0,0,true);
+        for (const sx of [-1,1]) {
+            put(q,box(0.012,0.012,0.22),m.ink,sx*0.19,-0.05,0.17,0,sx*0.35,0);
+        }
         q=grp('eyewear','glasses',H);
         for (const sx of [-1,1]) {
             put(q,ring(0.072,0.013),m.ink,sx*0.1,0.03,0.3);
@@ -420,6 +439,24 @@ export class Player {
         for (let i=0;i<12;i++) {
             const a=i/12*Math.PI*2;
             put(q,frill,m.paper,Math.sin(a)*0.22,1.19,Math.cos(a)*0.2,0,a,0,true).scale.set(1.1,0.5,0.8);
+        }
+        q=grp('neckwear','medal',B);
+        put(q,ring(0.2,0.02),m.hat,0,1.19,0,Math.PI/2,0,0);
+        put(q,box(0.07,0.18,0.02),m.hat,0,1.09,0.24,-0.18,0,0,true);
+        put(q,cyl(0.075,0.075,0.025,12),m.gear,0,0.97,0.27,Math.PI/2-0.18,0,0,true);
+        put(q,ball(0.02,6,4),m.ink,0,0.97,0.29);
+        q=grp('neckwear','bandana',B);
+        put(q,ring(0.2,0.035),m.hat,0,1.18,0,Math.PI/2,0,0,true);
+        put(q,cone(0.17,0.22,3),m.hat,0,1.06,0.22,Math.PI-0.2,0,0,true).scale.set(1,1,0.35);
+        q=grp('backwear','balloon',B);
+        put(q,cyl(0.006,0.006,0.95,4),m.ink,0.22,1.55,-0.32,0,0,-0.12);
+        put(q,ball(0.21,10,8),m.hat,0.28,2.12,-0.32,0,0,0,true).scale.set(1,1.18,1);
+        put(q,cone(0.04,0.06,6),m.hat,0.27,1.86,-0.32,Math.PI,0,0);
+        q=grp('backwear','yardstick',B);
+        put(q,box(0.11,0.9,0.03),m.gear,0,1.02,-0.3,0,0,0.55,true);
+        for (let i=0;i<6;i++) {
+            const k=-0.36+i*0.14;
+            put(q,box(0.05,0.012,0.035),m.ink,-Math.sin(0.55)*k+0.03,1.02+Math.cos(0.55)*k,-0.31,0,0,0.55);
         }
         q=grp('backwear','cape',B);
         const cape=new THREE.Group();
@@ -606,6 +643,8 @@ export class Player {
         this.leapDur=dur;
         this.leapT=dur;
         this.leapH=h;
+        this.leapF=0;
+        this.leapPF=0;
         this.dashT=0;
         this.vel.set(0,0,0);
         this.invuln=Math.max(this.invuln,dur+TUNING.effects.leap.grace);
@@ -646,7 +685,8 @@ export class Player {
         this.root.position.copy(p);
         this.dashT=0;
         this.leapT=0;
-        this.leapY=0;
+        this.leapF=0;
+        this.leapPF=0;
         this.rapidT=0;
         this.hasteT=0;
         this.hasteMult=1;
@@ -688,7 +728,8 @@ export class Player {
         this.kick=0;
         this.dashT=0;
         this.leapT=0;
-        this.leapY=0;
+        this.leapF=0;
+        this.leapPF=0;
         this.dashIT=0;
         this.reloadT=0;
         this.beamT=0;
@@ -1033,12 +1074,15 @@ export class Player {
         if (this.leapT>0) {
             this.leapT-=dt;
             const f=1-Math.max(0,this.leapT)/this.leapDur;
+            const e=f*f*(3-2*f);
             this.vel.set(0,0,0);
-            this.pos.x=this.leapX0+(this.leapX1-this.leapX0)*f;
-            this.pos.z=this.leapZ0+(this.leapZ1-this.leapZ0)*f;
-            this.leapY=Math.sin(f*Math.PI)*this.leapH;
+            this.pos.x=this.leapX0+(this.leapX1-this.leapX0)*e;
+            this.pos.z=this.leapZ0+(this.leapZ1-this.leapZ0)*e;
+            this.leapPF=this.leapF??0;
+            this.leapF=f;
             if (this.leapT<=0) {
-                this.leapY=0;
+                this.leapF=0;
+                this.leapPF=0;
                 this.sqv-=TUNING.effects.leap.land;
                 if (this.events.onLand) {
                     this.events.onLand(this);
@@ -1312,7 +1356,10 @@ export class Player {
     sync(alpha) {
         this.renderPos.lerpVectors(this.prev,this.pos,alpha);
         this.root.position.copy(this.renderPos);
-        this.root.position.y+=this.leapY||0;
+        if (this.leapT>0||this.leapF>0) {
+            const f=(this.leapPF??0)+((this.leapF??0)-(this.leapPF??0))*alpha;
+            this.root.position.y+=Math.sin(f*Math.PI)*this.leapH;
+        }
         const step=Math.floor(time.real*TUNING.player.poseFps);
         if (step!==this.poseStep) {
             this.poseStep=step;

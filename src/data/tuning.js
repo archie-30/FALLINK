@@ -377,9 +377,9 @@ export const TUNING={
         wheelLine:40
     },
     effects:{
-        leap:{speed:22,life:0.5,time:0.42,height:2.2,tries:12,grace:0.08,land:3},
+        leap:{speed:22,life:0.5,time:0.68,height:2.4,tries:12,grace:0.08,land:3},
         puppet:{alpha:0.95,spin:2.5,ring:0.6,ringR:1.8},
-        ball:{radius:0.36,speed:22,maxLen:80,step:0.12,hop:9,hopH:0.35,spin:14},
+        ball:{radius:0.36,speed:22,maxLen:80,previewSegs:2,previewTail:4,step:0.12,hop:9,hopH:0.35,spin:14},
         stamp:{fall:0.32,hold:0.45,drop:7,lift:2,scale:0.95,shake:0.32},
         ruler:{max:3,height:1.5,y:0.95,alpha:0.32,tickAlpha:0.55,ticks:20},
         selfRing:1.3,
@@ -459,6 +459,10 @@ export const TUNING={
         fogPuffs:28
     },
     weaponUi:{
+        rowH:84,
+        rowHSmall:64,
+        listGap:10,
+        dragSlop:8,
         row:44,
         rowS:34,
         bar:9,
@@ -566,7 +570,8 @@ export const TUNING={
     levelView:{
         focusPad:12,
         rowH:84,
-        chestH:78
+        chestW:62,
+        chestS:0.62
     },
     training:{
         ink:10,
@@ -744,7 +749,7 @@ export const TUNING={
     metaUi:{
         chest:{shake:0.9,burst:0.35,itemGap:0.32,itemPop:0.45,float:6,rays:12},
         toast:{time:3.4,slide:0.35,w:300,wSmall:240,h:62,hSmall:52,top:14},
-        ach:{rowH:82,rowHSmall:80,twoCol:600,barH:16,chestR:19,stagger:0.02,rise:0.3,drop:8,scrollFollow:14,dragSlop:8},
+        ach:{pipW:46,pipGap:13,pipR:4.5,rowH:82,rowHSmall:80,twoCol:600,barH:16,chestR:19,stagger:0.02,rise:0.3,drop:8,scrollFollow:14,dragSlop:8},
         buy:{w:340,wSmall:300,wBundle:460,wBundleSmall:420,chip:46,chipSmall:40,stamp:0.45,close:0.7},
         revive:{w:420,wSmall:340,pulse:3},
         confirm:{w:460,wSmall:400,h:300,hSmall:250,flood:0.9},

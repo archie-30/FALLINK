@@ -41,7 +41,7 @@ import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
-import {initMeta,clampSkin,grantLevelChests,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
+import {initMeta,clampSkin,grantLevelChest,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
 import {startRelic,relic,takeGuard} from './game/relic.js';
 import {saveRunSnap,loadRunSnap,clearRunSnap} from './core/runSave.js';
 import {GuidePopup,courseGuide,modeGuide,modesGuide} from './ui2d/guide.js';
@@ -1488,7 +1488,7 @@ function boot() {
             }
             flushMeta();
             const levels=progress.level-lvBefore;
-            const items=scoring&&!godMode()?grant(runChestCount(stats,run.mode)+levels,levels).concat(grantLevelChests()):[];
+            const items=scoring&&!godMode()?grant(runChestCount(stats,run.mode)+levels,levels):[];
             summary.show(victory,stats,quit,toMenu=>{
                 audio.play('ui');
                 player.hp=TUNING.player.maxHp;
@@ -2110,6 +2110,13 @@ function boot() {
         back:()=>{
             audio.play('ui');
             levelView.hide();
+        },
+        chest:n=>{
+            const items=grantLevelChest(n);
+            if (items.length>0) {
+                audio.play('ui');
+                chestView.open2(items,t('levels.chestTitle',{n}),settings.skin,null);
+            }
         }
     });
     const trainingMenu=new TrainingMenu({
@@ -2469,6 +2476,10 @@ function boot() {
                 levelView.move(x,y);
                 return;
             }
+            if (weaponView.open) {
+                weaponView.move(x,y);
+                return;
+            }
             if (achView.open) {
                 achView.move(x,y);
                 return;
@@ -2494,6 +2505,7 @@ function boot() {
             codex.up(x,y);
             levelView.up();
             achView.up();
+            weaponView.up();
             skinEditor.up(x,y);
             trainingPicker.up(x,y);
             if (modalShown()) {
@@ -2661,6 +2673,7 @@ function boot() {
         codex.wheel(dy);
         summary.wheel(dy);
         levelView.wheel(dy);
+        weaponView.wheel(dy);
         trainingPicker.wheel(dy);
         skinEditor.wheel(dy);
         achView.wheel(dy);
