@@ -27,9 +27,9 @@ export const settings={
     fpsAuto:true,
     musicVol:0.55,
     sfxVol:0.8,
-    jitter:0.5,
-    jitterPrev:0.5,
-    jitterV:2,
+    jitter:1,
+    jitterPrev:1,
+    jitterV:3,
     mute:{volume:false,music:false,sfx:false,jitter:false},
     stickSize:0.45,
     stickX:0.45,
@@ -75,10 +75,11 @@ export function loadSettings() {
         if (raw) {
             const saved=JSON.parse(raw);
             Object.assign(settings,saved);
-            if (saved&&saved.jitterV!==2) {
-                settings.jitter=Math.min(1,(saved.jitter??1)*0.5);
-                settings.jitterPrev=Math.min(1,(saved.jitterPrev??1)*0.5);
-                settings.jitterV=2;
+            if (saved&&saved.jitterV!==3) {
+                const k=saved.jitterV===2?2:1;
+                settings.jitter=Math.min(1,(saved.jitter??1)*k);
+                settings.jitterPrev=Math.min(1,(saved.jitterPrev??1)*k);
+                settings.jitterV=3;
             }
         }
         settings.training=JSON.parse(JSON.stringify(TRAINING_DEFAULTS));
