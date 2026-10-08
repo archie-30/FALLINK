@@ -500,10 +500,99 @@ export const CARDS={
         params:{duration:5,damage:40,every:0.45},
         upgraded:{cost:3},
         effect:(g,t,p)=>g.inkStorm(p.duration,p.damage,p.every)
+    },
+    sketchLeap:{
+        id:'sketchLeap',
+        nameKey:'card.sketchLeap.name',
+        descKey:'card.sketchLeap.desc',
+        cost:3,
+        rarity:'common',
+        type:'defense',
+        mode:'throw',
+        targeting:'point',
+        range:8,
+        params:{count:8,damage:15},
+        upgraded:{cost:3,params:{count:12,damage:18}},
+        effect:(g,t,p)=>g.sketchLeap(t.x,t.z,p.count,p.damage)
+    },
+    puppet:{
+        id:'puppet',
+        nameKey:'card.puppet.name',
+        descKey:'card.puppet.desc',
+        cost:4,
+        rarity:'rare',
+        type:'utility',
+        mode:'summon',
+        targeting:'point',
+        range:8,
+        params:{duration:5,shields:3},
+        upgraded:{cost:3},
+        effect:(g,t,p)=>g.puppet(t.x,t.z,p.duration,p.shields)
+    },
+    bounceBall:{
+        id:'bounceBall',
+        nameKey:'card.bounceBall.name',
+        descKey:'card.bounceBall.desc',
+        cost:2,
+        rarity:'common',
+        type:'attack',
+        mode:'shoot',
+        targeting:'direction',
+        range:14,
+        params:{damage:12,bounces:3},
+        upgraded:{cost:2,params:{damage:12,bounces:4}},
+        effect:(g,t,p)=>g.bounceBall(t.dx,t.dz,p.damage,p.bounces)
+    },
+    stamp:{
+        id:'stamp',
+        nameKey:'card.stamp.name',
+        descKey:'card.stamp.desc',
+        cost:3,
+        rarity:'common',
+        type:'attack',
+        mode:'drop',
+        targeting:'point',
+        range:11,
+        radius:2.2,
+        params:{radius:2.2,damage:20},
+        upgraded:{cost:3,descKey:'card.stamp.descUp',params:{radius:2.2,damage:20,stun:2}},
+        effect:(g,t,p)=>g.stamp(t.x,t.z,p.radius,p.damage,p.stun||0)
+    },
+    ruler:{
+        id:'ruler',
+        nameKey:'card.ruler.name',
+        descKey:'card.ruler.desc',
+        cost:2,
+        rarity:'common',
+        type:'terrain',
+        mode:'place',
+        targeting:'point',
+        range:9,
+        params:{length:6,duration:8,bonus:30},
+        upgraded:{cost:2,params:{length:8,duration:10,bonus:40}},
+        effect:(g,t,p)=>g.ruler(t.x,t.z,p.length,p.duration,p.bonus)
     }
 };
 
 export const UNLOCKS={
+    1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','trap','paperShield','execute','tsunami'],
+    2:['inkDash','whiteout','dualWield'],
+    3:['shockwave','bounceBall'],
+    4:['haste','mark'],
+    5:['clone','stamp','inkBarrier'],
+    6:['inkMine','blot'],
+    7:['timeStop','pin'],
+    8:['sketchLeap','redraw'],
+    9:['paperBlade','echo'],
+    10:['chain','ruler','blackHole'],
+    11:['inkRain','inkField'],
+    12:['reflect','puppet'],
+    13:['inkWell','barrage'],
+    14:['clusterBomb','giantPen'],
+    15:['freezeAll','inkStorm']
+};
+
+export const LEGACY_UNLOCKS={
     1:['scatter','pierce','homing','bomb','rapid','pencilWall','eraser','trap','paperShield','inkDash','timeStop','clone','execute','tsunami','dualWield'],
     2:['whiteout','shockwave'],
     3:['haste','mark'],
@@ -515,6 +604,12 @@ export const UNLOCKS={
     9:['clusterBomb','giantPen'],
     10:['freezeAll','inkStorm']
 };
+
+export const KEPT_CARDS=[];
+
+export function cardUnlocked(id,level) {
+    return unlockLevel(id)<=level||KEPT_CARDS.includes(id);
+}
 
 export function unlockLevel(id) {
     for (const lv in UNLOCKS) {
@@ -530,6 +625,11 @@ export function unlockedCards(level) {
     for (const lv in UNLOCKS) {
         if (Number(lv)<=level) {
             out.push(...UNLOCKS[lv]);
+        }
+    }
+    for (const id of KEPT_CARDS) {
+        if (!out.includes(id)&&CARDS[id]) {
+            out.push(id);
         }
     }
     return out;

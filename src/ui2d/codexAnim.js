@@ -1008,6 +1008,143 @@ export const CARD_ANIMS={
             }
         }
     },
+    sketchLeap:{
+        period:2.8,
+        draw(S,k) {
+            const fire=0.15;
+            const tx=10;
+            const ty=6.6;
+            for (let i=0;i<8;i++) {
+                const an=i/8*Math.PI*2;
+                S.fly(PX+Math.cos(an)*0.6,PY+Math.sin(an)*0.6,PX+Math.cos(an)*4.2,PY+Math.sin(an)*4.2,k,fire,fire+0.16,'ink');
+            }
+            S.target('doodle',PX+3.4,PY-2.4,k,fire+0.12);
+            S.target('blob',PX+3.6,PY+1.6,k,fire+0.13);
+            const f=seg(k,fire+0.05,0.6);
+            const x=lerp(PX,tx,f);
+            const y=lerp(PY,ty,f)-Math.sin(f*Math.PI)*2.4;
+            if (f<1) {
+                S.ring(tx,ty,0.9,PALETTE.ink,0.06,0.5,[0.2,0.15]);
+            }
+            S.circle(lerp(PX,tx,f),lerp(PY,ty,f)+0.5,0.5*(1-Math.sin(f*Math.PI)*0.4),PALETTE.farGray,0.6);
+            S.player(x,y,0);
+            S.burst(tx,ty,1,seg(k,0.6,0.75),PALETTE.midGray);
+        }
+    },
+    puppet:{
+        period:3.4,
+        draw(S,k,t) {
+            const cx=9;
+            const cy=PY;
+            const on=seg(k,0.08,0.16)*(1-seg(k,0.86,0.94));
+            S.player(PX,PY,0);
+            if (on>0) {
+                for (let i=0;i<2;i++) {
+                    const r=((t*0.9+i*0.5)%1)*2.2;
+                    S.ring(cx,cy,r,PALETTE.red,0.07,on*(1-r/2.2));
+                }
+                S.player(cx,cy,t*2,{ghost:true,alpha:on*0.9});
+                const n=3;
+                for (let i=0;i<n;i++) {
+                    const an=t*0.8+i*Math.PI*2/n;
+                    S.rect(PX+Math.cos(an)*1.3-0.12,PY+Math.sin(an)*1.3-0.35,0.24,0.7,PALETTE.paper,on);
+                }
+            }
+            const foes=[['doodle',13.5,1.6],['sprayer',14,7.4],['blob',12.5,4.5]];
+            foes.forEach(([id,x,y],i)=>{
+                const pull=on*0.35;
+                S.enemy(id,lerp(x,cx+2,pull),lerp(y,cy,pull*0.6));
+                const k0=0.25+i*0.15;
+                S.fly(lerp(x,cx+2,pull)-0.6,lerp(y,cy,pull*0.6),cx+0.4,cy,k,k0,k0+0.12,'enemy');
+            });
+        }
+    },
+    bounceBall:{
+        period:2.8,
+        draw(S,k) {
+            const pts=[[PX+0.8,PY],[8,0.4],[12,8.6],[15.4,3.6]];
+            let total=0;
+            const L=[];
+            for (let i=0;i<pts.length-1;i++) {
+                const d=Math.hypot(pts[i+1][0]-pts[i][0],pts[i+1][1]-pts[i][1]);
+                L.push(d);
+                total+=d;
+            }
+            S.line(0,0.15,SW,0.15,PALETTE.ink,0.2);
+            S.line(0,SH-0.15,SW,SH-0.15,PALETTE.ink,0.2);
+            S.line(SW-0.15,0,SW-0.15,SH,PALETTE.ink,0.2);
+            S.player(PX,PY,-0.6);
+            const f=seg(k,0.1,0.8);
+            let d=f*total;
+            let x=pts[0][0];
+            let y=pts[0][1];
+            for (let i=0;i<L.length;i++) {
+                if (d<=L[i]) {
+                    x=lerp(pts[i][0],pts[i+1][0],d/L[i]);
+                    y=lerp(pts[i][1],pts[i+1][1],d/L[i]);
+                    break;
+                }
+                d-=L[i];
+            }
+            for (let i=0;i<pts.length-1;i++) {
+                S.line(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],i===0?PALETTE.ink:PALETTE.red,0.05,0.35,[0.25,0.2]);
+            }
+            S.target('doodle',lerp(PX+0.8,8,0.6),lerp(PY,0.4,0.6),k,0.1+0.7*(L[0]*0.6/total));
+            S.target('blob',lerp(8,12,0.5),lerp(0.4,8.6,0.5),k,0.1+0.7*((L[0]+L[1]*0.5)/total));
+            if (f>0&&f<1) {
+                S.circle(x,y,0.36,PALETTE.paper,1);
+                S.ring(x,y,0.36,PALETTE.ink,0.08,1);
+            }
+        }
+    },
+    stamp:{
+        period:2.6,
+        draw(S,k) {
+            const tx=10.5;
+            const ty=PY;
+            S.player(PX,PY,0);
+            const hit=0.42;
+            S.ring(tx,ty,2.2,PALETTE.red,0.06,0.6*(1-seg(k,hit,hit+0.05)),[0.25,0.2]);
+            S.circle(tx,ty,2.2,PALETTE.red,0.35*seg(k,hit,hit+0.04)*(1-seg(k,0.8,0.95)));
+            for (const [id,x,y] of [['doodle',9.6,3.6],['blob',11.4,5.2],['sprayer',10.8,3]]) {
+                S.target(id,x,y,k,hit);
+            }
+            const f=seg(k,0.15,hit);
+            const lift=k<hit?(1-f*f)*5:seg(k,0.6,0.8)*4;
+            if (k>0.15&&k<0.85) {
+                S.rect(tx-1.6,ty-1.2-lift,3.2,0.9,PALETTE.red,1);
+                S.rect(tx-1.4,ty-2.1-lift,2.8,0.9,PALETTE.paper,1);
+                S.rect(tx-0.3,ty-3.6-lift,0.6,1.5,PALETTE.midGray,1);
+                S.circle(tx,ty-3.9-lift,0.55,PALETTE.nearGray,1);
+            }
+            S.burst(tx,ty,2.6,seg(k,hit,hit+0.2),PALETTE.red);
+        }
+    },
+    ruler:{
+        period:2.6,
+        draw(S,k) {
+            const rx=8;
+            const on=seg(k,0.05,0.12)*(1-seg(k,0.9,0.97));
+            S.rect(rx-0.3,0.8,0.6,7.4,PALETTE.marker,0.35*on);
+            for (let i=0;i<=14;i++) {
+                S.line(rx-0.3,0.8+i*7.4/14,rx-0.3+(i%5===0?0.45:0.25),0.8+i*7.4/14,PALETTE.ink,0.04,on);
+            }
+            let kick=0;
+            for (let i=0;i<5;i++) {
+                const s0=0.18+i*0.12;
+                kick=Math.max(kick,seg(k,s0,s0+0.02)*(1-seg(k,s0+0.02,s0+0.06)));
+                if (k>=s0&&k<=s0+0.16) {
+                    const f=(k-s0)/0.16;
+                    const x=lerp(PX+0.9,12,f);
+                    const big=x>rx;
+                    S.line(x-0.8,PY,x,PY,big?PALETTE.red:PALETTE.midGray,0.09,0.6);
+                    S.circle(x,PY,big?0.24:0.14,big?PALETTE.red:PALETTE.ink,1);
+                }
+            }
+            S.player(PX,PY,0,{kick});
+            S.target('eraserMonster',12.6,PY,k,0.78);
+        }
+    },
     inkBarrier:{
         period:3.4,
         draw(S,k,t) {
@@ -2486,6 +2623,25 @@ export const WEAPON_ANIMS={
             S.rect(PX-0.8,PY+1.1,1.6*heat,0.25,heat>0.8?PALETTE.red:PALETTE.ink,1);
             S.player(PX,PY,0,{kick:on*0.3});
             S.target('compass',11.6,PY,k,0.55);
+        }
+    },
+    crayon:{
+        period:2.4,
+        draw(S,k) {
+            const cols=[PALETTE.crayonGreen,PALETTE.crayonBlue,PALETTE.red,PALETTE.crayonGreen,PALETTE.crayonBlue,PALETTE.crayonGreen];
+            let kick=0;
+            cols.forEach((c,i)=>{
+                const s=0.08+i*0.08;
+                kick=Math.max(kick,seg(k,s,s+0.02)*(1-seg(k,s+0.02,s+0.06)));
+                if (k>=s&&k<=s+0.2) {
+                    const f=(k-s)/0.2;
+                    const x=PX+0.9+f*(11-PX-0.9);
+                    S.line(x-0.8,PY,x,PY,c,0.08,0.6);
+                    S.circle(x,PY,c===PALETTE.red?0.2:0.14,c,1);
+                }
+            });
+            S.player(PX,PY,0,{kick});
+            S.target('doodle',11.6,PY,k,0.62);
         }
     },
     compass:{

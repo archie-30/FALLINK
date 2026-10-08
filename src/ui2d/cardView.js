@@ -419,6 +419,75 @@ const ICONS={
         ctx.restore();
         drawShape(ctx,sketchLine(cx-36,cy+30,cx+36,cy+24,{width:5,seed:330,taper:0.15}),PALETTE.ink,v);
     },
+    sketchLeap(ctx,v,cx,cy) {
+        for (let i=0;i<8;i++) {
+            const a=i/8*Math.PI*2;
+            drawShape(ctx,sketchLine(cx-20+Math.cos(a)*10,cy+16+Math.sin(a)*7,cx-20+Math.cos(a)*22,cy+16+Math.sin(a)*15,{width:1.6,seed:900+i,overshoot:0}),i%2?PALETTE.midGray:PALETTE.ink,v);
+            dot(ctx,cx-20+Math.cos(a)*25,cy+16+Math.sin(a)*17,2,i%2?PALETTE.nearGray:PALETTE.ink);
+        }
+        drawShape(ctx,sketchPath([[cx-20,cy+10],[cx-4,cy-24],[cx+14,cy-26],[cx+28,cy-4]],{width:1.6,seed:910,overshoot:0}),PALETTE.midGray,v);
+        dot(ctx,cx+28,cy-8,6,PALETTE.ink);
+        dot(ctx,cx+28,cy+6,8,PALETTE.ink);
+        drawShape(ctx,sketchCircle(cx+28,cy+16,9,{width:1.4,seed:911}),PALETTE.ink,v);
+    },
+    puppet(ctx,v,cx,cy) {
+        for (let i=0;i<3;i++) {
+            drawShape(ctx,sketchCircle(cx,cy+6,14+i*9,{width:1.4,seed:920+i}),i===0?PALETTE.red:PALETTE.farGray,v);
+        }
+        drawShape(ctx,sketchLine(cx,cy-36,cx,cy-12,{width:1.2,seed:924}),PALETTE.midGray,v);
+        drawShape(ctx,sketchLine(cx-14,cy-30,cx-8,cy+2,{width:1.2,seed:925}),PALETTE.midGray,v);
+        drawShape(ctx,sketchLine(cx+14,cy-30,cx+8,cy+2,{width:1.2,seed:926}),PALETTE.midGray,v);
+        drawShape(ctx,sketchLine(cx-18,cy-36,cx+18,cy-36,{width:2.4,seed:927}),PALETTE.ink,v);
+        drawShape(ctx,sketchCircle(cx,cy-6,6,{width:1.6,seed:928}),PALETTE.ink,v);
+        drawShape(ctx,sketchRect(cx-7,cy+1,14,14,{width:1.6,seed:929}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(cx-8,cy+3,cx-14,cy+10,{width:1.4,seed:930}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(cx+8,cy+3,cx+14,cy+10,{width:1.4,seed:931}),PALETTE.ink,v);
+        for (const [x,y] of [[-36,-10],[34,-14],[-30,26],[36,24]]) {
+            drawShape(ctx,sketchLine(cx+x,cy+y,cx+x*0.55,cy+y*0.55+3,{width:1.2,seed:940+x}),PALETTE.red,v);
+        }
+    },
+    bounceBall(ctx,v,cx,cy) {
+        drawShape(ctx,sketchPath([[cx-38,cy+22],[cx-12,cy-26],[cx+12,cy+22],[cx+34,cy-14]],{width:1.4,seed:950,overshoot:0}),PALETTE.midGray,v);
+        for (const [x,y] of [[-12,-26],[12,22]]) {
+            drawShape(ctx,sketchLine(cx+x-8,cy+y+(y<0?-4:4),cx+x+8,cy+y+(y<0?-4:4),{width:2.4,seed:951+x}),PALETTE.ink,v);
+        }
+        ctx.fillStyle=PALETTE.paper;
+        ctx.beginPath();
+        ctx.arc(cx+30,cy-10,11,0,Math.PI*2);
+        ctx.fill();
+        drawShape(ctx,sketchCircle(cx+30,cy-10,11,{width:1.8,seed:953}),PALETTE.ink,v);
+        drawShape(ctx,sketchPath([[cx+20,cy-14],[cx+30,cy-6],[cx+40,cy-12]],{width:1.6,seed:954}),PALETTE.red,v);
+    },
+    stamp(ctx,v,cx,cy) {
+        ctx.fillStyle=PALETTE.red;
+        ctx.globalAlpha=0.85;
+        ctx.fillRect(cx-26,cy+12,52,12);
+        ctx.globalAlpha=1;
+        drawShape(ctx,sketchRect(cx-24,cy+2,48,10,{width:1.8,seed:960}),PALETTE.ink,v);
+        drawShape(ctx,sketchRect(cx-6,cy-18,12,20,{width:1.6,seed:961}),PALETTE.ink,v);
+        drawShape(ctx,sketchCircle(cx,cy-26,9,{width:1.8,seed:962}),PALETTE.ink,v);
+        for (let i=0;i<4;i++) {
+            drawShape(ctx,sketchLine(cx-34+i*22,cy+30,cx-30+i*22,cy+36,{width:1.2,seed:963+i}),PALETTE.red,v);
+        }
+    },
+    ruler(ctx,v,cx,cy) {
+        ctx.save();
+        ctx.translate(cx,cy);
+        ctx.rotate(-0.35);
+        ctx.fillStyle=rgba('marker',0.35);
+        ctx.fillRect(-36,-9,72,18);
+        drawShape(ctx,sketchRect(-36,-9,72,18,{width:1.8,seed:970}),PALETTE.ink,v);
+        for (let i=0;i<=12;i++) {
+            const x=-34+i*68/12;
+            drawShape(ctx,sketchLine(x,-9,x,i%4===0?0:-4,{width:1,seed:971+i,overshoot:0}),PALETTE.ink,v);
+        }
+        ctx.restore();
+        for (let i=0;i<3;i++) {
+            const y=cy-20+i*14;
+            drawShape(ctx,sketchLine(cx-40,y+8,cx-6,y,{width:1.2,seed:990+i}),PALETTE.midGray,v);
+            drawShape(ctx,sketchLine(cx+6,y-3,cx+36,y-10,{width:2.6,seed:993+i}),PALETTE.red,v);
+        }
+    },
     inkBarrier(ctx,v,cx,cy) {
         for (let i=0;i<8;i++) {
             const a=i/8*Math.PI*2;
@@ -806,7 +875,7 @@ export function rareBorderPath() {
     return {path:p,length:(W-12+H-12)*2};
 }
 
-const FACT_KEYS=['dps','radius','range','width','duration','heal','ink','hits','jumps','mult','hp','length','push','ramp'];
+const FACT_KEYS=['dps','radius','range','width','duration','heal','ink','hits','jumps','mult','hp','length','push','ramp','bounces','shields','bonus','stun'];
 
 export function cardBrief(card) {
     const d=cardDesc(card);

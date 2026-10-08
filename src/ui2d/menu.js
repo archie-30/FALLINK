@@ -7,7 +7,7 @@ import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchLine,sketchCircle,drawShape} from './sketch.js';
 import {settings,STICK_DEFAULTS,device,textScale,autoDrop} from '../core/settings.js';
-import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel,STARTING_DECK,unlockedCards,TUTORIAL_DECK,TUTORIAL_ULT,TUTORIAL_MERGE} from '../data/cards.js';
+import {CARDS,ALL_CARDS,UNLOCKS,unlockLevel,cardUnlocked,STARTING_DECK,unlockedCards,TUTORIAL_DECK,TUTORIAL_ULT,TUTORIAL_MERGE} from '../data/cards.js';
 import {progress,xpToNext,hasSeen,effectiveLevel,godMode,trainable} from '../core/progress.js';
 import {createCard,cardDesc,cardName,cardCost} from '../game/card.js';
 import {ENEMIES} from '../data/enemies.js';
@@ -1792,7 +1792,7 @@ export class Codex extends Panel {
                 continue;
             }
             const need=unlockLevel(c.id);
-            const locked=need>effectiveLevel();
+            const locked=!cardUnlocked(c.id,effectiveLevel());
             const r={x:cx+4,y:cy,w:colW-8,h:rowH-12,kind:'card',id:c.id};
             if (!locked) {
                 this.hits.push(r);
@@ -3931,8 +3931,14 @@ export class LevelView extends Panel {
             ctx.fillStyle=cur?PALETTE.red:PALETTE.nearGray;
             const tag=cur?t('levels.here'):(reached?t('levels.done'):t('levels.need',{xp:total}));
             ctx.fillText(tag,V.x+14,rowTop+34);
+            const box=n%L.chestEvery===0;
+            if (box) {
+                ctx.fillStyle=progress.lvChests.includes(n)?PALETTE.midGray:PALETTE.red;
+                ctx.font='bold 12px '+FONT;
+                ctx.fillText(t('levels.chest',{n:L.chest.dots}),V.x+14,rowTop+52,100);
+            }
             const ch=this.chips(ctx,ids,V.x+120,rowTop+10,V.w-134,v,!reached);
-            y+=Math.max(tmpH,ch+26);
+            y+=Math.max(tmpH,ch+26,box?R.chestH:0);
         }
         ctx.fillStyle=PALETTE.nearGray;
         ctx.font='13px '+FONT;
@@ -6909,6 +6915,13 @@ export function drawWeaponIcon(ctx,id,x,y,s,v,locked) {
         shape([[-30,-10],[24,-6],[26,2],[-30,2]],locked?fill:PALETTE.midGray);
         shape([[24,-2],[32,-2],[32,4],[24,4]],ink);
     }
+    else if (id==='crayon') {
+        shape([[-30,-8],[12,-8],[12,8],[-30,8]],locked?fill:PALETTE.paper);
+        shape([[-18,-8],[2,-8],[2,8],[-18,8]],locked?fill:PALETTE.red);
+        shape([[12,-8],[30,0],[12,8]],locked?fill:PALETTE.red);
+        shape([[-36,-8],[-30,-8],[-30,-1],[-36,-1]],locked?fill:PALETTE.crayonBlue);
+        shape([[-36,1],[-30,1],[-30,8],[-36,8]],locked?fill:PALETTE.crayonGreen);
+    }
     else if (id==='highlighter') {
         shape([[-28,-9],[14,-9],[14,9],[-28,9]],locked?fill:'#EDD6A6');
         shape([[-36,-10],[-26,-10],[-26,10],[-36,10]],locked?fill:PALETTE.red);
@@ -6925,6 +6938,9 @@ export function drawWeaponIcon(ctx,id,x,y,s,v,locked) {
 
 function weaponValue(def,key) {
     if (key==='dmg') {
+        if (def.colors) {
+            return t('weapon.val.dmgRange',{a:Math.min(...def.colors.map(c=>c.damage)),b:Math.max(...def.colors.map(c=>c.damage))});
+        }
         if (def.bands) {
             return t('weapon.val.dmgRange',{a:Math.min(...def.bands),b:Math.max(...def.bands)});
         }
@@ -6942,6 +6958,17 @@ function weaponValue(def,key) {
         return t('weapon.val.range',{n:r.toFixed(1)});
     }
     return def.cooldown?t('weapon.val.none'):t('weapon.val.mag',{n:def.magazine,s:def.reloadTime});
+}
+
+export function weaponParams(id) {
+    const C=(WEAPONS[id]&&WEAPONS[id].colors)||[];
+    const out={};
+    for (const c of C) {
+        const k=c.sys.slice(-1).toLowerCase();
+        out[k]=c.chance;
+        out[k+'d']=c.damage;
+    }
+    return out;
 }
 
 function relicParams(id) {
@@ -7215,12 +7242,14 @@ export class WeaponView extends Panel {
         const cols=2;
         const cg=12;
         const cw=(gw-cg)/cols;
-        const rows=WEAPON_ORDER.length/cols;
+        const odd=WEAPON_ORDER.length%cols!==0;
+        const rows=Math.ceil(WEAPON_ORDER.length/cols);
         const U=TUNING.weaponUi;
-        const randH=small?U.randHSmall:U.randH;
-        const ch=Math.min(small?78:120,(this.backBtn.y-gy-16-randH-cg-(rows-1)*cg)/rows);
+        const randH=odd?0:(small?U.randHSmall:U.randH);
+        const ch=Math.min(small?78:120,(this.backBtn.y-gy-16-(odd?0:randH+cg)-(rows-1)*cg)/rows);
         this.hits=[];
-        this.drawRandomTile(ctx,{x:gx,y:gy+rows*(ch+cg),w:gw,h:randH,id:RANDOM_WEAPON.id},lv,small,v);
+        const last=WEAPON_ORDER.length;
+        this.drawRandomTile(ctx,odd?{x:gx+(last%cols)*(cw+cg),y:gy+Math.floor(last/cols)*(ch+cg),w:cw,h:ch,id:RANDOM_WEAPON.id,cell:true}:{x:gx,y:gy+rows*(ch+cg),w:gw,h:randH,id:RANDOM_WEAPON.id},lv,small,v);
         for (let i=0;i<WEAPON_ORDER.length;i++) {
             const id=WEAPON_ORDER[i];
             const x=gx+(i%cols)*(cw+cg);
@@ -7332,7 +7361,7 @@ export class WeaponView extends Panel {
         y+=small?30:40;
         ctx.font=(small?'15px ':'18px ')+FONT;
         ctx.fillStyle=PALETTE.nearGray;
-        const lines=wrapText(ctx,t('weapon.'+this.sel+'.desc'),dw);
+        const lines=wrapText(ctx,t('weapon.'+this.sel+'.desc',weaponParams(this.sel)),dw);
         for (let i=0;i<lines.length&&i<3;i++) {
             ctx.fillText(lines[i],dx,y);
             y+=small?20:25;
@@ -7622,10 +7651,11 @@ export class WeaponView extends Panel {
         ctx.fillStyle=sel?rgba('ink',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.95));
         ctx.fillRect(0,0,r.w,r.h);
         drawShape(ctx,sketchRect(0,0,r.w,r.h,{width:sel?2.8:1.5,seed:2025}),eq?PALETTE.red:(sel?PALETTE.ink:PALETTE.nearGray),v);
-        const d=r.h*0.62;
+        const s=r.cell?Math.min(r.h,r.w*0.36):r.h;
+        const d=s*0.62;
         const spin=sel&&!locked?Math.sin(this.animT*4)*0.25:0;
         ctx.save();
-        ctx.translate(r.h*0.62,r.h/2);
+        ctx.translate(s*0.62,r.h/2);
         ctx.rotate(spin-0.12);
         ctx.fillStyle=locked?PALETTE.farGray:PALETTE.paper;
         ctx.fillRect(-d/2,-d/2,d,d);
@@ -7640,11 +7670,22 @@ export class WeaponView extends Panel {
         ctx.fillStyle=locked?PALETTE.midGray:PALETTE.ink;
         ctx.textAlign='left';
         ctx.textBaseline='middle';
-        const x0=r.h*1.25;
-        fitText(ctx,t('weapon.random.name'),x0,r.h/2,r.w*0.3,small?17:21,'bold ');
-        const rx=x0+ctx.measureText(t('weapon.random.name')).width+12;
-        ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
-        fitText(ctx,locked?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('weapon.random.short'),rx,r.h/2+1,r.w-rx-10-(eq?58:0),small?14:15,'');
+        const x0=s*1.25;
+        const sub=locked?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('weapon.random.short');
+        if (r.cell) {
+            fitText(ctx,t('weapon.random.name'),x0,r.h*0.26,r.w-x0-8,small?17:21,'bold ');
+            ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
+            ctx.font=(small?13:14)+'px '+FONT;
+            const lines=wrapText(ctx,sub,r.w-x0-10).slice(0,2);
+            const lh=Math.round((small?15:18)*textScale());
+            lines.forEach((q,i)=>fitText(ctx,q,x0,r.h*0.52+i*lh,r.w-x0-8,small?13:14,''));
+        }
+        else {
+            fitText(ctx,t('weapon.random.name'),x0,r.h/2,r.w*0.3,small?17:21,'bold ');
+            const rx=x0+ctx.measureText(t('weapon.random.name')).width+12;
+            ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
+            fitText(ctx,sub,rx,r.h/2+1,r.w-rx-10-(eq?58:0),small?14:15,'');
+        }
         if (eq) {
             ctx.save();
             ctx.translate(r.w-10,r.h/2-10);

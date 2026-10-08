@@ -392,6 +392,41 @@ const MOTIFS={
             ctx.fillRect(w/2+bh*0.14,cy-bh/2,bh*0.28,bh);
         }
     },
+    puppet:{
+        back(ctx,w,h,k,cy) {
+            const R=Math.min(w,h)*0.22;
+            for (let i=0;i<3;i++) {
+                const q=seg(k,0.08+i*0.08,0.5+i*0.08);
+                if (q>0&&q<1) {
+                    ring(ctx,w/2,cy,R*(0.6+q*1.6),6*(1-q)+1,rgba('red',0.8*(1-q)),1700+i);
+                }
+            }
+            const drop=EASE.easeOutBack(seg(k,0.05,0.3));
+            const fy=cy-R*1.6+R*1.2*drop;
+            line(ctx,w/2-R*0.9,cy-R*1.9,w/2+R*0.9,cy-R*1.9,10,PALETTE.ink,1710,2);
+            for (const sx of [-0.6,0,0.6]) {
+                line(ctx,w/2+sx*R,cy-R*1.9,w/2+sx*R*0.5,fy+R*0.1,2,rgba('ink',0.6),1711+sx*10,1);
+            }
+            ctx.fillStyle=PALETTE.paper;
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=4;
+            ctx.beginPath();
+            ctx.arc(w/2,fy,R*0.28,0,Math.PI*2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillRect(w/2-R*0.3,fy+R*0.3,R*0.6,R*0.7);
+            ctx.strokeRect(w/2-R*0.3,fy+R*0.3,R*0.6,R*0.7);
+            for (let i=0;i<8;i++) {
+                const an=i/8*Math.PI*2;
+                const q=seg(k,0.25+i*0.02,0.6+i*0.02);
+                if (q<=0||q>=1) {
+                    continue;
+                }
+                const r0=R*(2.6-q*1.4);
+                line(ctx,w/2+Math.cos(an)*r0,cy+Math.sin(an)*r0,w/2+Math.cos(an)*(r0-R*0.4),cy+Math.sin(an)*(r0-R*0.4),5,PALETTE.red,1720+i,1);
+            }
+        }
+    },
     inkBarrier:{
         back(ctx,w,h,k,cy) {
             const R=Math.min(w,h)*0.26;
