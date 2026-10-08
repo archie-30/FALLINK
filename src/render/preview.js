@@ -180,11 +180,11 @@ export class Preview {
             if (card.id==='bounceBall') {
                 const B=TUNING.effects.ball;
                 const pts=bouncePath(this.roomFn?this.roomFn():null,p.x,p.z,target.dx,target.dz,params.bounces,B.maxLen,B.radius);
-                for (let i=0;i<pts.length-1&&i<this.lines.length;i++) {
+                for (let i=0;i<pts.length-1&&i<B.previewSegs;i++) {
                     const a=pts[i];
                     const b=pts[i+1];
                     const L=Math.hypot(b.x-a.x,b.z-a.z)||0.01;
-                    this.setLine(this.lines[i],a.x,a.z,(b.x-a.x)/L,(b.z-a.z)/L,L,i===0?color:'red');
+                    this.setLine(this.lines[i],a.x,a.z,(b.x-a.x)/L,(b.z-a.z)/L,i===0?L:Math.min(L,B.previewTail),i===0?color:'red');
                 }
                 return;
             }

@@ -1,14 +1,14 @@
 import {PALETTE,rgba,SKIN_TONES,ACCENTS} from '../data/palette.js';
 import {SKIN_PARTS,DEFAULT_SKIN} from '../data/skins.js';
 import {ACC_SLOTS} from '../data/cosmetics.js';
-import {ACHIEVEMENTS} from '../data/achievements.js';
+import {ACHIEVEMENTS,ROMAN,achUnits} from '../data/achievements.js';
 import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
 import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,sketchCircle,drawShape} from './sketch.js';
 import {progress} from '../core/progress.js';
-import {dots,price,statValue,chestsReady,bundlePrice} from '../core/meta.js';
+import {dots,price,statValue,chestsReady,achTier,bundlePrice} from '../core/meta.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {drawChoiceIcon} from './menu.js';
 import {wrapText} from './cardView.js';
@@ -210,6 +210,25 @@ const ACC_DRAW={
                 poly(ctx,[[sx*8.5,-27.5],[sx*8.2,-33.5],[sx*4.5,-30]],f[1],null);
             }
         },
+        topHat(ctx,s) {
+            const h=tones(s,'hat');
+            box(ctx,-12,-30,24,3,h[1]);
+            box(ctx,-7.5,-44,15,14,h[1]);
+            box(ctx,-7.5,-33,15,2.5,PALETTE.ink,null);
+        },
+        cap(ctx,s) {
+            const h=tones(s,'hat');
+            const g=tones(s,'gear');
+            ctx.fillStyle=h[1];
+            ctx.beginPath();
+            ctx.arc(-1,-27.5,10,Math.PI,Math.PI*2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=1;
+            ctx.stroke();
+            poly(ctx,[[6,-28.5],[17,-27],[16,-25],[6,-26]],g[1]);
+        },
         paperBoat(ctx) {
             poly(ctx,[[-14,-28],[14,-28],[0,-43]],PALETTE.paper);
             box(ctx,-14,-30,28,3,PALETTE.ink,null);
@@ -267,6 +286,23 @@ const ACC_DRAW={
             oval(ctx,-3.2,-13.8,4,1.7,0.3,l[2],null);
             oval(ctx,3.2,-13.8,4,1.7,-0.3,l[2],null);
         },
+        shades(ctx) {
+            for (const sx of [-1,1]) {
+                box(ctx,sx*4-3.6,-22,7.2,4.6,PALETTE.ink,null);
+            }
+            box(ctx,-10.5,-21.5,21,1,PALETTE.ink,null);
+        },
+        mask(ctx) {
+            box(ctx,-6.5,-16,13,6.5,PALETTE.paper,PALETTE.ink,0.8);
+            ctx.strokeStyle=rgba('ink',0.5);
+            ctx.lineWidth=0.7;
+            ctx.beginPath();
+            ctx.moveTo(-5,-13.5);
+            ctx.lineTo(5,-13.5);
+            ctx.moveTo(-5,-11.8);
+            ctx.lineTo(5,-11.8);
+            ctx.stroke();
+        },
         bandage(ctx) {
             for (const r of [-0.6,0.6]) {
                 ctx.save();
@@ -307,6 +343,18 @@ const ACC_DRAW={
                 const f=i/6;
                 oval(ctx,-9+f*18,-10+Math.sin(f*Math.PI)*5,1.8,1.8,0,i%3===0?PALETTE.ink:h[1],PALETTE.ink,0.6);
             }
+        },
+        medal(ctx,s) {
+            const h=tones(s,'hat');
+            const g=tones(s,'gear');
+            box(ctx,-10,-10.5,20,2.4,h[1],null);
+            box(ctx,-1.6,-8.5,3.2,6,h[1],PALETTE.ink,0.6);
+            oval(ctx,0,-1,3.6,3.6,0,g[1]);
+        },
+        bandana(ctx,s) {
+            const h=tones(s,'hat');
+            box(ctx,-10,-11,20,3.5,h[1],null);
+            poly(ctx,[[-8,-8],[8,-8],[0,2]],h[1]);
         },
         ruff(ctx) {
             for (let i=0;i<6;i++) {
@@ -350,6 +398,24 @@ const ACC_DRAW={
             box(ctx,-3,-2,8,10,g[1],PALETTE.ink,0.8);
             ctx.restore();
         },
+        balloon(ctx,s) {
+            const h=tones(s,'hat');
+            ctx.strokeStyle=PALETTE.ink;
+            ctx.lineWidth=0.7;
+            ctx.beginPath();
+            ctx.moveTo(10,-2);
+            ctx.lineTo(13,-34);
+            ctx.stroke();
+            oval(ctx,14,-40,6,7,0,h[1]);
+        },
+        yardstick(ctx,s) {
+            const g=tones(s,'gear');
+            ctx.save();
+            ctx.translate(0,-4);
+            ctx.rotate(-0.55);
+            box(ctx,-2.5,-20,5,40,g[1],PALETTE.ink,0.8);
+            ctx.restore();
+        },
         scroll(ctx,s) {
             const g=tones(s,'gear');
             ctx.save();
@@ -364,6 +430,27 @@ const ACC_DRAW={
 };
 
 const BACK_ICON={
+    balloon(ctx,s) {
+        const h=tones(s,'hat');
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=1;
+        ctx.beginPath();
+        ctx.moveTo(0,16);
+        ctx.quadraticCurveTo(-3,8,0,2);
+        ctx.stroke();
+        oval(ctx,0,-6,9,10.5,0,h[1]);
+        poly(ctx,[[-1.5,3.5],[1.5,3.5],[0,1]],h[1]);
+    },
+    yardstick(ctx,s) {
+        const g=tones(s,'gear');
+        ctx.save();
+        ctx.rotate(0.6);
+        box(ctx,-4,-17,8,34,g[1]);
+        for (let i=0;i<7;i++) {
+            box(ctx,-4,-14+i*4.5,i%2?3:5,0.9,PALETTE.ink,null);
+        }
+        ctx.restore();
+    },
     pouch(ctx,s) {
         const g=tones(s,'gear');
         const h=tones(s,'hat');
@@ -570,6 +657,11 @@ export function drawMiniChest(ctx,x,y,s,v,state) {
     ctx.globalAlpha*=state==='locked'?0.45:1;
     drawChest(ctx,s,state==='claimed'?{x:-4,y:-6,r:-0.5}:{},v,state==='claimed',ready?0.8:0);
     ctx.restore();
+}
+
+
+export function achLabel(a,tier) {
+    return t('ach.'+a.id+'.name')+(a.goals.length>1?' '+ROMAN[tier]:'');
 }
 
 export class BuyPrompt extends Panel {
@@ -1131,7 +1223,7 @@ export class AchievementView extends Panel {
     nextChest() {
         const E=TUNING.meta.chestEvery;
         const n=progress.ach.length;
-        const chests=Math.floor(ACHIEVEMENTS.length/E);
+        const chests=Math.floor(achUnits()/E);
         const i=Math.min(chests,progress.achChests+1);
         const done=progress.achChests>=chests;
         const f=done?1:Math.max(0,Math.min(1,(n-(i-1)*E)/E));
@@ -1140,7 +1232,7 @@ export class AchievementView extends Panel {
 
     drawTopBar(ctx,x,y,w,v,small) {
         const n=progress.ach.length;
-        const total=ACHIEVEMENTS.length;
+        const total=achUnits();
         const E=TUNING.meta.chestEvery;
         const U=TUNING.metaUi.ach;
         const bh=U.barH;
@@ -1166,7 +1258,7 @@ export class AchievementView extends Panel {
         ctx.fillStyle=PALETTE.nearGray;
         ctx.font=(small?12:13)+'px '+FONT;
         ctx.textAlign='left';
-        ctx.fillText(t('ach.chestNo',{i:nc.i,n:Math.floor(ACHIEVEMENTS.length/E)}),bx,by+bh+(small?11:13));
+        ctx.fillText(t('ach.chestNo',{i:nc.i,n:Math.floor(achUnits()/E)}),bx,by+bh+(small?11:13));
         this.chestHits=[];
         const cx=bx+bw+14+r;
         const cy=by+bh/2;
@@ -1224,18 +1316,24 @@ export class AchievementView extends Panel {
         const rh=small?U.rowHSmall:U.rowH;
         const cols=P.w>=U.twoCol?2:1;
         const cw=(V.w-20-(cols-1)*14)/cols;
-        const order=ACHIEVEMENTS.map((q,i)=>({q,i,done:progress.ach.includes(q.id)}));
+        const order=ACHIEVEMENTS.map((q,i)=>{
+            const tier=achTier(q);
+            return {q,i,tier,done:tier>=q.goals.length};
+        });
         const y0=y-this.scroll;
         for (let k=0;k<order.length;k++) {
-            const {q,done}=order[k];
+            const {q,done,tier}=order[k];
+            const cur=Math.min(tier,q.goals.length-1);
+            const goal=q.goals[cur];
+            const multi=q.goals.length>1;
             const rx=V.x+10+(k%cols)*(cw+14);
             const ry=y0+Math.floor(k/cols)*(rh+10);
             if (ry>V.y+V.h||ry+rh<V.y) {
                 continue;
             }
             const ap=EASE.easeOutCubic(clamp01((this.t-0.1-Math.min(k,8)*U.stagger)/U.rise));
-            const val=done?q.goal:Math.min(q.goal,statValue(q.stat));
-            const f=done?1:val/q.goal;
+            const val=done?goal:Math.min(goal,statValue(q.stat));
+            const f=done?1:val/goal;
             ctx.save();
             ctx.translate(rx,ry+(1-ap)*U.drop);
             ctx.globalAlpha*=clamp01(ap);
@@ -1249,9 +1347,21 @@ export class AchievementView extends Panel {
             ctx.textAlign='left';
             ctx.textBaseline='middle';
             ctx.fillStyle=done?PALETTE.ink:PALETTE.ink;
-            fitText(ctx,t('ach.'+q.id+'.name'),tx,rh*0.26,tw,small?17:18,'bold ');
+            fitText(ctx,achLabel(q,cur),tx,rh*0.26,tw-(multi?U.pipW:0),small?17:18,'bold ');
+            if (multi) {
+                for (let p=0;p<q.goals.length;p++) {
+                    const px=tx+tw-U.pipW+8+p*U.pipGap;
+                    ctx.fillStyle=p<tier?PALETTE.red:rgba('farGray',0.9);
+                    ctx.beginPath();
+                    ctx.arc(px,rh*0.26,U.pipR,0,Math.PI*2);
+                    ctx.fill();
+                    ctx.strokeStyle=p<tier?PALETTE.darkRed:PALETTE.midGray;
+                    ctx.lineWidth=1;
+                    ctx.stroke();
+                }
+            }
             ctx.fillStyle=PALETTE.nearGray;
-            fitText(ctx,t('ach.'+q.id+'.desc',{n:q.goal}),tx,rh*0.53,tw,small?14:14,'');
+            fitText(ctx,t('ach.'+q.id+'.desc',{n:goal}),tx,rh*0.53,tw,small?14:14,'');
             const bx=tx;
             const by=rh*0.74;
             const bw=tw;
@@ -1262,7 +1372,7 @@ export class AchievementView extends Panel {
             ctx.fillStyle=PALETTE.nearGray;
             ctx.font='bold '+(small?14:13)+'px '+FONT;
             ctx.textAlign='right';
-            ctx.fillText(val+'/'+q.goal,cw-12,rh*0.78);
+            ctx.fillText(val+'/'+goal,cw-12,rh*0.78);
             if (done) {
                 ctx.save();
                 ctx.translate(cw-(small?40:46),rh*0.36);
@@ -1691,7 +1801,7 @@ export class AchToast {
         ctx.textBaseline='middle';
         ctx.fillText(t('ach.unlocked'),th*0.95,th*0.3);
         ctx.fillStyle=PALETTE.ink;
-        fitText(ctx,t('ach.'+q.a.id+'.name'),th*0.95,th*0.62,tw-th*0.95-60,small?14:16,'bold ');
+        fitText(ctx,achLabel(q.a,q.a.tier||0),th*0.95,th*0.62,tw-th*0.95-60,small?14:16,'bold ');
         const dk=clamp01((q.t-U.slide-0.2)/0.3);
         ctx.save();
         ctx.translate(tw-34,th/2-(1-dk)*10);

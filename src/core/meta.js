@@ -1,7 +1,7 @@
 import {progress,saveProgress,godMode,effectiveLevel} from './progress.js';
 import {SKIN_PARTS,DEFAULT_SKIN} from '../data/skins.js';
 import {ACC_SLOTS,ACC_DEFAULT,BASIC_TONES,BASIC_ACC} from '../data/cosmetics.js';
-import {ACHIEVEMENTS} from '../data/achievements.js';
+import {ACHIEVEMENTS,ACH_LEGACY,achKey,achUnits} from '../data/achievements.js';
 import {TUNING} from '../data/tuning.js';
 import {EARLY_WEAPONS,WEAPONS} from '../data/weapons.js';
 import {RELIC_ORDER} from '../data/relics.js';
@@ -31,7 +31,12 @@ export function initMeta() {
     while (P.outfits.length<M.customSlots) {
         P.outfits.push(null);
     }
-    P.achChests=Math.max(0,Math.floor(Number(P.achChests)||0));
+    const keys=new Set();
+    for (const a of ACHIEVEMENTS) {
+        a.goals.forEach((g,k)=>keys.add(achKey(a,k)));
+    }
+    P.ach=[...new Set(P.ach.map(id=>ACH_LEGACY[id]||id))].filter(id=>keys.has(id));
+    P.achChests=Math.max(0,Math.min(Math.floor(achUnits()/M.chestEvery),Math.floor(Number(P.achChests)||0)));
     P.relics=P.relics.filter(id=>RELIC_ORDER.includes(id));
     if (typeof P.relic!=='string'||!P.relics.includes(P.relic)) {
         P.relic='';
@@ -196,12 +201,23 @@ export function grant(n,accFirst=0) {
     return out;
 }
 
-export function grantLevelChests() {
+export function levelChestsReady() {
+    const L=TUNING.levels;
+    let n=0;
+    for (let lv=L.chestEvery;lv<=progress.level;lv+=L.chestEvery) {
+        if (!progress.lvChests.includes(lv)) {
+            n++;
+        }
+    }
+    return n;
+}
+
+export function grantLevelChest(only) {
     const P=progress;
     const L=TUNING.levels;
     const out=[];
     for (let lv=L.chestEvery;lv<=P.level;lv+=L.chestEvery) {
-        if (P.lvChests.includes(lv)) {
+        if (P.lvChests.includes(lv)||lv!==only) {
             continue;
         }
         P.lvChests.push(lv);
@@ -416,11 +432,15 @@ export function checkAch(quiet=false) {
     const P=progress;
     let got=false;
     for (const a of ACHIEVEMENTS) {
-        if (!P.ach.includes(a.id)&&statValue(a.stat)>=a.goal) {
-            P.ach.push(a.id);
-            P.dots++;
-            achQueue.push(a);
-            got=true;
+        const v=statValue(a.stat);
+        for (let k=0;k<a.goals.length;k++) {
+            const key=achKey(a,k);
+            if (!P.ach.includes(key)&&v>=a.goals[k]) {
+                P.ach.push(key);
+                P.dots++;
+                achQueue.push({...a,tier:k});
+                got=true;
+            }
         }
     }
     if (got&&!quiet) {
@@ -437,6 +457,14 @@ export function flushMeta() {
 
 export function metaDirty() {
     return dirty;
+}
+
+export function achTier(a) {
+    let k=0;
+    while (k<a.goals.length&&progress.ach.includes(achKey(a,k))) {
+        k++;
+    }
+    return k;
 }
 
 export function chestsReady() {
