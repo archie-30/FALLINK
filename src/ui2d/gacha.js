@@ -155,6 +155,10 @@ export class RelicGacha extends Panel {
                 A.crank=true;
                 this.actions.sfx('crank');
             }
+            if (!A.shook&&A.t>=G().fly+0.55) {
+                A.shook=true;
+                this.actions.sfx('shake');
+            }
             if (!A.drop&&A.t>=G().drop) {
                 A.drop=true;
                 this.actions.sfx('drop');

@@ -2112,11 +2112,11 @@ function boot() {
         pull:()=>{
             const id=pullRelic();
             if (id) {
-                audio.play('draw',0.8);
+                audio.play('gachaCoin');
             }
             return id;
         },
-        sfx:k=>audio.play(k==='drop'?'card':(k==='crank'?'reload':'clear'),k==='drop'?0.8:1.3),
+        sfx:k=>audio.play('gacha'+k[0].toUpperCase()+k.slice(1)),
         back:()=>{
             audio.play('ui');
             relicView.hide();
