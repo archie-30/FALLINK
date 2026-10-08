@@ -317,6 +317,10 @@ export function pullRelic() {
     const id=left[Math.floor(Math.random()*left.length)];
     progress.dots-=p;
     progress.relics.push(id);
+    progress.stats.pulls=(progress.stats.pulls||0)+1;
+    if (progress.dots===0) {
+        progress.stats.gachaBroke=1;
+    }
     checkAch(true);
     saveProgress();
     return id;
@@ -404,6 +408,9 @@ export function statValue(stat) {
     }
     if (stat==='bossKinds') {
         return (P.kinds.boss||[]).length;
+    }
+    if (stat==='relicsOwned') {
+        return RELIC_ORDER.filter(id=>RELIC_STARTERS.includes(id)||P.relics.includes(id)).length;
     }
     if (stat==='weaponKinds') {
         return (P.kinds.weapon||[]).length;

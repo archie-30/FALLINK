@@ -29,6 +29,9 @@ export const ACHIEVEMENTS=[
     {id:'outfit',stat:'outfits',goals:[1],icon:'pen'},
     {id:'dress10',stat:'owned',goals:[10,25,50],icon:'treasure'},
     {id:'weapons4',stat:'weaponKinds',goals:[4,5,7],icon:'pen'},
+    {id:'gacha',stat:'pulls',goals:[1,5,10],icon:'capsule'},
+    {id:'gachaBroke',stat:'gachaBroke',goals:[1],icon:'capsule'},
+    {id:'relicAll',stat:'relicsOwned',goals:[8,15,22],icon:'book'},
     {id:'codexAll',stat:'seen',goals:[13],icon:'book'}
 ];
 
