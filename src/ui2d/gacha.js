@@ -417,13 +417,9 @@ export class RelicGacha extends Panel {
                 ctx.stroke();
                 ctx.setLineDash([]);
             }
-            drawRelicIcon(ctx,id,0,own&&sel?Math.sin(time.real*2+i)*2:0,ts/2/50,v,own?false:'hidden');
+            drawRelicIcon(ctx,id,0,own&&sel?Math.sin(time.real*2+i)*2:0,ts/2/50,v,!own);
             if (!own) {
-                ctx.fillStyle=PALETTE.midGray;
-                ctx.font='bold '+Math.round(ts*0.4)+'px '+FONT;
-                ctx.textAlign='center';
-                ctx.textBaseline='middle';
-                ctx.fillText('?',0,2);
+                drawLock(ctx,ts*0.36,ts*0.34,0.8,PALETTE.nearGray);
             }
             ctx.restore();
             ctx.fillStyle=own?(sel?PALETTE.red:PALETTE.ink):PALETTE.midGray;
@@ -451,7 +447,7 @@ export class RelicGacha extends Panel {
         ctx.fillRect(gx,dy,gw,dh);
         drawShape(ctx,sketchRect(gx,dy,gw,dh,{width:1.6,seed:4640}),PALETTE.ink,v);
         const ir=small?20:28;
-        drawRelicIcon(ctx,id,gx+12+ir,dy+dh/2,ir/50,v,own?false:'hidden');
+        drawRelicIcon(ctx,id,gx+12+ir,dy+dh/2,ir/50,v,!own);
         if (!own) {
             drawLock(ctx,gx+12+ir*1.7,dy+dh/2+ir*0.6,0.9,PALETTE.nearGray);
         }

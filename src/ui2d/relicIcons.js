@@ -541,7 +541,8 @@ export function drawRelicIcon(ctx,id,x,y,s,v,locked=false,badge=true) {
     ctx.translate(x,y);
     ctx.scale(s,s);
     if (locked) {
-        ctx.globalAlpha*=0.55;
+        ctx.globalAlpha*=0.85;
+        ctx.filter='grayscale(1)';
     }
     if (badge) {
         const pts=framePts(relicFrame(id),46);
@@ -562,7 +563,7 @@ export function drawRelicIcon(ctx,id,x,y,s,v,locked=false,badge=true) {
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.restore();
-        drawShape(ctx,sketchPolygon(pts,{width:2.8,seed}),locked?PALETTE.midGray:T[2],v);
+        drawShape(ctx,sketchPolygon(pts,{width:2.8,seed}),locked?PALETTE.nearGray:T[2],v);
         if (!locked) {
             ctx.fillStyle=T[2];
             for (const p of pts.filter((q,i)=>i%Math.max(1,Math.floor(pts.length/4))===0).slice(0,4)) {
@@ -577,6 +578,6 @@ export function drawRelicIcon(ctx,id,x,y,s,v,locked=false,badge=true) {
         ctx.restore();
         return;
     }
-    f(ctx,v,locked?PALETTE.midGray:PALETTE.ink,locked?PALETTE.farGray:PALETTE.paper,locked?PALETTE.midGray:T[1]);
+    f(ctx,v,locked?PALETTE.nearGray:PALETTE.ink,PALETTE.paper,locked?PALETTE.midGray:T[1]);
     ctx.restore();
 }
