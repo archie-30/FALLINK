@@ -110,7 +110,7 @@ function drawStarterTag(ctx,id,x,y,px,v) {
 
 const MENU_ACTS=['start','endless','weapon','training','achieve','codex'];
 
-const MENU_SUBS=[0,1,2];
+const MENU_SUBS=[0,1];
 
 const MENU_EXTRA=['settings','skin'];
 
@@ -335,10 +335,8 @@ export class MainMenu extends Panel {
         ctx.font=(small?'11px ':'13px ')+FONT;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        const wid=settings.weapon||'pen';
-        const lines=[t('menu.bestStory',{score:progress.bestStory||0}),t('menu.best',{score:progress.bestScore||0}),t('menu.equipped',{name:t('weapon.'+wid+'.name')})];
+        const lines=[t('menu.bestStory',{score:progress.bestStory||0}),t('menu.best',{score:progress.bestScore||0})];
         for (const i of MENU_SUBS) {
-            ctx.fillStyle=i===2?PALETTE.ink:PALETTE.nearGray;
             ctx.fillText(lines[i],cx,this.subY[i]);
         }
         ctx.restore();
@@ -401,6 +399,14 @@ export class MainMenu extends Panel {
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('menu.skin'),b.h*0.55+pr+(b.w-b.h*0.55-pr)/2,b.h/2+1);
+        ctx.restore();
+        ctx.save();
+        ctx.globalAlpha=Math.min(1,ap*2);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font=(b.h<46?'12px ':'14px ')+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='top';
+        ctx.fillText(t('menu.equipped',{name:t('weapon.'+(settings.weapon||'pen')+'.name')}),cx,b.y+b.h+bob+(b.h<46?6:10));
         ctx.restore();
     }
 
@@ -4763,17 +4769,32 @@ export class SkinEditor extends Panel {
             this.hits.push({x,y,w,h:ch,weapon:id,key:'w'+id,ok:unlocked,rnd});
             y+=ch+U.listGap;
         }
+        return y+4;
+    }
+
+    weaponInfo(ctx,P,small) {
         const id=settings.weapon||'pen';
+        const w=P.w-36;
+        ctx.font=(small?12:13)+'px '+FONT;
+        const lines=wrapText(ctx,t('weapon.'+id+'.desc',weaponParams(id)),w-20).slice(0,small?3:5);
+        return {id,lines,lh:small?16:18,h:(small?24:28)+lines.length*(small?16:18)+12};
+    }
+
+    drawWeaponInfo(ctx,P,y,v,small,info) {
+        const x=P.x+18;
+        const w=P.w-36;
+        ctx.fillStyle=rgba('paper',0.97);
+        ctx.fillRect(x,y,w,info.h);
+        drawShape(ctx,sketchRect(x,y,w,info.h,{width:1.6,seed:1760}),PALETTE.ink,v);
+        drawWeaponIcon(ctx,info.id,x+22,y+(small?14:16),small?0.22:0.26,v,false);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        fitText(ctx,t('weapon.'+info.id+'.name')+t('ui.sep')+t('weapon.equipped'),x+44,y+(small?14:16),w-54,small?14:16,'bold ');
         ctx.font=(small?12:13)+'px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
-        ctx.textAlign='left';
         ctx.textBaseline='top';
-        y+=4;
-        for (const ln of wrapText(ctx,t('weapon.'+id+'.desc',weaponParams(id)),w)) {
-            ctx.fillText(ln,x,y);
-            y+=17;
-        }
-        return y+8;
+        info.lines.forEach((ln,i)=>ctx.fillText(ln,x+10,y+(small?26:30)+i*info.lh));
     }
 
     draw(ctx) {
@@ -4805,7 +4826,8 @@ export class SkinEditor extends Panel {
         ctx.fillText(t('skin.hint'),P.x+18,P.y+(small?36:50));
         this.hits=[];
         let y=this.drawTabs(ctx,P.x+14,P.y+(small?52:72),P.w-28,v,small);
-        this.V={x:P.x,y:y-2,w:P.w,h:this.resetBtn.y-8-(y-2)};
+        const winfo=this.tab==='weapon'?this.weaponInfo(ctx,P,small):null;
+        this.V={x:P.x,y:y-2,w:P.w,h:this.resetBtn.y-8-(y-2)-(winfo?winfo.h+8:0)};
         const V=this.V;
         ctx.save();
         ctx.beginPath();
@@ -4824,6 +4846,12 @@ export class SkinEditor extends Panel {
         ctx.restore();
         this.contentH=y-y0+6;
         ctx.restore();
+        if (winfo) {
+            ctx.save();
+            ctx.globalAlpha=Math.min(1,0.3+this.tabT);
+            this.drawWeaponInfo(ctx,P,V.y+V.h+6,v,small,winfo);
+            ctx.restore();
+        }
         const max=Math.max(0,this.contentH-V.h);
         if (max>0) {
             const th=Math.max(30,V.h*V.h/this.contentH);

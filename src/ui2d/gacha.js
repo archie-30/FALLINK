@@ -7,10 +7,11 @@ import {sketchRect,sketchCircle,sketchLine,drawShape} from './sketch.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {wrapText} from './cardView.js';
 import {drawRelicIcon,relicTone} from './relicIcons.js';
-import {drawWallet,drawCoin,drawLock} from './meta.js';
+import {drawCoin,drawLock} from './meta.js';
 import {RELIC_ORDER,RELIC_STARTERS,relicParams} from '../data/relics.js';
 import {relicOwned,relicLocked,relicPrice,dots} from '../core/meta.js';
 import {hash1} from '../core/rng.js';
+import {godMode} from '../core/progress.js';
 
 const G=()=>TUNING.gachaUi;
 
@@ -51,11 +52,15 @@ export class RelicGacha extends Panel {
         const P=this.P;
         const bh=small?40:48;
         const by=P.y+ph-(small?48:64);
-        this.backBtn={x:P.x+P.w-20-(small?120:150),y:by,w:small?120:150,h:bh};
-        const mw=Math.min(P.w*0.38,small?260:340);
-        this.M={x:P.x+20,y:P.y+(small?44:66),w:mw,h:by-14-(P.y+(small?44:66))};
-        const pullW=Math.min(mw,small?200:240);
-        this.pullBtn={x:this.M.x+mw/2-pullW/2,y:by,w:pullW,h:bh};
+        const hh=small?42:62;
+        const rw=Math.min(P.w*0.34,small?240:310);
+        const rx=P.x+P.w-20-rw;
+        this.backBtn={x:P.x+20,y:by,w:small?120:150,h:bh};
+        this.pullBtn={x:rx,y:by,w:rw,h:bh};
+        const ch=small?42:56;
+        this.coinBox={x:rx,y:by-ch-(small?8:12),w:rw,h:ch};
+        this.M={x:rx,y:P.y+hh,w:rw,h:this.coinBox.y-(small?6:12)-(P.y+hh)};
+        this.G={x:P.x+20,y:P.y+hh,w:rx-(small?16:28)-(P.x+20),h:by-(small?10:14)-(P.y+hh)};
         this.buttons=[this.backBtn,this.pullBtn];
     }
 
@@ -109,6 +114,10 @@ export class RelicGacha extends Panel {
     }
 
     pull() {
+        if (godMode()) {
+            this.anim={id:this.actions.pull(),t:0,boom:false};
+            return;
+        }
         if (relicLocked().length===0) {
             this.shake=1;
             this.say('gacha.empty');
@@ -181,20 +190,15 @@ export class RelicGacha extends Panel {
         const A=this.anim;
         const now=time.real;
         const cx=M.x+M.w/2;
-        const gr=Math.min(M.w*0.33,M.h*0.22);
-        const gy=M.y+gr+(small?28:38);
+        const gr=Math.min(M.w*0.34,M.h*0.34);
+        const gy=M.y+gr+14;
         const busy=A&&A.t<G().reveal;
-        const shk=(busy?Math.sin(A.t*48)*4*(1-A.t/G().reveal):0)+Math.sin(now*50)*this.shake*6;
+        const shk=(busy?Math.sin(A.t*40)*G().shake*(1-A.t/G().reveal):0)+Math.sin(now*40)*this.shake*G().shake;
         ctx.save();
         ctx.translate(shk,0);
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?15:18)+'px '+FONT;
-        ctx.textAlign='center';
-        ctx.textBaseline='top';
-        ctx.fillText(t('gacha.machine'),cx,M.y-(small?2:6));
         const baseY=gy+gr*0.82;
         const bw=gr*1.9;
-        const bh=Math.min(M.h-(baseY-M.y)-6,gr*1.15);
+        const bh=Math.min(M.h-(baseY-M.y)-4,gr*1.1);
         ctx.fillStyle=PALETTE.red;
         ctx.fillRect(cx-bw/2,baseY,bw,bh);
         drawShape(ctx,sketchRect(cx-bw/2,baseY,bw,bh,{width:2.4,seed:4601}),PALETTE.ink,v);
@@ -212,9 +216,11 @@ export class RelicGacha extends Panel {
         for (let i=0;i<n;i++) {
             const id=RELIC_ORDER[i%RELIC_ORDER.length];
             const T=relicTone(id);
-            const jig=busy?Math.sin(A.t*20+i)*gr*0.08:Math.sin(now*1.3+i)*1.5;
+            const rate=G().bounce*(0.8+hash1(i*3)*0.6)*(busy?2.2:1);
+            const hop=Math.abs(Math.sin(now*rate+i*1.7))*gr*(busy?0.3:0.13);
+            const jig=Math.sin(now*rate*0.5+i)*gr*(busy?0.06:0.025);
             const bx=cx+(hash1(i*13+1)-0.5)*gr*1.5+jig;
-            const by=gy+gr*0.55-Math.floor(i/5)*gr*0.3-(hash1(i*7)*gr*0.12)+(busy?Math.cos(A.t*17+i)*gr*0.08:0);
+            const by=gy+gr*0.55-Math.floor(i/5)*gr*0.3-(hash1(i*7)*gr*0.12)-hop;
             const br=gr*0.2;
             ctx.fillStyle=T[0];
             ctx.beginPath();
@@ -262,12 +268,9 @@ export class RelicGacha extends Panel {
         ctx.fillStyle=PALETTE.ink;
         ctx.fillRect(sx-sw/2,sy-sh/2,sw,sh);
         ctx.fillStyle=PALETTE.paper;
-        ctx.font='bold '+(small?11:13)+'px '+FONT;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        drawCoin(ctx,cx+bw*0.18,baseY+bh*0.78,small?6:8);
-        ctx.fillStyle=PALETTE.paper;
-        ctx.fillText('×'+relicPrice(),cx+bw*0.18+(small?18:22),baseY+bh*0.78);
+        fitText(ctx,t('gacha.machine'),cx,baseY+bh*0.82,bw-16,small?11:14,'bold ');
         if (A&&A.t>=G().drop*0.7&&A.t<G().fly) {
             const k=Math.min(1,(A.t-G().drop*0.7)/(G().drop*0.3));
             const T=relicTone(A.id);
@@ -285,23 +288,39 @@ export class RelicGacha extends Panel {
             ctx.restore();
         }
         ctx.restore();
+    }
+
+    drawCoins(ctx,v,small) {
+        const B=this.coinBox;
+        const k=Math.sin(Math.min(1,this.walletK)*Math.PI);
+        const poor=!godMode()&&dots()<relicPrice();
+        ctx.save();
+        ctx.translate(B.x+B.w/2+Math.sin(time.real*40)*this.shake*3,B.y+B.h/2);
+        ctx.scale(1+k*0.08,1+k*0.08);
+        ctx.translate(-B.w/2,-B.h/2);
+        ctx.fillStyle=k>0?rgba('red',0.1*k+0.04):rgba('paper',0.97);
+        ctx.fillRect(0,0,B.w,B.h);
+        drawShape(ctx,sketchRect(0,0,B.w,B.h,{width:2,seed:4606}),PALETTE.ink,v);
+        const r=small?11:15;
+        drawCoin(ctx,14+r,B.h/2,r);
         ctx.fillStyle=PALETTE.nearGray;
-        ctx.font=(small?11:13)+'px '+FONT;
         ctx.textAlign='left';
-        ctx.textBaseline='top';
-        const hy=baseY+bh+(small?6:10);
-        const lines=wrapText(ctx,t('gacha.hint'),M.w);
-        const room=Math.max(0,Math.floor((this.pullBtn.y-6-hy)/(small?14:17)));
-        lines.slice(0,room).forEach((ln,i)=>ctx.fillText(ln,M.x,hy+i*(small?14:17)));
+        ctx.textBaseline='middle';
+        fitText(ctx,t('gacha.coins'),24+r*2,B.h/2,B.w*0.4,small?12:14,'');
+        ctx.fillStyle=poor?PALETTE.red:PALETTE.ink;
+        ctx.textAlign='right';
+        fitText(ctx,godMode()?'∞':String(dots()),B.w-14,B.h/2+1,B.w*0.4,small?22:30,'bold ');
+        ctx.restore();
     }
 
     drawGrid(ctx,v,small) {
         const P=this.P;
-        const gx=this.M.x+this.M.w+(small?18:30);
-        const gw=P.x+P.w-20-gx;
-        const gy=this.M.y;
-        const dh=small?84:120;
-        const gh=this.backBtn.y-12-dh-gy;
+        const Gr=this.G;
+        const gx=Gr.x;
+        const gw=Gr.w;
+        const gy=Gr.y+4;
+        const dh=small?80:118;
+        const gh=Gr.y+Gr.h-dh-10-gy;
         const gap=small?6:10;
         const lab=small?13:16;
         let best=null;
@@ -368,7 +387,7 @@ export class RelicGacha extends Panel {
             fitText(ctx,own?t('relic.'+id+'.name'):t('gacha.locked'),x,y+ts/2+2,ts+gap-2,small?9:11,sel?'bold ':'');
             this.tiles.push({id,x,y,r:ts/2});
         });
-        const dy=this.backBtn.y-10-dh;
+        const dy=Gr.y+Gr.h-dh;
         const id=this.sel;
         const own=relicOwned(id);
         ctx.fillStyle=rgba('paper',0.96);
@@ -521,28 +540,29 @@ export class RelicGacha extends Panel {
         ctx.font='bold '+(small?20:28)+'px '+FONT;
         ctx.textAlign='left';
         ctx.textBaseline='middle';
-        const ty=P.y+(small?22:34);
+        const ty=P.y+(small?20:32);
         ctx.fillText(t('gacha.title'),P.x+20,ty);
         const ttw=ctx.measureText(t('gacha.title')).width;
-        drawWallet(ctx,P.x+20+ttw+14,ty-(small?13:14),v,'left',small?12:14,this.walletK);
         const own=RELIC_ORDER.filter(id=>relicOwned(id)).length;
         ctx.fillStyle=PALETTE.nearGray;
-        ctx.font=(small?13:15)+'px '+FONT;
         ctx.textAlign='right';
-        ctx.fillText(t('gacha.owned',{n:own,m:RELIC_ORDER.length}),P.x+P.w-20,ty);
+        fitText(ctx,t('gacha.owned',{n:own,m:RELIC_ORDER.length}),P.x+P.w-20,ty,small?110:150,small?13:15,'bold ');
+        ctx.textAlign='left';
+        fitText(ctx,t('gacha.hint'),P.x+32+ttw,ty+1,P.w-ttw-(small?180:230),small?11:13,'');
         drawShape(ctx,sketchLine(P.x+16,ty+(small?16:24),P.x+P.w-16,ty+(small?16:24),{width:1.2,seed:4605}),rgba('midGray',0.7),v);
-        this.drawMachine(ctx,v,small);
         this.drawGrid(ctx,v,small);
+        this.drawMachine(ctx,v,small);
+        this.drawCoins(ctx,v,small);
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?16:18);
-        const left=relicLocked().length;
-        const poor=dots()<relicPrice();
+        const left=godMode()?1:relicLocked().length;
+        const poor=!godMode()&&dots()<relicPrice();
         ctx.save();
         if (left===0||poor) {
             ctx.globalAlpha*=0.55;
         }
         const pb=this.pullBtn;
-        ctx.translate(Math.sin(time.real*50)*this.shake*6,0);
-        drawButton(ctx,pb,left===0?t('gacha.empty'):t('gacha.pull',{n:relicPrice()}),v,(this.t-0.15)/0.3,this.hoverIdx===1&&!this.anim,small?16:19);
+        ctx.translate(Math.sin(time.real*40)*this.shake*3,0);
+        drawButton(ctx,pb,left===0?t('gacha.empty'):t(godMode()?'gacha.pullFree':'gacha.pull',{n:relicPrice()}),v,(this.t-0.15)/0.3,this.hoverIdx===1&&!this.anim,small?16:19);
         ctx.restore();
         if (this.msg) {
             const k=Math.min(1,this.msg.t/0.2,(2.2-this.msg.t)/0.3);
@@ -551,7 +571,7 @@ export class RelicGacha extends Panel {
             ctx.font='bold 13px '+FONT;
             const tw=ctx.measureText(this.msg.text).width+24;
             const mx=pb.x+pb.w/2;
-            const my=pb.y-18-(1-k)*8;
+            const my=this.coinBox.y-18-(1-k)*8;
             ctx.fillStyle=PALETTE.red;
             ctx.fillRect(mx-tw/2,my-13,tw,26);
             ctx.fillStyle=PALETTE.paper;
