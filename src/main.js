@@ -1827,7 +1827,7 @@ function boot() {
                 settings.jitter=0;
             }
             else {
-                settings.jitter=settings.jitterPrev??0.5;
+                settings.jitter=settings.jitterPrev??1;
             }
         }
         if (key==='full') {
@@ -2302,6 +2302,7 @@ function boot() {
         renderer.post.setBoilScale(boilScale());
         setJitterScale(boilScale());
         time.freezeBoil=settings.reducedMotion||boilScale()<=0;
+        time.boilFps=TUNING.boil.fpsMin+(TUNING.boil.fps-TUNING.boil.fpsMin)*Math.min(1,boilScale());
     }
     function resize() {
         const w=Math.max(1,window.innerWidth);

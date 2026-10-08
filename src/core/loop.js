@@ -57,7 +57,7 @@ export function createLoop(update,render) {
             fpsAcc=0;
             fpsFrames=0;
         }
-        const bs=Math.floor(time.real*TUNING.boil.fps);
+        const bs=Math.floor(time.real*(time.boilFps||TUNING.boil.fps));
         time.boilChanged=!time.freezeBoil&&bs!==time.boilStep;
         time.boilStep=bs;
         time.boilIndex=time.freezeBoil?0:bs%TUNING.boil.variants;

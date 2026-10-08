@@ -14,8 +14,9 @@ export const TUNING={
         flagshipMax:120
     },
     boil:{
-        gain:2,
+        gain:1,
         fps:15,
+        fpsMin:3,
         variants:3,
         nearAmp:1.4,
         farAmp:0.5,
@@ -701,7 +702,7 @@ export const TUNING={
         reloadRing:12
     },
     quality:{
-        low:{pixelRatio:2.0,grain:false,hatchedShadow:false,anisotropy:1,particles:100,hulls:false,fastEdge:true,wobble:false,decals:8},
+        low:{pixelRatio:2.0,grain:false,hatchedShadow:false,anisotropy:1,particles:100,hulls:false,fastEdge:true,wobble:true,decals:8},
         mid:{pixelRatio:2.0,grain:true,hatchedShadow:true,anisotropy:2,particles:220,fastEdge:true,wobble:true,decals:16,edgeAA:true},
         high:{pixelRatio:2.0,mobileCap:2.0,grain:true,hatchedShadow:true,anisotropy:4,particles:500,fastEdge:false,wobble:true,decals:24,edgeAA:true}
     },
