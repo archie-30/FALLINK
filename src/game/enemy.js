@@ -159,6 +159,19 @@ export class Enemy {
     onReset() {
     }
 
+    firstT(r) {
+        return rng.range(r[0],r[1])+rng.range(0,TUNING.enemyPace.firstSpread);
+    }
+
+    paced(key,r) {
+        const J=TUNING.enemyPace;
+        if (this.paceC[key]===undefined) {
+            this.paceC[key]=rng.range(r[0],r[1])*rng.range(J.scale[0],J.scale[1]);
+        }
+        const c=this.paceC[key];
+        return rng.range(c*(1-J.width),c*(1+J.width));
+    }
+
     think() {
     }
 
@@ -180,6 +193,7 @@ export class Enemy {
         this.immortal=!!o.immortal;
         this.tutor=!!o.tutor;
         this.courseNum=0;
+        this.paceC={};
         this.courseOrig=false;
         this.copyOf=0;
         this.sleep=false;
@@ -628,7 +642,7 @@ class Doodle extends Enemy {
 
     onReset() {
         const d=this.def;
-        this.fireT=rng.range(d.firstShot[0],d.firstShot[1]);
+        this.fireT=this.firstT(d.firstShot);
         this.strafeSign=rng.sign();
         this.strafeT=rng.range(1,3);
     }
@@ -674,7 +688,7 @@ class Doodle extends Enemy {
             if (this.stateT>=d.telegraph) {
                 this.fire(ctx);
                 this.setState('move');
-                this.fireT=rng.range(d.fireInterval[0],d.fireInterval[1]);
+                this.fireT=this.paced('fire',d.fireInterval);
                 this.tele=null;
             }
         }
@@ -851,7 +865,7 @@ class Compass extends Enemy {
 
     onReset() {
         const d=this.def;
-        this.fireT=rng.range(d.firstShot[0],d.firstShot[1]);
+        this.fireT=this.firstT(d.firstShot);
         this.strafeSign=rng.sign();
         this.strafeT=rng.range(1,3);
         this.offset=rng.range(0,1);
@@ -896,7 +910,7 @@ class Compass extends Enemy {
                 this.spinT=0.6;
                 this.sqv+=2;
                 this.setState('move');
-                this.fireT=rng.range(d.fireInterval[0],d.fireInterval[1]);
+                this.fireT=this.paced('fire',d.fireInterval);
             }
         }
     }
@@ -1118,7 +1132,7 @@ class Bird extends Enemy {
 
     onReset() {
         const d=this.def;
-        this.swoopT=rng.range(d.swoopEvery[0],d.swoopEvery[1]);
+        this.swoopT=this.paced('swoop',d.swoopEvery);
         this.orbitA=rng.range(0,Math.PI*2);
         this.orbitDir=rng.sign();
         this.sx=0;
@@ -1170,7 +1184,7 @@ class Bird extends Enemy {
             this.vel.set(this.sx*d.swoopSpeed,0,this.sz*d.swoopSpeed);
             if (this.stateT>=d.swoopTime) {
                 this.setState('move');
-                this.swoopT=rng.range(d.swoopEvery[0],d.swoopEvery[1]);
+                this.swoopT=this.paced('swoop',d.swoopEvery);
                 this.orbitA=Math.atan2(this.pos.z-p.z,this.pos.x-p.x);
             }
         }
@@ -1227,7 +1241,7 @@ class InkCloud extends Enemy {
 
     onReset() {
         const d=this.def;
-        this.castT=rng.range(d.firstCast[0],d.firstCast[1]);
+        this.castT=this.firstT(d.firstCast);
         this.driftSign=rng.sign();
         this.driftT=rng.range(1.5,3);
         this.drops=[];
@@ -1299,7 +1313,7 @@ class InkCloud extends Enemy {
             if (this.stateT>=d.telegraph) {
                 this.cast(ctx);
                 this.setState('move');
-                this.castT=rng.range(d.castEvery[0],d.castEvery[1]);
+                this.castT=this.paced('cast',d.castEvery);
             }
         }
     }
@@ -1916,7 +1930,7 @@ class StampSoldier extends Enemy {
 
     onReset() {
         const d=this.def;
-        this.stampT=rng.range(d.firstStamp[0],d.firstStamp[1]);
+        this.stampT=this.firstT(d.firstStamp);
         this.strafeSign=rng.sign();
         this.hops=0;
         this.hopY=0;
@@ -2033,7 +2047,7 @@ class StampSoldier extends Enemy {
                     return;
                 }
                 this.setState('move');
-                this.stampT=rng.range(d.stampEvery[0],d.stampEvery[1]);
+                this.stampT=this.paced('stamp',d.stampEvery);
             }
         }
     }
@@ -2089,7 +2103,7 @@ class ScissorMinion extends Enemy {
 
     onReset() {
         const d=this.def;
-        this.snipT=rng.range(d.firstSnip[0],d.firstSnip[1]);
+        this.snipT=this.firstT(d.firstSnip);
         this.strafeSign=rng.sign();
         this.rage=false;
         this.cut=null;
@@ -2273,7 +2287,7 @@ class ScissorMinion extends Enemy {
             this.vel.multiplyScalar(Math.exp(-10*dt));
             if (this.stateT>=d.recover) {
                 this.setState('move');
-                this.snipT=rng.range(d.snipEvery[0],d.snipEvery[1]);
+                this.snipT=this.paced('snip',d.snipEvery);
             }
         }
     }
@@ -3798,11 +3812,24 @@ export class EnemyManager {
     update(dt,ctx) {
         ctx.enemies=this.list;
         const arr=this.list.slice();
+        const real=ctx.player;
+        const D=this.decoy;
+        if (D&&D.active) {
+            if (!this.proxy||this.proxyOf!==real) {
+                this.proxy=Object.create(real);
+                this.proxy.vel=new THREE.Vector3();
+                this.proxy.hurt=()=>false;
+                this.proxyOf=real;
+            }
+            this.proxy.pos=D.fig.pos;
+            ctx.player=this.proxy;
+        }
         for (const e of arr) {
             if (e.alive) {
                 e.update(e.def.boss?dt*TUNING.bossTempo*(1+e.tier*TUNING.bossScale.tempo):dt,ctx);
             }
         }
+        ctx.player=real;
     }
 
     sync(alpha,dt) {

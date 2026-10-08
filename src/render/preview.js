@@ -1,6 +1,6 @@
 import*as THREE from 'three';
 import {dashMaterial,ringMaterial,pal} from './materials.js';
-import {cardParams,cardRange} from '../game/card.js';
+import {cardParams,cardRange,bouncePath} from '../game/card.js';
 import {TUNING} from '../data/tuning.js';
 
 const SEG=24;
@@ -177,6 +177,17 @@ export class Preview {
             }
             const base=Math.atan2(target.dz,target.dx);
             const len=cardRange(card);
+            if (card.id==='bounceBall') {
+                const B=TUNING.effects.ball;
+                const pts=bouncePath(this.roomFn?this.roomFn():null,p.x,p.z,target.dx,target.dz,params.bounces,B.maxLen,B.radius);
+                for (let i=0;i<pts.length-1&&i<this.lines.length;i++) {
+                    const a=pts[i];
+                    const b=pts[i+1];
+                    const L=Math.hypot(b.x-a.x,b.z-a.z)||0.01;
+                    this.setLine(this.lines[i],a.x,a.z,(b.x-a.x)/L,(b.z-a.z)/L,L,i===0?color:'red');
+                }
+                return;
+            }
             if (card.id==='eraser') {
                 this.showSector(p.x,p.z,base,params.angle,params.range,color);
                 return;
@@ -186,6 +197,20 @@ export class Preview {
                 const a=count>1?base+(i/(count-1)-0.5)*spread:base;
                 this.setLine(this.lines[i],p.x+Math.cos(a)*lead,p.z+Math.sin(a)*lead,Math.cos(a),Math.sin(a),len,color);
             }
+            return;
+        }
+        if (card.id==='ruler') {
+            let dx=target.x-p.x;
+            let dz=target.z-p.z;
+            const l=Math.hypot(dx,dz)||1;
+            dx/=l;
+            dz/=l;
+            const L=params.length;
+            this.setLine(this.lines[0],target.x+dz*L/2,target.z-dx*L/2,-dz,dx,L,color);
+            this.ring.visible=true;
+            this.ring.position.set(target.x,0.06,target.z);
+            this.ring.scale.set(0.4,1,0.4);
+            this.ring.material.uniforms.uColor.value.copy(pal(color));
             return;
         }
         if (tg==='point') {

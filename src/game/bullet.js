@@ -84,6 +84,7 @@ export class BulletSystem {
         this.homing=o.homing||0;
         this.hits=new Int32Array(cap*6);
         this.hitN=new Uint8Array(cap);
+        this.tag=new Uint8Array(cap);
         this.boomerang=!!o.boomerang;
         this.ret=new Uint8Array(cap);
         this.struck=new Uint8Array(cap);
@@ -106,6 +107,7 @@ export class BulletSystem {
         this.onProp=null;
         this.onHit=null;
         this.onSeek=null;
+        this.onMove=null;
         let geo;
         if (o.model&&MODELS[o.model]) {
             geo=MODELS[o.model]();
@@ -168,6 +170,7 @@ export class BulletSystem {
         this.dmg[i]=dmg;
         this.age[i]=0;
         this.hitN[i]=0;
+        this.tag[i]=0;
         this.ret[i]=0;
         this.struck[i]=0;
         this.el[i]=0;
@@ -199,6 +202,7 @@ export class BulletSystem {
         this.dmg[i]=this.dmg[j];
         this.age[i]=this.age[j];
         this.hitN[i]=this.hitN[j];
+        this.tag[i]=this.tag[j];
         this.ret[i]=this.ret[j];
         this.struck[i]=this.struck[j];
         this.el[i]=this.el[j];
@@ -360,6 +364,9 @@ export class BulletSystem {
             }
             this.x[i]+=this.vx[i]*dt;
             this.z[i]+=this.vz[i]*dt;
+            if (this.onMove) {
+                this.onMove(this,i,this.ox[i],this.oz[i],this.x[i],this.z[i]);
+            }
             this.life[i]-=dt;
             if (this.boomerang&&!this.ret[i]&&this.life[i]<=0) {
                 this.turnBack(i);

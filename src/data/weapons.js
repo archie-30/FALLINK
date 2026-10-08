@@ -14,7 +14,7 @@ export const WEAPONS={
         stats:{dmg:3,rate:3,range:3,mag:2}
     },
     pencil:{
-        unlock:2,
+        unlock:3,
         sys:'pencil',
         sound:'wPencil',
         fireInterval:0.09,
@@ -30,7 +30,7 @@ export const WEAPONS={
         stats:{dmg:1,rate:4,range:3,mag:5}
     },
     brush:{
-        unlock:3,
+        unlock:5,
         sys:'brush',
         sound:'wBrush',
         fireInterval:0.62,
@@ -68,7 +68,7 @@ export const WEAPONS={
         stats:{dmg:3,rate:2,range:3,mag:3}
     },
     highlighter:{
-        unlock:7,
+        unlock:8,
         sys:'beam',
         sound:'wMarker',
         fireInterval:0.1,
@@ -87,7 +87,7 @@ export const WEAPONS={
         stats:{dmg:3,rate:5,range:3,mag:3}
     },
     compass:{
-        unlock:9,
+        unlock:10,
         sys:'compass',
         sound:'wCompass',
         fireInterval:0.55,
@@ -103,10 +103,30 @@ export const WEAPONS={
         boomerang:true,
         kick:1.5,
         stats:{dmg:4,rate:1,range:4,mag:1}
+    },
+    crayon:{
+        unlock:13,
+        sys:'crayonG',
+        sound:'shoot',
+        fireInterval:0.15,
+        magazine:16,
+        reloadTime:1.2,
+        damage:5,
+        bulletSpeed:27,
+        bulletLife:0.8,
+        spread:0.04,
+        pellets:1,
+        colors:[
+            {sys:'crayonR',chance:20,damage:28},
+            {sys:'crayonB',chance:30,damage:10},
+            {sys:'crayonG',chance:50,damage:5}
+        ],
+        flashColor:'red',
+        stats:{dmg:3,rate:3,range:3,mag:3}
     }
 };
 
-export const WEAPON_ORDER=['pen','pencil','brush','stapler','highlighter','compass'];
+export const WEAPON_ORDER=['pen','pencil','brush','stapler','highlighter','compass','crayon'];
 
 export const WEAPON_LIMITS={
     minInterval:0.06
@@ -115,6 +135,8 @@ export const WEAPON_LIMITS={
 export const RANDOM_WEAPON={id:'random',min:2};
 
 export const EARLY_WEAPONS=[];
+
+export const LEGACY_WEAPON_UNLOCKS={pen:1,pencil:2,brush:3,stapler:5,highlighter:7,compass:9};
 
 export function weaponUnlocked(id,level) {
     if (id===RANDOM_WEAPON.id) {

@@ -308,6 +308,13 @@ export class Player {
         comp.add(mk(new THREE.SphereGeometry(0.045,8,6),wL,0,0,-0.21,0,false));
         comp.add(mk(new THREE.ConeGeometry(0.014,0.07,6),ink,0.02,0,0.33,Math.PI/2,false));
         looks.compass=comp;
+        const cray=new THREE.Group();
+        cray.add(mk(new THREE.CylinderGeometry(0.062,0.062,0.4,8),wL,0,0,-0.04));
+        cray.add(mk(new THREE.CylinderGeometry(0.066,0.066,0.22,8),g?coat:unlitMaterial({color:'red'}),0,0,-0.02,Math.PI/2,false));
+        cray.add(mk(new THREE.ConeGeometry(0.062,0.14,8),g?coat:unlitMaterial({color:'red'}),0,0,0.23,Math.PI/2,false));
+        cray.add(mk(new THREE.CylinderGeometry(0.03,0.03,0.05,6),g?coat:unlitMaterial({color:'crayonBlue'}),0.075,0,-0.18,Math.PI/2,false));
+        cray.add(mk(new THREE.CylinderGeometry(0.03,0.03,0.05,6),g?coat:unlitMaterial({color:'crayonGreen'}),-0.075,0,-0.18,Math.PI/2,false));
+        looks.crayon=cray;
         for (const k in looks) {
             if (k!=='pen') {
                 this.gun.add(looks[k]);
@@ -591,6 +598,21 @@ export class Player {
         }
     }
 
+    leap(x,z,dur,h) {
+        this.leapX0=this.pos.x;
+        this.leapZ0=this.pos.z;
+        this.leapX1=x;
+        this.leapZ1=z;
+        this.leapDur=dur;
+        this.leapT=dur;
+        this.leapH=h;
+        this.dashT=0;
+        this.vel.set(0,0,0);
+        this.invuln=Math.max(this.invuln,dur+TUNING.effects.leap.grace);
+        this.moveYaw=Math.atan2(x-this.pos.x,z-this.pos.z);
+        this.stv+=TUNING.player.dashStretch;
+    }
+
     forceDash(dx,dz,speed,dur) {
         this.vel.set(dx*speed,0,dz*speed);
         this.dashT=dur;
@@ -623,6 +645,8 @@ export class Player {
         this.vel.set(0,0,0);
         this.root.position.copy(p);
         this.dashT=0;
+        this.leapT=0;
+        this.leapY=0;
         this.rapidT=0;
         this.hasteT=0;
         this.hasteMult=1;
@@ -663,6 +687,8 @@ export class Player {
         this.stv=0;
         this.kick=0;
         this.dashT=0;
+        this.leapT=0;
+        this.leapY=0;
         this.dashIT=0;
         this.reloadT=0;
         this.beamT=0;
@@ -919,11 +945,24 @@ export class Player {
             }
         }
         else {
-            const sys=ctx.weaponSys[W.sys]||ctx.playerBullets;
+            let pick=null;
+            if (W.colors) {
+                let roll=Math.random()*W.colors.reduce((a,c)=>a+c.chance,0);
+                pick=W.colors[W.colors.length-1];
+                for (const c of W.colors) {
+                    roll-=c.chance;
+                    if (roll<0) {
+                        pick=c;
+                        break;
+                    }
+                }
+            }
+            const sys=ctx.weaponSys[pick?pick.sys:W.sys]||ctx.playerBullets;
+            const dmg=pick?pick.damage:W.damage;
             const n=W.pellets||1;
             for (let p=0;p<n;p++) {
                 const a=base+(n>1?(p/(n-1)-0.5)*W.fan:0)+(Math.random()*2-1)*W.spread;
-                sys.spawn(mx,mz,Math.cos(a),Math.sin(a),W.bulletSpeed,W.damage,W.bulletLife);
+                sys.spawn(mx,mz,Math.cos(a),Math.sin(a),W.bulletSpeed,dmg,W.bulletLife);
             }
         }
         dx=Math.cos(base);
@@ -973,7 +1012,7 @@ export class Player {
         }
         this.dashCd=Math.max(0,this.dashCd-dt*(this.hasteT>0?this.hasteMult:1)*this.courseDash);
         this.hasteT=Math.max(0,this.hasteT-dt);
-        if (input.consumeDash()&&this.dashCd<=0) {
+        if (input.consumeDash()&&this.dashCd<=0&&!(this.leapT>0)) {
             let dx=this.aimDirX;
             let dz=this.aimDirZ;
             if (moveLen>0.1) {
@@ -991,7 +1030,22 @@ export class Player {
                 this.events.onDash(this);
             }
         }
-        if (this.dashT>0) {
+        if (this.leapT>0) {
+            this.leapT-=dt;
+            const f=1-Math.max(0,this.leapT)/this.leapDur;
+            this.vel.set(0,0,0);
+            this.pos.x=this.leapX0+(this.leapX1-this.leapX0)*f;
+            this.pos.z=this.leapZ0+(this.leapZ1-this.leapZ0)*f;
+            this.leapY=Math.sin(f*Math.PI)*this.leapH;
+            if (this.leapT<=0) {
+                this.leapY=0;
+                this.sqv-=TUNING.effects.leap.land;
+                if (this.events.onLand) {
+                    this.events.onLand(this);
+                }
+            }
+        }
+        else if (this.dashT>0) {
             this.dashT-=dt;
         }
         else {
@@ -1258,6 +1312,7 @@ export class Player {
     sync(alpha) {
         this.renderPos.lerpVectors(this.prev,this.pos,alpha);
         this.root.position.copy(this.renderPos);
+        this.root.position.y+=this.leapY||0;
         const step=Math.floor(time.real*TUNING.player.poseFps);
         if (step!==this.poseStep) {
             this.poseStep=step;
@@ -1294,7 +1349,8 @@ export class Clone {
         this.mp={x:0,z:0};
     }
 
-    start(x,z,duration,damage) {
+    start(x,z,duration,damage,decoy=false) {
+        this.decoy=decoy;
         const f=this.fig;
         f.pos.set(x,0,z);
         f.prev.copy(f.pos);
@@ -1309,7 +1365,7 @@ export class Clone {
         this.damage=damage;
         f.root.visible=true;
         for (const m of f.ghostMats) {
-            m.uniforms.uAlpha.value=0.75;
+            m.uniforms.uAlpha.value=decoy?TUNING.effects.puppet.alpha:0.75;
         }
     }
 
@@ -1326,7 +1382,10 @@ export class Clone {
         const E=TUNING.effects;
         this.t+=dt;
         f.prev.copy(f.pos);
-        const e=ctx.enemyMgr.nearest(f.pos.x,f.pos.z,E.cloneRange);
+        const e=this.decoy?null:ctx.enemyMgr.nearest(f.pos.x,f.pos.z,E.cloneRange);
+        if (this.decoy) {
+            f.aimYaw+=dt*E.puppet.spin;
+        }
         if (e) {
             const dx=e.pos.x-f.pos.x;
             const dz=e.pos.z-f.pos.z;
@@ -1358,7 +1417,7 @@ export class Clone {
         f.sq=Math.max(-0.45,Math.min(0.45,f.sq));
         const fade=Math.min(1,(this.life-this.t)/0.4);
         for (const m of f.ghostMats) {
-            m.uniforms.uAlpha.value=0.75*Math.max(0,fade);
+            m.uniforms.uAlpha.value=(this.decoy?E.puppet.alpha:0.75)*Math.max(0,fade);
         }
         if (this.t>=this.life) {
             this.active=false;

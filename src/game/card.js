@@ -2,7 +2,7 @@ import*as THREE from 'three';
 import {CARDS} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
-import {toonMaterial,lineMaterial,unlitMaterial} from '../render/materials.js';
+import {toonMaterial,lineMaterial,unlitMaterial,pal} from '../render/materials.js';
 import {circleVs,clampToBounds} from '../core/collision.js';
 
 let nextUid=1;
@@ -36,7 +36,8 @@ export function cardName(card) {
 }
 
 export function cardDesc(card) {
-    return t(card.def.descKey,cardParams(card));
+    const up=card.upgraded&&card.def.upgraded&&card.def.upgraded.descKey;
+    return t(up||card.def.descKey,cardParams(card));
 }
 
 export function cardRange(card) {
@@ -50,6 +51,70 @@ export function cardRadius(card) {
 
 export function cardKey(card) {
     return card.id+(card.upgraded?'+':'');
+}
+
+const _bh={x:0,z:0,depth:0};
+
+export function bouncePath(room,x,z,dx,dz,bounces,maxLen,r) {
+    const B=TUNING.effects.ball;
+    const pts=[{x,z}];
+    if (!room) {
+        pts.push({x:x+dx*maxLen,z:z+dz*maxLen});
+        return pts;
+    }
+    const b=room.bounds;
+    let len=0;
+    let n=0;
+    while (len<maxLen) {
+        const nx=x+dx*B.step;
+        const nz=z+dz*B.step;
+        let hx=0;
+        let hz=0;
+        if (nx<b.minX+r||nx>b.maxX-r) {
+            hx=nx<b.minX+r?1:-1;
+        }
+        else if (nz<b.minZ+r||nz>b.maxZ-r) {
+            hz=nz<b.minZ+r?1:-1;
+        }
+        else {
+            for (const c of room.colliders) {
+                if (c.passPlayer) {
+                    continue;
+                }
+                if (circleVs(nx,nz,r,c,_bh)) {
+                    const l=Math.hypot(_bh.x,_bh.z)||1;
+                    hx=_bh.x/l;
+                    hz=_bh.z/l;
+                    break;
+                }
+            }
+        }
+        if (hx!==0||hz!==0) {
+            pts.push({x,z});
+            if (n>=bounces) {
+                return pts;
+            }
+            n++;
+            const d=dx*hx+dz*hz;
+            if (d<0) {
+                dx-=2*d*hx;
+                dz-=2*d*hz;
+            }
+            else {
+                dx=-dx;
+                dz=-dz;
+            }
+            const l=Math.hypot(dx,dz)||1;
+            dx/=l;
+            dz/=l;
+            continue;
+        }
+        x=nx;
+        z=nz;
+        len+=B.step;
+    }
+    pts.push({x,z});
+    return pts;
 }
 
 export class CardEffects {
@@ -94,6 +159,7 @@ export class CardEffects {
         this.bladeMesh.visible=false;
         this.g.scene.add(this.bladeMesh);
         this.lastUlt=null;
+        this.buildCardProps();
         this.mines=[];
         const mg=new THREE.SphereGeometry(0.42,10,6,0,Math.PI*2,0,Math.PI/2);
         const mm=unlitMaterial({color:'ink',jitter:0.02});
@@ -112,6 +178,18 @@ export class CardEffects {
     clear() {
         this.timers.length=0;
         this.sweeps.length=0;
+        this.puppetShield=null;
+        if (this.g.puppet) {
+            this.g.puppet.stop();
+        }
+        for (const r of this.rulers) {
+            r.left=0;
+            r.mesh.visible=false;
+        }
+        for (const b of this.balls) {
+            b.visible=false;
+        }
+        this.stampMesh.visible=false;
         freeCards.left=0;
         this.bladeMesh.visible=false;
         this.eraserMesh.visible=false;
@@ -184,6 +262,7 @@ export class CardEffects {
     update(dt) {
         const g=this.g;
         this.updateExtras(dt);
+        this.updateCardProps(dt);
         freeCards.left=Math.max(0,freeCards.left-dt);
         for (let i=this.timers.length-1;i>=0;i--) {
             this.timers[i].left-=dt;
@@ -480,6 +559,48 @@ export class CardEffects {
     updateSweep(s,k,dt) {
         const g=this.g;
         const p=g.player;
+        if (s.type==='ball') {
+            return this.tickBall(s,dt);
+        }
+        if (s.type==='stamp') {
+            const S=this.E.stamp;
+            const m=this.stampMesh;
+            if (s.t<S.fall) {
+                const f=s.t/S.fall;
+                m.position.y=S.drop*(1-f*f);
+                m.rotation.y=(1-f)*0.6;
+                return false;
+            }
+            if (!s.hit) {
+                s.hit=true;
+                m.position.y=0;
+                for (const e of g.enemies.list.slice()) {
+                    if (e.state==='spawn'||!e.alive||Math.hypot(e.pos.x-s.x,e.pos.z-s.z)>s.r+e.def.radius) {
+                        continue;
+                    }
+                    g.enemies.damage(e,s.dmg,0,0);
+                    if (s.stun>0&&e.alive) {
+                        e.stun(s.stun,true);
+                    }
+                }
+                if (g.room) {
+                    g.room.damageProps(s.x,s.z,s.r,s.dmg);
+                }
+                g.decals.spawn(s.x,s.z,s.r*1.6,'red','darkRed');
+                g.rings.spawn(s.x,s.z,s.r*1.2,'red',0.35);
+                g.particles.burst(s.x,0.3,s.z,22,{color:'red',speed:[2,s.r*3],up:[1,4],size:[0.08,0.18]});
+                g.fx.hitStop(70,true);
+                g.fx.cameraShake(S.shake);
+                g.fx.fovPunch(1.4);
+            }
+            const h=(s.t-S.fall)/S.hold;
+            m.position.y=Math.max(0,h-0.5)*2*S.lift;
+            if (s.t>=S.fall+S.hold) {
+                m.visible=false;
+                return true;
+            }
+            return false;
+        }
         if (s.type==='rain') {
             while (s.drops.length>0&&s.drops[0].t<=s.t) {
                 const d=s.drops.shift();
@@ -1046,5 +1167,286 @@ export class CardEffects {
         g.fx.fovPunch(1.5);
         g.rings.spawn(p.pos.x,p.pos.z,2.2,'red',0.5);
         g.particles.burst(p.pos.x,1.2,p.pos.z,24,{color:'red',speed:[2,6],up:[3,7],size:[0.08,0.18],life:[0.4,0.8]});
+    }
+
+    buildCardProps() {
+        const g=this.g;
+        const E=this.E;
+        this.balls=[];
+        const bg=new THREE.SphereGeometry(E.ball.radius,12,8);
+        for (let i=0;i<3;i++) {
+            const m=new THREE.Mesh(bg,toonMaterial({light:'paper',mid:'farGray',dark:'red'}));
+            m.visible=false;
+            g.scene.add(m);
+            this.balls.push(m);
+        }
+        const st=new THREE.Group();
+        const face=new THREE.Mesh(new THREE.CylinderGeometry(1,1,0.12,20),unlitMaterial({color:'red'}));
+        face.position.y=0.06;
+        const body=new THREE.Mesh(new THREE.CylinderGeometry(0.9,1,0.32,20),toonMaterial({light:'paper',mid:'farGray',dark:'midGray'}));
+        body.position.y=0.28;
+        const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.32,0.7,10),toonMaterial({light:'farGray',mid:'midGray',dark:'nearGray'}));
+        neck.position.y=0.78;
+        const knob=new THREE.Mesh(new THREE.SphereGeometry(0.42,12,8),toonMaterial({light:'midGray',mid:'nearGray',dark:'ink'}));
+        knob.position.y=1.32;
+        st.add(face,body,neck,knob);
+        st.visible=false;
+        g.scene.add(st);
+        this.stampMesh=st;
+        this.rulers=[];
+        for (let i=0;i<E.ruler.max;i++) {
+            const grp=new THREE.Group();
+            const plate=new THREE.Mesh(new THREE.BoxGeometry(1,E.ruler.height,0.06),new THREE.MeshBasicMaterial({color:pal('marker'),transparent:true,opacity:E.ruler.alpha,depthWrite:false}));
+            plate.position.y=E.ruler.y;
+            grp.add(plate);
+            const tick=new THREE.MeshBasicMaterial({color:pal('ink'),transparent:true,opacity:E.ruler.tickAlpha});
+            for (let k=0;k<=E.ruler.ticks;k++) {
+                const big=k%5===0;
+                const tm=new THREE.Mesh(new THREE.BoxGeometry(0.012,big?0.4:0.22,0.08),tick);
+                tm.position.set(k/E.ruler.ticks-0.5,E.ruler.y+E.ruler.height/2-(big?0.2:0.11),0);
+                grp.add(tm);
+            }
+            grp.visible=false;
+            g.fxScene.add(grp);
+            this.rulers.push({mesh:grp,left:0,x0:0,z0:0,x1:0,z1:0,bonus:0,bit:1<<i,t:0});
+        }
+    }
+
+    updateCardProps(dt) {
+        const g=this.g;
+        const P=this.puppetShield;
+        if (P&&P.left>0) {
+            P.left-=dt;
+            if (P.left<=0) {
+                const p=g.player;
+                p.setShield(p.shield-Math.min(P.add,p.shield));
+                this.puppetShield=null;
+            }
+        }
+        const pup=g.puppet;
+        if (pup&&pup.active) {
+            this.pupRing=(this.pupRing||0)-dt;
+            if (this.pupRing<=0) {
+                this.pupRing=this.E.puppet.ring;
+                g.rings.spawn(pup.fig.pos.x,pup.fig.pos.z,this.E.puppet.ringR,'red',0.45);
+            }
+        }
+        for (const r of this.rulers) {
+            if (r.left<=0) {
+                continue;
+            }
+            r.left-=dt;
+            r.t+=dt;
+            const a=Math.min(1,r.t/0.25,Math.max(0,r.left)/0.4);
+            r.mesh.scale.y=Math.max(0.01,a);
+            if (r.left<=0) {
+                r.mesh.visible=false;
+            }
+        }
+    }
+
+    sketchLeap(x,z,count,damage) {
+        const g=this.g;
+        const p=g.player;
+        const L=this.E.leap;
+        const sx=p.pos.x;
+        const sz=p.pos.z;
+        const gray=(g.weaponSys&&g.weaponSys.pencil)||g.playerBullets;
+        for (let i=0;i<count;i++) {
+            const a=i/count*Math.PI*2;
+            const sys=i%2?gray:g.playerBullets;
+            sys.spawn(sx+Math.cos(a)*0.5,sz+Math.sin(a)*0.5,Math.cos(a),Math.sin(a),L.speed,damage,L.life);
+        }
+        const r=this.T.player.radius;
+        const room=g.room;
+        let tx=x;
+        let tz=z;
+        if (room) {
+            const b=room.walkBounds||room.bounds;
+            tx=Math.max(b.minX+r,Math.min(b.maxX-r,tx));
+            tz=Math.max(b.minZ+r,Math.min(b.maxZ-r,tz));
+            const cols=room.colliders;
+            const ex=tx;
+            const ez=tz;
+            for (let k=0;k<=L.tries;k++) {
+                const f=1-k/L.tries;
+                tx=sx+(ex-sx)*f;
+                tz=sz+(ez-sz)*f;
+                if (!cols.some(c=>circleVs(tx,tz,r+0.05,c))) {
+                    break;
+                }
+            }
+        }
+        p.faceDir(tx-sx||0.01,tz-sz);
+        p.leap(tx,tz,L.time,L.height);
+        g.rings.spawn(sx,sz,2,'ink',0.3);
+        g.decals.spawn(sx,sz,1.2,'ink','midGray');
+        g.particles.burst(sx,0.4,sz,16,{color:'nearGray',speed:[2,6],up:[2,5],size:[0.08,0.16]});
+        g.fx.cameraShake(0.2);
+        g.fx.fovPunch(1.2);
+    }
+
+    tickBall(s,dt) {
+        const g=this.g;
+        const B=this.E.ball;
+        let move=B.speed*dt;
+        while (move>0&&s.seg<s.pts.length-1) {
+            const a=s.pts[s.seg];
+            const b=s.pts[s.seg+1];
+            const L=Math.hypot(b.x-a.x,b.z-a.z);
+            const left=L-s.d;
+            if (move<left) {
+                s.d+=move;
+                move=0;
+            }
+            else {
+                move-=left;
+                s.seg++;
+                s.d=0;
+                s.hit.clear();
+                if (s.seg<s.pts.length-1) {
+                    g.rings.spawn(b.x,b.z,0.9,'red',0.25);
+                    g.particles.burst(b.x,this.T.weapon.height,b.z,6,{color:'red',speed:[1,3],up:[1,3],size:[0.06,0.12]});
+                    g.fx.cameraShake(0.06);
+                }
+            }
+        }
+        if (s.seg>=s.pts.length-1) {
+            const e=s.pts[s.pts.length-1];
+            g.particles.burst(e.x,this.T.weapon.height,e.z,8,{color:'farGray',speed:[1,3],up:[1,3],size:[0.06,0.12]});
+            s.mesh.visible=false;
+            return true;
+        }
+        const a=s.pts[s.seg];
+        const b=s.pts[s.seg+1];
+        const L=Math.hypot(b.x-a.x,b.z-a.z)||1;
+        const vx=(b.x-a.x)/L;
+        const vz=(b.z-a.z)/L;
+        const x=a.x+vx*s.d;
+        const z=a.z+vz*s.d;
+        s.mesh.position.set(x,this.T.weapon.height+Math.abs(Math.sin(s.t*B.hop))*B.hopH,z);
+        s.mesh.rotation.x+=dt*B.spin*vz;
+        s.mesh.rotation.z-=dt*B.spin*vx;
+        for (const e of g.enemies.list.slice()) {
+            if (e.state==='spawn'||!e.alive||s.hit.has(e.uid)) {
+                continue;
+            }
+            if (Math.hypot(e.pos.x-x,e.pos.z-z)<=B.radius+e.def.radius) {
+                s.hit.add(e.uid);
+                g.enemies.damage(e,s.dmg,vx,vz);
+            }
+        }
+        return false;
+    }
+
+    landed(p) {
+        const g=this.g;
+        g.rings.spawn(p.pos.x,p.pos.z,1.6,'ink',0.3);
+        g.particles.burst(p.pos.x,0.2,p.pos.z,12,{color:'midGray',speed:[1,4],up:[1,3],size:[0.06,0.12]});
+        g.fx.cameraShake(0.15);
+    }
+
+    puppet(x,z,duration,shields) {
+        const g=this.g;
+        const p=g.player;
+        if (!g.puppet) {
+            return;
+        }
+        g.puppet.start(x,z,duration,0,true);
+        g.enemies.decoy=g.puppet;
+        this.pupRing=0;
+        const add=Math.max(0,shields-p.shield);
+        if (add>0) {
+            p.setShield(p.shield+add);
+        }
+        const prev=this.puppetShield&&this.puppetShield.left>0?this.puppetShield.add:0;
+        this.puppetShield={left:duration,add:prev+add};
+        p.sqv+=2;
+        g.fx.fovPunch(1.4);
+        g.fx.cameraShake(0.25);
+        g.rings.spawn(x,z,this.E.puppet.ringR*1.4,'red',0.5);
+        g.particles.burst(x,0.6,z,18,{color:'red',speed:[1,4],up:[2,5],size:[0.08,0.16]});
+        g.particles.burst(p.pos.x,1.0,p.pos.z,12,{color:'farGray',speed:[2,4],up:[2,4],size:[0.08,0.14]});
+    }
+
+    bounceBall(dx,dz,damage,bounces) {
+        const g=this.g;
+        const B=this.E.ball;
+        const m=this.muzzle(dx,dz);
+        const pts=bouncePath(g.room,m.x,m.z,dx,dz,bounces,B.maxLen,B.radius);
+        const mesh=this.balls.find(q=>!q.visible)||this.balls[0];
+        mesh.visible=true;
+        this.sweeps.push({type:'ball',t:0,dur:1e9,pts,seg:0,d:0,dmg:damage,hit:new Set(),mesh,x:m.x,z:m.z});
+        g.muzzle.show(m.x,this.T.weapon.height,m.z,'red',1.4);
+        g.fx.fovPunch(0.8);
+    }
+
+    stamp(x,z,radius,damage,stun) {
+        const S=this.E.stamp;
+        this.stampMesh.visible=true;
+        this.stampMesh.scale.setScalar(radius*S.scale);
+        this.stampMesh.position.set(x,S.drop,z);
+        this.sweeps.push({type:'stamp',t:0,dur:S.fall+S.hold,x,z,r:radius,dmg:damage,stun,hit:false});
+        this.g.rings.spawn(x,z,radius,'red',S.fall);
+    }
+
+    ruler(x,z,length,duration,bonus) {
+        const g=this.g;
+        const p=g.player;
+        let dx=x-p.pos.x;
+        let dz=z-p.pos.z;
+        const l=Math.hypot(dx,dz);
+        if (l<0.1) {
+            dx=p.aimDirX;
+            dz=p.aimDirZ;
+        }
+        else {
+            dx/=l;
+            dz/=l;
+        }
+        const px=-dz;
+        const pz=dx;
+        let r=this.rulers.find(q=>q.left<=0);
+        if (!r) {
+            r=this.rulers.reduce((a,q)=>q.left<a.left?q:a,this.rulers[0]);
+        }
+        r.x0=x-px*length/2;
+        r.z0=z-pz*length/2;
+        r.x1=x+px*length/2;
+        r.z1=z+pz*length/2;
+        r.left=duration;
+        r.t=0;
+        r.bonus=bonus/100;
+        r.mesh.visible=true;
+        r.mesh.position.set(x,0,z);
+        r.mesh.rotation.y=Math.atan2(-pz,px);
+        r.mesh.scale.set(length,0.01,1);
+        g.particles.burst(x,0.6,z,12,{color:'marker',speed:[1,3],up:[1,3],size:[0.06,0.12]});
+        g.fx.cameraShake(0.1);
+    }
+
+    rulerCross(sys,i,ax,az,bx,bz) {
+        for (const r of this.rulers) {
+            if (r.left<=0||(sys.tag[i]&r.bit)) {
+                continue;
+            }
+            const ex=bx-ax;
+            const ez=bz-az;
+            const fx=r.x1-r.x0;
+            const fz=r.z1-r.z0;
+            const den=ex*fz-ez*fx;
+            if (Math.abs(den)<1e-6) {
+                continue;
+            }
+            const u=((r.x0-ax)*fz-(r.z0-az)*fx)/den;
+            const v=((r.x0-ax)*ez-(r.z0-az)*ex)/den;
+            if (u>=0&&u<=1&&v>=0&&v<=1) {
+                sys.tag[i]|=r.bit;
+                sys.dmg[i]*=1+r.bonus;
+                if (Math.random()<0.5) {
+                    this.g.particles.burst(ax+ex*u,this.T.weapon.height,az+ez*u,2,{color:'marker',speed:[0.5,2],up:[0.5,1.5],size:[0.05,0.1],life:[0.2,0.35]});
+                }
+            }
+        }
     }
 }

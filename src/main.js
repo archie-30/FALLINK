@@ -41,7 +41,7 @@ import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
-import {initMeta,clampSkin,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
+import {initMeta,clampSkin,grantLevelChests,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen} from './core/meta.js';
 import {startRelic,relic,takeGuard} from './game/relic.js';
 import {saveRunSnap,loadRunSnap,clearRunSnap} from './core/runSave.js';
 import {GuidePopup,courseGuide,modeGuide,modesGuide} from './ui2d/guide.js';
@@ -206,6 +206,8 @@ function boot() {
     const terrainShards=new Shards(world,toonMaterial({light:'farGray',mid:'midGray',dark:'nearGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),48);
     const paperShards=new Shards(world,toonMaterial({light:'paper',mid:'farGray',dark:'midGray',jitter:TUNING.boil.vertexJitter,side:THREE.DoubleSide,unique:true}),24);
     const clones=[new Clone(fxScene),new Clone(fxScene)];
+    const puppet=new Clone(fxScene);
+    const allClones=[...clones,puppet];
     const playerBullets=new BulletSystem(actors,fxScene,{color:'ink',...TUNING.bullet.player});
     const enemyBullets=new BulletSystem(actors,fxScene,{color:'red',owner:'enemy',...TUNING.bullet.enemy});
     const chalkBullets=new BulletSystem(actors,fxScene,TUNING.bullet.chalk);
@@ -247,6 +249,7 @@ function boot() {
     const dangerRings=new Rings(fxScene,12);
     const floorMarks=new FloorMarks(fxScene,TUNING.courses.music.max+1);
     const preview=new Preview(fxScene);
+    preview.roomFn=()=>game.room;
     const enemies=new EnemyManager(actors,fxScene);
     const ctx={dangerRings:null,room:null,player,playerBullets,enemyBullets,muzzle,particles,fx,lobs,enemies:[]};
     const ink=new Ink();
@@ -257,7 +260,7 @@ function boot() {
     const art=new CardArt();
     const deckView=new DeckView();
     ctx.enemyMgr=enemies;
-    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,ink,scene:actors,fxScene},TUNING);
+    const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,puppet,weaponSys,ink,scene:actors,fxScene},TUNING);
     ctx.dangerRings=dangerRings;
     ctx.weaponSys=weaponSys;
     const swings=[];
@@ -632,7 +635,12 @@ function boot() {
     };
     deck.events.onReshuffleStart=n=>hand.onReshuffleStart(n);
     deck.events.onBurn=c=>hand.onBurn(c);
-    deck.events.onReshuffleEnd=()=>hand.onReshuffleEnd();
+    deck.events.onReshuffleEnd=()=>{
+        hand.onReshuffleEnd();
+        if (game.mode==='play') {
+            ink.add(TUNING.deck.reshuffleInk);
+        }
+    };
     homingBullets.onSeek=(x,z)=>{
         const e=enemies.nearest(x,z,40);
         return e?e.pos:null;
@@ -657,6 +665,10 @@ function boot() {
         return e;
     };
     homingBullets.onHit=hitEnemies;
+    const rulerMove=(sys,i,ax,az,bx,bz)=>effects.rulerCross(sys,i,ax,az,bx,bz);
+    for (const s of [playerBullets,pierceBullets,homingBullets,...extraSys]) {
+        s.onMove=rulerMove;
+    }
     let bleed=0;
     let heart=0;
     playerBullets.onHit=hitEnemies;
@@ -800,6 +812,10 @@ function boot() {
         particles.burst(x,1.0,z,PT.redKill,{color:'red',dirX:dx,dirZ:dz,cone:0.8,speed:[4,10],up:[1,5],size:[0.08,0.18]});
     };
     player.events.onReload=()=>audio.play('reload');
+    player.events.onLand=p=>{
+        audio.play('dash',0.7);
+        effects.landed(p);
+    };
     player.events.onArm=()=>audio.play('equip',1.2);
     player.events.onEquip=p=>{
         audio.play('equip');
@@ -1045,7 +1061,7 @@ function boot() {
         decals.clear();
         dmgNums.clear();
         pickups.clear();
-        for (const c of clones) {
+        for (const c of allClones) {
             c.stop();
         }
         effects.clear();
@@ -1472,7 +1488,7 @@ function boot() {
             }
             flushMeta();
             const levels=progress.level-lvBefore;
-            const items=scoring&&!godMode()?grant(runChestCount(stats,run.mode)+levels,levels):[];
+            const items=scoring&&!godMode()?grant(runChestCount(stats,run.mode)+levels,levels).concat(grantLevelChests()):[];
             summary.show(victory,stats,quit,toMenu=>{
                 audio.play('ui');
                 player.hp=TUNING.player.maxHp;
@@ -1926,7 +1942,7 @@ function boot() {
         dice:()=>audio.play('draw',1.3),
         fail:()=>audio.play('fail'),
         changed:(skin,big)=>{
-            for (const c of clones) {
+            for (const c of allClones) {
                 c.fig.applyAcc(skin);
             }
             player.applySkin(skin);
@@ -2980,7 +2996,7 @@ function boot() {
         hand.idleT=run.state==='combat'&&run.mode!=='training'&&run.mode!=='tutorial'&&hand.visible()?(hand.idleT||0)+dt:0;
         room.update(dt,enemies);
         effects.update(dt);
-        for (const c of clones) {
+        for (const c of allClones) {
             c.update(dt,ctx);
         }
         for (const sh of allShards()) {
@@ -3175,7 +3191,7 @@ function boot() {
         gameUi.dt=dt;
         gameUi.frozen=fx.paused||fx.cutin;
         gameUi.mode=game.mode;
-        for (const c of clones) {
+        for (const c of allClones) {
             c.sync(alpha);
         }
         const inv=renderer.post.invertHold;

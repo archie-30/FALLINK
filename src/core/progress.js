@@ -1,5 +1,6 @@
 import {TUNING} from '../data/tuning.js';
-import {UNLOCKS} from '../data/cards.js';
+import {UNLOCKS,LEGACY_UNLOCKS,KEPT_CARDS} from '../data/cards.js';
+import {LEGACY_WEAPON_UNLOCKS} from '../data/weapons.js';
 import {ENEMIES} from '../data/enemies.js';
 import {settings,storage} from './settings.js';
 
@@ -34,6 +35,37 @@ export function loadProgress() {
     if (saved) {
         Object.assign(progress,saved);
     }
+    if (progress.unlockVer!==TUNING.levels.unlockVer) {
+        const lv=Math.max(1,Math.floor(Number(progress.level)||1));
+        const kc=[];
+        const kw=[];
+        if (saved) {
+            for (const n in LEGACY_UNLOCKS) {
+                if (Number(n)<=lv) {
+                    kc.push(...LEGACY_UNLOCKS[n]);
+                }
+            }
+            for (const id in LEGACY_WEAPON_UNLOCKS) {
+                if (LEGACY_WEAPON_UNLOCKS[id]<=lv) {
+                    kw.push(id);
+                }
+            }
+        }
+        progress.keptCards=kc.filter(id=>!UNLOCKS[1].includes(id));
+        progress.keptWeapons=kw.filter(id=>id!=='pen');
+        progress.unlockVer=TUNING.levels.unlockVer;
+    }
+    if (!Array.isArray(progress.keptCards)) {
+        progress.keptCards=[];
+    }
+    if (!Array.isArray(progress.keptWeapons)) {
+        progress.keptWeapons=[];
+    }
+    if (!Array.isArray(progress.lvChests)) {
+        progress.lvChests=[];
+    }
+    KEPT_CARDS.length=0;
+    KEPT_CARDS.push(...progress.keptCards);
     if (!Array.isArray(progress.seen)) {
         progress.seen=[];
     }
@@ -136,7 +168,7 @@ export function addXp(amount) {
     const unlocked=[];
     for (let lv=before+1;lv<=progress.level;lv++) {
         if (UNLOCKS[lv]) {
-            unlocked.push(...UNLOCKS[lv]);
+            unlocked.push(...UNLOCKS[lv].filter(id=>!KEPT_CARDS.includes(id)));
         }
     }
     saveProgress();

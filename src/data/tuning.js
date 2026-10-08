@@ -243,6 +243,7 @@ export const TUNING={
         burnDelay:0.45,
         replaceDelay:1.0,
         reshuffleTime:2.0,
+        reshuffleInk:5,
         startStagger:0.14
     },
     cards:{
@@ -376,6 +377,11 @@ export const TUNING={
         wheelLine:40
     },
     effects:{
+        leap:{speed:22,life:0.5,time:0.42,height:2.2,tries:12,grace:0.08,land:3},
+        puppet:{alpha:0.95,spin:2.5,ring:0.6,ringR:1.8},
+        ball:{radius:0.36,speed:22,maxLen:80,step:0.12,hop:9,hopH:0.35,spin:14},
+        stamp:{fall:0.32,hold:0.45,drop:7,lift:2,scale:0.95,shake:0.32},
+        ruler:{max:3,height:1.5,y:0.95,alpha:0.32,tickAlpha:0.55,ticks:20},
         selfRing:1.3,
         holeBlast:3.5,
         spreadShake:0.22,
@@ -424,7 +430,10 @@ export const TUNING={
         cloneRange:14
     },
     levels:{
-        max:10,
+        max:15,
+        unlockVer:2,
+        chestEvery:5,
+        chest:{dots:5,colors:1,accs:1},
         base:340,
         step:210,
         xpKill:3,
@@ -473,6 +482,9 @@ export const TUNING={
         pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
         brush:{color:'ink',capacity:80,radius:0.3,size:0.3,trailWidth:0.42,drag:2.6,hidden:true},
         staple:{color:'midGray',capacity:64,radius:0.13,size:0.17,trailWidth:0.06},
+        crayonR:{color:'red',capacity:48,radius:0.16,size:0.22,trailWidth:0.14},
+        crayonB:{color:'crayonBlue',capacity:48,radius:0.15,size:0.18,trailWidth:0.11},
+        crayonG:{color:'crayonGreen',capacity:64,radius:0.14,size:0.15,trailWidth:0.09},
         compass:{color:'nearGray',capacity:16,radius:0.6,wallR:0.3,size:0.8,trailWidth:0.06,pierce:true,boomerang:true,model:'compass',spin:18,returnAccel:0,turnRate:12,propGap:0.4}
     },
     brushStroke:{count:10,height:1.0,fade:0.3,muzzle:0,thickMin:0.3,thickGrow:0.1,arc:1.0,lead:0.35,bow:0.05},
@@ -553,7 +565,8 @@ export const TUNING={
     levelUp:{stampAt:0.15,stampTime:0.45,stampFrom:2.6,levelAt:0.6,cardsAt:1.1,cardGap:0.28,cardTime:0.55,drops:22,titleY:0.2,cardsY:0.58,weaponY:0.86},
     levelView:{
         focusPad:12,
-        rowH:84
+        rowH:84,
+        chestH:78
     },
     training:{
         ink:10,
@@ -610,6 +623,7 @@ export const TUNING={
         pickupHeal:1
     },
     bossTempo:1.15,
+    enemyPace:{scale:[0.85,1.2],width:0.12,firstSpread:1.4},
     bossScale:{tempo:0.12,summonFirst:9,summonEvery:[16,11,8],summonCap:6,minions:[['doodle'],['doodle','bird'],['doodle','sprayer','bird']]},
     brushSwing:{start:0.4,band:0.35,bulletPad:0.3,propPad:0.3,compassClear:0.75},
     bossIntro:{delay:0.9},
@@ -720,9 +734,9 @@ export const TUNING={
     },
     spin:{radius:2.5,still:0.3,pause:2,back:0.8},
     relics:{
-        price:12,
+        price:15,
         unlock:3,
-        refill:{pen:2,pencil:4,brush:1,stapler:3,highlighter:4},
+        refill:{pen:2,pencil:4,brush:1,stapler:3,highlighter:4,crayon:3},
         whiteout:{guards:1,invuln:0.35},
         sharpener:{reload:0.88},
         bandage:{heal:1}

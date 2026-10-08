@@ -383,7 +383,7 @@ export const ENEMIES={
         }
     },
     scissors:{
-        summonMult:1.3,
+        summonMult:1.9,
         ink:4,
         nameKey:'enemy.scissors',
         hp:1000,
@@ -398,11 +398,11 @@ export const ENEMIES={
         contactDamage:1,
         spawnTime:1.6,
         shards:[14,20],
-        dashSpeed:22,
+        dashSpeed:17,
         dashTime:1.1,
         stuckTime:1.5,
         evolve:{at:0.5,time:2.2},
-        orbit:{tele:0.6,r:5.5,turn:1.5,speed:13,time:3,every:0.5,count:3,spread:0.35},
+        orbit:{tele:0.6,r:5.5,turn:1.5,speed:11,time:3,every:0.5,count:3,spread:0.35},
         trail:{every:0.09,linger:1.3,stagger:0.02,speed:6.5,life:3},
         bulletSpeed:8,
         bulletDamage:1,

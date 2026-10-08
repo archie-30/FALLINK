@@ -40,7 +40,7 @@ export function initMeta() {
         P.modeSeen={};
     }
     EARLY_WEAPONS.length=0;
-    EARLY_WEAPONS.push(...P.weapons.filter(id=>WEAPONS[id]));
+    EARLY_WEAPONS.push(...P.weapons.filter(id=>WEAPONS[id]),...(P.keptWeapons||[]).filter(id=>WEAPONS[id]&&!P.weapons.includes(id)));
 }
 
 export function setGate(fn) {
@@ -190,6 +190,38 @@ export function grant(n,accFirst=0) {
         out.push(item);
     }
     if (n>0) {
+        checkAch(true);
+        saveProgress();
+    }
+    return out;
+}
+
+export function grantLevelChests() {
+    const P=progress;
+    const L=TUNING.levels;
+    const out=[];
+    for (let lv=L.chestEvery;lv<=P.level;lv+=L.chestEvery) {
+        if (P.lvChests.includes(lv)) {
+            continue;
+        }
+        P.lvChests.push(lv);
+        P.dots+=L.chest.dots;
+        out.push({kind:'dots',n:L.chest.dots});
+        for (const [kind,n] of [['color',L.chest.colors],['acc',L.chest.accs]]) {
+            for (let i=0;i<n;i++) {
+                const list=pool(kind);
+                if (list.length===0) {
+                    P.dots+=M.dotRange[0];
+                    out.push({kind:'dots',n:M.dotRange[0]});
+                    continue;
+                }
+                const item=list[Math.floor(Math.random()*list.length)];
+                unlock(item);
+                out.push(item);
+            }
+        }
+    }
+    if (out.length>0) {
         checkAch(true);
         saveProgress();
     }
