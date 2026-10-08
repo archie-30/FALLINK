@@ -87,6 +87,7 @@ export class RelicGacha extends Panel {
             else if (A.t>G().reveal+0.35) {
                 this.anim=null;
                 this.sel=A.id;
+                this.boxPop=1;
                 this.pulse[A.id]=1;
                 this.actions.select();
             }
@@ -365,6 +366,7 @@ export class RelicGacha extends Panel {
             if (Math.hypot(p.x0-q.x,p.y0-q.y)<q.r+8) {
                 if (q.id!==this.sel) {
                     this.sel=q.id;
+                    this.boxPop=1;
                     this.pulse[q.id]=1;
                     this.actions.select();
                 }
@@ -383,6 +385,49 @@ export class RelicGacha extends Panel {
         ctx.rect(V.x,V.y,V.w,V.h);
         ctx.clip();
         this.tiles=[];
+        const si=Math.max(0,RELIC_ORDER.indexOf(this.sel));
+        const sx=L.x0+(si%L.cols)*(ts+L.gapX)+ts/2;
+        const sy=L.y0+Math.floor(si/L.cols)*(ts+L.lab+L.gapY)+ts/2;
+        const now=time.real;
+        const dt=Math.min(0.1,Math.max(0,now-(this.boxAt??now)));
+        this.boxAt=now;
+        if (this.boxX===undefined||this.t<0.05) {
+            this.boxX=sx;
+            this.boxY=sy;
+        }
+        const kk=1-Math.exp(-dt*G().boxFollow);
+        this.boxX+=(sx-this.boxX)*kk;
+        this.boxY+=(sy-this.boxY)*kk;
+        this.boxPop=Math.max(0,(this.boxPop||0)-dt*3);
+        const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.t-0.1)/0.3)));
+        if (ap>0) {
+            const pop=1+Math.sin(Math.min(1,this.boxPop)*Math.PI)*0.12;
+            const bw=(ts+L.gapX-6)*pop;
+            const bh=(ts+(small?28:34))*pop;
+            const cy=this.boxY-(this.scroll||0)+(small?8:9);
+            const bx=this.boxX-bw/2;
+            const top=cy-bh/2;
+            const rr=small?8:10;
+            ctx.save();
+            ctx.globalAlpha*=Math.min(1,ap);
+            ctx.beginPath();
+            ctx.moveTo(bx+rr,top);
+            ctx.arcTo(bx+bw,top,bx+bw,top+bh,rr);
+            ctx.arcTo(bx+bw,top+bh,bx,top+bh,rr);
+            ctx.arcTo(bx,top+bh,bx,top,rr);
+            ctx.arcTo(bx,top,bx+bw,top,rr);
+            ctx.closePath();
+            ctx.fillStyle=rgba('red',0.08+this.boxPop*0.08);
+            ctx.fill();
+            ctx.strokeStyle=PALETTE.red;
+            ctx.lineWidth=2.2;
+            ctx.setLineDash([6,4]);
+            ctx.lineDashOffset=-now*16;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineDashOffset=0;
+            ctx.restore();
+        }
         RELIC_ORDER.forEach((id,i)=>{
             const c=i%L.cols;
             const r=Math.floor(i/L.cols);
@@ -403,25 +448,6 @@ export class RelicGacha extends Panel {
             ctx.translate(x,y);
             const sc=ap*(1+(hv?0.06:0)+Math.sin(pu*Math.PI)*0.2);
             ctx.scale(sc,sc);
-            if (sel) {
-                const bw=ts+L.gapX-6;
-                const top=-ts/2-(small?6:8);
-                const bh=ts+(small?28:34);
-                const rr=small?8:10;
-                const bx=-bw/2;
-                ctx.beginPath();
-                ctx.moveTo(bx+rr,top);
-                ctx.arcTo(bx+bw,top,bx+bw,top+bh,rr);
-                ctx.arcTo(bx+bw,top+bh,bx,top+bh,rr);
-                ctx.arcTo(bx,top+bh,bx,top,rr);
-                ctx.arcTo(bx,top,bx+bw,top,rr);
-                ctx.closePath();
-                ctx.fillStyle=rgba('red',0.08);
-                ctx.fill();
-                ctx.strokeStyle=PALETTE.red;
-                ctx.lineWidth=2.4;
-                ctx.stroke();
-            }
             drawRelicIcon(ctx,id,0,own&&sel?Math.sin(time.real*2+i)*2:0,ts/2/50,v,!own);
             if (!own) {
                 drawLock(ctx,ts*0.36,ts*0.34,0.8,PALETTE.nearGray);

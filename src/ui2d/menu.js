@@ -7484,6 +7484,16 @@ export function drawChoiceIcon(ctx,kind,x,y,r,v,red) {
         ctx.arc(k*0.35,-k*0.15,k*0.2,0,Math.PI*2);
         ctx.fill();
     }
+    else if (kind==='capsule') {
+        ctx.arc(0,0,k*0.95,Math.PI,0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0,0,k*0.95,0,Math.PI*2);
+        ctx.moveTo(-k*0.95,0);
+        ctx.lineTo(k*0.95,0);
+        ctx.stroke();
+    }
     else if (kind==='book') {
         ctx.strokeRect(-k*0.8,-k*0.9,k*1.6,k*1.8);
         ctx.moveTo(-k*0.45,-k*0.9);
