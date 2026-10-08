@@ -3238,7 +3238,14 @@ function boot() {
             rig.camera.clearViewOffset();
         }
         if (game.mode!=='menu'&&!viewFrozen) {
-            rig.follow(player.renderPos,look.x,look.z);
+            const mv=game.mode==='play'?minis.view(player):null;
+            if (mv) {
+                rig.frame(mv);
+            }
+            else {
+                rig.zoomTarget=1;
+                rig.follow(player.renderPos,look.x,look.z);
+            }
             rig.update(dt);
         }
         input.getAim(aim);

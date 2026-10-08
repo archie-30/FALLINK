@@ -18,6 +18,8 @@ export class CameraRig {
         this.bounds=null;
         this.trauma=0;
         this.fovKick=0;
+        this.zoom=1;
+        this.zoomTarget=1;
         this.shakeTime=0;
         this.transition=null;
         this.setPitch(C.pitch,C.distance);
@@ -54,6 +56,24 @@ export class CameraRig {
 
     snap() {
         this.focus.copy(this.target);
+        this.zoom=1;
+        this.zoomTarget=1;
+    }
+
+    // Frame a ground box (e.g. a mini game's launch pad plus its targets): centre on it and pull the camera back
+    // just far enough that the whole box fits inside the part of the screen the HUD leaves free.
+    frame(box) {
+        const C=TUNING.camera;
+        const cx=(box.minX+box.maxX)/2;
+        const cz=(box.minZ+box.maxZ)/2;
+        this.follow({x:cx,z:cz},0,0);
+        const L=this.offset.length();
+        const halfV=L*Math.tan(THREE.MathUtils.degToRad(C.fov/2))/(this.offset.y/L);
+        const halfH=halfV*this.camera.aspect;
+        const needZ=(box.maxZ-box.minZ)/2+C.frameMargin[1];
+        const needX=(box.maxX-box.minX)/2+C.frameMargin[0];
+        const z=Math.max(needZ/(halfV*C.frameUse[1]),needX/(halfH*C.frameUse[0]));
+        this.zoomTarget=Math.max(1,Math.min(C.frameMaxZoom,z));
     }
 
     addTrauma(a) {
@@ -79,11 +99,12 @@ export class CameraRig {
             this.focus.x+=(this.target.x-this.focus.x)*k;
             this.focus.z+=(this.target.z-this.focus.z)*k;
         }
+        this.zoom+=(this.zoomTarget-this.zoom)*(1-Math.exp(-C.frameFollow*dt));
         this.trauma=Math.max(0,this.trauma-C.traumaDecay*dt);
         this.fovKick*=Math.exp(-C.fovPunchDecay*dt);
         this.shakeTime+=dt;
         const cam=this.camera;
-        cam.position.copy(this.focus).add(this.offset);
+        cam.position.copy(this.focus).addScaledVector(this.offset,this.zoom);
         cam.lookAt(this.focus);
         const s=this.trauma*this.trauma;
         if (s>0.0001) {
