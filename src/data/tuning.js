@@ -324,15 +324,15 @@ export const TUNING={
         xpTime:1.2,
         drawer:{endPad:64,closeTime:0.28,tilt:0.025,rowsAt:0.45,rowStagger:0.03,rowRise:10,bottomPad:14,barMin:24,fadeH:34,dragSlop:6,follow:16,peek:52,peekSmall:40,frac:0.8,maxW:900,time:0.45,actGap:10,head:52,headSmall:40,foot:46,footSmall:38,row:27,rowSmall:21},
         grade:{
-            story:[['S',35000],['A',20000],['B',10000],['C',4000],['D',-1]],
-            endless:[['S',60000],['A',30000],['B',15000],['C',5000],['D',-1]]
+            story:[['S+',45000],['S',35000],['A',20000],['B',10000],['C',5000],['D',-1]],
+            endless:[['S+',80000],['S',60000],['A',30000],['B',15000],['C',5000],['D',-1]]
         }
     },
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
     pauseUi:{compactH:840,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
     doors:{width:2.4,height:1.9,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
     minigame:{endDelay:0.9,bellShake:0.18,bell:{impulse:3.2,k:34,damp:3.4,clapK:70,clapDamp:5,flash:0.28,squash:0.1,wave:2.6,decay:1.4},tilesSearch:4000,popTime:0.35,popGap:0.04,wallRise:0.5,wallGap:0.03,wallSink:0.5},
-    npc:{bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
+    npc:{iconTilt:0.9,iconSway:1.3,goneRate:3,goneLift:0.8,bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
     worldMarks:{sayFont:17,sayLift:46,sayTime:3.2,sayMargin:12,sayTop:170,sayLeft:190,subH:22,subMaxW:340,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14,padSegs:28,padLift:1.4},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
     hand:{showTime:0.55,hideOffset:260},
@@ -687,6 +687,7 @@ export const TUNING={
         facing:{dist:0.75,len:0.32,half:0.2,alpha:0.85,guideFrom:1.1,guideLen:4.5,guideAlpha:0.28,dash:7,gap:7},
         toastY:72,
         toastBannerY:196,
+        relics:{r:16,gap:7,top:12,pop:0.45,shake:0.18,shakeRate:42,ring:5,infoW:300,infoPad:16},
         result:{time:4.2,perLine:0.6,lineH:26,maxW:420,fade:0.35,titleSize:19,lineSize:16,halo:5,gapTop:22,lineGap:10,lineDelay:0.18,flyDelay:0.45,flyTime:0.7,flyArc:40,flySize:24},
         progress:{y:30,segW:340,minSeg:160,side:240,actGap:12,dotR:6,bossR:8.5,curR:9,anim:0.8,hop:14,pulse:0.12,pulseRate:4,actSize:15,tagSize:14,tagY:20,below:58,show:4,fade:0.8,pauseY:34},
         score:{right:78,y:12,labelSize:12,size:30,pop:0.35,popDecay:2.5,rate:6,shake:4,shakeRate:55,shakeDecay:2.2},
@@ -717,7 +718,8 @@ export const TUNING={
         flash:0.12
     },
     meta:{
-        price:{color:2,acc:5,weapon:15},
+        price:{color:2,acc:5,weapon:25},
+        gradeCoins:{'S+':4,S:3,A:2,B:1},
         revive:{min:1,max:10,invuln:2.5,once:true},
         chestEvery:5,
         chestItems:2,
@@ -739,13 +741,35 @@ export const TUNING={
         ui:{barW:300,barWSmall:200,barY:48,shift:14,iconR:15,iconGap:12}
     },
     spin:{radius:2.5,still:0.3,pause:2,back:0.8},
+    gachaUi:{drop:0.9,fly:1.4,reveal:1.9,balls:15},
     relics:{
         price:15,
-        unlock:3,
+        max:4,
+        offer:3,
+        weaponTag:128,
+        flash:0.9,
         refill:{pen:2,pencil:4,brush:1,stapler:3,highlighter:4,crayon:3},
         whiteout:{guards:1,invuln:0.35},
-        sharpener:{reload:0.88},
-        bandage:{heal:1}
+        sharpener:{reload:0.9},
+        bandage:{heal:1,every:4},
+        inkVial:{min:3},
+        styptic:{invuln:0.3},
+        sneakers:{iframe:0.2},
+        feather:{speed:1.06},
+        eraserBits:{every:12,ink:1},
+        boxCutter:{range:3,mult:1.2},
+        glasses:{slow:1.25},
+        coupon:{mult:0.85},
+        metronome:{time:2,rate:1.12},
+        redPact:{hp:-2,mult:1.2},
+        carbon:{every:3},
+        phoenix:{hp:2,invuln:2.5},
+        bigInk:{ink:2},
+        inkDrip:{every:12,ink:1},
+        amulet:{shields:1},
+        lastStand:{hp:3,rate:1.2,speed:1.2},
+        gambler:{mult:2},
+        masochist:{ink:0.5}
     },
     metaUi:{
         chest:{shake:0.9,burst:0.35,itemGap:0.32,itemPop:0.45,float:6,rays:12},

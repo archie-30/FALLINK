@@ -1,4 +1,4 @@
-import {ACTS,ENDLESS,TRAINING,LAYOUTS,PEACE_LAYOUTS,PEACE_VARY} from '../data/levels.js';
+import {ACTS,ENDLESS,TRAINING,LAYOUTS,PEACE_LAYOUTS,PEACE_VARY,LIBRARY} from '../data/levels.js';
 import {settings} from '../core/settings.js';
 import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS,TUTORIAL_DECK} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
@@ -12,9 +12,10 @@ import {NOTEBOOK} from '../data/notebook.js';
 import {MINIGAMES} from '../data/minigames.js';
 import {WEAPON_ORDER} from '../data/weapons.js';
 import {t} from '../data/strings.js';
-import {bump,setMax,resetRevive,reviveCount,setRevive} from '../core/meta.js';
+import {bump,setMax,resetRevive,reviveCount,setRevive,relicPool} from '../core/meta.js';
 import {COURSE_ORDER} from '../data/courses.js';
 import {CourseRun} from './course.js';
+import {gamblerMult,flashRelic,shopMult,hasRelic} from './relic.js';
 
 export class Run {
     constructor(hooks,seed) {
@@ -214,7 +215,10 @@ export class Run {
             return room;
         }
         let plan;
-        if (this.overtime) {
+        if (this.library) {
+            plan=this.planLibrary();
+        }
+        else if (this.overtime) {
             plan=planEndless(this.otIndex(),this.rng,this.lastLayout,this.planOpts());
             plan.overtime=true;
             plan.fresh=null;
@@ -248,8 +252,9 @@ export class Run {
         if (forced&&!plan.boss&&!plan.peace) {
             plan.mod=forced;
         }
-        plan.node=this.notebook()&&!this.overtime?this.node:'battle';
-        plan.exits=this.makeExits();
+        plan.node=plan.node==='library'?'library':(this.notebook()&&!this.overtime?this.node:'battle');
+        plan.exits=plan.boss?[{kind:'library'}]:this.makeExits();
+        this.library=false;
         this.plan=plan;
         this.course=plan.course?new CourseRun(plan.course,plan,this.hooks.course):null;
         this.lastLayout=plan.layoutKey;
@@ -265,9 +270,16 @@ export class Run {
         this.director=null;
         this.room=this.hooks.enterRoom(plan,this.deckList);
         this.logPage(plan);
+        if (this.hooks.pageStart) {
+            this.hooks.pageStart(plan);
+        }
         if (plan.peace) {
             this.state='peace';
             this.npcUsed=plan.npcs.map(()=>false);
+            if (plan.node==='library') {
+                this.lib={cards:false,ults:false,relic:plan.relics.length===0};
+                this.hooks.npcSay(2,t('library.greet'));
+            }
             this.stats.nodes=(this.stats.nodes||0)+1;
             this.hooks.banner('peace',this);
             return;
@@ -330,6 +342,78 @@ export class Run {
             this.stockShop(plan);
         }
         return plan;
+    }
+
+    planLibrary() {
+        const L=LIBRARY;
+        const plan={act:this.act,index:this.index,peace:true,node:'library',boss:false,layoutKey:'library',layout:L,hpMult:ACTS[this.act].hpMult,waves:[],barrels:0,crates:0};
+        const pool=relicPool().filter(id=>!hasRelic(id));
+        for (let i=pool.length-1;i>0;i--) {
+            const j=Math.floor(this.rng.next()*(i+1));
+            [pool[i],pool[j]]=[pool[j],pool[i]];
+        }
+        plan.relics=pool.slice(0,TUNING.relics.offer);
+        plan.npcs=[
+            {model:'cardKeeper',x:L.keepers[0][0],z:L.keepers[0][1]},
+            {model:'ultKeeper',x:L.keepers[1][0],z:L.keepers[1][1]},
+            {model:'librarian',x:L.librarian[0],z:L.librarian[1]}
+        ];
+        const spots=plan.relics.length===2?[L.relics[0],L.relics[2]]:(plan.relics.length===1?[L.relics[1]]:L.relics);
+        plan.relics.forEach((id,i)=>{
+            plan.npcs.push({model:'relic',relic:id,label:t('relic.'+id+'.name'),x:spots[i][0],z:spots[i][1]});
+        });
+        return plan;
+    }
+
+    libraryUse(i) {
+        const p=this.plan;
+        const n=p.npcs[i];
+        const L=this.lib;
+        const back=()=>this.libraryBack();
+        if (n.model==='cardKeeper'||n.model==='ultKeeper') {
+            const rare=n.model==='ultKeeper';
+            this.npcUsed[i]=true;
+            this.hooks.npcUsed(i);
+            this.hooks.npcSay(i,t(rare?'library.ultSay':'library.cardSay'));
+            this.state='reward';
+            const kind=rare?'rare':'normal';
+            this.hooks.openReward([{kind,cards:this.rewardChoices(kind)}],this.deckCounts(),cards=>{
+                L[rare?'ults':'cards']=true;
+                this.takeCards(cards,back);
+            },false,t(rare?'library.ultTitle':'library.cardTitle'));
+            return true;
+        }
+        if (n.model==='librarian') {
+            this.hooks.npcSay(i,t(L.relic?'library.thanks':(p.relics.length>0?'library.pick':'library.empty')));
+            if (L.relic) {
+                this.npcUsed[i]=true;
+                this.hooks.npcUsed(i);
+            }
+            back();
+            return true;
+        }
+        if (L.relic) {
+            this.hooks.npcSay(2,t('library.onlyOne'));
+            back();
+            return true;
+        }
+        L.relic=true;
+        this.npcUsed[i]=true;
+        this.hooks.npcUsed(i);
+        this.npcUsed[2]=true;
+        this.hooks.npcUsed(2);
+        this.hooks.npcSay(2,t('library.thanks'));
+        this.hooks.takeRelic(n.relic,back);
+        return true;
+    }
+
+    libraryBack() {
+        this.state='peace';
+        this.hooks.resume();
+        const L=this.lib;
+        if (L&&L.cards&&L.ults&&L.relic&&!this.exitsOpen) {
+            this.openExits();
+        }
     }
 
     planGame(base,key,forced=null) {
@@ -514,6 +598,11 @@ export class Run {
             this.overtime=true;
             this.otPage=0;
             this.node='battle';
+            this.go(i);
+            return true;
+        }
+        if (ex.kind==='library') {
+            this.library=true;
             this.go(i);
             return true;
         }
@@ -752,13 +841,16 @@ export class Run {
             const opts=[{id:'heal',n},{id:'upgrade',disabled:this.upgradable().length===0}];
             this.hooks.openChoice({kind:'rest',options:opts},k=>{
                 if (k===0) {
-                    this.note('note.healed',{n:this.hooks.heal(n)});
+                    this.note('note.healed',{n:this.hooks.heal(this.gamble(n))});
                     done();
                     return;
                 }
                 this.pickUpgrade(done);
             });
             return true;
+        }
+        if (p.node==='library') {
+            return this.libraryUse(i);
         }
         if (p.node==='shop') {
             if (i>0) {
@@ -835,7 +927,7 @@ export class Run {
         plan.shopItems.forEach((id,i)=>{
             const it=S.items[id];
             const x=side?k.x+dir*(S.shelfStart+i*S.shelfGap):cx+(i-(plan.shopItems.length-1)/2)*S.shelfGap;
-            plan.npcs.push({model:'item',item:id,label:t('shop.'+id),price:it.price,x,z});
+            plan.npcs.push({model:'item',item:id,label:t('shop.'+id),price:Math.round(it.price*shopMult()),x,z});
         });
         const L=plan.layout;
         const own=L.props.filter(q=>!L.decor.includes(q));
@@ -854,7 +946,7 @@ export class Run {
         const S=NOTEBOOK.shop;
         const p=this.plan;
         const id=p.npcs[i].item;
-        const it=S.items[id];
+        const it={...S.items[id],price:p.npcs[i].price};
         if (this.stats.score<it.price) {
             this.hooks.npcSay(0,t('shop.poor'));
             this.state='peace';
@@ -903,6 +995,15 @@ export class Run {
         }
     }
 
+    gamble(n) {
+        const p=this.plan;
+        if (!p||!p.peace||p.node==='shop'||p.node==='library'||gamblerMult()===1) {
+            return n;
+        }
+        flashRelic('gambler',1.2);
+        return n*gamblerMult();
+    }
+
     upgradable() {
         return this.deckList.map((c,i)=>i).filter(i=>!this.deckList[i].upgraded);
     }
@@ -928,12 +1029,13 @@ export class Run {
         const [kind,arg]=list.shift();
         const cont=()=>this.applyEffects(list,done);
         if (kind==='heal') {
-            this.note('note.healed',{n:this.hooks.heal(arg)});
+            this.note('note.healed',{n:this.hooks.heal(this.gamble(arg))});
             cont();
         }
         else if (kind==='hurt') {
-            const lost=this.hooks.hurt(arg);
-            this.note(lost>0?'note.hurt':'note.guarded',{n:arg});
+            const n=this.gamble(arg);
+            const lost=this.hooks.hurt(n);
+            this.note(lost>0?'note.hurt':'note.guarded',{n});
             cont();
         }
         else if (kind==='ink') {
@@ -942,8 +1044,9 @@ export class Run {
             cont();
         }
         else if (kind==='score') {
-            this.stats.score=Math.max(0,this.stats.score+arg);
-            this.note(arg>=0?'note.score':'note.scoreLoss',{n:Math.abs(arg)});
+            const n=this.gamble(arg);
+            this.stats.score=Math.max(0,this.stats.score+n);
+            this.note(n>=0?'note.score':'note.scoreLoss',{n:Math.abs(n)});
             cont();
         }
         else if (kind==='upgradeRandom') {
@@ -1160,13 +1263,11 @@ export class Run {
                     this.openExits();
                     return;
                 }
-                this.state='reward';
                 if (this.plan.boss) {
-                    this.hooks.openReward([{kind:'normal',cards:this.rewardChoices('normal')}],this.deckCounts(),cards=>this.takeCards(cards,()=>{
-                        this.hooks.openReward([{kind:'rare',cards:this.rewardChoices('rare')}],this.deckCounts(),more=>this.takeCards(more),false,t('reward.boss2'));
-                    }),false,t('reward.boss1'));
+                    this.openExits();
                     return;
                 }
+                this.state='reward';
                 this.hooks.openReward([{kind:'mixed',cards:this.rewardChoices('mixed',this.plan.elite?NOTEBOOK.eliteRareChance:null)}],this.deckCounts(),cards=>this.takeCards(cards));
             }
             return;
@@ -1177,6 +1278,10 @@ export class Run {
             }
             this.timer-=dt;
             if (this.timer<=0) {
+                if (!this.training()&&!this.tutorial()&&this.hooks.phoenix&&this.hooks.phoenix()) {
+                    this.state=this.preDead||'combat';
+                    return;
+                }
                 if (!this.training()&&!this.tutorial()&&this.hooks.canRevive()) {
                     this.reviving=true;
                     this.hooks.openRevive(ok=>{

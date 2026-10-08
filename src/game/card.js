@@ -4,6 +4,7 @@ import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
 import {toonMaterial,lineMaterial,unlitMaterial,pal} from '../render/materials.js';
 import {circleVs,clampToBounds} from '../core/collision.js';
+import {carbonFree} from './relic.js';
 
 let nextUid=1;
 
@@ -15,7 +16,7 @@ export function createCard(id,upgraded=false) {
 export const freeCards={left:0};
 
 export function cardCost(card) {
-    if (freeCards.left>0&&card.def.rarity!=='rare') {
+    if ((freeCards.left>0||carbonFree())&&card.def.rarity!=='rare') {
         return 0;
     }
     if (!card.upgraded) {

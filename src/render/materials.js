@@ -3,7 +3,7 @@ import {PALETTE} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {device} from '../core/settings.js';
 import {TOON_VERT,TOON_FRAG,HULL_VERT,HULL_FRAG,UNLIT_VERT,UNLIT_FRAG,SHADOW_VERT,SHADOW_FRAG} from './shaders/toon.js';
-import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,STAMP_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG,COUNT_FRAG} from './shaders/fx.js';
+import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,STAMP_FRAG,ICON_VERT,ICON_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG,COUNT_FRAG} from './shaders/fx.js';
 
 const colorCache={};
 
@@ -348,6 +348,18 @@ export function stampMaterial(tex,color) {
         polygonOffset:true,
         polygonOffsetFactor:-4,
         polygonOffsetUnits:-4
+    });
+}
+
+export function iconMaterial(tex) {
+    return new THREE.ShaderMaterial({
+        vertexShader:ICON_VERT,
+        fragmentShader:ICON_FRAG,
+        uniforms:{
+            tIcon:{value:tex},
+            uFar:shared.uFar
+        },
+        side:THREE.DoubleSide
     });
 }
 

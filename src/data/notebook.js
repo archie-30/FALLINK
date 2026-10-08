@@ -7,7 +7,7 @@ export const NOTEBOOK={
         shop:{weight:1.2,minAct:0},
         event:{weight:1.8,minAct:0},
         encounter:{weight:1.2,minAct:0},
-        rest:{weight:0.5,minAct:0}
+        rest:{weight:0.3,minAct:0}
     },
     doorsMin:2,
     doorsMax:3,

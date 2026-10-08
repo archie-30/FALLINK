@@ -22,10 +22,9 @@ import {CARD_W,CARD_H,drawCost,wrapText,cardFacts,drawCardTooltip,cardBrief,card
 import {ENEMY_ICONS} from './enemyIcons.js';
 import {FONT,inRect,drawButton,fitText,Panel} from './uiKit.js';
 import {ACC_SLOTS,ACC_DEFAULT} from '../data/cosmetics.js';
-import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,levelChestsReady,randomSkin,ownsRelic,equippedRelic,relicPrice,relicsUnlocked} from '../core/meta.js';
+import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,levelChestsReady,randomSkin} from '../core/meta.js';
 import {drawAcc,drawAccIcon,drawLock,drawWallet,drawCoin,drawMiniChest,drawItemIcon} from './meta.js';
 import {drawRelicIcon} from './relicIcons.js';
-import {RELIC_ORDER} from '../data/relics.js';
 
 function lerp1(a,b,f) {
     return a+(b-a)*Math.max(0,Math.min(1,f));
@@ -2732,7 +2731,7 @@ export class RunSummary {
             ctx.fillText(g,bx+pad,yy);
             ctx.font=(on?'bold ':'')+'13px '+FONT;
             ctx.fillStyle=PALETTE.ink;
-            ctx.fillText(label,bx+pad+26,yy+1);
+            ctx.fillText(label,bx+pad+32,yy+1);
             yy+=20;
         }
         ctx.restore();
@@ -2965,7 +2964,7 @@ export class RunSummary {
                 ctx.fillStyle=PALETTE.red;
                 ctx.textAlign='center';
                 ctx.textBaseline='middle';
-                ctx.fillText(this.grade(),0,3);
+                ctx.fillText(this.grade(),0,3,R*1.8);
             }
             ctx.restore();
             this.gradeRect={x:gx-R*1.2,y:gy-R*1.1,w:R*2.4,h:R*2.2};
@@ -4061,7 +4060,7 @@ function drawTone(ctx,x,y,r,tones,sel,v,seed,locked=false) {
     }
 }
 
-const SKIN_TABS=['colors','acc'];
+const SKIN_TABS=['colors','acc','weapon'];
 
 export class SkinEditor extends Panel {
     constructor(actions) {
@@ -4310,6 +4309,22 @@ export class SkinEditor extends Panel {
             const cur=this.skin();
             const split=this.outfitSel;
             this.outfitSel=-1;
+            if (q.weapon) {
+                if (q.ok) {
+                    if ((settings.weapon||'pen')!==q.weapon) {
+                        this.actions.equipWeapon(q.weapon);
+                        this.burst(q.x+q.h*0.55,q.y+q.h/2,[PALETTE.red,PALETTE.ink],14);
+                    }
+                }
+                else if (q.rnd) {
+                    this.say('weapon.random.locked',{n:RANDOM_WEAPON.min});
+                    this.actions.locked();
+                }
+                else {
+                    this.actions.buyWeapon(q.weapon);
+                }
+                return;
+            }
             if (q.preset) {
                 if (!presetOwned(q.preset)) {
                     this.actions.bundle(q.preset);
@@ -4679,6 +4694,88 @@ export class SkinEditor extends Panel {
         return y;
     }
 
+    drawWeapons(ctx,P,y,v,small) {
+        const U=TUNING.weaponUi;
+        const lv=effectiveLevel();
+        const ch=small?U.rowHSmall:U.rowH;
+        const x=P.x+18;
+        const w=P.w-36;
+        const list=[RANDOM_WEAPON.id,...WEAPON_ORDER];
+        ctx.font='12px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        const hl=wrapText(ctx,t('weapon.hint'),w);
+        for (const ln of hl) {
+            ctx.fillText(ln,x,y);
+            y+=16;
+        }
+        y+=6;
+        for (let i=0;i<list.length;i++) {
+            const id=list[i];
+            const rnd=id===RANDOM_WEAPON.id;
+            const unlocked=weaponUnlocked(id,lv);
+            const eq=(settings.weapon||'pen')===id;
+            const r={x,y,w,h:ch};
+            const hv=inRect(r,this.hx,this.hy);
+            const pu=this.pulse['w'+id]||0;
+            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.tabT-i*0.05)/0.45)));
+            ctx.save();
+            ctx.translate(x+w/2,y+ch/2);
+            const sc=ap*(1+(hv?0.02:0)+Math.sin(pu*Math.PI)*0.06);
+            ctx.scale(sc,sc);
+            ctx.rotate(Math.sin(pu*Math.PI*3)*0.02);
+            ctx.translate(-w/2,-ch/2);
+            ctx.fillStyle=eq?rgba('red',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.92));
+            ctx.fillRect(0,0,w,ch);
+            drawShape(ctx,sketchRect(0,0,w,ch,{width:eq?2.6:1.4,seed:1700+i}),eq?PALETTE.red:(unlocked?PALETTE.ink:PALETTE.midGray),v);
+            const bob=eq?Math.sin(time.real*3)*2:0;
+            drawWeaponIcon(ctx,id,ch*0.55,ch*0.5+bob,ch/100,v,!unlocked);
+            const tw=w-ch*1.15-(eq?70:12);
+            ctx.textAlign='left';
+            ctx.textBaseline='middle';
+            ctx.fillStyle=unlocked?PALETTE.ink:PALETTE.midGray;
+            fitText(ctx,t('weapon.'+id+'.name'),ch*1.1,ch*0.33,tw,small?16:19,'bold ');
+            let sub=t('weapon.'+id+'.short');
+            let red=false;
+            if (!unlocked) {
+                red=true;
+                sub=rnd?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('codex.locked',{level:WEAPONS[id].unlock})+t('ui.sep')+t('weapon.early',{n:TUNING.meta.price.weapon});
+            }
+            ctx.fillStyle=red?PALETTE.red:PALETTE.nearGray;
+            fitText(ctx,sub,ch*1.1,ch*0.7,tw,small?12:14,'');
+            if (eq) {
+                ctx.save();
+                ctx.translate(w-10,10);
+                ctx.rotate(0.12);
+                ctx.fillStyle=PALETTE.red;
+                ctx.fillRect(-58,-2,62,20);
+                ctx.fillStyle=PALETTE.paper;
+                ctx.font='bold 12px '+FONT;
+                ctx.textAlign='center';
+                ctx.fillText(t('weapon.equipped'),-27,8);
+                ctx.restore();
+            }
+            else if (!unlocked&&!rnd) {
+                drawLock(ctx,w-18,ch/2,0.6,PALETTE.midGray);
+            }
+            ctx.restore();
+            this.hits.push({x,y,w,h:ch,weapon:id,key:'w'+id,ok:unlocked,rnd});
+            y+=ch+U.listGap;
+        }
+        const id=settings.weapon||'pen';
+        ctx.font=(small?12:13)+'px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textAlign='left';
+        ctx.textBaseline='top';
+        y+=4;
+        for (const ln of wrapText(ctx,t('weapon.'+id+'.desc',weaponParams(id)),w)) {
+            ctx.fillText(ln,x,y);
+            y+=17;
+        }
+        return y+8;
+    }
+
     draw(ctx) {
         if (!this.shown()) {
             return;
@@ -4716,12 +4813,14 @@ export class SkinEditor extends Panel {
         ctx.clip();
         y+=4-this.scroll;
         const y0=y;
-        const slide=(1-EASE.easeOutCubic(this.tabT))*TUNING.metaUi.tab.slide*(this.tab==='acc'?1:-1)*4;
-        y=this.drawOutfits(ctx,P,y,v,small,cur);
+        const slide=(1-EASE.easeOutCubic(this.tabT))*TUNING.metaUi.tab.slide*(this.tab==='colors'?-1:1)*4;
+        if (this.tab!=='weapon') {
+            y=this.drawOutfits(ctx,P,y,v,small,cur);
+        }
         ctx.save();
         ctx.translate(slide,0);
         ctx.globalAlpha=Math.min(1,0.3+this.tabT);
-        y=this.tab==='acc'?this.drawAccs(ctx,P,y,v,small,cur):this.drawColors(ctx,P,y,v,small,cur);
+        y=this.tab==='weapon'?this.drawWeapons(ctx,P,y,v,small):(this.tab==='acc'?this.drawAccs(ctx,P,y,v,small,cur):this.drawColors(ctx,P,y,v,small,cur));
         ctx.restore();
         this.contentH=y-y0+6;
         ctx.restore();
@@ -6143,7 +6242,7 @@ export class Coach extends Panel {
                 ctx.font='bold 16px '+FONT;
                 ctx.textAlign='center';
                 ctx.textBaseline='bottom';
-                ctx.fillText(t(j?'menu.codex':'menu.weapon'),rx+cw/2,gy+chh-6);
+                ctx.fillText(t(j?'menu.codex':'menu.skin'),rx+cw/2,gy+chh-6);
                 const q=EASE.easeOutBack(Math.max(0,Math.min(1,(k-0.25-j*0.1)/0.12)));
                 if (q<=0) {
                     continue;
@@ -6953,30 +7052,6 @@ export function drawWeaponIcon(ctx,id,x,y,s,v,locked) {
     ctx.restore();
 }
 
-function weaponValue(def,key) {
-    if (key==='dmg') {
-        if (def.colors) {
-            return t('weapon.val.dmgRange',{a:Math.min(...def.colors.map(c=>c.damage)),b:Math.max(...def.colors.map(c=>c.damage))});
-        }
-        if (def.bands) {
-            return t('weapon.val.dmgRange',{a:Math.min(...def.bands),b:Math.max(...def.bands)});
-        }
-        return (def.pellets||1)>1?t('weapon.val.dmgN',{d:def.damage,n:def.pellets}):String(def.damage);
-    }
-    if (key==='rate') {
-        return def.cooldown?t('weapon.val.cd',{s:def.cooldown}):t('weapon.val.rate',{n:(1/def.fireInterval*(def.burst||1)).toFixed(1)});
-    }
-    if (key==='range') {
-        if (def.beam) {
-            return t('weapon.val.range',{n:def.beam.range});
-        }
-        const fx=TUNING.weaponFx[def.sys]||{};
-        const r=fx.drag?def.bulletSpeed/fx.drag*(1-Math.exp(-fx.drag*def.bulletLife)):def.bulletSpeed*def.bulletLife;
-        return t('weapon.val.range',{n:r.toFixed(1)});
-    }
-    return def.cooldown?t('weapon.val.none'):t('weapon.val.mag',{n:def.magazine,s:def.reloadTime});
-}
-
 export function weaponParams(id) {
     const C=(WEAPONS[id]&&WEAPONS[id].colors)||[];
     const out={};
@@ -6987,824 +7062,6 @@ export function weaponParams(id) {
     }
     return out;
 }
-
-function relicParams(id) {
-    const R=TUNING.relics;
-    if (id==='refill') {
-        return {...R.refill,n:Object.values(R.refill).length};
-    }
-    if (id==='sharpener') {
-        return {pct:Math.round((1-R.sharpener.reload)*100)};
-    }
-    if (id==='bandage') {
-        return {n:R.bandage.heal};
-    }
-    return {};
-}
-
-export class WeaponView extends Panel {
-    constructor(actions) {
-        super();
-        this.actions=actions;
-        this.outFrom=0.35;
-        this.sel='pen';
-        this.animT=0;
-        this.hits=[];
-        this.hx=-1;
-        this.hy=-1;
-        this.pop=0;
-        this.bars={};
-        this.tab='weapon';
-        this.relSel=RELIC_ORDER[0];
-        this.tabHits=[];
-        this.relHits=[];
-        this.relPop=0;
-        this.tabPos=0;
-        this.tabT=9;
-        this.tabDir=1;
-        this.lockMsg=0;
-        this.relEquipT=9;
-        this.relEquipId='';
-    }
-
-    show() {
-        super.show();
-        this.sel=settings.weapon||'pen';
-        this.tab='weapon';
-        this.tabPos=0;
-        this.tabT=9;
-        this.lockMsg=0;
-        this.relSel=equippedRelic()||RELIC_ORDER[0];
-        this.animT=0;
-        this.pop=0;
-        this.relPop=0;
-        this.relEquipT=9;
-    }
-
-    relicsOpen() {
-        return relicsUnlocked();
-    }
-
-    tabRects() {
-        const P=this.P;
-        const small=this.height<600;
-        const tw=small?78:104;
-        const th=small?30:36;
-        const y=P.y+(small?7:15);
-        const x0=P.x+P.w-24-tw*2-8;
-        return [{x:x0,y,w:tw,h:th,id:'weapon'},{x:x0+tw+8,y,w:tw,h:th,id:'relic'}];
-    }
-
-    setTab(id) {
-        if (id===this.tab) {
-            return;
-        }
-        if (id==='relic'&&!this.relicsOpen()) {
-            this.lockMsg=1.8;
-            this.actions.locked();
-            return;
-        }
-        this.tabDir=id==='relic'?1:-1;
-        this.tab=id;
-        this.tabT=0;
-        this.animT=0;
-        this.actions.select();
-    }
-
-    clampList() {
-        const max=Math.max(0,(this.listH||0)-(this.listV?this.listV.h:0));
-        this.listTo=Math.max(0,Math.min(max,this.listTo||0));
-        this.listScroll=Math.max(0,Math.min(max,this.listScroll||0));
-    }
-
-    wheel(dy) {
-        if (this.open&&this.tab==='weapon') {
-            this.listTo=(this.listTo||0)+dy;
-            this.clampList();
-        }
-    }
-
-    move(x,y) {
-        const p=this.press;
-        if (!p) {
-            return;
-        }
-        if (Math.abs(y-p.y0)>TUNING.weaponUi.dragSlop) {
-            p.moved=true;
-        }
-        if (p.moved) {
-            this.listTo=p.s0-(y-p.y0);
-            this.clampList();
-            this.listScroll=this.listTo;
-        }
-    }
-
-    up() {
-        const p=this.press;
-        this.press=null;
-        if (!p||p.moved||!this.open) {
-            return;
-        }
-        for (const q of this.hits) {
-            if (inRect(q,p.x0,p.y0)) {
-                if (q.id!==this.sel) {
-                    this.sel=q.id;
-                    this.animT=0;
-                    this.actions.select();
-                }
-                return;
-            }
-        }
-    }
-
-    drawListBar(ctx) {
-        const V=this.listV;
-        const max=Math.max(0,this.listH-V.h);
-        if (max<=0) {
-            return;
-        }
-        const th=Math.max(30,V.h*V.h/this.listH);
-        const ty=V.y+(V.h-th)*(this.listScroll/max);
-        ctx.fillStyle=rgba('farGray',0.6);
-        ctx.fillRect(V.x+V.w+2,V.y,4,V.h);
-        ctx.fillStyle=PALETTE.ink;
-        ctx.fillRect(V.x+V.w+1,ty,6,th);
-    }
-
-    relicState(id) {
-        return ownsRelic(id)?(equippedRelic()===id?'on':'own'):'locked';
-    }
-
-    hover(x,y) {
-        super.hover(x,y);
-        this.hx=x;
-        this.hy=y;
-    }
-
-    layout() {
-        const w=this.width;
-        const h=this.height;
-        const small=h<600;
-        const pw=Math.min(1060,w-20,fitW(h));
-        const ph=Math.min(h-16,small?h-16:640);
-        this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
-        const bh=small?40:48;
-        const by=this.P.y+ph-(small?48:64);
-        this.backBtn={x:this.P.x+24,y:by,w:small?130:160,h:bh};
-        this.equipBtn={x:this.P.x+pw-24-(small?170:200),y:by,w:small?170:200,h:bh};
-        this.buttons=[this.backBtn,this.equipBtn];
-    }
-
-    down(x,y) {
-        if (!this.open) {
-            return false;
-        }
-        this.layout();
-        if (inRect(this.backBtn,x,y)) {
-            this.actions.back();
-            return true;
-        }
-        for (const q of this.tabRects()) {
-            if (inRect(q,x,y)) {
-                this.setTab(q.id);
-                return true;
-            }
-        }
-        if (this.tab==='relic') {
-            if (inRect(this.equipBtn,x,y)) {
-                const st=this.relicState(this.relSel);
-                if (st==='locked') {
-                    this.actions.buyRelic(this.relSel);
-                }
-                else {
-                    this.relPop=1;
-                    if (st!=='on') {
-                        this.relEquipT=0;
-                        this.relEquipId=this.relSel;
-                    }
-                    this.actions.equipRelic(st==='on'?'':this.relSel);
-                }
-                return true;
-            }
-            for (const q of this.relHits) {
-                if (inRect(q,x,y)) {
-                    if (q.id!==this.relSel) {
-                        this.relSel=q.id;
-                        this.animT=0;
-                        this.actions.select();
-                    }
-                    return true;
-                }
-            }
-            return true;
-        }
-        if (inRect(this.equipBtn,x,y)) {
-            if (!weaponUnlocked(this.sel,effectiveLevel())&&this.sel!==RANDOM_WEAPON.id) {
-                this.actions.buy(this.sel);
-                return true;
-            }
-            if (weaponUnlocked(this.sel,effectiveLevel())&&settings.weapon!==this.sel) {
-                this.pop=1;
-                this.equipT=0;
-                this.equipId=this.sel;
-                this.actions.equip(this.sel);
-            }
-            return true;
-        }
-        if (this.listV&&inRect(this.listV,x,y)) {
-            this.press={x0:x,y0:y,s0:this.listTo||0,moved:false};
-        }
-        return true;
-    }
-
-    update(dt) {
-        super.update(dt);
-        this.animT+=dt;
-        this.listScroll=(this.listScroll||0)+((this.listTo||0)-(this.listScroll||0))*Math.min(1,dt*14);
-        this.walletK=Math.max(0,(this.walletK||0)-dt*2);
-        this.pop=Math.max(0,this.pop-dt*2.5);
-        this.relPop=Math.max(0,this.relPop-dt*2.5);
-        this.relEquipT+=dt;
-        this.tabT+=dt;
-        this.lockMsg=Math.max(0,this.lockMsg-dt);
-        const goal=this.tab==='relic'?1:0;
-        this.tabPos+=(goal-this.tabPos)*Math.min(1,dt*14);
-        this.equipT=(this.equipT??9)+dt;
-        const st=WEAPONS[this.sel]?.stats;
-        const k=1-Math.exp(-10*dt);
-        for (const key of WEAPON_STATS) {
-            this.bars[key]=(this.bars[key]??0)+((st?st[key]:0)-(this.bars[key]??0))*k;
-        }
-    }
-
-    draw(ctx) {
-        if (!this.shown()) {
-            return;
-        }
-        this.layout();
-        const w=this.width;
-        const h=this.height;
-        const v=time.boilIndex;
-        const P=this.P;
-        const small=h<600;
-        const lv=effectiveLevel();
-        const a=EASE.easeOutBack(Math.min(1,this.t/0.4));
-        ctx.save();
-        ctx.fillStyle=rgba('paper',Math.min(0.85,this.t*4));
-        ctx.fillRect(0,0,w,h);
-        ctx.translate(w/2,h/2);
-        ctx.scale(0.9+0.1*a,0.9+0.1*a);
-        ctx.translate(-w/2,-h/2);
-        ctx.globalAlpha=Math.min(1,this.t*4);
-        ctx.fillStyle=PALETTE.paper;
-        ctx.fillRect(P.x,P.y,P.w,P.h);
-        drawShape(ctx,sketchRect(P.x,P.y,P.w,P.h,{width:2.2,seed:2000}),PALETTE.ink,v);
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?20:28)+'px '+FONT;
-        ctx.textAlign='left';
-        ctx.textBaseline='middle';
-        ctx.fillText(t('weapon.title'),P.x+24,P.y+(small?22:34));
-        const ttw=ctx.measureText(t('weapon.title')).width;
-        drawWallet(ctx,P.x+24+ttw+14,P.y+(small?22:34)-(small?13:14),v,'left',small?12:14,this.walletK||0);
-        ctx.textBaseline='middle';
-        const tabs=this.tabRects();
-        ctx.fillStyle=this.lockMsg>0?PALETTE.red:PALETTE.nearGray;
-        ctx.textAlign='right';
-        ctx.textBaseline='middle';
-        const hintKey=this.lockMsg>0?'relic.locked':(this.tab==='relic'?'relic.hint':'weapon.hint');
-        fitText(ctx,t(hintKey,{n:TUNING.relics.unlock}),tabs[0].x-14,P.y+(small?23:36),Math.max(60,tabs[0].x-14-(P.x+24+ttw+130)),small?14:15,'');
-        const relOk=this.relicsOpen();
-        const hx=tabs[0].x+(tabs[1].x-tabs[0].x)*this.tabPos;
-        for (let ti=0;ti<tabs.length;ti++) {
-            const q=tabs[ti];
-            const hv=inRect(q,this.hx,this.hy);
-            ctx.fillStyle=hv?rgba('farGray',0.9):rgba('paper',0.95);
-            ctx.fillRect(q.x,q.y,q.w,q.h);
-            drawShape(ctx,sketchRect(q.x,q.y,q.w,q.h,{width:1.5,seed:2060+q.id.length}),PALETTE.ink,v);
-        }
-        ctx.fillStyle=PALETTE.ink;
-        ctx.fillRect(hx,tabs[0].y,tabs[0].w,tabs[0].h);
-        drawShape(ctx,sketchRect(hx,tabs[0].y,tabs[0].w,tabs[0].h,{width:2.2,seed:2062}),PALETTE.ink,v);
-        for (let ti=0;ti<tabs.length;ti++) {
-            const q=tabs[ti];
-            const on=Math.abs(this.tabPos-ti)<0.5;
-            const lock=q.id==='relic'&&!relOk;
-            ctx.fillStyle=on?PALETTE.paper:(lock?PALETTE.midGray:PALETTE.ink);
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            fitText(ctx,t('tab.'+q.id),q.x+q.w/2+(lock?9:0),q.y+q.h/2+1,q.w-(lock?36:12),small?16:19,'bold ');
-            if (lock) {
-                drawLock(ctx,q.x+14,q.y+q.h/2,0.5,PALETTE.midGray);
-            }
-        }
-        const te=EASE.easeOutCubic(Math.min(1,this.tabT/0.32));
-        ctx.save();
-        ctx.translate((1-te)*this.tabDir*46,0);
-        ctx.globalAlpha*=Math.min(1,te*1.6);
-        if (this.tab==='relic') {
-            this.drawRelics(ctx,v,small);
-            ctx.restore();
-            ctx.restore();
-            return;
-        }
-        const gx=P.x+24;
-        const gy=P.y+(small?46:70);
-        const gw=P.w*0.42;
-        const U=TUNING.weaponUi;
-        const cg=U.listGap;
-        const cw=gw;
-        const ch=small?U.rowHSmall:U.rowH;
-        this.listV={x:gx-6,y:gy,w:gw+12,h:this.backBtn.y-gy-14};
-        const LV=this.listV;
-        this.listH=(WEAPON_ORDER.length+1)*(ch+cg);
-        this.clampList();
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(LV.x,LV.y-4,LV.w,LV.h+8);
-        ctx.clip();
-        const ly=gy+4-this.listScroll;
-        this.hits=[];
-        this.drawRandomTile(ctx,{x:gx,y:ly,w:gw,h:ch,id:RANDOM_WEAPON.id},lv,small,v);
-        for (let i=0;i<WEAPON_ORDER.length;i++) {
-            const id=WEAPON_ORDER[i];
-            const x=gx;
-            const y=ly+(i+1)*(ch+cg);
-            if (y>LV.y+LV.h||y+ch<LV.y) {
-                continue;
-            }
-            const r={x,y,w:cw,h:ch,id};
-            this.hits.push(r);
-            const locked=!weaponUnlocked(id,lv);
-            const sel=id===this.sel;
-            const eq=id===settings.weapon;
-            const hv=inRect(r,this.hx,this.hy);
-            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(Math.min(this.t,this.tabT)-0.08-i*0.05)/0.3)));
-            if (ap<=0) {
-                continue;
-            }
-            const Q=TUNING.weaponUi.equip;
-            const et=id===this.equipId?this.equipT:9;
-            const eqOn=et<Q.time;
-            const jolt=eqOn?Math.sin(Math.min(1,et/Q.jolt)*Math.PI)*Q.joltScale:0;
-            ctx.save();
-            ctx.translate(x+cw/2,y+ch/2);
-            ctx.scale(ap*(hv||sel?1.03:1)*(1+jolt),ap*(hv||sel?1.03:1)*(1+jolt));
-            ctx.rotate(eqOn?Math.sin(et*40)*Q.shake*(1-et/Q.time):0);
-            ctx.translate(-cw/2,-ch/2);
-            ctx.fillStyle=sel?rgba('ink',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.95));
-            ctx.fillRect(0,0,cw,ch);
-            if (eqOn) {
-                ctx.fillStyle=rgba('red',0.25*(1-et/Q.time));
-                ctx.fillRect(0,0,cw,ch);
-            }
-            drawShape(ctx,sketchRect(0,0,cw,ch,{width:sel?2.8:1.5,seed:2010+i}),eqOn?PALETTE.red:(sel?PALETTE.ink:PALETTE.nearGray),v);
-            const bob=sel?Math.sin(this.animT*3)*3:0;
-            if (eqOn) {
-                const sk=Math.min(1,et/Q.spinTime);
-                ctx.save();
-                ctx.translate(ch*0.5,ch*0.5+bob-Math.sin(sk*Math.PI)*ch*Q.lift);
-                ctx.rotate((1-EASE.easeOutCubic(sk))*Math.PI*2*Q.spins);
-                ctx.scale(1+Math.sin(sk*Math.PI)*Q.grow,1+Math.sin(sk*Math.PI)*Q.grow);
-                drawWeaponIcon(ctx,id,0,0,ch/95,v,locked);
-                ctx.restore();
-            }
-            else {
-                drawWeaponIcon(ctx,id,ch*0.55,ch*0.5+bob,ch/95,v,locked);
-            }
-            ctx.fillStyle=locked?PALETTE.midGray:PALETTE.ink;
-            ctx.textAlign='left';
-            ctx.textBaseline='middle';
-            const tw=cw-ch*1.1-(eq?62:14);
-            fitText(ctx,t('weapon.'+id+'.name'),ch*1.1,ch*0.34,tw,small?18:21,'bold ');
-            ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
-            fitText(ctx,locked?t('codex.locked',{level:WEAPONS[id].unlock}):t('weapon.'+id+'.short'),ch*1.1,ch*0.7,tw,small?14:15,'');
-            if (eqOn) {
-                const k=et/Q.time;
-                for (let d=0;d<Q.drops;d++) {
-                    const an=hash1(d*7+i)*Math.PI*2;
-                    const dist=EASE.easeOutCubic(Math.min(1,et/Q.dropTime))*(cw*0.35+hash1(d*3)*cw*0.3);
-                    ctx.fillStyle=d%3===0?rgba('red',1-k):rgba('ink',1-k);
-                    ctx.beginPath();
-                    ctx.arc(ch*0.5+Math.cos(an)*dist,ch*0.5+Math.sin(an)*dist*0.6,2+hash1(d*5)*4,0,Math.PI*2);
-                    ctx.fill();
-                }
-            }
-            if (eq) {
-                const sk=eqOn?Math.min(1,Math.max(0,(et-Q.stampDelay)/Q.stampTime)):1;
-                ctx.save();
-                ctx.translate(cw-10,10);
-                ctx.rotate(0.12+(1-sk)*0.4);
-                const s=sk<1?Q.stampFrom-(Q.stampFrom-1)*EASE.easeOutBack(sk):1;
-                ctx.globalAlpha*=sk;
-                ctx.scale(s,s);
-                ctx.fillStyle=PALETTE.red;
-                ctx.fillRect(-40,-2,44,20);
-                ctx.fillStyle=PALETTE.paper;
-                ctx.font='bold 12px '+FONT;
-                ctx.textAlign='center';
-                ctx.fillText(t('weapon.equipped'),-18,8);
-                ctx.restore();
-            }
-            ctx.restore();
-        }
-        ctx.restore();
-        this.drawListBar(ctx);
-        const dx=gx+gw+24;
-        const dw=P.x+P.w-24-dx;
-        const locked=!weaponUnlocked(this.sel,lv);
-        const rnd=this.sel===RANDOM_WEAPON.id;
-        const def=rnd?{unlock:0}:WEAPONS[this.sel];
-        const sh=Math.min(dw*9/16,small?(this.backBtn.y-gy)*0.36:220);
-        if (rnd) {
-            this.drawRandomStage(ctx,dx,gy,dw,sh,lv,v);
-        }
-        else {
-            drawStage(ctx,dx,gy,dw,sh,WEAPON_ANIMS[this.sel],this.animT,v);
-        }
-        drawShape(ctx,sketchRect(dx,gy,dw,sh,{width:1.6,seed:2030}),PALETTE.ink,v);
-        if (locked) {
-            ctx.fillStyle=rgba('paper',0.55);
-            ctx.fillRect(dx,gy,dw,sh);
-        }
-        let y=gy+sh+(small?10:18);
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?22:28)+'px '+FONT;
-        ctx.textAlign='left';
-        ctx.textBaseline='top';
-        ctx.fillText(t('weapon.'+this.sel+'.name'),dx,y);
-        y+=small?30:40;
-        ctx.font=(small?'15px ':'18px ')+FONT;
-        ctx.fillStyle=PALETTE.nearGray;
-        const lines=wrapText(ctx,t('weapon.'+this.sel+'.desc',weaponParams(this.sel)),dw);
-        for (let i=0;i<lines.length&&i<3;i++) {
-            ctx.fillText(lines[i],dx,y);
-            y+=small?20:25;
-        }
-        y+=small?6:10;
-        const bw=dw*0.46;
-        if (rnd) {
-            const names=unlockedWeapons(lv).map(id=>t('weapon.'+id+'.name')).join(t('ui.list'));
-            ctx.fillStyle=PALETTE.ink;
-            ctx.font='bold '+(small?14:16)+'px '+FONT;
-            ctx.fillText(t('weapon.random.pool',{list:names}),dx,y);
-            const last=settings.lastWeapon;
-            if (WEAPONS[last]) {
-                ctx.fillStyle=PALETTE.red;
-                ctx.font=(small?'14px ':'15px ')+FONT;
-                ctx.fillText(t('weapon.random.last',{name:t('weapon.'+last+'.name')}),dx,y+(small?18:24));
-            }
-        }
-        for (let i=0;i<WEAPON_STATS.length&&!rnd;i++) {
-            const key=WEAPON_STATS[i];
-            const bx=dx+(i%2)*(dw/2);
-            const U=TUNING.weaponUi;
-            const byy=y+Math.floor(i/2)*(small?U.rowS:U.row);
-            ctx.fillStyle=PALETTE.ink;
-            ctx.font='bold '+(small?14:16)+'px '+FONT;
-            ctx.textAlign='left';
-            ctx.textBaseline='middle';
-            const lab=t('weapon.stat.'+key);
-            ctx.fillText(lab,bx,byy+6);
-            const vx=bx+ctx.measureText(lab).width+8;
-            ctx.fillStyle=PALETTE.nearGray;
-            fitText(ctx,weaponValue(def,key),vx,byy+6,bw-(vx-bx),small?13:14,'');
-            const bh=small?U.barS:U.bar;
-            for (let s=0;s<5;s++) {
-                const f=Math.max(0,Math.min(1,(this.bars[key]||0)-s));
-                const sx=bx+s*(bw/5);
-                ctx.fillStyle=rgba('farGray',0.7);
-                ctx.fillRect(sx,byy+15,bw/5-4,bh);
-                ctx.fillStyle=key==='dmg'?PALETTE.red:PALETTE.ink;
-                ctx.fillRect(sx,byy+15,(bw/5-4)*f,bh);
-            }
-        }
-        drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?15:17);
-        const eq=settings.weapon===this.sel;
-        const buyable=locked&&!rnd;
-        const label=buyable?t('weapon.early',{n:TUNING.meta.price.weapon}):(locked?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):(eq?t('weapon.equipped'):t(rnd?'weapon.random.equip':'weapon.equip')));
-        const eb=this.equipBtn;
-        if (buyable) {
-            ctx.save();
-            const s2=this.hoverIdx===1?1.05:1;
-            ctx.translate(eb.x+eb.w/2,eb.y+eb.h/2);
-            ctx.scale(s2,s2);
-            ctx.rotate(Math.sin(time.real*3)*0.012);
-            ctx.fillStyle=rgba('red',0.1);
-            ctx.fillRect(-eb.w/2,-eb.h/2,eb.w,eb.h);
-            drawShape(ctx,sketchRect(-eb.w/2,-eb.h/2,eb.w,eb.h,{width:2.2,seed:2042}),PALETTE.red,v);
-            ctx.font='bold '+(small?13:15)+'px '+FONT;
-            const lw=ctx.measureText(label).width;
-            drawCoin(ctx,-lw/2-6,1,5,PALETTE.red);
-            ctx.fillStyle=PALETTE.red;
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            fitText(ctx,label,6,1,eb.w-30,small?13:15,'bold ');
-            ctx.restore();
-            ctx.fillStyle=PALETTE.nearGray;
-            ctx.font='11px '+FONT;
-            ctx.textAlign='right';
-            ctx.textBaseline='bottom';
-            ctx.fillText(t('codex.locked',{level:def.unlock}),eb.x+eb.w,eb.y-3);
-        }
-        else if (!locked&&!eq) {
-            ctx.save();
-            ctx.fillStyle=PALETTE.ink;
-            ctx.fillRect(eb.x,eb.y,eb.w,eb.h);
-            drawShape(ctx,sketchRect(eb.x,eb.y,eb.w,eb.h,{width:2,seed:2040}),PALETTE.ink,v);
-            ctx.fillStyle=PALETTE.paper;
-            ctx.font='bold '+(small?15:18)+'px '+FONT;
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            const s=this.hoverIdx===1?1.05:1;
-            ctx.translate(eb.x+eb.w/2,eb.y+eb.h/2);
-            ctx.scale(s,s);
-            ctx.fillText(label,0,1);
-            ctx.restore();
-        }
-        else {
-            ctx.save();
-            drawShape(ctx,sketchRect(eb.x,eb.y,eb.w,eb.h,{width:1.6,seed:2041}),locked?PALETTE.midGray:PALETTE.red,v);
-            ctx.fillStyle=locked?PALETTE.midGray:PALETTE.red;
-            ctx.font='bold '+(small?14:16)+'px '+FONT;
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            ctx.fillText(label,eb.x+eb.w/2,eb.y+eb.h/2+1);
-            ctx.restore();
-        }
-        ctx.restore();
-        ctx.restore();
-    }
-
-    drawRelics(ctx,v,small) {
-        const P=this.P;
-        const gx=P.x+24;
-        const gy=P.y+(small?50:74);
-        const gw=P.w*0.44;
-        const cg=12;
-        const cw=(gw-cg)/2;
-        const ch=Math.min(small?84:124,(this.backBtn.y-gy-16-cg)/2);
-        const Q=TUNING.weaponUi.equip;
-        this.relHits=[];
-        for (let i=0;i<RELIC_ORDER.length;i++) {
-            const id=RELIC_ORDER[i];
-            const x=gx+(i%2)*(cw+cg);
-            const y=gy+Math.floor(i/2)*(ch+cg);
-            const r={x,y,w:cw,h:ch,id};
-            this.relHits.push(r);
-            const st=this.relicState(id);
-            const sel=id===this.relSel;
-            const hv=inRect(r,this.hx,this.hy);
-            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(Math.min(this.t,this.tabT)-0.08-i*0.05)/0.3)));
-            if (ap<=0) {
-                continue;
-            }
-            const et=id===this.relEquipId?this.relEquipT:9;
-            const eqOn=et<Q.time;
-            const jolt=eqOn?Math.sin(Math.min(1,et/Q.jolt)*Math.PI)*Q.joltScale:0;
-            ctx.save();
-            ctx.translate(x+cw/2,y+ch/2);
-            ctx.scale(ap*(hv||sel?1.03:1)*(1+jolt),ap*(hv||sel?1.03:1)*(1+jolt));
-            ctx.rotate(eqOn?Math.sin(et*40)*Q.shake*(1-et/Q.time):0);
-            ctx.translate(-cw/2,-ch/2);
-            ctx.fillStyle=sel?rgba('ink',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.95));
-            ctx.fillRect(0,0,cw,ch);
-            if (eqOn) {
-                ctx.fillStyle=rgba('red',0.25*(1-et/Q.time));
-                ctx.fillRect(0,0,cw,ch);
-            }
-            drawShape(ctx,sketchRect(0,0,cw,ch,{width:sel?2.8:1.5,seed:2070+i}),eqOn||st==='on'?PALETTE.red:(sel?PALETTE.ink:PALETTE.nearGray),v);
-            const bob=sel?Math.sin(this.animT*3)*3:0;
-            if (eqOn) {
-                const sk=Math.min(1,et/Q.spinTime);
-                ctx.save();
-                ctx.translate(ch*0.5,ch*0.5+bob-Math.sin(sk*Math.PI)*ch*Q.lift);
-                ctx.rotate((1-EASE.easeOutCubic(sk))*Math.PI*2*Q.spins);
-                ctx.scale(1+Math.sin(sk*Math.PI)*Q.grow,1+Math.sin(sk*Math.PI)*Q.grow);
-                drawRelicIcon(ctx,id,0,0,ch/110,v,false);
-                ctx.restore();
-            }
-            else {
-                drawRelicIcon(ctx,id,ch*0.5,ch*0.5+bob,ch/110,v,st==='locked');
-            }
-            ctx.fillStyle=st==='locked'?PALETTE.midGray:PALETTE.ink;
-            ctx.textAlign='left';
-            ctx.textBaseline='middle';
-            const tw=cw-ch*0.98-12;
-            fitText(ctx,t('relic.'+id+'.name'),ch*0.98,ch*0.36,tw,small?18:22,'bold ');
-            if (st==='locked') {
-                ctx.fillStyle=PALETTE.red;
-                fitText(ctx,t('relic.price',{n:relicPrice()}),ch*0.98+16,ch*0.68,tw-16,small?14:16,'');
-                drawCoin(ctx,ch*0.98+5,ch*0.68,5,PALETTE.red);
-            }
-            else {
-                ctx.fillStyle=PALETTE.nearGray;
-                fitText(ctx,t('relic.'+id+'.short'),ch*0.98,ch*0.68,tw,small?14:16,'');
-            }
-            if (eqOn) {
-                const k=et/Q.time;
-                for (let d=0;d<Q.drops;d++) {
-                    const an=hash1(d*7+i)*Math.PI*2;
-                    const dist=EASE.easeOutCubic(Math.min(1,et/Q.dropTime))*(cw*0.35+hash1(d*3)*cw*0.3);
-                    ctx.fillStyle=d%3===0?rgba('red',1-k):rgba('ink',1-k);
-                    ctx.beginPath();
-                    ctx.arc(ch*0.5+Math.cos(an)*dist,ch*0.5+Math.sin(an)*dist*0.6,2+hash1(d*5)*4,0,Math.PI*2);
-                    ctx.fill();
-                }
-            }
-            if (st==='on') {
-                const sk=eqOn?Math.min(1,Math.max(0,(et-Q.stampDelay)/Q.stampTime)):1;
-                ctx.save();
-                ctx.translate(cw-10,10);
-                ctx.rotate(0.12+(1-sk)*0.4);
-                const ss=sk<1?Q.stampFrom-(Q.stampFrom-1)*EASE.easeOutBack(sk):1;
-                ctx.globalAlpha*=sk;
-                ctx.scale(ss,ss);
-                ctx.fillStyle=PALETTE.red;
-                ctx.fillRect(-48,-2,52,22);
-                ctx.fillStyle=PALETTE.paper;
-                ctx.font='bold 14px '+FONT;
-                ctx.textAlign='center';
-                ctx.fillText(t('weapon.equipped'),-22,9);
-                ctx.restore();
-            }
-            ctx.restore();
-        }
-        const dx=gx+gw+24;
-        const dw=P.x+P.w-24-dx;
-        const sh=Math.min(dw*9/16,small?(this.backBtn.y-gy)*0.4:210);
-        const id=this.relSel;
-        const st=this.relicState(id);
-        ctx.fillStyle=rgba('farGray',0.35);
-        ctx.fillRect(dx,gy,dw,sh);
-        const pe=this.relEquipId===id?this.relEquipT:9;
-        const pk=pe<0.5?Math.sin(pe/0.5*Math.PI)*0.18:0;
-        drawRelicIcon(ctx,id,dx+dw/2,gy+sh/2+Math.sin(this.animT*2.4)*4,sh/110*1.4*(1+pk),v,st==='locked');
-        drawShape(ctx,sketchRect(dx,gy,dw,sh,{width:1.6,seed:2080}),PALETTE.ink,v);
-        let y=gy+sh+(small?8:16);
-        ctx.fillStyle=PALETTE.ink;
-        ctx.font='bold '+(small?22:28)+'px '+FONT;
-        ctx.textAlign='left';
-        ctx.textBaseline='top';
-        ctx.fillText(t('relic.'+id+'.name'),dx,y);
-        y+=small?30:40;
-        ctx.font=(small?'15px ':'18px ')+FONT;
-        ctx.fillStyle=PALETTE.nearGray;
-        const lines=wrapText(ctx,t('relic.'+id+'.desc',relicParams(id)),dw);
-        const lh=small?20:25;
-        for (let i=0;i<lines.length&&i<4;i++) {
-            ctx.fillText(lines[i],dx,y);
-            y+=lh;
-        }
-        y+=small?2:6;
-        ctx.fillStyle=PALETTE.red;
-        ctx.font='bold '+(small?14:16)+'px '+FONT;
-        for (const l of wrapText(ctx,t('relic.rule'),dw)) {
-            ctx.fillText(l,dx,y);
-            y+=small?18:22;
-        }
-        drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.1)/0.3,this.hoverIdx===0,small?17:19);
-        const eb=this.equipBtn;
-        const label=st==='locked'?t('relic.buy',{n:relicPrice()}):(st==='on'?t('relic.unequip'):t('relic.equip'));
-        if (st==='locked') {
-            ctx.save();
-            const s2=this.hoverIdx===1?1.05:1;
-            ctx.translate(eb.x+eb.w/2,eb.y+eb.h/2);
-            ctx.scale(s2,s2);
-            ctx.rotate(Math.sin(time.real*3)*0.012);
-            ctx.fillStyle=rgba('red',0.1);
-            ctx.fillRect(-eb.w/2,-eb.h/2,eb.w,eb.h);
-            drawShape(ctx,sketchRect(-eb.w/2,-eb.h/2,eb.w,eb.h,{width:2.2,seed:2082}),PALETTE.red,v);
-            ctx.font='bold '+(small?15:17)+'px '+FONT;
-            const lw=ctx.measureText(label).width;
-            drawCoin(ctx,-lw/2-6,1,5,PALETTE.red);
-            ctx.fillStyle=PALETTE.red;
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            fitText(ctx,label,6,1,eb.w-30,small?15:17,'bold ');
-            ctx.restore();
-        }
-        else if (st==='own') {
-            ctx.save();
-            ctx.fillStyle=PALETTE.ink;
-            ctx.fillRect(eb.x,eb.y,eb.w,eb.h);
-            drawShape(ctx,sketchRect(eb.x,eb.y,eb.w,eb.h,{width:2,seed:2083}),PALETTE.ink,v);
-            ctx.fillStyle=PALETTE.paper;
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            const s3=this.hoverIdx===1?1.05:1;
-            ctx.translate(eb.x+eb.w/2,eb.y+eb.h/2);
-            ctx.scale(s3,s3);
-            fitText(ctx,label,0,1,eb.w-16,small?17:20,'bold ');
-            ctx.restore();
-        }
-        else {
-            ctx.save();
-            drawShape(ctx,sketchRect(eb.x,eb.y,eb.w,eb.h,{width:1.8,seed:2084}),PALETTE.red,v);
-            ctx.fillStyle=PALETTE.red;
-            ctx.textAlign='center';
-            ctx.textBaseline='middle';
-            fitText(ctx,label,eb.x+eb.w/2,eb.y+eb.h/2+1,eb.w-16,small?16:18,'bold ');
-            ctx.restore();
-        }
-    }
-
-    drawRandomTile(ctx,r,lv,small,v) {
-        this.hits.push(r);
-        const locked=!weaponUnlocked(r.id,lv);
-        const sel=this.sel===r.id;
-        const eq=settings.weapon===r.id;
-        const hv=inRect(r,this.hx,this.hy);
-        const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(Math.min(this.t,this.tabT)-0.08)/0.3)));
-        if (ap<=0) {
-            return;
-        }
-        ctx.save();
-        ctx.translate(r.x+r.w/2,r.y+r.h/2);
-        ctx.scale(ap*(hv||sel?1.02:1),ap*(hv||sel?1.02:1));
-        ctx.translate(-r.w/2,-r.h/2);
-        ctx.fillStyle=sel?rgba('ink',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.95));
-        ctx.fillRect(0,0,r.w,r.h);
-        drawShape(ctx,sketchRect(0,0,r.w,r.h,{width:sel?2.8:1.5,seed:2025}),eq?PALETTE.red:(sel?PALETTE.ink:PALETTE.nearGray),v);
-        const s=r.h;
-        const d=s*0.56;
-        const spin=sel&&!locked?Math.sin(this.animT*4)*0.25:0;
-        ctx.save();
-        ctx.translate(s*0.55,r.h/2);
-        ctx.rotate(spin-0.12);
-        ctx.fillStyle=locked?PALETTE.farGray:PALETTE.paper;
-        ctx.fillRect(-d/2,-d/2,d,d);
-        drawShape(ctx,sketchRect(-d/2,-d/2,d,d,{width:1.8,seed:2026}),locked?PALETTE.midGray:PALETTE.ink,v);
-        ctx.fillStyle=locked?PALETTE.midGray:PALETTE.red;
-        for (const [px,py] of [[-0.22,-0.22],[0.22,0.22],[0,0],[0.22,-0.22],[-0.22,0.22]]) {
-            ctx.beginPath();
-            ctx.arc(px*d,py*d,d*0.08,0,Math.PI*2);
-            ctx.fill();
-        }
-        ctx.restore();
-        ctx.fillStyle=locked?PALETTE.midGray:PALETTE.ink;
-        ctx.textAlign='left';
-        ctx.textBaseline='middle';
-        const x0=s*1.1;
-        const sub=locked?t('weapon.random.locked',{n:RANDOM_WEAPON.min}):t('weapon.random.short');
-        fitText(ctx,t('weapon.random.name'),x0,r.h*0.34,r.w-x0-(eq?62:14),small?18:21,'bold ');
-        ctx.fillStyle=locked?PALETTE.red:PALETTE.nearGray;
-        fitText(ctx,sub,x0,r.h*0.7,r.w-x0-(eq?62:14),small?14:15,'');
-        if (eq) {
-            ctx.save();
-            ctx.translate(r.w-10,r.h/2-10);
-            ctx.rotate(0.08);
-            ctx.fillStyle=PALETTE.red;
-            ctx.fillRect(-46,0,44,20);
-            ctx.fillStyle=PALETTE.paper;
-            ctx.font='bold 12px '+FONT;
-            ctx.textAlign='center';
-            ctx.fillText(t('weapon.equipped'),-24,10);
-            ctx.restore();
-        }
-        ctx.restore();
-    }
-
-    drawRandomStage(ctx,x,y,w,h,lv,v) {
-        const U=TUNING.weaponUi;
-        const list=unlockedWeapons(lv);
-        const pool=list.length>0?list:WEAPON_ORDER;
-        const step=Math.floor(this.animT/U.randStep);
-        const f=(this.animT%U.randStep)/U.randStep;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(x,y,w,h);
-        ctx.clip();
-        ctx.fillStyle=PALETTE.paper;
-        ctx.fillRect(x,y,w,h);
-        const cx=x+w/2;
-        const cy=y+h/2;
-        const s=h/150;
-        const e=EASE.easeInOutCubic(f);
-        const items=[];
-        for (let k=-2;k<=3;k++) {
-            const dp=k-e;
-            items.push({k,dp,id:pool[((step+k)%pool.length+pool.length)%pool.length]});
-        }
-        items.sort((p,q)=>Math.abs(q.dp)-Math.abs(p.dp));
-        for (const q of items) {
-            const near=Math.max(0,1-Math.abs(q.dp));
-            ctx.globalAlpha=Math.max(0,1-Math.abs(q.dp)*0.45);
-            drawWeaponIcon(ctx,q.id,cx+q.dp*h*0.55,cy,s*(0.8+0.45*near*near),v,false);
-        }
-        ctx.globalAlpha=1;
-        ctx.strokeStyle=PALETTE.red;
-        ctx.lineWidth=2.5;
-        ctx.strokeRect(cx-h*0.3,cy-h*0.36,h*0.6,h*0.72);
-        ctx.fillStyle=PALETTE.red;
-        ctx.font='bold '+Math.round(h*0.18)+'px '+FONT;
-        ctx.textAlign='center';
-        ctx.textBaseline='middle';
-        ctx.fillText('?',cx+h*0.36,cy-h*0.3);
-        ctx.restore();
-    }
-}
-
-const WEAPON_STATS=['dmg','rate','range','mag'];
 
 export class LevelUpView extends Panel {
     constructor(actions) {
@@ -8066,7 +7323,7 @@ export class InfoPopup extends Panel {
     }
 }
 
-export const CHOICE_ICONS={battle:'battle',elite:'elite',challenge:'challenge',treasure:'treasure',shop:'shop',event:'event',encounter:'event',start:'next',swap:'pen',home:'leave',games:'event',back:'leave',rest:'rest',heal:'heal',upgrade:'upgrade',buy:'card',remove:'remove',leave:'leave',finish:'flag',continue:'pen',boss:'boss',next:'next',act:'book'};
+export const CHOICE_ICONS={battle:'battle',elite:'elite',challenge:'challenge',treasure:'treasure',shop:'shop',event:'event',encounter:'event',start:'next',swap:'pen',home:'leave',games:'event',back:'leave',rest:'rest',heal:'heal',upgrade:'upgrade',buy:'card',remove:'remove',leave:'leave',finish:'flag',continue:'pen',boss:'boss',next:'next',act:'book',library:'book',drop:'remove'};
 
 export function drawChoiceIcon(ctx,kind,x,y,r,v,red) {
     const col=red?PALETTE.red:PALETTE.ink;
@@ -8246,6 +7503,9 @@ export class ChoicePanel extends Panel {
         const s=this.spec;
         if (s.kind==='swap') {
             return ['weapon.'+o.id+'.name','weapon.'+o.id+'.short'];
+        }
+        if (s.kind==='drop') {
+            return ['relic.'+o.id+'.name','relic.'+o.id+'.short'];
         }
         const base=s.kind==='event'?'event.'+s.id+'.'+o.id:s.kind+'.'+o.id;
         return [base,base+'.desc'];
@@ -8430,6 +7690,22 @@ export class ChoicePanel extends Panel {
             ctx.fill();
             if (this.spec.kind==='swap') {
                 drawWeaponIcon(ctx,o.id,r.w/2,C.iconY,C.cardIconR/55,v,false);
+            }
+            else if (this.spec.kind==='drop') {
+                drawRelicIcon(ctx,o.id,r.w/2,C.iconY,C.cardIconR/46,v,false);
+                if (o.fresh) {
+                    ctx.save();
+                    ctx.translate(r.w-8,14);
+                    ctx.rotate(0.2);
+                    ctx.fillStyle=PALETTE.red;
+                    ctx.fillRect(-34,-10,38,20);
+                    ctx.fillStyle=PALETTE.paper;
+                    ctx.font='bold 12px '+FONT;
+                    ctx.textAlign='center';
+                    ctx.textBaseline='middle';
+                    ctx.fillText(t('drop.new'),-15,1);
+                    ctx.restore();
+                }
             }
             else {
                 drawChoiceIcon(ctx,CHOICE_ICONS[o.id]||'event',r.w/2,C.iconY,C.cardIconR,v,red);

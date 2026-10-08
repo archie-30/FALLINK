@@ -8,6 +8,9 @@ import {wrapText} from './cardView.js';
 import {CARDS} from '../data/cards.js';
 import {ACTS} from '../data/levels.js';
 import {drawCourseIcon} from './courseIcons.js';
+import {drawRelicIcon} from './relicIcons.js';
+import {relic,relicLit} from '../game/relic.js';
+import {relicParams} from '../data/relics.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
@@ -384,7 +387,7 @@ export class Hud {
         }
         const a=Math.max(0,Math.min(1,q.t/R.fade,(q.life-q.t)/R.fade));
         const x=w-S.right;
-        let y=S.y+S.labelSize+S.size+R.gapTop;
+        let y=S.y+S.labelSize+S.size+R.gapTop+this.relicShift();
         ctx.save();
         ctx.textAlign='right';
         ctx.textBaseline='middle';
@@ -427,6 +430,114 @@ export class Hud {
         }
         ctx.restore();
         this.drawFlys(ctx,w,dt);
+    }
+
+    relicShift() {
+        const U=TUNING.hud.relics;
+        return this.relicOn&&relic.list.length>0?U.r*2+U.top:0;
+    }
+
+    relicSlots(w) {
+        const S=TUNING.hud.score;
+        const U=TUNING.hud.relics;
+        const y=S.y+S.labelSize+S.size+U.top+U.r;
+        return relic.list.map((id,i)=>({id,x:w-S.right-U.r-i*(U.r*2+U.gap),y,r:U.r}));
+    }
+
+    hitRelic(x,y,w) {
+        if (!this.relicOn) {
+            return '';
+        }
+        const q=this.relicSlots(w).find(q=>Math.hypot(x-q.x,y-q.y)<q.r+8);
+        return q?q.id:'';
+    }
+
+    drawRelics(ctx,w) {
+        const U=TUNING.hud.relics;
+        const v=time.boilIndex;
+        const now=time.real;
+        for (const q of this.relicSlots(w)) {
+            const lit=relicLit(q.id);
+            const hold=relic.hold[q.id];
+            const fresh=hold?0:Math.min(1,relic.glow[q.id]||0);
+            const pulse=hold?0.5+0.5*Math.sin(now*6):lit;
+            const sel=this.relicInfo&&this.relicInfo.id===q.id;
+            ctx.save();
+            ctx.translate(q.x,q.y);
+            ctx.rotate(Math.sin(now*U.shakeRate)*U.shake*fresh);
+            const s=1+U.pop*EASE.easeOutQuad(Math.min(1,fresh*1.5))+(hold?0.08:0)+(sel?0.12:0);
+            ctx.scale(s,s);
+            if (lit>0) {
+                ctx.fillStyle=rgba('red',0.22*pulse);
+                ctx.beginPath();
+                ctx.arc(0,0,q.r+U.ring*(0.6+pulse*0.6),0,Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle=rgba('red',0.5+0.5*pulse);
+                ctx.lineWidth=2.2;
+                ctx.beginPath();
+                ctx.arc(0,0,q.r+2+pulse*2,0,Math.PI*2);
+                ctx.stroke();
+            }
+            drawRelicIcon(ctx,q.id,0,0,q.r/46,v,false);
+            ctx.restore();
+        }
+    }
+
+    openRelicInfo(id) {
+        this.relicInfo=id?{id,t:0}:null;
+    }
+
+    drawRelicInfo(ctx,w,h,dt) {
+        const q=this.relicInfo;
+        if (!q) {
+            return;
+        }
+        q.t+=dt;
+        const U=TUNING.hud.relics;
+        const S=TUNING.hud.score;
+        const slot=this.relicSlots(w).find(r=>r.id===q.id);
+        if (!slot) {
+            this.relicInfo=null;
+            return;
+        }
+        const k=EASE.easeOutBack(Math.min(1,q.t/0.25));
+        const bw=Math.min(U.infoW,w-32);
+        ctx.save();
+        ctx.font='14px '+FONT;
+        const lines=wrapText(ctx,t('relic.'+q.id+'.desc',relicParams(q.id)),bw-U.infoPad*2);
+        const bh=U.infoPad*2+30+lines.length*20+22;
+        const bx=Math.max(16,Math.min(w-16-bw,slot.x-bw+slot.r+8));
+        const by=slot.y+slot.r+12;
+        ctx.globalAlpha=Math.min(1,q.t*5);
+        ctx.translate(slot.x,by);
+        ctx.scale(k,k);
+        ctx.translate(-slot.x,-by);
+        ctx.fillStyle=rgba('ink',0.12);
+        ctx.fillRect(bx+4,by+5,bw,bh);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(bx,by,bw,bh);
+        drawShape(ctx,sketchRect(bx,by,bw,bh,{width:2,seed:4500}),PALETTE.ink,time.boilIndex);
+        ctx.beginPath();
+        ctx.moveTo(slot.x-8,by+1);
+        ctx.lineTo(slot.x,by-9);
+        ctx.lineTo(slot.x+8,by+1);
+        ctx.closePath();
+        ctx.fill();
+        drawRelicIcon(ctx,q.id,bx+U.infoPad+14,by+U.infoPad+14,14/46,time.boilIndex,false);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.font='bold 17px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('relic.'+q.id+'.name'),bx+U.infoPad+36,by+U.infoPad+14,bw-U.infoPad*2-36);
+        ctx.font='14px '+FONT;
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.textBaseline='top';
+        lines.forEach((ln,i)=>ctx.fillText(ln,bx+U.infoPad,by+U.infoPad+34+i*20));
+        ctx.font='11px '+FONT;
+        ctx.fillStyle=PALETTE.midGray;
+        ctx.textAlign='right';
+        ctx.fillText(t('relic.tapClose'),bx+bw-U.infoPad,by+bh-U.infoPad-6);
+        ctx.restore();
     }
 
     drawFlys(ctx,w,dt) {
@@ -940,7 +1051,7 @@ export class Hud {
 
     drawHp(ctx,player) {
         const H=TUNING.hud;
-        const max=TUNING.player.maxHp;
+        const max=player.maxHp;
         const x=H.hpPos[0];
         const y=H.hpPos[1];
         const h=H.hpHeight;

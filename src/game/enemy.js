@@ -7,6 +7,7 @@ import {EASE} from '../core/easing.js';
 import {RNG} from '../core/rng.js';
 import {time} from '../core/loop.js';
 import {t} from '../data/strings.js';
+import {teleSlow,flashRelic} from './relic.js';
 
 const rng=new RNG(1234);
 const hitTmp={x:0,z:0,depth:0};
@@ -276,10 +277,18 @@ export class Enemy {
 
     teleLine(dx,dz,len,dur,count=1,spread=0) {
         this.tele={type:'line',dx,dz,len,dur,count,spread,t:0};
+        this.teleSeen();
     }
 
     teleRing(r,dur) {
         this.tele={type:'ring',r,dur,t:0};
+        this.teleSeen();
+    }
+
+    teleSeen() {
+        if (this.def.boss||this.elite) {
+            flashRelic('glasses',0.5);
+        }
     }
 
     hurt(dmg,dx,dz) {
@@ -410,6 +419,9 @@ export class Enemy {
     }
 
     update(dt,ctx) {
+        if (this.tele&&!this.dummy) {
+            dt/=teleSlow();
+        }
         const d=this.def;
         const p=ctx.player;
         this.prev.copy(this.pos);

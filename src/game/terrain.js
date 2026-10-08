@@ -1,5 +1,5 @@
 import*as THREE from 'three';
-import {toonMaterial,dissolveVariant,trapMaterial,inkMaterial,countdownMaterial,pal} from '../render/materials.js';
+import {toonMaterial,dissolveVariant,trapMaterial,inkMaterial,countdownMaterial,unlitMaterial,pal} from '../render/materials.js';
 import {makeBox,makeCircle,circleVs} from '../core/collision.js';
 import {RNG,hash1} from '../core/rng.js';
 import {EASE} from '../core/easing.js';
@@ -138,6 +138,10 @@ function buildProp(p,group,colliders) {
         g.position.set(p.x,p.y||0,p.z);
         g.rotation.y=rot;
         group.add(g);
+        if (p.solid) {
+            colliders.push(makeBox(p.x,p.z,p.solid[0]/2,p.solid[1]/2,rot));
+            return {object:g,radius:Math.hypot(p.solid[0],p.solid[1])/2};
+        }
     }
 }
 
@@ -268,6 +272,141 @@ const DECOR_BUILDERS={
         const blade=mesh(box(s*1.2,0.06,s*0.5),'dark');
         blade.position.set(0,s+0.03,-s*0.1);
         g.add(body,hole,blade);
+        return g;
+    },
+    shelf(p) {
+        const g=new THREE.Group();
+        const rng=new RNG(Math.round(p.x*19+p.z*23));
+        const w=p.w;
+        const h=p.h;
+        const d=p.d;
+        const t=0.22;
+        for (const sx of [-1,1]) {
+            const side=mesh(box(t,h,d),'dark');
+            side.position.set(sx*(w/2-t/2),h/2,0);
+            g.add(side);
+        }
+        const top=mesh(box(w+0.4,t*1.4,d+0.3),'dark');
+        top.position.y=h+t*0.7;
+        const back=mesh(box(w,h,0.1),'cover');
+        back.position.set(0,h/2,-d/2+0.05);
+        g.add(top,back);
+        const rows=Math.max(2,Math.floor(h/1.15));
+        const rh=h/rows;
+        const tones=['cover','light','dark','cover','light','dark'];
+        for (let r=0;r<rows;r++) {
+            const y=r*rh;
+            const plank=mesh(box(w-t*2,0.12,d),'dark');
+            plank.position.y=y+0.06;
+            g.add(plank);
+            let x=-w/2+t+0.05;
+            let lean=0;
+            while (x<w/2-t-0.3) {
+                const bw=+rng.range(0.16,0.34).toFixed(2);
+                const bh=+(rh*rng.range(0.58,0.88)).toFixed(2);
+                if (rng.next()<0.08) {
+                    x+=0.4;
+                    lean=0.35;
+                    continue;
+                }
+                const b=mesh(box(bw,bh,+(d*0.8).toFixed(2)),tones[Math.floor(rng.next()*tones.length)]);
+                b.position.set(x+bw/2,y+0.12+bh/2,0.04);
+                b.rotation.z=lean;
+                if (lean) {
+                    b.position.x+=0.12;
+                    b.position.y-=0.05;
+                }
+                lean=0;
+                g.add(b);
+                x+=bw+0.02;
+            }
+        }
+        return g;
+    },
+    tome(p) {
+        const g=new THREE.Group();
+        const s=p.s;
+        for (const sx of [-1,1]) {
+            const half=new THREE.Group();
+            const cover=mesh(box(s*1.6,s*0.12,s*2.2),'dark');
+            cover.position.set(sx*s*0.8,0,0);
+            const pages=mesh(box(s*1.5,s*0.22,s*2.05),'light');
+            pages.position.set(sx*s*0.78,s*0.15,0);
+            half.add(cover,pages);
+            for (let i=0;i<5;i++) {
+                const ln=mesh(box(s*1.05,0.02,s*0.05),'cover');
+                ln.position.set(sx*s*0.8,s*0.27,-s*0.7+i*s*0.32);
+                half.add(ln);
+            }
+            half.rotation.z=-sx*0.12;
+            half.position.y=s*0.12;
+            g.add(half);
+        }
+        const spine=mesh(cachedGeo('tomes|'+s,()=>new THREE.CylinderGeometry(s*0.14,s*0.14,s*2.2,8)),'dark');
+        spine.rotation.x=Math.PI/2;
+        spine.position.y=s*0.06;
+        const mark=new THREE.Mesh(box(s*0.16,0.03,s*1.2),unlitMaterial({color:'red'}));
+        mark.position.set(s*0.2,s*0.36,s*0.9);
+        mark.rotation.y=0.15;
+        g.add(spine,mark);
+        return g;
+    },
+    candle(p) {
+        const g=new THREE.Group();
+        const r=p.r||0.2;
+        const h=p.h||0.8;
+        const dish=mesh(cachedGeo('cdish|'+r,()=>new THREE.CylinderGeometry(r*2,r*2.2,r*0.4,10)),'dark');
+        dish.position.y=r*0.2;
+        const wax=mesh(cachedGeo('cwax|'+r+'|'+h,()=>new THREE.CylinderGeometry(r,r*1.05,h,8)),'light');
+        wax.position.y=r*0.4+h/2;
+        const drip=mesh(cachedGeo('cdrip|'+r,()=>new THREE.SphereGeometry(r*0.35,6,5)),'light');
+        drip.position.set(r*0.9,r*0.4+h*0.7,0);
+        drip.scale.set(0.7,1.6,0.7);
+        const flame=new THREE.Mesh(cachedGeo('cflame|'+r,()=>new THREE.ConeGeometry(r*0.55,r*1.8,8)),unlitMaterial({color:'red'}));
+        flame.position.y=r*0.4+h+r*0.95;
+        const wick=mesh(box(0.03,r*0.4,0.03),'dark');
+        wick.position.y=r*0.4+h+r*0.15;
+        g.add(dish,wax,drip,wick,flame);
+        return g;
+    },
+    runes(p) {
+        const g=new THREE.Group();
+        const r=p.r;
+        const red=unlitMaterial({color:'red'});
+        for (const [k,w] of [[1,0.1],[0.82,0.06]]) {
+            const ring=new THREE.Mesh(cachedGeo('rring|'+r*k+'|'+w,()=>new THREE.RingGeometry(r*k-w,r*k,48)),k===1?red:toonMaterial({...TONES.dark,side:THREE.DoubleSide}));
+            ring.rotation.x=-Math.PI/2;
+            ring.position.y=0.03;
+            g.add(ring);
+        }
+        const n=p.count||9;
+        for (let i=0;i<n;i++) {
+            const a=i/n*Math.PI*2;
+            const m=mesh(box(0.34,0.03,0.08),'dark');
+            m.position.set(Math.cos(a)*r*0.91,0.04,Math.sin(a)*r*0.91);
+            m.rotation.y=-a+(i%2?0.8:-0.5);
+            const m2=mesh(box(0.08,0.03,0.24),'dark');
+            m2.position.set(Math.cos(a+0.12)*r*0.91,0.04,Math.sin(a+0.12)*r*0.91);
+            g.add(m,m2);
+        }
+        return g;
+    },
+    arch(p) {
+        const g=new THREE.Group();
+        const w=p.w;
+        const h=p.h;
+        for (const sx of [-1,1]) {
+            const col=mesh(cachedGeo('archc|'+h,()=>new THREE.CylinderGeometry(0.5,0.6,h,8)),'cover');
+            col.position.set(sx*w/2,h/2,0);
+            const base=mesh(box(1.5,0.5,1.5),'dark');
+            base.position.set(sx*w/2,0.25,0);
+            g.add(col,base);
+        }
+        const top=mesh(cachedGeo('archt|'+w,()=>new THREE.TorusGeometry(w/2,0.5,6,16,Math.PI)),'cover');
+        top.position.y=h;
+        const key=new THREE.Mesh(box(0.6,0.9,0.7),unlitMaterial({color:'red'}));
+        key.position.y=h+w/2;
+        g.add(top,key);
         return g;
     },
     shavings(p) {

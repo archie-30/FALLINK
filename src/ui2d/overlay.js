@@ -141,6 +141,11 @@ export class Overlay {
                 this.screenSpace(false);
             }
             this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
+            const rr=game.run;
+            this.hud.relicOn=!!rr.stats&&!rr.training()&&!rr.tutorial()&&rr.state!=='summary';
+            if (this.hud.relicOn&&!game.pause.open) {
+                this.hud.drawRelics(ctx,this.width);
+            }
             game.coach.touch=input.lastDevice==='touch';
             ctx.fontK=K;
             game.coach.drawStrip(ctx,game.art);
@@ -157,6 +162,9 @@ export class Overlay {
             game.upgradeView.draw(ctx,game.art);
             game.summary.draw(ctx);
             game.pause.draw(ctx);
+            if (this.hud.relicOn&&game.pause.open) {
+                this.hud.drawRelics(ctx,this.width);
+            }
             if (game.pause.open) {
                 const rn=game.run;
                 if (rn.plan&&rn.notebook()&&!rn.plan.overtime&&!rn.plan.training) {
@@ -184,7 +192,7 @@ export class Overlay {
             game.mainMenu.draw(ctx);
         }
         game.levelView.draw(ctx);
-        game.weaponView.draw(ctx);
+        game.relicView.draw(ctx);
         game.achView.draw(ctx);
         game.levelUp.draw(ctx,game.art);
         game.skinEditor.draw(ctx);
@@ -209,6 +217,9 @@ export class Overlay {
         this.hud.drawToast(ctx,this.width,game.dt);
         game.achToast.draw(ctx,this.width,game.dt,time.boilIndex);
         this.hud.drawResult(ctx,this.width,this.height,game.dt);
+        if (game.mode==='play') {
+            this.hud.drawRelicInfo(ctx,this.width,this.height,game.dt);
+        }
         game.transition.drawTop(ctx,this.width,this.height);
         if (input.lastDevice==='mouse'&&input.mouse.inside) {
             const play=game.mode==='play'&&game.run.state!=='dead';
