@@ -744,7 +744,6 @@ export const TUNING={
     gachaUi:{drop:0.9,fly:1.4,reveal:1.9,balls:15},
     relics:{
         price:15,
-        unlock:3,
         max:4,
         offer:3,
         weaponTag:128,

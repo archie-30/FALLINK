@@ -40,9 +40,9 @@ import {RNG} from './core/rng.js';
 import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
 import {RelicGacha} from './ui2d/gacha.js';
-import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,WeaponView,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
+import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
 import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
-import {initMeta,gradeOf,grantCoins,clampSkin,grantLevelChest,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,equipRelic,equippedRelic,earnDots,modeSeen,markModeSeen,pullRelic} from './core/meta.js';
+import {initMeta,gradeOf,grantCoins,clampSkin,grantLevelChest,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,earnDots,modeSeen,markModeSeen,pullRelic} from './core/meta.js';
 import {startRelic,relic,takeGuard,hasRelic,flashRelic,tickRelics,dmgMult,killRelic,pageRelic,perfectRelic,dripRelic,usePhoenix,inkMaxBonus,cardRelic,holdRelic,lowHp,relicState,restoreRelic,addRelic,removeRelic,gamblerMult} from './game/relic.js';
 import {saveRunSnap,loadRunSnap,clearRunSnap} from './core/runSave.js';
 import {GuidePopup,courseGuide,modeGuide,modesGuide} from './ui2d/guide.js';
@@ -1731,13 +1731,7 @@ function boot() {
         trainFixed=[];
         pendingGuide=null;
         pendingBoss=null;
-        if (s.relic&&typeof s.relic==='object') {
-            restoreRelic(s.relic);
-        }
-        else {
-            startRelic(s.relic||'');
-            relic.guard=s.guard||0;
-        }
+        restoreRelic(s.relic&&typeof s.relic==='object'?s.relic:null);
         player.setWeapon(WEAPONS[s.weapon]?s.weapon:'pen');
         resetTrainStats();
         deck.provider=null;
@@ -2112,50 +2106,6 @@ function boot() {
         }
         lastDev=d;
     }
-    const weaponView=new WeaponView({
-        select:()=>audio.play('ui'),
-        buy:id=>{
-            audio.play('ui');
-            const item={kind:'weapon',value:id};
-            buyPrompt.open2(item,settings.skin,()=>{
-                if (buy(item)) {
-                    weaponView.walletK=1;
-                    weaponView.pop=1;
-                    weaponView.equipT=0;
-                    weaponView.equipId=id;
-                    return true;
-                }
-                return false;
-            });
-        },
-        equip:id=>{
-            settings.weapon=id;
-            saveSettings();
-            equipWeapon();
-            audio.play('reload');
-        },
-        buyRelic:id=>{
-            audio.play('ui');
-            const item={kind:'relic',value:id};
-            buyPrompt.open2(item,settings.skin,()=>{
-                if (buy(item)) {
-                    weaponView.walletK=1;
-                    weaponView.relPop=1;
-                    return true;
-                }
-                return false;
-            });
-        },
-        equipRelic:id=>{
-            equipRelic(id);
-            audio.play(id?'reload':'ui');
-        },
-        locked:()=>audio.play('fail'),
-        back:()=>{
-            audio.play('ui');
-            weaponView.hide();
-        }
-    });
     const relicView=new RelicGacha({
         select:()=>audio.play('ui'),
         fail:()=>audio.play('fail'),
@@ -2392,7 +2342,7 @@ function boot() {
         }
     });
     let pendingLevel=null;
-    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,weaponView,relicView,popup,guide,choice,deckPick,levelUp,achView,chestView,buyPrompt,revivePopup,confirmPop];
+    const menus=[mainMenu,pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,coach,langPick,relicView,popup,guide,choice,deckPick,levelUp,achView,chestView,buyPrompt,revivePopup,confirmPop];
     setGate(()=>game.mode==='play'&&(run.mode==='story'||run.mode==='endless')&&!godMode());
     setAchHold(()=>game.mode==='play'&&run.mode==='training');
     const input=new Input(container);
@@ -2516,9 +2466,6 @@ function boot() {
             if (relicView.open) {
                 return relicView.down(x,y);
             }
-            if (weaponView.open) {
-                return weaponView.down(x,y);
-            }
             if (achView.open) {
                 return achView.down(x,y);
             }
@@ -2613,10 +2560,6 @@ function boot() {
                 levelView.move(x,y);
                 return;
             }
-            if (weaponView.open) {
-                weaponView.move(x,y);
-                return;
-            }
             if (achView.open) {
                 achView.move(x,y);
                 return;
@@ -2642,7 +2585,6 @@ function boot() {
             codex.up(x,y);
             levelView.up();
             achView.up();
-            weaponView.up();
             skinEditor.up(x,y);
             trainingPicker.up(x,y);
             if (modalShown()) {
@@ -2759,10 +2701,6 @@ function boot() {
             }
             return;
         }
-        if (weaponView.open) {
-            weaponView.actions.back();
-            return;
-        }
         if (skinEditor.open) {
             skinEditor.actions.back();
             return;
@@ -2796,7 +2734,7 @@ function boot() {
     // false when the system may close the app (second back press within 2 s on the idle main menu).
     let lastExitBack=-1e9;
     window.__inkrageBack=()=>{
-        const idleMenu=game.mode==='menu'&&!popup.open&&!guide.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!weaponView.open&&!relicView.open&&!skinEditor.open&&!trainingPicker.open&&!achView.open&&!chestView.open&&!buyPrompt.open&&!confirmPop.open;
+        const idleMenu=game.mode==='menu'&&!popup.open&&!guide.open&&!settingsMenu.open&&!codex.open&&!levelUp.open&&!levelView.open&&!relicView.open&&!skinEditor.open&&!trainingPicker.open&&!achView.open&&!chestView.open&&!buyPrompt.open&&!confirmPop.open;
         if (idleMenu) {
             const now=performance.now();
             if (now-lastExitBack<2000) {
@@ -2816,7 +2754,6 @@ function boot() {
         codex.wheel(dy);
         summary.wheel(dy);
         levelView.wheel(dy);
-        weaponView.wheel(dy);
         trainingPicker.wheel(dy);
         skinEditor.wheel(dy);
         achView.wheel(dy);
@@ -2938,7 +2875,7 @@ function boot() {
     applyQuality();
     const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
-    const gameUi={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,weaponView,relicView,popup,guide,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
+    const gameUi={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,relicView,popup,guide,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
     let aimTarget=null;
     function applyAimAssist() {
         const A=TUNING.aimAssist;
@@ -3497,7 +3434,7 @@ function boot() {
     if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
-    window.INKRAGE={ctx,guide,overlay,confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,weaponView,relicView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
+    window.INKRAGE={ctx,guide,overlay,confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,relicView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 
 boot();

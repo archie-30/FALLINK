@@ -38,9 +38,7 @@ export function initMeta() {
     P.ach=[...new Set(P.ach.map(id=>ACH_LEGACY[id]||id))].filter(id=>keys.has(id));
     P.achChests=Math.max(0,Math.min(Math.floor(achUnits()/M.chestEvery),Math.floor(Number(P.achChests)||0)));
     P.relics=P.relics.filter(id=>RELIC_ORDER.includes(id));
-    if (typeof P.relic!=='string'||!P.relics.includes(P.relic)) {
-        P.relic='';
-    }
+    delete P.relic;
     if (!P.modeSeen||typeof P.modeSeen!=='object'||Array.isArray(P.modeSeen)) {
         P.modeSeen={};
     }
@@ -264,16 +262,10 @@ export function grantLevelChest(only) {
 }
 
 export function price(item) {
-    if (item.kind==='relic') {
-        return TUNING.relics.price;
-    }
     return item.kind==='color'?M.price.color:(item.kind==='acc'?M.price.acc:M.price.weapon);
 }
 
 export function buy(item) {
-    if (item.kind==='relic') {
-        return buyRelic(item.value);
-    }
     const p=price(item);
     if (progress.dots<p) {
         return false;
@@ -293,36 +285,8 @@ export function buy(item) {
     return true;
 }
 
-export function relicsUnlocked() {
-    return effectiveLevel()>=TUNING.relics.unlock;
-}
-
-export function ownsRelic(id) {
-    return godMode()||progress.relics.includes(id);
-}
-
 export function relicPrice() {
     return TUNING.relics.price;
-}
-
-export function buyRelic(id) {
-    const p=relicPrice();
-    if (!relicsUnlocked()||!RELIC_ORDER.includes(id)||progress.relics.includes(id)||progress.dots<p) {
-        return false;
-    }
-    progress.dots-=p;
-    progress.relics.push(id);
-    saveProgress();
-    return true;
-}
-
-export function equippedRelic() {
-    return relicsUnlocked()&&ownsRelic(progress.relic)?progress.relic:'';
-}
-
-export function equipRelic(id) {
-    progress.relic=id&&ownsRelic(id)?id:'';
-    saveProgress();
 }
 
 export function relicOwned(id) {

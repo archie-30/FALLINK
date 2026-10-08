@@ -2,7 +2,7 @@ import {TUNING} from '../data/tuning.js';
 
 const R=TUNING.relics;
 
-export const relic={id:'',list:[],guard:0,kills:0,pages:0,cards:0,free:0,drip:0,phoenix:false,metro:0,glow:{},hold:{},gain:0};
+export const relic={list:[],guard:0,kills:0,pages:0,cards:0,free:0,drip:0,phoenix:false,metro:0,glow:{},hold:{},gain:0};
 
 export function hasRelic(id) {
     return relic.list.includes(id);
@@ -18,8 +18,7 @@ function arm(id) {
 }
 
 export function startRelic(list) {
-    relic.list=Array.isArray(list)?list.slice(0,R.max):(list?[list]:[]);
-    relic.id=relic.list[0]||'';
+    relic.list=Array.isArray(list)?list.slice(0,R.max):[];
     relic.guard=0;
     relic.kills=0;
     relic.pages=0;
@@ -40,14 +39,12 @@ export function addRelic(id) {
         return;
     }
     relic.list.push(id);
-    relic.id=relic.list[0];
     arm(id);
     flashRelic(id,R.flash*1.5);
 }
 
 export function removeRelic(id) {
     relic.list=relic.list.filter(q=>q!==id);
-    relic.id=relic.list[0]||'';
     if (id==='whiteout') {
         relic.guard=0;
     }

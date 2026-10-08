@@ -192,7 +192,6 @@ export class Overlay {
             game.mainMenu.draw(ctx);
         }
         game.levelView.draw(ctx);
-        game.weaponView.draw(ctx);
         game.relicView.draw(ctx);
         game.achView.draw(ctx);
         game.levelUp.draw(ctx,game.art);
