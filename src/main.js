@@ -2116,7 +2116,7 @@ function boot() {
             }
             return id;
         },
-        sfx:k=>audio.play(k==='drop'?'card':'clear',k==='drop'?0.8:1.3),
+        sfx:k=>audio.play(k==='drop'?'card':(k==='crank'?'reload':'clear'),k==='drop'?0.8:1.3),
         back:()=>{
             audio.play('ui');
             relicView.hide();
@@ -2560,6 +2560,10 @@ function boot() {
                 levelView.move(x,y);
                 return;
             }
+            if (relicView.open) {
+                relicView.move(x,y);
+                return;
+            }
             if (achView.open) {
                 achView.move(x,y);
                 return;
@@ -2585,6 +2589,7 @@ function boot() {
             codex.up(x,y);
             levelView.up();
             achView.up();
+            relicView.up();
             skinEditor.up(x,y);
             trainingPicker.up(x,y);
             if (modalShown()) {
@@ -2754,6 +2759,7 @@ function boot() {
         codex.wheel(dy);
         summary.wheel(dy);
         levelView.wheel(dy);
+        relicView.wheel(dy);
         trainingPicker.wheel(dy);
         skinEditor.wheel(dy);
         achView.wheel(dy);

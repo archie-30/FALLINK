@@ -1,6 +1,6 @@
 import {PALETTE,rgba,SKIN_TONES} from '../data/palette.js';
-import {RELIC_TINT} from '../data/relics.js';
-import {sketchRect,sketchCircle,sketchLine,sketchPath,drawShape} from './sketch.js';
+import {RELIC_TINT,RELIC_ORDER as RELIC_KEYS} from '../data/relics.js';
+import {sketchRect,sketchCircle,sketchLine,sketchPath,sketchPolygon,drawShape} from './sketch.js';
 
 const ICONS={
     refill(ctx,v,ink,fill) {
@@ -473,6 +473,64 @@ export function relicTone(id) {
     return SKIN_TONES[RELIC_TINT[id]]||SKIN_TONES.gray;
 }
 
+const FRAMES={refill:'hex',sharpener:'square',inkVial:'drop',styptic:'circle',whiteout:'shield',bandage:'square',sneakers:'scallop',feather:'drop',eraserBits:'octagon',boxCutter:'diamond',glasses:'circle',coupon:'ticket',metronome:'shield',redPact:'diamond',carbon:'square',phoenix:'flame',bigInk:'hex',inkDrip:'octagon',amulet:'shield',lastStand:'star',gambler:'scallop',masochist:'star'};
+
+function ring(n,r,rot=0,f=null) {
+    const out=[];
+    for (let i=0;i<n;i++) {
+        const a=rot+i/n*Math.PI*2;
+        const k=f?f(i):1;
+        out.push([Math.cos(a)*r*k,Math.sin(a)*r*k]);
+    }
+    return out;
+}
+
+function framePts(shape,R) {
+    if (shape==='hex') {
+        return ring(6,R*1.02,Math.PI/6);
+    }
+    if (shape==='octagon') {
+        return ring(8,R*1.02,Math.PI/8);
+    }
+    if (shape==='diamond') {
+        return [[0,-R*1.12],[R*0.95,0],[0,R*1.12],[-R*0.95,0]];
+    }
+    if (shape==='square') {
+        const q=R*0.86;
+        return [[-q,-q+8],[-q+8,-q],[q-8,-q],[q,-q+8],[q,q-8],[q-8,q],[-q+8,q],[-q,q-8]];
+    }
+    if (shape==='shield') {
+        return [[-R*0.88,-R*0.82],[0,-R*0.98],[R*0.88,-R*0.82],[R*0.84,R*0.1],[R*0.5,R*0.68],[0,R*1.02],[-R*0.5,R*0.68],[-R*0.84,R*0.1]];
+    }
+    if (shape==='scallop') {
+        return ring(24,R*0.98,0,i=>i%2?0.9:1.04);
+    }
+    if (shape==='star') {
+        return ring(16,R*1.02,-Math.PI/2,i=>i%2?0.82:1.06);
+    }
+    if (shape==='ticket') {
+        const w=R*1.02;
+        const h=R*0.74;
+        return [[-w,-h],[w,-h],[w,-h*0.3],[w*0.86,0],[w,h*0.3],[w,h],[-w,h],[-w,h*0.3],[-w*0.86,0],[-w,-h*0.3]];
+    }
+    if (shape==='drop') {
+        const out=[[0,-R*1.08]];
+        for (let i=0;i<=12;i++) {
+            const a=-Math.PI*0.15+i/12*Math.PI*1.3;
+            out.push([Math.cos(a)*R*0.86,R*0.2+Math.sin(a)*R*0.78]);
+        }
+        return out;
+    }
+    if (shape==='flame') {
+        return [[0,-R*1.1],[R*0.36,-R*0.62],[R*0.62,-R*0.86],[R*0.9,-R*0.2],[R*0.82,R*0.42],[R*0.44,R*0.9],[0,R*1.0],[-R*0.44,R*0.9],[-R*0.82,R*0.42],[-R*0.9,-R*0.2],[-R*0.62,-R*0.86],[-R*0.36,-R*0.62]];
+    }
+    return ring(28,R);
+}
+
+export function relicFrame(id) {
+    return FRAMES[id]||'circle';
+}
+
 export function drawRelicIcon(ctx,id,x,y,s,v,locked=false,badge=true) {
     const f=ICONS[id];
     if (!f) {
@@ -486,12 +544,38 @@ export function drawRelicIcon(ctx,id,x,y,s,v,locked=false,badge=true) {
         ctx.globalAlpha*=0.55;
     }
     if (badge) {
+        const pts=framePts(relicFrame(id),46);
+        const seed=4400+RELIC_KEYS.indexOf(id)*7;
         ctx.fillStyle=locked?PALETTE.farGray:T[0];
         ctx.beginPath();
-        ctx.arc(0,0,46,0,Math.PI*2);
+        pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+        ctx.closePath();
         ctx.fill();
-        drawShape(ctx,sketchCircle(0,0,46,{width:2.6,seed:4400+id.length}),locked?PALETTE.midGray:T[2],v);
-        ctx.scale(0.78,0.78);
+        ctx.save();
+        ctx.scale(0.8,0.8);
+        ctx.setLineDash([5,5]);
+        ctx.strokeStyle=locked?rgba('midGray',0.5):T[1];
+        ctx.lineWidth=2;
+        ctx.beginPath();
+        pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+        ctx.closePath();
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+        drawShape(ctx,sketchPolygon(pts,{width:2.8,seed}),locked?PALETTE.midGray:T[2],v);
+        if (!locked) {
+            ctx.fillStyle=T[2];
+            for (const p of pts.filter((q,i)=>i%Math.max(1,Math.floor(pts.length/4))===0).slice(0,4)) {
+                ctx.beginPath();
+                ctx.arc(p[0]*0.88,p[1]*0.88,2.4,0,Math.PI*2);
+                ctx.fill();
+            }
+        }
+        ctx.scale(0.74,0.74);
+    }
+    if (locked==='hidden') {
+        ctx.restore();
+        return;
     }
     f(ctx,v,locked?PALETTE.midGray:PALETTE.ink,locked?PALETTE.farGray:PALETTE.paper,locked?PALETTE.midGray:T[1]);
     ctx.restore();

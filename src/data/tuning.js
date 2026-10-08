@@ -742,7 +742,7 @@ export const TUNING={
         ui:{barW:300,barWSmall:200,barY:48,shift:14,iconR:15,iconGap:12}
     },
     spin:{radius:2.5,still:0.3,pause:2,back:0.8},
-    gachaUi:{drop:0.9,fly:1.4,reveal:1.9,balls:15,shake:1.5,bounce:3.2},
+    gachaUi:{intro:0.45,drop:1.7,fly:2.35,reveal:3.75,cy:0.42,balls:15,shake:1.5,bounce:3.2},
     relics:{
         price:15,
         max:4,

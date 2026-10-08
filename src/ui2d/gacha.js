@@ -100,15 +100,8 @@ export class RelicGacha extends Panel {
             this.pull();
             return true;
         }
-        for (const q of this.tiles) {
-            if (Math.hypot(x-q.x,y-q.y)<q.r+6) {
-                if (q.id!==this.sel) {
-                    this.sel=q.id;
-                    this.pulse[q.id]=1;
-                    this.actions.select();
-                }
-                return true;
-            }
+        if (inRect(this.G,x,y)) {
+            this.press={x0:x,y0:y,s0:this.scrollTo||0,moved:false};
         }
         return true;
     }
@@ -144,6 +137,7 @@ export class RelicGacha extends Panel {
         super.update(dt);
         this.shake=Math.max(0,this.shake-dt*2.5);
         this.walletK=Math.max(0,this.walletK-dt*2);
+        this.scroll=(this.scroll||0)+((this.scrollTo||0)-(this.scroll||0))*Math.min(1,dt*14);
         for (const k in this.pulse) {
             this.pulse[k]=Math.max(0,this.pulse[k]-dt*2.5);
         }
@@ -156,6 +150,10 @@ export class RelicGacha extends Panel {
         const A=this.anim;
         if (A) {
             A.t+=dt;
+            if (!A.crank&&A.t>=G().intro) {
+                A.crank=true;
+                this.actions.sfx('crank');
+            }
             if (!A.drop&&A.t>=G().drop) {
                 A.drop=true;
                 this.actions.sfx('drop');
@@ -164,7 +162,7 @@ export class RelicGacha extends Panel {
                 A.boom=true;
                 this.actions.sfx('reveal');
                 const cx=this.width/2;
-                const cy=this.height*0.42;
+                const cy=this.height*G().cy;
                 const T=relicTone(A.id);
                 for (let i=0;i<46;i++) {
                     const a=Math.random()*Math.PI*2;
@@ -313,36 +311,86 @@ export class RelicGacha extends Panel {
         ctx.restore();
     }
 
-    drawGrid(ctx,v,small) {
-        const P=this.P;
+    gridLayout(small) {
         const Gr=this.G;
-        const gx=Gr.x;
-        const gw=Gr.w;
-        const gy=Gr.y+4;
-        const dh=small?80:118;
-        const gh=Gr.y+Gr.h-dh-10-gy;
-        const gap=small?6:10;
-        const lab=small?13:16;
-        let best=null;
-        for (let cols=4;cols<=12;cols++) {
-            const ts=Math.min(small?54:72,(gw-gap*(cols-1))/cols);
-            const rows=Math.ceil(RELIC_ORDER.length/cols);
-            if (rows*(ts+lab+gap)<=gh) {
-                best={cols,ts};
-                break;
-            }
-            best={cols,ts:Math.max(24,gh/rows-lab-gap)};
+        const dh=small?78:116;
+        const V={x:Gr.x,y:Gr.y,w:Gr.w,h:Gr.h-dh-(small?8:12)};
+        const ts=small?50:66;
+        const gapX=small?18:30;
+        const gapY=small?12:20;
+        const lab=small?16:20;
+        const cols=Math.max(3,Math.floor((V.w-24+gapX)/(ts+gapX)));
+        const rows=Math.ceil(RELIC_ORDER.length/cols);
+        const rowW=cols*ts+(cols-1)*gapX;
+        return {V,dh,ts,gapX,gapY,lab,cols,x0:V.x+(V.w-12-rowW)/2,y0:V.y+(small?10:16),content:rows*(ts+lab+gapY)+(small?14:22)};
+    }
+
+    clampScroll() {
+        const L=this.gridLayout(this.height<600);
+        const max=Math.max(0,L.content-L.V.h);
+        this.scrollTo=Math.max(0,Math.min(max,this.scrollTo||0));
+        return max;
+    }
+
+    wheel(dy) {
+        if (!this.open||this.anim) {
+            return;
         }
-        const {cols,ts}=best;
-        const rowW=cols*ts+(cols-1)*gap;
-        const x0=gx+(gw-rowW)/2;
+        this.scrollTo=(this.scrollTo||0)+dy;
+        this.clampScroll();
+    }
+
+    move(x,y) {
+        const p=this.press;
+        if (!p) {
+            return;
+        }
+        if (Math.hypot(x-p.x0,y-p.y0)>8) {
+            p.moved=true;
+        }
+        if (p.moved) {
+            this.scrollTo=p.s0-(y-p.y0);
+            this.clampScroll();
+            this.scroll=this.scrollTo;
+        }
+    }
+
+    up() {
+        const p=this.press;
+        this.press=null;
+        if (!p||p.moved) {
+            return;
+        }
+        for (const q of this.tiles) {
+            if (Math.hypot(p.x0-q.x,p.y0-q.y)<q.r+8) {
+                if (q.id!==this.sel) {
+                    this.sel=q.id;
+                    this.pulse[q.id]=1;
+                    this.actions.select();
+                }
+                return;
+            }
+        }
+    }
+
+    drawGrid(ctx,v,small) {
+        const L=this.gridLayout(small);
+        const V=L.V;
+        const max=this.clampScroll();
+        const ts=L.ts;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(V.x,V.y,V.w,V.h);
+        ctx.clip();
         this.tiles=[];
-        const v0=time.boilIndex;
         RELIC_ORDER.forEach((id,i)=>{
-            const c=i%cols;
-            const r=Math.floor(i/cols);
-            const x=x0+c*(ts+gap)+ts/2;
-            const y=gy+r*(ts+lab+gap)+ts/2;
+            const c=i%L.cols;
+            const r=Math.floor(i/L.cols);
+            const x=L.x0+c*(ts+L.gapX)+ts/2;
+            const y=L.y0+r*(ts+L.lab+L.gapY)+ts/2-(this.scroll||0);
+            if (y+ts/2+L.lab<V.y||y-ts/2>V.y+V.h) {
+                return;
+            }
             const own=relicOwned(id);
             const sel=id===this.sel;
             const hv=Math.hypot(this.hx-x,this.hy-y)<ts/2+4;
@@ -353,29 +401,26 @@ export class RelicGacha extends Panel {
             }
             ctx.save();
             ctx.translate(x,y);
-            const s=ap*(1+(hv?0.06:0)+Math.sin(pu*Math.PI)*0.2);
-            ctx.scale(s,s);
+            const sc=ap*(1+(hv?0.06:0)+Math.sin(pu*Math.PI)*0.2);
+            ctx.scale(sc,sc);
             if (sel) {
+                ctx.fillStyle=rgba('red',0.08);
+                ctx.beginPath();
+                ctx.arc(0,0,ts/2+8,0,Math.PI*2);
+                ctx.fill();
                 ctx.strokeStyle=PALETTE.red;
                 ctx.lineWidth=2;
                 ctx.setLineDash([5,4]);
                 ctx.lineDashOffset=-time.real*14;
                 ctx.beginPath();
-                ctx.arc(0,0,ts/2+4,0,Math.PI*2);
+                ctx.arc(0,0,ts/2+8,0,Math.PI*2);
                 ctx.stroke();
                 ctx.setLineDash([]);
             }
-            if (own) {
-                drawRelicIcon(ctx,id,0,Math.sin(time.real*2+i)*(sel?2:0),ts/2/46,v0,false);
-            }
-            else {
-                ctx.fillStyle=PALETTE.farGray;
-                ctx.beginPath();
-                ctx.arc(0,0,ts/2,0,Math.PI*2);
-                ctx.fill();
-                drawShape(ctx,sketchCircle(0,0,ts/2,{width:1.6,seed:4620+i}),PALETTE.midGray,v);
+            drawRelicIcon(ctx,id,0,own&&sel?Math.sin(time.real*2+i)*2:0,ts/2/50,v,own?false:'hidden');
+            if (!own) {
                 ctx.fillStyle=PALETTE.midGray;
-                ctx.font='bold '+Math.round(ts*0.45)+'px '+FONT;
+                ctx.font='bold '+Math.round(ts*0.4)+'px '+FONT;
                 ctx.textAlign='center';
                 ctx.textBaseline='middle';
                 ctx.fillText('?',0,2);
@@ -384,33 +429,137 @@ export class RelicGacha extends Panel {
             ctx.fillStyle=own?(sel?PALETTE.red:PALETTE.ink):PALETTE.midGray;
             ctx.textAlign='center';
             ctx.textBaseline='top';
-            fitText(ctx,own?t('relic.'+id+'.name'):t('gacha.locked'),x,y+ts/2+2,ts+gap-2,small?9:11,sel?'bold ':'');
+            fitText(ctx,t('relic.'+id+'.name'),x,y+ts/2+(small?4:6),ts+L.gapX-4,small?11:13,sel?'bold ':'');
             this.tiles.push({id,x,y,r:ts/2});
         });
-        const dy=Gr.y+Gr.h-dh;
+        ctx.restore();
+        if (max>0) {
+            const th=Math.max(26,V.h*V.h/L.content);
+            const ty=V.y+(V.h-th)*((this.scroll||0)/max);
+            ctx.fillStyle=rgba('farGray',0.6);
+            ctx.fillRect(V.x+V.w-6,V.y,4,V.h);
+            ctx.fillStyle=PALETTE.ink;
+            ctx.fillRect(V.x+V.w-7,ty,6,th);
+        }
+        const gx=V.x;
+        const gw=V.w;
+        const dh=L.dh;
+        const dy=V.y+V.h+(small?8:12);
         const id=this.sel;
         const own=relicOwned(id);
         ctx.fillStyle=rgba('paper',0.96);
         ctx.fillRect(gx,dy,gw,dh);
         drawShape(ctx,sketchRect(gx,dy,gw,dh,{width:1.6,seed:4640}),PALETTE.ink,v);
-        const ir=small?18:26;
-        if (own) {
-            drawRelicIcon(ctx,id,gx+12+ir,dy+12+ir,ir/46,v,false);
+        const ir=small?20:28;
+        drawRelicIcon(ctx,id,gx+12+ir,dy+dh/2,ir/50,v,own?false:'hidden');
+        if (!own) {
+            drawLock(ctx,gx+12+ir*1.7,dy+dh/2+ir*0.6,0.9,PALETTE.nearGray);
         }
-        else {
-            drawLock(ctx,gx+12+ir,dy+12+ir,1.2,PALETTE.midGray);
-        }
-        const tx=gx+24+ir*2;
-        ctx.fillStyle=own?PALETTE.ink:PALETTE.midGray;
+        const tx=gx+26+ir*2;
+        ctx.fillStyle=own?PALETTE.ink:PALETTE.nearGray;
         ctx.textAlign='left';
         ctx.textBaseline='top';
-        fitText(ctx,t('relic.'+id+'.name')+(own?'':t('ui.sep')+t('gacha.locked'))+(RELIC_STARTERS.includes(id)?t('ui.sep')+t('gacha.starter'):''),tx,dy+10,gx+gw-tx-12,small?15:18,'bold ');
+        fitText(ctx,t('relic.'+id+'.name')+(RELIC_STARTERS.includes(id)?t('ui.sep')+t('gacha.starter'):''),tx,dy+10,gx+gw-tx-12,small?15:18,'bold ');
         ctx.font=(small?11:14)+'px '+FONT;
-        ctx.fillStyle=PALETTE.nearGray;
-        const lines=wrapText(ctx,t('relic.'+id+'.desc',relicParams(id)),gx+gw-tx-12);
+        ctx.fillStyle=own?PALETTE.nearGray:PALETTE.midGray;
+        const lines=own?wrapText(ctx,t('relic.'+id+'.desc',relicParams(id)),gx+gw-tx-12):[t('gacha.lockedDesc')];
         const lh=small?14:19;
-        const max=Math.max(1,Math.floor((dh-(small?30:38))/lh));
-        lines.slice(0,max).forEach((ln,i)=>ctx.fillText(ln,tx,dy+(small?28:36)+i*lh));
+        const mx=Math.max(1,Math.floor((dh-(small?30:38))/lh));
+        lines.slice(0,mx).forEach((ln,q)=>ctx.fillText(ln,tx,dy+(small?28:36)+q*lh));
+    }
+
+    drawCapsule(ctx,x,y,r,T,rot,crack) {
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.rotate(rot);
+        if (crack>0) {
+            ctx.fillStyle=rgba('paper',0.35*crack);
+            ctx.beginPath();
+            ctx.arc(0,0,r*(1.25+crack*0.5),0,Math.PI*2);
+            ctx.fill();
+        }
+        ctx.fillStyle=T[0];
+        ctx.beginPath();
+        ctx.arc(0,0,r,Math.PI,0);
+        ctx.fill();
+        ctx.fillStyle=T[1];
+        ctx.beginPath();
+        ctx.arc(0,0,r,0,Math.PI);
+        ctx.fill();
+        ctx.strokeStyle=T[2];
+        ctx.lineWidth=Math.max(2,r*0.05);
+        ctx.beginPath();
+        ctx.arc(0,0,r,0,Math.PI*2);
+        ctx.stroke();
+        ctx.strokeStyle=crack>0?rgba('paper',0.5+crack*0.5):T[2];
+        ctx.lineWidth=Math.max(2,r*(0.05+crack*0.08));
+        ctx.beginPath();
+        ctx.moveTo(-r,0);
+        for (let q=1;q<=8;q++) {
+            ctx.lineTo(-r+q*r/4,(q%2?-1:1)*r*0.08*crack);
+        }
+        ctx.stroke();
+        ctx.fillStyle=rgba('paper',0.5);
+        ctx.beginPath();
+        ctx.ellipse(-r*0.4,-r*0.45,r*0.14,r*0.26,0.6,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    drawBigMachine(ctx,v,cx,cy,gr,A) {
+        const g=G();
+        const t=A.t;
+        const crank=Math.max(0,Math.min(1,(t-g.intro)/(g.drop-g.intro)));
+        const busy=t>=g.intro&&t<g.drop+0.2;
+        const now=time.real;
+        const baseY=cy+gr*0.82;
+        const bw=gr*1.9;
+        const bh=gr*1.15;
+        ctx.save();
+        ctx.translate(busy?Math.sin(t*38)*g.shake*2:0,0);
+        ctx.fillStyle=PALETTE.red;
+        ctx.fillRect(cx-bw/2,baseY,bw,bh);
+        drawShape(ctx,sketchRect(cx-bw/2,baseY,bw,bh,{width:3,seed:4651}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.darkRed;
+        ctx.fillRect(cx-bw/2,baseY+bh-10,bw,10);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.beginPath();
+        ctx.arc(cx,cy,gr,0,Math.PI*2);
+        ctx.fill();
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx,cy,gr-4,0,Math.PI*2);
+        ctx.clip();
+        for (let i=0;i<g.balls;i++) {
+            const T=relicTone(RELIC_ORDER[i%RELIC_ORDER.length]);
+            const rate=g.bounce*(0.8+hash1(i*3)*0.6)*(busy?2.6:1);
+            const hop=Math.abs(Math.sin(now*rate+i*1.7))*gr*(busy?0.4:0.13);
+            const bx=cx+(hash1(i*13+1)-0.5)*gr*1.5+Math.sin(now*rate*0.5+i)*gr*(busy?0.08:0.02);
+            const by=cy+gr*0.55-Math.floor(i/5)*gr*0.3-hash1(i*7)*gr*0.12-hop;
+            this.drawCapsule(ctx,bx,by,gr*0.2,T,Math.sin(now+i)*0.3,0);
+        }
+        ctx.restore();
+        drawShape(ctx,sketchCircle(cx,cy,gr,{width:3,seed:4652}),PALETTE.ink,v);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(cx-gr*0.35,cy-gr-12,gr*0.7,14);
+        const kx=cx+bw*0.2;
+        const ky=baseY+bh*0.4;
+        const kr=bh*0.26;
+        ctx.fillStyle=PALETTE.paper;
+        ctx.beginPath();
+        ctx.arc(kx,ky,kr,0,Math.PI*2);
+        ctx.fill();
+        drawShape(ctx,sketchCircle(kx,ky,kr,{width:2.4,seed:4653}),PALETTE.ink,v);
+        ctx.save();
+        ctx.translate(kx,ky);
+        ctx.rotate(EASE.easeInOutCubic(crank)*Math.PI*4);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(-kr*0.9,-kr*0.22,kr*1.8,kr*0.44);
+        ctx.restore();
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillRect(cx-bw*0.4,baseY+bh*0.5,bw*0.32,bh*0.3);
+        ctx.restore();
+        return {sx:cx-bw*0.24,sy:baseY+bh*0.65,floor:baseY+bh};
     }
 
     drawReveal(ctx,v) {
@@ -418,42 +567,65 @@ export class RelicGacha extends Panel {
         const g=G();
         const w=this.width;
         const h=this.height;
-        if (!A||A.t<g.drop) {
+        if (!A) {
             return;
         }
         const T=relicTone(A.id);
-        const dk=Math.min(1,(A.t-g.drop)/0.35);
+        const dk=Math.min(1,A.t/0.35);
         ctx.save();
-        ctx.fillStyle=rgba('ink',0.82*dk);
+        ctx.fillStyle=rgba('ink',0.88*dk);
         ctx.fillRect(0,0,w,h);
         const cx=w/2;
-        const cy=h*0.42;
+        const cy=h*g.cy;
         const big=Math.min(w,h)*0.17;
+        ctx.save();
+        ctx.translate(cx,cy);
+        ctx.rotate(time.real*0.25);
+        for (let i=0;i<16;i++) {
+            ctx.rotate(Math.PI/8);
+            ctx.fillStyle=rgba('paper',0.04*dk);
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            ctx.lineTo(Math.max(w,h),-Math.max(w,h)*0.08);
+            ctx.lineTo(Math.max(w,h),Math.max(w,h)*0.08);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
         if (A.t<g.reveal) {
-            const k=EASE.easeOutBack(Math.min(1,(A.t-g.drop)/(g.fly-g.drop)));
-            const wob=A.t>g.fly?Math.sin(A.t*60)*0.18*Math.min(1,(A.t-g.fly)/(g.reveal-g.fly)):0;
-            const r=big*k;
-            ctx.translate(cx,cy+(1-k)*h*0.4);
-            ctx.rotate(wob+(1-k)*4);
-            ctx.fillStyle=T[0];
-            ctx.beginPath();
-            ctx.arc(0,0,r,Math.PI,0);
-            ctx.fill();
-            ctx.fillStyle=T[1];
-            ctx.beginPath();
-            ctx.arc(0,0,r,0,Math.PI);
-            ctx.fill();
-            ctx.strokeStyle=T[2];
-            ctx.lineWidth=4;
-            ctx.beginPath();
-            ctx.arc(0,0,r,0,Math.PI*2);
-            ctx.moveTo(-r,0);
-            ctx.lineTo(r,0);
-            ctx.stroke();
-            ctx.fillStyle=rgba('paper',0.5);
-            ctx.beginPath();
-            ctx.ellipse(-r*0.4,-r*0.45,r*0.14,r*0.26,0.6,0,Math.PI*2);
-            ctx.fill();
+            const gr=Math.min(w*0.2,h*0.24);
+            const mIn=EASE.easeOutBack(Math.min(1,A.t/g.intro));
+            const mOut=EASE.easeInCubic(Math.max(0,Math.min(1,(A.t-g.fly)/0.5)));
+            const my=h*0.36+(1-mIn)*h*0.7+mOut*h*0.9;
+            const S=this.drawBigMachine(ctx,v,cx,my,gr,A);
+            const cr=gr*0.28;
+            if (A.t>=g.drop&&A.t<g.fly) {
+                const k=Math.min(1,(A.t-g.drop)/(g.fly-g.drop));
+                const fall=EASE.easeOutBounce?EASE.easeOutBounce(Math.min(1,k*1.6)):Math.min(1,k*1.6);
+                const x=S.sx-k*gr*0.6;
+                const y=S.sy+(S.floor+cr*1.1-S.sy)*fall;
+                this.drawCapsule(ctx,x,y,cr,T,-k*6,0);
+                A.cx=x;
+                A.cy=y;
+            }
+            else if (A.t>=g.fly) {
+                const k=EASE.easeInOutCubic(Math.min(1,(A.t-g.fly)/0.55));
+                const x0=A.cx??cx;
+                const y0=A.cy??cy;
+                const wobT=Math.max(0,(A.t-g.fly-0.55)/(g.reveal-g.fly-0.55));
+                const wob=Math.sin(A.t*(30+wobT*30))*0.25*wobT;
+                const r=cr+(big-cr)*k;
+                this.drawCapsule(ctx,x0+(cx-x0)*k,y0+(cy-y0)*k-Math.sin(k*Math.PI)*h*0.12,r,T,wob+(1-k)*-6,wobT);
+                if (wobT>0) {
+                    for (let q=0;q<6;q++) {
+                        const an=time.real*3+q*1.05;
+                        ctx.fillStyle=rgba('paper',0.6*wobT);
+                        ctx.beginPath();
+                        ctx.arc(cx+Math.cos(an)*big*(1.3+wobT*0.4),cy+Math.sin(an)*big*(1.3+wobT*0.4),2+wobT*3,0,Math.PI*2);
+                        ctx.fill();
+                    }
+                }
+            }
             ctx.restore();
             return;
         }
