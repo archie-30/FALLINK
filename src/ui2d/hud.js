@@ -503,9 +503,9 @@ export class Hud {
         const k=EASE.easeOutBack(Math.min(1,q.t/0.25));
         const bw=Math.min(U.infoW,w-32);
         ctx.save();
-        ctx.font='14px '+FONT;
+        ctx.font='16px '+FONT;
         const lines=wrapText(ctx,t('relic.'+q.id+'.desc',relicParams(q.id)),bw-U.infoPad*2);
-        const bh=U.infoPad*2+30+lines.length*20+22;
+        const bh=U.infoPad*2+30+lines.length*23+22;
         const bx=Math.max(16,Math.min(w-16-bw,slot.x-bw+slot.r+8));
         const by=slot.y+slot.r+12;
         ctx.globalAlpha=Math.min(1,q.t*5);
@@ -529,10 +529,10 @@ export class Hud {
         ctx.textAlign='left';
         ctx.textBaseline='middle';
         ctx.fillText(t('relic.'+q.id+'.name'),bx+U.infoPad+36,by+U.infoPad+14,bw-U.infoPad*2-36);
-        ctx.font='14px '+FONT;
+        ctx.font='16px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         ctx.textBaseline='top';
-        lines.forEach((ln,i)=>ctx.fillText(ln,bx+U.infoPad,by+U.infoPad+34+i*20));
+        lines.forEach((ln,i)=>ctx.fillText(ln,bx+U.infoPad,by+U.infoPad+34+i*23));
         ctx.font='11px '+FONT;
         ctx.fillStyle=PALETTE.midGray;
         ctx.textAlign='right';

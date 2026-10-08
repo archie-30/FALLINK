@@ -313,7 +313,7 @@ export class RelicGacha extends Panel {
 
     gridLayout(small) {
         const Gr=this.G;
-        const dh=small?78:116;
+        const dh=small?96:140;
         const V={x:Gr.x,y:Gr.y,w:Gr.w,h:Gr.h-dh-(small?8:12)};
         const ts=small?50:66;
         const gapX=small?18:30;
@@ -455,13 +455,13 @@ export class RelicGacha extends Panel {
         ctx.fillStyle=own?PALETTE.ink:PALETTE.nearGray;
         ctx.textAlign='left';
         ctx.textBaseline='top';
-        fitText(ctx,t('relic.'+id+'.name')+(RELIC_STARTERS.includes(id)?t('ui.sep')+t('gacha.starter'):''),tx,dy+10,gx+gw-tx-12,small?15:18,'bold ');
-        ctx.font=(small?11:14)+'px '+FONT;
+        fitText(ctx,t('relic.'+id+'.name')+(RELIC_STARTERS.includes(id)?t('ui.sep')+t('gacha.starter'):''),tx,dy+10,gx+gw-tx-12,small?17:20,'bold ');
+        ctx.font=(small?14:17)+'px '+FONT;
         ctx.fillStyle=own?PALETTE.nearGray:PALETTE.midGray;
         const lines=own?wrapText(ctx,t('relic.'+id+'.desc',relicParams(id)),gx+gw-tx-12):[t('gacha.lockedDesc')];
-        const lh=small?14:19;
-        const mx=Math.max(1,Math.floor((dh-(small?30:38))/lh));
-        lines.slice(0,mx).forEach((ln,q)=>ctx.fillText(ln,tx,dy+(small?28:36)+q*lh));
+        const lh=small?18:23;
+        const mx=Math.max(1,Math.floor((dh-(small?36:44))/lh));
+        lines.slice(0,mx).forEach((ln,q)=>ctx.fillText(ln,tx,dy+(small?34:40)+q*lh));
     }
 
     drawCapsule(ctx,x,y,r,T,rot,crack) {
