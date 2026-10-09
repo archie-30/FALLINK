@@ -238,6 +238,19 @@ const MODELS={
         eyes(body,1.4,0.33,0.13,0.05);
         return {r:0.7,h:2.0};
     },
+    hourglass(body) {
+        body.add(cyl(0.5,0.5,0.1,'dark',0,0.05,0,8));
+        body.add(cyl(0.5,0.5,0.1,'dark',0,1.75,0,8));
+        body.add(cyl(0.08,0.42,0.8,'light',0,0.5,0,10));
+        body.add(cyl(0.42,0.08,0.8,'light',0,1.3,0,10));
+        body.add(cyl(0.05,0.3,0.32,'ink',0,0.26,0,10));
+        body.add(cyl(0.22,0.06,0.2,'ink',0,1.12,0,10));
+        for (const [x,z] of [[0.42,0],[-0.42,0],[0,0.42],[0,-0.42]]) {
+            body.add(cyl(0.035,0.035,1.7,'ink',x,0.9,z,4));
+        }
+        eyes(body,1.42,0.4,0.15,0.06);
+        return {r:0.65,h:1.9};
+    },
     item(body,root,s) {
         root.add(cyl(0.55,0.62,0.7,'cover',0,0.35,0,10));
         root.add(cyl(0.62,0.62,0.06,'dark',0,0.72,0,10));

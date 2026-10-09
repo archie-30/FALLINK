@@ -204,7 +204,7 @@ export class Run {
             const c=settings.training;
             const base=c.map==='training'?T.layout:(LAYOUTS[c.map]||T.layout);
             const layout=c.props?base:{...base,props:base.props.filter(q=>!T.solid.includes(q.type))};
-            this.plan={act:0,index:0,training:true,boss:false,layoutKey:'training',layout,hpMult:1,waves:[],exits:[{kind:'home'},{kind:'games'}],barrels:c.props?T.barrels:0,crates:c.props?T.crates:0};
+            this.plan={act:0,index:0,training:true,boss:false,layoutKey:'training',layout,hpMult:1,waves:[],exits:[{kind:'games'}],barrels:c.props?T.barrels:0,crates:c.props?T.crates:0};
             const room=this.hooks.enterRoom(this.plan,this.deckList);
             this.director=new TrainingDirector(c,this.hooks.enemies,room,trainable);
             this.state='combat';

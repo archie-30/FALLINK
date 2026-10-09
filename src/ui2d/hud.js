@@ -681,7 +681,7 @@ export class Hud {
                 }
                 const k=Math.min(1,(time.real-this.bigAt)/B.pop);
                 ctx.save();
-                ctx.translate(w/2,Math.max(by+B.y,h*B.yFrac));
+                ctx.translate(w/2,Math.max(by+B.y,h*(pz.big.yFrac||B.yFrac)));
                 ctx.scale(1+(1-k)*B.grow,1+(1-k)*B.grow);
                 ctx.font='bold '+(pz.big.dim?B.dimSize:B.size)+'px '+FONT;
                 ctx.lineWidth=B.stroke;

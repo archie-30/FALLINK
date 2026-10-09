@@ -2235,6 +2235,15 @@ function boot() {
             overlay.hud.toast(t('trainMenu.resetDone'));
         },
         settings:()=>openSettings('training'),
+        home:()=>{
+            audio.play('ui');
+            trainingMenu.hide();
+            trainingMenu.pendingRoom=false;
+            fx.paused=false;
+            input.mouse.down=false;
+            run.quit();
+            enterMenu();
+        }
     });
     const trainingPicker=new TrainingPicker({
         home:()=>{

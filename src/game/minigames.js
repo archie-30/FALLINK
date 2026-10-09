@@ -1,11 +1,12 @@
 import*as THREE from 'three';
-import {toonMaterial,stampMaterial} from '../render/materials.js';
+import {toonMaterial,stampMaterial,iconMaterial} from '../render/materials.js';
 import {makeBox} from '../core/collision.js';
 import {MINIGAMES} from '../data/minigames.js';
 import {TUNING} from '../data/tuning.js';
 import {EASE} from '../core/easing.js';
 import {RNG} from '../core/rng.js';
 import {t} from '../data/strings.js';
+import {PALETTE} from '../data/palette.js';
 
 const TONES={
     cover:{light:'farGray',mid:'midGray',dark:'nearGray'},
@@ -2103,6 +2104,168 @@ const GAMES={
         teardown(g) {
             g.sign.visible=false;
             g.cross.visible=false;
+        }
+    },
+    count:{
+        setup(g) {
+            const P=g.P;
+            const [wx,wz]=P.watch;
+            g.watch=new THREE.Group();
+            g.watch.position.set(wx,0,wz);
+            g.add(g.watch);
+            const face=new THREE.Group();
+            face.position.y=P.r+0.35;
+            face.rotation.x=-P.tilt;
+            g.watch.add(face);
+            const body=g.cyl(P.r,P.r,0.4,'light',0,0,0,face,32);
+            body.rotation.x=Math.PI/2;
+            const rim=g.cyl(P.r+0.08,P.r+0.08,0.3,'dark',0,0,-0.08,face,32);
+            rim.rotation.x=Math.PI/2;
+            g.cyl(0.16,0.16,0.3,'dark',0,P.r+0.2,0,face);
+            g.box(0.5,0.16,0.26,'accent',0,P.r+0.42,0,face);
+            const btn=g.cyl(0.11,0.11,0.24,'dark',0,0,0,face);
+            btn.position.set(Math.sin(0.8)*(P.r+0.12),Math.cos(0.8)*(P.r+0.12),0);
+            btn.rotation.z=-0.8;
+            g.box(0.5,0.35,0.5,'dark',0,0.18,0,g.watch);
+            const c=document.createElement('canvas');
+            c.width=320;
+            c.height=140;
+            g.lcd=c;
+            g.lcdTex=new THREE.CanvasTexture(c);
+            g.lcdTex.colorSpace=THREE.NoColorSpace;
+            const scr=new THREE.Mesh(new THREE.PlaneGeometry(P.r*P.screen,P.r*P.screen*140/320),iconMaterial(g.lcdTex));
+            scr.position.set(0,-0.05,0.21);
+            face.add(scr);
+            g.scr=scr;
+            g.solid([makeBox(wx,wz,0.6,0.45,0)]);
+            g.shown='';
+            g.lit=1;
+            g.pop=0;
+            this.paint(g,'0.00',1,PALETTE.ink);
+        },
+        paint(g,text,lit,color) {
+            const key=text+'|'+lit.toFixed(2)+'|'+color;
+            if (key===g.shown) {
+                return;
+            }
+            g.shown=key;
+            const x=g.lcd.getContext('2d');
+            x.fillStyle=PALETTE.nearGray;
+            x.fillRect(0,0,320,140);
+            x.globalAlpha=lit;
+            x.fillStyle=PALETTE.paper;
+            x.fillRect(8,8,304,124);
+            x.fillStyle=color;
+            x.font='bold 92px "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+            x.textAlign='center';
+            x.textBaseline='middle';
+            x.fillText(text,160,76);
+            x.globalAlpha=1;
+            g.lcdTex.needsUpdate=true;
+        },
+        begin(g) {
+            const P=g.P;
+            g.target=P.target[0]+g.int(P.target[1]-P.target[0]+1);
+            g.place(P.watch[0],P.watch[1]+P.front);
+            g.phase='count';
+            g.pt=0;
+            g.beat=-1;
+            g.run=0;
+            g.fadeAt=g.range(P.fadeAt[0],P.fadeAt[1]);
+            g.result=null;
+        },
+        idle(g,dt) {
+            g.pop=Math.max(0,g.pop-dt/g.P.pop);
+            const s=1+g.pop*0.25;
+            g.scr.scale.set(s,s,1);
+        },
+        view(g) {
+            const F=g.P.frame;
+            return {minX:F[0],minZ:F[1],maxX:F[2],maxZ:F[3]};
+        },
+        canInteract(g) {
+            return g.phase==='run';
+        },
+        prompt(g) {
+            return g.phase==='run'?{x:g.P.watch[0],y:g.P.r*2+1.4,z:g.P.watch[1],key:'mg.count.stop'}:null;
+        },
+        interact(g) {
+            this.judge(g,false);
+        },
+        judge(g,late) {
+            const P=g.P;
+            const d=Math.abs(g.run-g.target);
+            g.result=late?'late':(d<=P.perfect?'perfect':(d<=P.ok?'ok':'fail'));
+            g.diff=d;
+            g.phase='show';
+            g.pt=0;
+            g.pop=1;
+            const good=g.result==='perfect'||g.result==='ok';
+            this.paint(g,g.run.toFixed(2),1,good?PALETTE.ink:PALETTE.red);
+            g.sound('bell',good?1.5:0.7);
+            const [wx,wz]=P.watch;
+            if (good) {
+                g.burst(wx,wz+0.6,'red',g.result==='perfect'?28:16,P.r+0.6);
+            }
+            else {
+                g.burst(wx,wz+0.6,'ink',16,P.r+0.6);
+            }
+            g.talk(t('mg.count.say.'+g.result),P.show+0.6);
+        },
+        tick(g,dt) {
+            const P=g.P;
+            if (g.phase==='count') {
+                g.pt+=dt;
+                const b=Math.floor(g.pt);
+                if (b!==g.beat&&b<P.count) {
+                    g.beat=b;
+                    g.pop=1;
+                    g.sound('ui',1.2);
+                }
+                if (g.pt>=P.count) {
+                    g.phase='run';
+                    g.run=0;
+                    g.pop=1;
+                    g.sound('bell',1.3);
+                    this.paint(g,'0.00',1,PALETTE.ink);
+                    return;
+                }
+                this.paint(g,String(P.count-b),1,PALETTE.red);
+                return;
+            }
+            if (g.phase==='run') {
+                g.run+=dt;
+                const lit=1-Math.max(0,Math.min(1,(g.run-g.fadeAt)/P.fadeTime));
+                this.paint(g,lit>0?g.run.toFixed(2):'',lit,PALETTE.ink);
+                if (g.run>g.target+P.over) {
+                    this.judge(g,true);
+                }
+                return;
+            }
+            if (g.phase==='show') {
+                g.pt+=dt;
+                if (g.pt>=P.show) {
+                    g.phase='done';
+                    if (g.result==='perfect'||g.result==='ok') {
+                        g.win();
+                    }
+                    else {
+                        g.lose();
+                    }
+                }
+            }
+        },
+        info(g) {
+            if (g.phase==='show'||g.phase==='done') {
+                return {key:'mg.count.result.'+g.result,params:{v:g.run.toFixed(2),d:g.diff.toFixed(2),n:g.target},big:{text:t('mg.count.big.'+g.result),yFrac:g.P.bigY}};
+            }
+            const big={text:g.phase==='count'?String(g.P.count-Math.max(0,g.beat)):t('mg.count.big',{n:g.target}),yFrac:g.P.bigY};
+            return {key:'mg.count.info',params:{n:g.target},big};
+        },
+        teardown(g) {
+            g.lcdTex.dispose();
+            g.scr.geometry.dispose();
+            g.scr.material.dispose();
         }
     }
 };

@@ -1,5 +1,5 @@
 export const MINIGAMES={
-    order:['bells','range','trace','push','pour','tiles','diff','pairs','rain','dice','plane','maze','rhythm','shadow','marble','cups','teacher'],
+    order:['bells','range','trace','push','pour','tiles','diff','pairs','rain','dice','plane','maze','rhythm','shadow','marble','cups','teacher','count'],
     host:[9.6,-5.4],
     area:{minX:-10.6,maxX:10.6,minZ:-6.6,maxZ:6.6},
     start:[0,4.6],
@@ -47,6 +47,7 @@ export const MINIGAMES={
         shadow:{model:'ghost',marks:6,len:[3,4,5],speed:6,minGap:3.2,markR:0.9,pause:0.35,trail:90,trailR:0.4,trailGap:0.28,trailLife:2},
         marble:{model:'marble',r:0.45,time:[30,28,26],holes:[3,4,5],holeR:0.85,goalR:1.0,kick:6,fric:1.1,bounce:0.6},
         cups:{model:'mug',counts:[[3,3,4],[3,4,5],[4,5,5]],spacing:3.0,z:-1.2,padZ:1.2,pad:1.0,swaps:[5,7,9],swapT:[0.55,0.45,0.38],peek:1.2,dwell:0.6,lift:1.4},
-        teacher:{model:'teacher',cmds:[8,10,12],fake:[0.30,0.35,0.40],fakeMax:2,warm:2,miss:[3,3,2],win:[2.0,1.6,1.3],seqWin:[0,3.4,2.6],fakeHold:[1.2,1.2,1.0],gap:[1.0,0.9,0.8],gapJitter:0.6,seqChance:[0,0.30,0.35],handTrick:[0,0,0.5],nearMiss:[0,0,0.5],timer:[50,56,60],center:[0,2.6],centerR:1.0,leaveR:1.3,stillSpeed:0.6,still:0.3,circles:{x:5.0,z:0.6,r:1.3},crossTime:0.9,signY:3.1,talkTime:1.6}
+        teacher:{model:'teacher',cmds:[8,10,12],fake:[0.30,0.35,0.40],fakeMax:2,warm:2,miss:[3,3,2],win:[2.0,1.6,1.3],seqWin:[0,3.4,2.6],fakeHold:[1.2,1.2,1.0],gap:[1.0,0.9,0.8],gapJitter:0.6,seqChance:[0,0.30,0.35],handTrick:[0,0,0.5],nearMiss:[0,0,0.5],timer:[50,56,60],center:[0,2.6],centerR:1.0,leaveR:1.3,stillSpeed:0.6,still:0.3,circles:{x:5.0,z:0.6,r:1.3},crossTime:0.9,signY:3.1,talkTime:1.6},
+        count:{model:'hourglass',target:[6,11],count:3,fadeAt:[3,4],fadeTime:1.0,perfect:0.3,ok:0.5,over:5,show:1.6,watch:[0,-1.2],front:3.0,r:1.75,tilt:0.6,pop:0.3,screen:1.7,bigY:0.72,frame:[-6,-7.5,6,5]}
     }
 };

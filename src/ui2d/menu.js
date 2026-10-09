@@ -5621,7 +5621,7 @@ export class TrainingMenu extends Panel {
             ry+=frh;
         }
         const by=py+ph-(small?46:64);
-        const btns=[['trainMenu.pick','pick'],['trainMenu.reset','reset'],['menu.settings','settings'],['trainMenu.resume','resume']];
+        const btns=[['trainMenu.home','home'],['trainMenu.pick','pick'],['trainMenu.reset','reset'],['menu.settings','settings'],['trainMenu.resume','resume']];
         const bw2=Math.min(160,(pw-40-(btns.length-1)*10)/btns.length);
         const bx0=w/2-(btns.length*bw2+(btns.length-1)*10)/2;
         this.buttons=[];
@@ -7078,6 +7078,25 @@ const GAME_THUMBS={
         thumbText(ctx,ph===2?'？':(ph===0?'←':'→'),0,-0.25,0.16,ph===2?PALETTE.midGray:PALETTE.red);
         if (ph===2&&k>0.5) {
             thumbText(ctx,'✓',0.2,0.04,0.12,PALETTE.red);
+        }
+    },
+    count(ctx,T) {
+        const k=T%5;
+        ctx.fillStyle=PALETTE.farGray;
+        ctx.fillRect(-0.06,-0.4,0.12,0.08);
+        ctx.fillStyle=PALETTE.red;
+        ctx.fillRect(-0.1,-0.42,0.2,0.04);
+        thumbDot(ctx,0,0.04,0.3,PALETTE.paper,PALETTE.ink);
+        const lit=Math.max(0,Math.min(1,1-(k-2.2)/0.8));
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillRect(-0.22,-0.05,0.44,0.18);
+        ctx.globalAlpha=lit;
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(-0.2,-0.03,0.4,0.14);
+        thumbText(ctx,k.toFixed(2),0,0.045,0.11,PALETTE.ink);
+        ctx.globalAlpha=1;
+        if (k>4.2) {
+            thumbText(ctx,'?',0,0.045,0.13,PALETTE.paper);
         }
     },
     cups(ctx,T) {
