@@ -1926,7 +1926,7 @@ const GAMES={
             }
             g.cross=g.stamp('✕',P.markSize,'red',0,0,0.09);
             g.cross.visible=false;
-            g.circle=g.stamp('○',P.markSize,'crayonGreen',0,0,0.09);
+            g.circle=g.stamp('○',P.markSize,'ink',0,0,0.09);
             g.circle.visible=false;
             g.mark=null;
             g.crossT=0;
@@ -2011,7 +2011,7 @@ const GAMES={
             g.mark.position.set(pl.pos.x,0.09,pl.pos.z);
             g.mark.visible=true;
             g.crossT=P.crossTime;
-            g.flash={text:t(ok?'mg.teacher.flash.ok':'mg.teacher.flash.wrong'),color:ok?'crayonGreen':'red',t:P.flashTime};
+            g.flash={text:t(ok?'mg.teacher.flash.ok':'mg.teacher.flash.wrong'),color:ok?'ink':'red',t:P.flashTime};
             if (ok) {
                 g.burst(pl.pos.x,pl.pos.z,'red',22,0.6);
                 g.sound('bell',q.fake?1.5:1.25);
