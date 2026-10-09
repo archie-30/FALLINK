@@ -2135,7 +2135,7 @@ function boot() {
             }
             return id;
         },
-        sfx:k=>audio.play('gacha'+k[0].toUpperCase()+k.slice(1)),
+        sfx:(k,p)=>audio.play('gacha'+k[0].toUpperCase()+k.slice(1),p||1),
         back:()=>{
             audio.play('ui');
             relicView.hide();
@@ -3236,7 +3236,7 @@ function boot() {
     function musicTrack() {
         const p=run.plan;
         if (game.mode!=='play'||summary.open||!p) {
-            return 'menu';
+            return game.mode==='menu'&&relicView.shown()?'gacha':'menu';
         }
         if ((run.mode==='training'&&!p.trainGame)||run.tutorial()) {
             return 'training';
@@ -3268,7 +3268,7 @@ function boot() {
         gameUi.resumeT=resumeT;
         setTouchText(input.lastDevice==='touch');
         music.update(musicTrack());
-        music.setDuck(pauseMenu.open&&!settingsMenu.open&&!codex.open);
+        music.setDuck((pauseMenu.open&&!settingsMenu.open&&!codex.open)||relicView.rolling());
         fx.update(dt);
         tweens.update(dt*time.timeScale,dt);
         setBoilSeed(time.boilIndex);
