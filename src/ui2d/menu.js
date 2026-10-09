@@ -7229,10 +7229,12 @@ export function drawWeaponIcon(ctx,id,x,y,s,v,locked) {
         shape([[-36,-7],[-28,-7],[-28,7],[-36,7]],fill);
     }
     else if (id==='pencil') {
-        shape([[-30,-6],[14,-6],[14,6],[-30,6]],locked?fill:'#C49A52');
-        shape([[14,-6],[28,0],[14,6]],fill);
-        shape([[24,-2],[30,0],[24,2]],ink);
-        shape([[-38,-6],[-30,-6],[-30,6],[-38,6]],locked?fill:PALETTE.red);
+        shape([[-30,-4],[6,-4],[6,4],[-30,4]],fill);
+        shape([[6,-5],[18,-5],[18,5],[6,5]],locked?fill:PALETTE.nearGray);
+        shape([[18,-4],[26,-1.5],[26,1.5],[18,4]],locked?fill:PALETTE.midGray);
+        shape([[26,-0.8],[36,-0.8],[36,0.8],[26,0.8]],ink);
+        shape([[-38,-3],[-30,-3],[-30,3],[-38,3]],locked?fill:PALETTE.red);
+        shape([[-26,-7],[-8,-7],[-8,-4],[-26,-4]],locked?fill:PALETTE.midGray);
     }
     else if (id==='brush') {
         shape([[-34,-3],[8,-4],[8,4],[-34,3]],locked?fill:'#AC8E64');
