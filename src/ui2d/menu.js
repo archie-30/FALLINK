@@ -5098,6 +5098,12 @@ export class TrainingMenu extends Panel {
         this.gamesOnly=gamesOnly;
         this.gamesOpen=gamesOnly;
         this.gamesT=0;
+        this.gScroll=0;
+        this.gScrollTo=0;
+        this.gMax=0;
+        this.gDrag=null;
+        this.gameView=null;
+        this.gamePanel=null;
         this.pendingRoom=false;
         this.pulse={};
         this.pop={};
@@ -5142,11 +5148,12 @@ export class TrainingMenu extends Panel {
             return false;
         }
         if (this.gamesOpen) {
-            for (const q of this.gameHits) {
-                if (inRect(q,x,y)) {
-                    q.act();
-                    return true;
-                }
+            if (this.gameView&&inRect(this.gameView,x,y)) {
+                this.gDrag={y0:y,s0:this.gScrollTo,moved:false};
+                return true;
+            }
+            if (this.gamePanel&&inRect(this.gamePanel,x,y)) {
+                return true;
             }
             this.gamesOpen=false;
             if (this.gamesOnly) {
@@ -5183,9 +5190,47 @@ export class TrainingMenu extends Panel {
         return true;
     }
 
+    move(x,y) {
+        this.hx=x;
+        this.hy=y;
+        const d=this.gDrag;
+        if (!d) {
+            return;
+        }
+        if (Math.abs(y-d.y0)>TUNING.trainUi.games.dragTol) {
+            d.moved=true;
+        }
+        if (d.moved) {
+            this.gScrollTo=Math.max(0,Math.min(this.gMax,d.s0-(y-d.y0)));
+            this.gScroll=this.gScrollTo;
+        }
+    }
+
+    up(x,y) {
+        const d=this.gDrag;
+        this.gDrag=null;
+        if (!d||d.moved||!this.gamesOpen) {
+            return;
+        }
+        for (const q of this.gameHits) {
+            if (inRect(q,x,y)&&inRect(this.gameView,x,y)) {
+                q.act();
+                return;
+            }
+        }
+    }
+
+    wheel(dy) {
+        if (!this.open||!this.gamesOpen) {
+            return;
+        }
+        this.gScrollTo=Math.max(0,Math.min(this.gMax,this.gScrollTo+dy));
+    }
+
     update(dt) {
         super.update(dt);
         const k=1-Math.exp(-TUNING.settingsUi.follow*dt);
+        this.gScroll+=(this.gScrollTo-this.gScroll)*Math.min(1,dt*TUNING.trainUi.games.scrollFollow);
         for (const key in this.pulse) {
             this.pulse[key]=Math.max(0,this.pulse[key]-dt*TUNING.trainUi.pulseDecay);
         }
@@ -5576,7 +5621,7 @@ export class TrainingMenu extends Panel {
             ry+=frh;
         }
         const by=py+ph-(small?46:64);
-        const btns=[['trainMenu.pick','pick'],['trainMenu.reset','reset'],['menu.settings','settings'],['trainMenu.resume','resume']];
+        const btns=[['trainMenu.home','home'],['trainMenu.pick','pick'],['trainMenu.reset','reset'],['menu.settings','settings'],['trainMenu.resume','resume']];
         const bw2=Math.min(160,(pw-40-(btns.length-1)*10)/btns.length);
         const bx0=w/2-(btns.length*bw2+(btns.length-1)*10)/2;
         this.buttons=[];
@@ -5637,10 +5682,34 @@ export class TrainingMenu extends Panel {
         ctx.fillText(t('trainMenu.gamesHint'),px+pw-20,py+head/2+2);
         const gap=10;
         const gw=(pw-40-gap*(cols-1))/cols;
-        const gh=(ph-head-20-gap*(rows-1))/rows;
+        const gh=small?G.rowSmall:G.row;
+        const vy=py+head;
+        const vh=ph-head-14;
+        const full=rows*(gh+gap)-gap;
+        this.gMax=Math.max(0,full-vh+6);
+        this.gScrollTo=Math.min(this.gScrollTo,this.gMax);
+        this.gScroll=Math.min(this.gScroll,this.gMax);
+        this.gamePanel={x:px,y:py,w:pw,h:ph};
+        this.gameView={x:px,y:vy,w:pw,h:vh};
+        if (this.gMax>0) {
+            const bh=Math.max(G.barMin,vh*vh/(full+6));
+            const by=vy+(vh-bh)*(this.gScroll/this.gMax);
+            ctx.fillStyle=rgba('ink',0.12);
+            ctx.fillRect(px+pw-11,vy,4,vh);
+            ctx.fillStyle=rgba('ink',this.gDrag&&this.gDrag.moved?0.7:0.4);
+            ctx.fillRect(px+pw-11,by,4,bh);
+        }
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(px+2,vy-4,pw-4,vh+4);
+        ctx.clip();
+        const dragging=this.gDrag&&this.gDrag.moved;
         ids.forEach((id,i)=>{
-            const r={x:px+20+(i%cols)*(gw+gap),y:py+head+Math.floor(i/cols)*(gh+gap),w:gw,h:gh};
-            const hv=inRect(r,this.hx,this.hy);
+            const r={x:px+20+(i%cols)*(gw+gap),y:vy+Math.floor(i/cols)*(gh+gap)-this.gScroll,w:gw,h:gh};
+            if (r.y+r.h<vy-4||r.y>vy+vh) {
+                return;
+            }
+            const hv=!dragging&&inRect(r,this.hx,this.hy)&&inRect(this.gameView,this.hx,this.hy);
             const ik=this.gamesOpen?EASE.easeOutCubic(Math.max(0,Math.min(1,(this.gamesT-i*G.stagger)/G.itemTime))):1;
             ctx.save();
             ctx.globalAlpha*=ik;
@@ -5668,6 +5737,7 @@ export class TrainingMenu extends Panel {
             };
             this.gameHits.push({...r,act});
         });
+        ctx.restore();
         ctx.restore();
     }
 
@@ -6980,6 +7050,54 @@ const GAME_THUMBS={
         const f=(T*0.5)%1;
         thumbDot(ctx,-0.35+f*0.6,-0.1+Math.sin(f*Math.PI*2)*0.12,0.05,PALETTE.paper,PALETTE.ink);
         thumbDot(ctx,0.3,-0.22,0.04,PALETTE.red);
+    },
+    teacher(ctx,T) {
+        const ph=Math.floor(T/1.4)%3;
+        const k=(T%1.4)/1.4;
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=0.02;
+        for (const x of [-0.27,0,0.27]) {
+            ctx.beginPath();
+            ctx.ellipse(x,0.2,x===0?0.09:0.11,0.05,0,0,Math.PI*2);
+            ctx.stroke();
+        }
+        const tx=ph===0?-0.27:(ph===1?0.27:0);
+        const e=Math.min(1,k*3);
+        thumbDot(ctx,tx*e,0.16,0.045,PALETTE.ink);
+        ctx.fillStyle=PALETTE.paper;
+        ctx.beginPath();
+        ctx.rect(-0.3,-0.36,0.6,0.22);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0.12,-0.14);
+        ctx.lineTo(0.2,-0.04);
+        ctx.lineTo(0.2,-0.14);
+        ctx.fill();
+        ctx.stroke();
+        thumbText(ctx,ph===2?'？':(ph===0?'←':'→'),0,-0.25,0.16,ph===2?PALETTE.midGray:PALETTE.red);
+        if (ph===2&&k>0.5) {
+            thumbText(ctx,'✓',0.2,0.04,0.12,PALETTE.red);
+        }
+    },
+    count(ctx,T) {
+        const k=T%5;
+        ctx.fillStyle=PALETTE.farGray;
+        ctx.fillRect(-0.06,-0.4,0.12,0.08);
+        ctx.fillStyle=PALETTE.red;
+        ctx.fillRect(-0.1,-0.42,0.2,0.04);
+        thumbDot(ctx,0,0.04,0.3,PALETTE.paper,PALETTE.ink);
+        const lit=Math.max(0,Math.min(1,1-(k-2.2)/0.8));
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.fillRect(-0.22,-0.05,0.44,0.18);
+        ctx.globalAlpha=lit;
+        ctx.fillStyle=PALETTE.paper;
+        ctx.fillRect(-0.2,-0.03,0.4,0.14);
+        thumbText(ctx,k.toFixed(2),0,0.045,0.11,PALETTE.ink);
+        ctx.globalAlpha=1;
+        if (k>4.2) {
+            thumbText(ctx,'?',0,0.045,0.13,PALETTE.paper);
+        }
     },
     cups(ctx,T) {
         const sw=Math.sin(T*2)*0.5+0.5;

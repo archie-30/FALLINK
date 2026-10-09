@@ -1148,6 +1148,7 @@ function boot() {
         arm:on=>player.setArmed(on),
         sound:(name,pitch)=>audio.play(name,pitch),
         say:(x,z,key,params)=>dmgNums.spawnText(x,2.2,z,t(key,params)),
+        talk:(text,dur)=>npcs.say(0,text,dur),
         place:(x,z)=>{
             particles.burst(player.pos.x,0.6,player.pos.z,8,{color:'midGray',speed:[1,3],up:[1,3]});
             player.pos.set(x,0,z);
@@ -2234,6 +2235,15 @@ function boot() {
             overlay.hud.toast(t('trainMenu.resetDone'));
         },
         settings:()=>openSettings('training'),
+        home:()=>{
+            audio.play('ui');
+            trainingMenu.hide();
+            trainingMenu.pendingRoom=false;
+            fx.paused=false;
+            input.mouse.down=false;
+            run.quit();
+            enterMenu();
+        }
     });
     const trainingPicker=new TrainingPicker({
         home:()=>{
@@ -2583,6 +2593,10 @@ function boot() {
                 trainingPicker.move(x,y);
                 return;
             }
+            if (trainingMenu.open) {
+                trainingMenu.move(x,y);
+                return;
+            }
             if (modalShown()) {
                 return;
             }
@@ -2599,6 +2613,7 @@ function boot() {
             relicView.up();
             skinEditor.up(x,y);
             trainingPicker.up(x,y);
+            trainingMenu.up(x,y);
             if (modalShown()) {
                 hand.cancelTargeting();
                 return;
@@ -2768,6 +2783,7 @@ function boot() {
         levelView.wheel(dy);
         relicView.wheel(dy);
         trainingPicker.wheel(dy);
+        trainingMenu.wheel(dy);
         skinEditor.wheel(dy);
         achView.wheel(dy);
     };

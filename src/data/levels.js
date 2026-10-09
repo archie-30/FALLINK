@@ -192,10 +192,10 @@ export const PEACE_LAYOUTS={
 };
 
 const LIB_DECOR=[
-    {type:'shelf',x:-14,z:-12,w:7,h:6,d:1.4,rot:0.05},
-    {type:'shelf',x:-5,z:-13,w:7,h:7,d:1.4,rot:0},
-    {type:'arch',x:4,z:-15,w:6,h:6},
-    {type:'shelf',x:13,z:-12.5,w:7,h:6.5,d:1.4,rot:-0.06},
+    {type:'shelf',x:-14,z:-14,w:7,h:6,d:1.4,rot:0.05},
+    {type:'shelf',x:-5,z:-14.5,w:7,h:7,d:1.4,rot:0},
+    {type:'arch',x:4,z:-16,w:6,h:6},
+    {type:'shelf',x:13,z:-14,w:7,h:6.5,d:1.4,rot:-0.06},
     {type:'shelf',x:-20,z:-3,w:6,h:5.5,d:1.4,rot:1.45},
     {type:'shelf',x:20.5,z:-2,w:6,h:5.5,d:1.4,rot:-1.5},
     {type:'tome',x:-19,z:7,s:2.2,rot:0.5},
@@ -203,10 +203,10 @@ const LIB_DECOR=[
     {type:'books',x:-16,z:4,w:2.6,d:3.4,rot:0.4,count:6},
     {type:'books',x:16.5,z:4.5,w:2.2,d:3,rot:-0.3,count:5},
     {type:'books',x:9,z:-18,w:3,d:4,rot:0.2,count:7},
-    {type:'candle',x:-15,z:-8,r:0.4,h:1.8},
-    {type:'candle',x:15,z:-8.5,r:0.35,h:1.4},
+    {type:'candle',x:-15.5,z:-8,r:0.4,h:1.8},
+    {type:'candle',x:15.5,z:-8.5,r:0.35,h:1.4},
     {type:'candle',x:-17,z:9,r:0.3,h:1.1},
-    {type:'candle',x:1,z:-11,r:0.35,h:1.5},
+    {type:'candle',x:-10.5,z:-12.5,r:0.35,h:1.5},
     {type:'crumple',x:-8,z:13,r:1.6},
     {type:'tome',x:6,z:13.5,s:1.5,rot:0.2},
     {type:'candle',x:9,z:12,r:0.3,h:1.0}
