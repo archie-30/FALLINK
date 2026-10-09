@@ -3887,10 +3887,11 @@ export class LevelView extends Panel {
                 cx=x;
                 cy+=28;
             }
-            ctx.fillStyle=dim?rgba('farGray',0.5):(rare?rgba('red',0.1):rgba('paper',0.95));
+            const L=TUNING.levelUi.lockedUlt;
+            ctx.fillStyle=dim?(rare?rgba('red',L.fill):rgba('farGray',0.5)):(rare?rgba('red',0.1):rgba('paper',0.95));
             ctx.fillRect(cx,cy,cw,22);
-            drawShape(ctx,sketchRect(cx,cy,cw,22,{width:1.1,seed:1400+id.length*7}),dim?PALETTE.midGray:(rare?PALETTE.red:PALETTE.ink),v);
-            ctx.fillStyle=dim?PALETTE.midGray:(rare?PALETTE.red:PALETTE.ink);
+            drawShape(ctx,sketchRect(cx,cy,cw,22,{width:1.1,seed:1400+id.length*7}),dim?(rare?rgba('red',L.line):PALETTE.midGray):(rare?PALETTE.red:PALETTE.ink),v);
+            ctx.fillStyle=dim?(rare?rgba('red',L.text):PALETTE.midGray):(rare?PALETTE.red:PALETTE.ink);
             ctx.fillText(label,cx+8,cy+12);
             cx+=cw+8;
         }

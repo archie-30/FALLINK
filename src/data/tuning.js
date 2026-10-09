@@ -302,6 +302,7 @@ export const TUNING={
         pairScale:0.86,
         autoClose:7
     },
+    levelUi:{lockedUlt:{fill:0.05,line:0.4,text:0.5}},
     ui:{
         guideNote:28,
         guideNoteTime:2.2,
