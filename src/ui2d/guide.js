@@ -63,6 +63,10 @@ export function modeGuide(mode) {
     ]};
 }
 
+export function relicGuide() {
+    return {title:t('tut.relics.title'),icon:null,blocks:t('tut.relics.body').split('|').map(text=>({kind:'bullet',text}))};
+}
+
 export function modesGuide() {
     const out=[];
     for (const mode of ['story','endless']) {
@@ -88,6 +92,7 @@ export class GuidePopup extends Panel {
         this.model=model;
         this.opts=opts;
         this.scroll=0;
+        this.contentH=0;
         this.press=null;
         this.show();
     }
@@ -97,9 +102,12 @@ export class GuidePopup extends Panel {
         const h=this.height;
         const small=h<600;
         const pw=Math.min(620,w-40);
-        const ph=Math.min(h-(small?78:130),560);
-        this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
         const bh=small?40:48;
+        let ph=Math.min(h-(small?78:130),560);
+        if (this.opts.fit&&this.contentH>0) {
+            ph=Math.min(ph,(small?58:76)+this.contentH+bh+(small?30:44));
+        }
+        this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
         const two=!!this.opts.cancel;
         const gap=12;
         const bw=two?(pw-48-gap)/2:Math.min(220,pw-48);
