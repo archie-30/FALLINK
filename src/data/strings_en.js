@@ -256,6 +256,7 @@ export const STRINGS_EN={
     'device.touch':'Switched to touch controls',
     'device.mouse':'Switched to keyboard & mouse',
     'exit.again':'Press back again to exit',
+    'update.ready':'Update downloaded. Restart the game to apply it',
     'menu.subtitle':'Ink Rage · hand-drawn shooter × deckbuilder',
     'menu.start':'Notebook Mode',
     'menu.endless':'Timetable Mode',
