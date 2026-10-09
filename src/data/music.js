@@ -66,6 +66,28 @@ export const MUSIC={
             lead:{gain:0.045,wave:'square',cut:2200,oct:1,density:0.42,len:[1,2,2,3],rest:0.18},
             drums:{gain:0.42,kick:'x...x...x...x.x.',snare:'....x.......x...',hat:'x.xxx.xxx.xxx.xx',open:'......x.......x.'}
         },
+        gacha:{
+            bpm:116,root:65,scale:'major',prog:[0,5,3,4],seed:83,
+            pad:{gain:0.028,wave:'triangle',cut:1500,oct:0},
+            bass:{gain:0.1,wave:'triangle',cut:700,oct:-1,pattern:'x...x.x.x...x.x.'},
+            arp:{gain:0.03,wave:'sine',cut:5200,oct:2,pattern:'x.x.x.x.x.x.x.x.',order:[0,1,2,3]},
+            lead:{gain:0.046,wave:'triangle',cut:3800,oct:1},
+            drums:{gain:0.26,kick:'x.......x.......',snare:'....x.......x...',hat:'..x...x...x...x.',open:'..............x.'},
+            melody:{
+                a:[
+                    [[0,4,2],[2,2,2],[4,4,2],[6,7,4],[12,6,2],[14,4,2]],
+                    [[0,5,4],[4,2,2],[6,5,2],[8,7,6],[14,5,2]],
+                    [[0,3,2],[2,5,2],[4,7,2],[6,8,4],[12,7,2],[14,5,2]],
+                    [[0,4,4],[4,6,2],[6,8,2],[8,9,8]]
+                ],
+                b:[
+                    [[0,7,3],[3,6,1],[4,4,2],[6,2,2],[8,4,4],[12,0,4]],
+                    [[0,5,2],[2,7,2],[4,9,4],[8,8,2],[10,7,2],[12,5,4]],
+                    [[0,3,2],[2,5,2],[4,8,2],[6,7,2],[8,5,4],[12,3,4]],
+                    [[0,4,2],[2,1,2],[4,4,2],[6,6,2],[8,7,8]]
+                ]
+            }
+        },
         boss:{
             bpm:148,root:52,scale:'phrygian',prog:[0,1,0,6],seed:67,
             pad:{gain:0.04,wave:'sawtooth',cut:800,oct:0},

@@ -1423,6 +1423,8 @@ export const STRINGS={
     'gacha.owned':'已收集 {n}/{m}',
     'gacha.hint':'解鎖的遺物才會出現在打倒頭目後的圖書館',
     'gacha.tap':'點一下繼續',
+    'gacha.open':'點擊以開啟',
+    'gacha.open.touch':'點一下以開啟',
     'gacha.locked':'尚未解鎖',
     'gacha.starter':'初始遺物',
     'relic.healed':'急救貼布回復 {n} 點生命',

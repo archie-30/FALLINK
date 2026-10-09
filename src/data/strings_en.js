@@ -1421,6 +1421,8 @@ export const STRINGS_EN={
     'gacha.owned':'Collected {n}/{m}',
     'gacha.hint':'Only unlocked relics appear in the post-boss Library',
     'gacha.tap':'Tap to continue',
+    'gacha.open':'Click to open',
+    'gacha.open.touch':'Tap to open',
     'gacha.locked':'Locked',
     'gacha.starter':'Starter relic',
     'relic.healed':'First-Aid Plaster healed {n} HP',

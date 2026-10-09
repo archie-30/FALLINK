@@ -13,6 +13,10 @@ function pitchOf(tr,deg,oct) {
 }
 
 function compose(tr) {
+    if (tr.melody) {
+        const bars=list=>list.map(bar=>bar.map(([step,deg,len])=>({step,deg,len})));
+        return {a:bars(tr.melody.a),b:bars(tr.melody.b)};
+    }
     const rng=new RNG(tr.seed);
     const L=tr.lead;
     const C=MUSIC.compose;

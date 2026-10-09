@@ -81,10 +81,17 @@ export class RelicGacha extends Panel {
         this.layout();
         const A=this.anim;
         if (A) {
-            if (A.t<G().reveal) {
-                A.t=G().reveal;
+            const g=G();
+            if (A.phase==='roll') {
+                A.t=g.flyEnd;
+                A.skip=true;
             }
-            else if (A.t>G().reveal+0.35) {
+            else if (A.phase==='wait') {
+                A.phase='charge';
+                A.pt=0;
+                A.crack=0;
+            }
+            else if (A.phase==='reveal'&&A.pt>g.closeAfter) {
                 this.anim=null;
                 this.sel=A.id;
                 this.boxPop=1;
@@ -109,7 +116,7 @@ export class RelicGacha extends Panel {
 
     pull() {
         if (godMode()) {
-            this.anim={id:this.actions.pull(),t:0,boom:false};
+            this.start(this.actions.pull());
             return;
         }
         if (relicLocked().length===0) {
@@ -131,7 +138,87 @@ export class RelicGacha extends Panel {
             return;
         }
         this.walletK=1;
-        this.anim={id,t:0,boom:false};
+        this.start(id);
+    }
+
+    start(id) {
+        this.anim={id,t:0,pt:0,phase:'roll',cues:{},crack:0,wob:0,skip:false};
+    }
+
+    rolling() {
+        return !!this.anim&&this.anim.phase!=='reveal';
+    }
+
+    cue(A,key,at,name,pitch=1) {
+        if (A.cues[key]||A.t<at) {
+            return;
+        }
+        A.cues[key]=true;
+        if (!A.skip) {
+            this.actions.sfx(name,pitch);
+        }
+    }
+
+    stepAnim(A,dt) {
+        const g=G();
+        A.t+=dt;
+        A.pt+=dt;
+        if (A.phase==='roll') {
+            this.cue(A,'whoosh',0.02,'whoosh');
+            this.cue(A,'rise',g.clicks[0],'rise');
+            g.clicks.forEach((c,i)=>this.cue(A,'c'+i,c,'click',1+i*0.12));
+            this.cue(A,'drop',g.drop,'drop');
+            g.bounces.forEach((c,i)=>this.cue(A,'b'+i,c,'bounce',1+i*0.18));
+            if (A.t>=g.flyEnd) {
+                A.phase='wait';
+                A.pt=0;
+                this.actions.sfx('hover');
+            }
+            return;
+        }
+        if (A.phase==='wait') {
+            const w=Math.floor(A.pt/g.wobbleEvery);
+            if (w>A.wob) {
+                A.wob=w;
+                this.actions.sfx('wobble');
+            }
+            return;
+        }
+        if (A.phase==='charge') {
+            g.cracks.forEach((c,i)=>{
+                if (A.pt>=c&&A.crack<=i) {
+                    A.crack=i+1;
+                    A.kick=1;
+                    this.actions.sfx('crack',1+i*0.2);
+                }
+            });
+            A.kick=Math.max(0,(A.kick||0)-dt*5);
+            if (A.pt>=g.charge) {
+                A.phase='reveal';
+                A.pt=0;
+                this.actions.sfx('burst');
+                this.actions.sfx('fanfare');
+                this.boom(A);
+            }
+        }
+    }
+
+    boom(A) {
+        const g=G();
+        const cx=this.width/2;
+        const cy=this.height*g.cy;
+        const T=relicTone(A.id);
+        const cols=[T[0],T[1],PALETTE.red,PALETTE.gold,PALETTE.paper];
+        for (let i=0;i<g.sparks;i++) {
+            const a=Math.random()*Math.PI*2;
+            const sp=200+Math.random()*520;
+            this.sparks.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-160,t:0,life:0.6+Math.random()*0.7,r:2+Math.random()*6,c:cols[i%cols.length]});
+        }
+        for (let i=0;i<g.confetti;i++) {
+            const a=-Math.PI/2+(Math.random()-0.5)*2.4;
+            const sp=300+Math.random()*520;
+            this.sparks.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,t:0,life:1.6+Math.random()*1.2,r:5+Math.random()*5,c:cols[i%cols.length],conf:true,rot:Math.random()*6,spin:(Math.random()-0.5)*14});
+        }
     }
 
     update(dt) {
@@ -148,40 +235,22 @@ export class RelicGacha extends Panel {
                 this.msg=null;
             }
         }
-        const A=this.anim;
-        if (A) {
-            A.t+=dt;
-            if (!A.crank&&A.t>=G().intro) {
-                A.crank=true;
-                this.actions.sfx('crank');
-            }
-            if (!A.shook&&A.t>=G().fly+0.55) {
-                A.shook=true;
-                this.actions.sfx('shake');
-            }
-            if (!A.drop&&A.t>=G().drop) {
-                A.drop=true;
-                this.actions.sfx('drop');
-            }
-            if (!A.boom&&A.t>=G().reveal) {
-                A.boom=true;
-                this.actions.sfx('reveal');
-                const cx=this.width/2;
-                const cy=this.height*G().cy;
-                const T=relicTone(A.id);
-                for (let i=0;i<46;i++) {
-                    const a=Math.random()*Math.PI*2;
-                    const sp=160+Math.random()*420;
-                    this.sparks.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-140,t:0,life:0.7+Math.random()*0.6,r:3+Math.random()*6,c:[T[0],T[1],PALETTE.red,PALETTE.gold][i%4]});
-                }
-            }
+        if (this.anim) {
+            this.stepAnim(this.anim,dt);
         }
         for (let i=this.sparks.length-1;i>=0;i--) {
             const q=this.sparks[i];
             q.t+=dt;
             q.x+=q.vx*dt;
             q.y+=q.vy*dt;
-            q.vy+=520*dt;
+            if (q.conf) {
+                q.vx*=Math.exp(-dt*2.2);
+                q.vy=q.vy*Math.exp(-dt*2.2)+260*dt;
+                q.rot+=q.spin*dt;
+            }
+            else {
+                q.vy+=520*dt;
+            }
             if (q.t>q.life) {
                 this.sparks.splice(i,1);
             }
@@ -195,8 +264,8 @@ export class RelicGacha extends Panel {
         const cx=M.x+M.w/2;
         const gr=Math.min(M.w*0.34,M.h*0.34);
         const gy=M.y+gr+14;
-        const busy=A&&A.t<G().reveal;
-        const shk=(busy?Math.sin(A.t*40)*G().shake*(1-A.t/G().reveal):0)+Math.sin(now*40)*this.shake*G().shake;
+        const busy=A&&A.phase==='roll';
+        const shk=(busy?Math.sin(A.t*40)*G().shake*(1-Math.min(1,A.t/G().flyEnd)):0)+Math.sin(now*40)*this.shake*G().shake;
         ctx.save();
         ctx.translate(shk,0);
         const baseY=gy+gr*0.82;
@@ -537,22 +606,44 @@ export class RelicGacha extends Panel {
         ctx.restore();
     }
 
+    crankAngle(A) {
+        const g=G();
+        let a=0;
+        g.clicks.forEach(c=>{
+            a+=EASE.easeOutBack(Math.max(0,Math.min(1,(A.t-c)/g.clickTime)))*Math.PI/2;
+        });
+        return a;
+    }
+
     drawBigMachine(ctx,v,cx,cy,gr,A) {
         const g=G();
         const t=A.t;
-        const crank=Math.max(0,Math.min(1,(t-g.intro)/(g.drop-g.intro)));
-        const busy=t>=g.intro&&t<g.drop+0.2;
+        const busy=t>=g.clicks[0]&&t<g.drop+0.15;
+        const heat=Math.max(0,Math.min(1,(t-g.clicks[0])/(g.drop-g.clicks[0])));
         const now=time.real;
         const baseY=cy+gr*0.82;
         const bw=gr*1.9;
         const bh=gr*1.15;
         ctx.save();
-        ctx.translate(busy?Math.sin(t*38)*g.shake*2:0,0);
+        let kick=0;
+        g.clicks.forEach(c=>{
+            const d=t-c;
+            if (d>=0&&d<0.18) {
+                kick=Math.max(kick,1-d/0.18);
+            }
+        });
+        ctx.translate(busy?Math.sin(t*46)*g.shake*(1+heat*3):0,-kick*gr*0.04);
+        ctx.fillStyle=rgba('red',0.18*heat);
+        ctx.beginPath();
+        ctx.arc(cx,cy,gr*(1.15+heat*0.25+Math.sin(now*9)*0.03*heat),0,Math.PI*2);
+        ctx.fill();
         ctx.fillStyle=PALETTE.red;
         ctx.fillRect(cx-bw/2,baseY,bw,bh);
         drawShape(ctx,sketchRect(cx-bw/2,baseY,bw,bh,{width:3,seed:4651}),PALETTE.ink,v);
         ctx.fillStyle=PALETTE.darkRed;
         ctx.fillRect(cx-bw/2,baseY+bh-10,bw,10);
+        ctx.fillStyle=PALETTE.gold;
+        ctx.fillRect(cx-bw/2+8,baseY+8,bw-16,5);
         ctx.fillStyle=PALETTE.paper;
         ctx.beginPath();
         ctx.arc(cx,cy,gr,0,Math.PI*2);
@@ -561,14 +652,20 @@ export class RelicGacha extends Panel {
         ctx.beginPath();
         ctx.arc(cx,cy,gr-4,0,Math.PI*2);
         ctx.clip();
+        const spin=this.crankAngle(A);
         for (let i=0;i<g.balls;i++) {
             const T=relicTone(RELIC_ORDER[i%RELIC_ORDER.length]);
-            const rate=g.bounce*(0.8+hash1(i*3)*0.6)*(busy?2.6:1);
-            const hop=Math.abs(Math.sin(now*rate+i*1.7))*gr*(busy?0.4:0.13);
-            const bx=cx+(hash1(i*13+1)-0.5)*gr*1.5+Math.sin(now*rate*0.5+i)*gr*(busy?0.08:0.02);
+            const rate=g.bounce*(0.8+hash1(i*3)*0.6)*(1+heat*2.2);
+            const hop=Math.abs(Math.sin(now*rate+i*1.7))*gr*(0.12+heat*0.4+kick*0.15);
+            const sw=spin*0.35+i;
+            const bx=cx+(hash1(i*13+1)-0.5)*gr*1.5+Math.sin(sw)*gr*0.12*heat;
             const by=cy+gr*0.55-Math.floor(i/5)*gr*0.3-hash1(i*7)*gr*0.12-hop;
-            this.drawCapsule(ctx,bx,by,gr*0.2,T,Math.sin(now+i)*0.3,0);
+            this.drawCapsule(ctx,bx,by,gr*0.2,T,Math.sin(now*(1+heat*4)+i)*0.4,0);
         }
+        ctx.fillStyle=rgba('paper',0.35);
+        ctx.beginPath();
+        ctx.ellipse(cx-gr*0.45,cy-gr*0.45,gr*0.16,gr*0.32,0.7,0,Math.PI*2);
+        ctx.fill();
         ctx.restore();
         drawShape(ctx,sketchCircle(cx,cy,gr,{width:3,seed:4652}),PALETTE.ink,v);
         ctx.fillStyle=PALETTE.ink;
@@ -583,14 +680,83 @@ export class RelicGacha extends Panel {
         drawShape(ctx,sketchCircle(kx,ky,kr,{width:2.4,seed:4653}),PALETTE.ink,v);
         ctx.save();
         ctx.translate(kx,ky);
-        ctx.rotate(EASE.easeInOutCubic(crank)*Math.PI*4);
+        ctx.rotate(spin);
         ctx.fillStyle=PALETTE.ink;
-        ctx.fillRect(-kr*0.9,-kr*0.22,kr*1.8,kr*0.44);
+        ctx.fillRect(-kr*0.95,-kr*0.22,kr*1.9,kr*0.44);
+        ctx.fillStyle=PALETTE.gold;
+        ctx.beginPath();
+        ctx.arc(kr*0.95,0,kr*0.2,0,Math.PI*2);
+        ctx.fill();
         ctx.restore();
+        if (kick>0) {
+            ctx.strokeStyle=rgba('paper',kick*0.8);
+            ctx.lineWidth=2;
+            for (let q=0;q<3;q++) {
+                const an=-0.9+q*0.45;
+                ctx.beginPath();
+                ctx.moveTo(kx+Math.cos(an)*kr*1.3,ky+Math.sin(an)*kr*1.3);
+                ctx.lineTo(kx+Math.cos(an)*kr*(1.6+kick*0.5),ky+Math.sin(an)*kr*(1.6+kick*0.5));
+                ctx.stroke();
+            }
+        }
         ctx.fillStyle=PALETTE.ink;
         ctx.fillRect(cx-bw*0.4,baseY+bh*0.5,bw*0.32,bh*0.3);
         ctx.restore();
         return {sx:cx-bw*0.24,sy:baseY+bh*0.65,floor:baseY+bh};
+    }
+
+    drawRays(ctx,cx,cy,len,n,spin,a,col) {
+        ctx.save();
+        ctx.translate(cx,cy);
+        ctx.rotate(spin);
+        for (let i=0;i<n;i++) {
+            ctx.rotate(Math.PI*2/n);
+            ctx.fillStyle=i%2?rgba('paper',a):col;
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            ctx.lineTo(len,-len*0.12);
+            ctx.lineTo(len,len*0.12);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    drawGlow(ctx,x,y,r,col,a) {
+        const gr=ctx.createRadialGradient(x,y,r*0.2,x,y,r);
+        gr.addColorStop(0,col);
+        gr.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.save();
+        ctx.globalAlpha*=a;
+        ctx.fillStyle=gr;
+        ctx.beginPath();
+        ctx.arc(x,y,r,0,Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    drawCracks(ctx,x,y,r,n,rot,seed) {
+        ctx.save();
+        ctx.translate(x,y);
+        ctx.rotate(rot);
+        ctx.strokeStyle=PALETTE.paper;
+        ctx.lineWidth=Math.max(2,r*0.05);
+        ctx.lineCap='round';
+        for (let i=0;i<n*2;i++) {
+            const a0=hash1(seed+i*5)*Math.PI*2;
+            ctx.beginPath();
+            let px=Math.cos(a0)*r*0.15;
+            let py=Math.sin(a0)*r*0.15;
+            ctx.moveTo(px,py);
+            for (let k=1;k<=4;k++) {
+                const a=a0+(hash1(seed+i*5+k)-0.5)*0.9;
+                px=Math.cos(a)*r*(0.15+k*0.2);
+                py=Math.sin(a)*r*(0.15+k*0.2);
+                ctx.lineTo(px,py);
+            }
+            ctx.stroke();
+        }
+        ctx.restore();
     }
 
     drawReveal(ctx,v) {
@@ -602,119 +768,174 @@ export class RelicGacha extends Panel {
             return;
         }
         const T=relicTone(A.id);
-        const dk=Math.min(1,A.t/0.35);
-        ctx.save();
-        ctx.fillStyle=rgba('ink',0.88*dk);
-        ctx.fillRect(0,0,w,h);
+        const now=time.real;
+        const dk=Math.min(1,A.t/0.3);
         const cx=w/2;
         const cy=h*g.cy;
-        const big=Math.min(w,h)*0.17;
+        const big=Math.min(w,h)*0.15;
         ctx.save();
-        ctx.translate(cx,cy);
-        ctx.rotate(time.real*0.25);
-        for (let i=0;i<16;i++) {
-            ctx.rotate(Math.PI/8);
-            ctx.fillStyle=rgba('paper',0.04*dk);
-            ctx.beginPath();
-            ctx.moveTo(0,0);
-            ctx.lineTo(Math.max(w,h),-Math.max(w,h)*0.08);
-            ctx.lineTo(Math.max(w,h),Math.max(w,h)*0.08);
-            ctx.closePath();
-            ctx.fill();
-        }
-        ctx.restore();
-        if (A.t<g.reveal) {
+        ctx.fillStyle=rgba('ink',g.dim*dk);
+        ctx.fillRect(0,0,w,h);
+        const vg=ctx.createRadialGradient(cx,cy,big,cx,cy,Math.max(w,h)*0.75);
+        vg.addColorStop(0,'rgba(0,0,0,0)');
+        vg.addColorStop(1,rgba('ink',0.6*dk));
+        ctx.fillStyle=vg;
+        ctx.fillRect(0,0,w,h);
+        if (A.phase==='roll') {
+            this.drawRays(ctx,cx,cy,Math.max(w,h),16,now*0.2,0.03*dk,rgba('paper',0.015*dk));
             const gr=Math.min(w*0.2,h*0.24);
             const mIn=EASE.easeOutBack(Math.min(1,A.t/g.intro));
-            const mOut=EASE.easeInCubic(Math.max(0,Math.min(1,(A.t-g.fly)/0.5)));
-            const my=h*0.36+(1-mIn)*h*0.7+mOut*h*0.9;
+            const mOut=EASE.easeInCubic(Math.max(0,Math.min(1,(A.t-g.fly)/0.45)));
+            const my=h*0.36+(1-mIn)*h*0.75+mOut*h*0.95;
             const S=this.drawBigMachine(ctx,v,cx,my,gr,A);
             const cr=gr*0.28;
             if (A.t>=g.drop&&A.t<g.fly) {
                 const k=Math.min(1,(A.t-g.drop)/(g.fly-g.drop));
-                const fall=EASE.easeOutBounce?EASE.easeOutBounce(Math.min(1,k*1.6)):Math.min(1,k*1.6);
-                const x=S.sx-k*gr*0.6;
+                const fall=EASE.easeOutBounce(k);
+                const x=S.sx-k*gr*0.9;
                 const y=S.sy+(S.floor+cr*1.1-S.sy)*fall;
-                this.drawCapsule(ctx,x,y,cr,T,-k*6,0);
+                this.drawCapsule(ctx,x,y,cr,T,-k*8,0);
                 A.cx=x;
                 A.cy=y;
             }
             else if (A.t>=g.fly) {
-                const k=EASE.easeInOutCubic(Math.min(1,(A.t-g.fly)/0.55));
+                const k=EASE.easeInOutCubic(Math.min(1,(A.t-g.fly)/(g.flyEnd-g.fly)));
                 const x0=A.cx??cx;
-                const y0=A.cy??cy;
-                const wobT=Math.max(0,(A.t-g.fly-0.55)/(g.reveal-g.fly-0.55));
-                const wob=Math.sin(A.t*(30+wobT*30))*0.25*wobT;
+                const y0=A.cy??cy+h*0.3;
                 const r=cr+(big-cr)*k;
-                this.drawCapsule(ctx,x0+(cx-x0)*k,y0+(cy-y0)*k-Math.sin(k*Math.PI)*h*0.12,r,T,wob+(1-k)*-6,wobT);
-                if (wobT>0) {
-                    for (let q=0;q<6;q++) {
-                        const an=time.real*3+q*1.05;
-                        ctx.fillStyle=rgba('paper',0.6*wobT);
-                        ctx.beginPath();
-                        ctx.arc(cx+Math.cos(an)*big*(1.3+wobT*0.4),cy+Math.sin(an)*big*(1.3+wobT*0.4),2+wobT*3,0,Math.PI*2);
-                        ctx.fill();
-                    }
-                }
+                this.drawGlow(ctx,x0+(cx-x0)*k,y0+(cy-y0)*k,r*2.2,T[0],k*0.6);
+                this.drawCapsule(ctx,x0+(cx-x0)*k,y0+(cy-y0)*k-Math.sin(k*Math.PI)*h*0.14,r,T,(1-k)*-8,0);
             }
             ctx.restore();
             return;
         }
-        const rt=A.t-g.reveal;
-        const k=EASE.easeOutBack(Math.min(1,rt/0.45));
-        const open=EASE.easeOutCubic(Math.min(1,rt/0.5));
+        if (A.phase==='wait'||A.phase==='charge') {
+            const charging=A.phase==='charge';
+            const ck=charging?Math.min(1,A.pt/g.charge):0;
+            this.drawRays(ctx,cx,cy,Math.max(w,h),16,now*(0.25+ck*2.5),0.025+ck*0.07,rgba('red',0.04+ck*0.1));
+            const pulse=0.5+0.5*Math.sin(now*3);
+            this.drawGlow(ctx,cx,cy,big*(2.1+pulse*0.25+ck*1.2),T[0],0.55+ck*0.4);
+            this.drawGlow(ctx,cx,cy,big*(1.5+ck*0.6),rgba('paper',1),0.18+ck*0.5);
+            const wobP=charging?0:(A.pt%g.wobbleEvery)/g.wobbleEvery;
+            const wob=wobP<0.25?Math.sin(wobP/0.25*Math.PI*3)*0.22*(1-wobP/0.25):0;
+            const shake=charging?(ck*ck*10+(A.kick||0)*8):0;
+            const bob=charging?0:Math.sin(now*2.2)*big*0.06;
+            const sc=1+(A.kick||0)*0.12+ck*0.1;
+            const x=cx+(Math.random()-0.5)*shake;
+            const y=cy+bob+(Math.random()-0.5)*shake;
+            for (let q=0;q<8;q++) {
+                const an=now*(1.4+ck*4)+q*Math.PI/4;
+                const rr=big*(1.45+0.08*Math.sin(now*3+q));
+                ctx.fillStyle=q%2?rgba('paper',0.8):T[0];
+                ctx.beginPath();
+                ctx.arc(cx+Math.cos(an)*rr,cy+Math.sin(an)*rr*0.9,2+((q*7)%3),0,Math.PI*2);
+                ctx.fill();
+            }
+            this.drawCapsule(ctx,x,y,big*sc,T,wob,ck);
+            if (A.crack>0) {
+                this.drawCracks(ctx,x,y,big*sc,A.crack,0,A.id.length*31);
+                ctx.save();
+                ctx.globalAlpha=Math.min(1,A.crack/3);
+                ctx.fillStyle=rgba('paper',0.9);
+                ctx.fillRect(x-big*sc*1.6,y-big*0.035*A.crack,big*sc*3.2,big*0.07*A.crack);
+                ctx.restore();
+            }
+            if (!charging) {
+                const tk=Math.min(1,A.pt/0.4);
+                const fs=Math.max(16,Math.round(big*0.19));
+                ctx.font='bold '+fs+'px '+FONT;
+                const tw=ctx.measureText(t('gacha.open')).width+fs*1.6;
+                const ty=cy+big*1.8+Math.sin(now*3)*3;
+                ctx.globalAlpha=tk;
+                ctx.fillStyle=rgba('ink',0.85);
+                ctx.fillRect(cx-tw/2,ty-fs*0.9,tw,fs*1.8);
+                ctx.strokeStyle=rgba('paper',0.35+0.35*Math.sin(now*4));
+                ctx.lineWidth=2;
+                ctx.strokeRect(cx-tw/2,ty-fs*0.9,tw,fs*1.8);
+                ctx.fillStyle=PALETTE.paper;
+                ctx.textAlign='center';
+                ctx.textBaseline='middle';
+                ctx.fillText(t('gacha.open'),cx,ty+1);
+                ctx.globalAlpha=1;
+            }
+            if (ck>0.6) {
+                ctx.fillStyle=rgba('paper',(ck-0.6)/0.4*0.6);
+                ctx.fillRect(0,0,w,h);
+            }
+            ctx.restore();
+            return;
+        }
+        const rt=A.pt;
+        this.drawRays(ctx,cx,cy,Math.max(w,h),14,now*0.5,0.06,rgba('red',0.14));
+        this.drawGlow(ctx,cx,cy,big*2.6,T[0],0.7);
+        const ring=Math.min(1,rt/0.6);
+        if (ring<1) {
+            ctx.strokeStyle=rgba('paper',1-ring);
+            ctx.lineWidth=10*(1-ring)+2;
+            ctx.beginPath();
+            ctx.arc(cx,cy,big*(0.8+ring*4),0,Math.PI*2);
+            ctx.stroke();
+        }
+        const open=EASE.easeOutCubic(Math.min(1,rt/0.55));
         for (const sx of [-1,1]) {
             ctx.save();
-            ctx.globalAlpha=Math.max(0,1-rt*1.6);
-            ctx.translate(cx+sx*open*big*2.4,cy-(sx<0?1:-1)*open*big*0.4);
-            ctx.rotate(sx*open*1.4);
+            ctx.globalAlpha=Math.max(0,1-rt*1.5);
+            ctx.translate(cx+sx*open*big*3,cy-(sx<0?1:-1)*open*big*0.6+open*open*big*1.5);
+            ctx.rotate(sx*open*2.2);
             ctx.fillStyle=sx<0?T[0]:T[1];
             ctx.beginPath();
             ctx.arc(0,0,big,sx<0?Math.PI:0,sx<0?0:Math.PI);
             ctx.fill();
             ctx.restore();
         }
+        const k=EASE.easeOutBack(Math.min(1,Math.max(0,rt-0.08)/0.5));
         ctx.save();
-        ctx.translate(cx,cy);
-        ctx.rotate(time.real*0.6);
-        for (let i=0;i<12;i++) {
-            ctx.rotate(Math.PI/6);
-            ctx.fillStyle=i%2?rgba('paper',0.1*k):rgba('red',0.22*k);
-            ctx.beginPath();
-            ctx.moveTo(0,0);
-            ctx.lineTo(big*3.2,-big*0.35);
-            ctx.lineTo(big*3.2,big*0.35);
-            ctx.closePath();
-            ctx.fill();
+        ctx.translate(cx,cy+Math.sin(now*2.4)*4);
+        ctx.scale(k*1.1,k*1.1);
+        ctx.rotate(Math.sin(rt*12)*0.1*Math.max(0,1-rt*1.2));
+        drawRelicIcon(ctx,A.id,0,0,big/46,v,false);
+        ctx.restore();
+        const bk=Math.min(1,Math.max(0,rt-0.3)/0.28);
+        if (bk>0) {
+            const bs=1+(1-EASE.easeOutCubic(bk))*1.3;
+            ctx.save();
+            ctx.globalAlpha=bk;
+            ctx.translate(cx,cy-big*1.55);
+            ctx.scale(bs,bs);
+            ctx.rotate(-0.04);
+            ctx.font='bold '+Math.round(big*0.3)+'px '+FONT;
+            const bw=ctx.measureText(t('gacha.got')).width+big*0.6;
+            ctx.fillStyle=PALETTE.red;
+            ctx.fillRect(-bw/2,-big*0.24,bw,big*0.48);
+            ctx.fillStyle=PALETTE.paper;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('gacha.got'),0,1);
+            ctx.restore();
         }
-        ctx.restore();
+        const tk=Math.min(1,Math.max(0,rt-0.55)/0.35);
         ctx.save();
-        ctx.translate(cx,cy+Math.sin(time.real*2.4)*4);
-        ctx.scale(k,k);
-        ctx.rotate(Math.sin(rt*14)*0.12*Math.max(0,1-rt*1.5));
-        drawRelicIcon(ctx,A.id,0,0,big/46*1.05,v,false);
-        ctx.restore();
-        const tk=EASE.easeOutBack(Math.max(0,Math.min(1,(rt-0.25)/0.35)));
-        ctx.save();
-        ctx.globalAlpha=Math.min(1,tk);
+        ctx.globalAlpha=tk;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
-        ctx.fillStyle=PALETTE.red;
-        ctx.font='bold '+Math.round(big*0.3)+'px '+FONT;
-        ctx.fillText(t('gacha.got'),cx,cy-big*1.45-(1-tk)*20);
         ctx.fillStyle=PALETTE.paper;
-        fitText(ctx,t('relic.'+A.id+'.name'),cx,cy+big*1.35,w-40,Math.round(big*0.36),'bold ');
+        fitText(ctx,t('relic.'+A.id+'.name'),cx,cy+big*1.45+(1-tk)*14,w-40,Math.round(big*0.34),'bold ');
         ctx.font=Math.max(13,Math.round(big*0.15))+'px '+FONT;
         ctx.fillStyle=rgba('paper',0.85);
         const lines=wrapText(ctx,t('relic.'+A.id+'.desc',relicParams(A.id)),Math.min(w-48,560));
         const lh=Math.max(17,Math.round(big*0.2));
-        lines.slice(0,4).forEach((ln,i)=>ctx.fillText(ln,cx,cy+big*1.75+i*lh));
-        if (rt>0.6) {
-            ctx.globalAlpha=0.5+0.5*Math.sin(time.real*4);
+        lines.slice(0,4).forEach((ln,i)=>ctx.fillText(ln,cx,cy+big*1.85+i*lh+(1-tk)*14));
+        if (rt>g.closeAfter) {
+            ctx.globalAlpha=0.5+0.5*Math.sin(now*4);
             ctx.font='14px '+FONT;
             ctx.fillText(t('gacha.tap'),cx,h-24);
         }
         ctx.restore();
+        const fl=1-Math.min(1,rt/g.flash);
+        if (fl>0) {
+            ctx.fillStyle=rgba('paper',fl);
+            ctx.fillRect(0,0,w,h);
+        }
         ctx.restore();
     }
 
@@ -787,8 +1008,17 @@ export class RelicGacha extends Panel {
         this.drawReveal(ctx,v);
         for (const q of this.sparks) {
             const f=q.t/q.life;
-            ctx.globalAlpha=1-f;
+            ctx.globalAlpha=q.conf?Math.min(1,(1-f)*3):1-f;
             ctx.fillStyle=q.c;
+            if (q.conf) {
+                ctx.save();
+                ctx.translate(q.x,q.y);
+                ctx.rotate(q.rot);
+                ctx.scale(1,Math.cos(q.rot*1.7));
+                ctx.fillRect(-q.r,-q.r*0.5,q.r*2,q.r);
+                ctx.restore();
+                continue;
+            }
             ctx.beginPath();
             ctx.arc(q.x,q.y,q.r*(1-f*0.5),0,Math.PI*2);
             ctx.fill();
