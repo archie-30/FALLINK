@@ -4114,6 +4114,8 @@ export class SkinEditor extends Panel {
         this.msg=null;
         this.outfitSel=-1;
         this.dice=0;
+        this.wSel=settings.weapon||'pen';
+        this.wSelT=1;
     }
 
     clampScroll() {
@@ -4148,6 +4150,7 @@ export class SkinEditor extends Panel {
         const ti=SKIN_TABS.indexOf(this.tab);
         this.tabK+=(ti-this.tabK)*Math.min(1,dt*U.follow);
         this.tabT=Math.min(1,this.tabT+dt/0.35);
+        this.wSelT=Math.min(1,(this.wSelT??1)+dt/TUNING.weaponUi.selTime);
         this.walletK=Math.max(0,this.walletK-dt*2);
         this.dice=Math.max(0,(this.dice||0)-dt*1.6);
         this.splitT=(this.splitT||0)+dt/0.28;
@@ -4271,6 +4274,18 @@ export class SkinEditor extends Panel {
         if (inRect(this.resetBtn,x,y)) {
             this.pulse.reset=1;
             this.outfitSel=-1;
+            if (this.tab==='weapon') {
+                const id=this.wSel||'pen';
+                if ((settings.weapon||'pen')!==id) {
+                    this.actions.equipWeapon(id);
+                    const b=this.resetBtn;
+                    this.burst(b.x+b.w/2,b.y+b.h/2,[PALETTE.red,PALETTE.ink],16);
+                }
+                else {
+                    this.actions.select();
+                }
+                return true;
+            }
             this.set({...DEFAULT_SKIN,...ACC_DEFAULT},true);
             this.actions.select();
             return true;
@@ -4287,6 +4302,8 @@ export class SkinEditor extends Panel {
                 if (this.tab!==SKIN_TABS[i]) {
                     this.tab=SKIN_TABS[i];
                     this.tabT=0;
+                    this.wSel=settings.weapon||'pen';
+                    this.wSelT=1;
                     this.scroll=0;
                     this.scrollTo=0;
                     this.actions.select();
@@ -4319,10 +4336,11 @@ export class SkinEditor extends Panel {
             this.outfitSel=-1;
             if (q.weapon) {
                 if (q.ok) {
-                    if ((settings.weapon||'pen')!==q.weapon) {
-                        this.actions.equipWeapon(q.weapon);
-                        this.burst(q.x+q.h*0.55,q.y+q.h/2,[PALETTE.red,PALETTE.ink],14);
+                    if (this.wSel!==q.weapon) {
+                        this.wSel=q.weapon;
+                        this.wSelT=0;
                     }
+                    this.actions.select();
                 }
                 else if (q.rnd) {
                     this.say('weapon.random.locked',{n:RANDOM_WEAPON.min});
@@ -4724,19 +4742,43 @@ export class SkinEditor extends Panel {
             const rnd=id===RANDOM_WEAPON.id;
             const unlocked=weaponUnlocked(id,lv);
             const eq=(settings.weapon||'pen')===id;
+            const seld=this.wSel===id;
             const r={x,y,w,h:ch};
             const hv=inRect(r,this.hx,this.hy);
             const pu=this.pulse['w'+id]||0;
-            const ap=EASE.easeOutBack(Math.max(0,Math.min(1,(this.tabT-i*0.05)/0.45)));
+            const ap=EASE.easeOutCubic(Math.max(0,Math.min(1,(this.tabT-i*U.stagger)/U.itemTime)));
             ctx.save();
-            ctx.translate(x+w/2,y+ch/2);
-            const sc=ap*(1+(hv?0.02:0)+Math.sin(pu*Math.PI)*0.06);
+            ctx.globalAlpha*=ap;
+            ctx.translate(x+w/2,y+ch/2+(1-ap)*U.rise);
+            const sc=1+(hv?0.02:0)+Math.sin(pu*Math.PI)*0.06;
             ctx.scale(sc,sc);
             ctx.rotate(Math.sin(pu*Math.PI*3)*0.02);
             ctx.translate(-w/2,-ch/2);
             ctx.fillStyle=eq?rgba('red',0.08):(hv?rgba('farGray',0.6):rgba('paper',0.92));
             ctx.fillRect(0,0,w,ch);
             drawShape(ctx,sketchRect(0,0,w,ch,{width:eq?2.6:1.4,seed:1700+i}),eq?PALETTE.red:(unlocked?PALETTE.ink:PALETTE.midGray),v);
+            if (seld) {
+                const sk=EASE.easeOutBack(Math.min(1,this.wSelT));
+                const pad=4+(1-sk)*8;
+                ctx.save();
+                ctx.globalAlpha*=Math.min(1,this.wSelT*3);
+                ctx.setLineDash([6,4]);
+                ctx.lineDashOffset=-time.real*16;
+                ctx.strokeStyle=PALETTE.red;
+                ctx.lineWidth=2.2;
+                const bx=-pad;
+                const by=-pad;
+                const bw=w+pad*2;
+                const bh=ch+pad*2;
+                ctx.beginPath();
+                ctx.moveTo(bx+8,by);
+                ctx.arcTo(bx+bw,by,bx+bw,by+bh,8);
+                ctx.arcTo(bx+bw,by+bh,bx,by+bh,8);
+                ctx.arcTo(bx,by+bh,bx,by,8);
+                ctx.arcTo(bx,by,bx+bw,by,8);
+                ctx.stroke();
+                ctx.restore();
+            }
             const bob=eq?Math.sin(time.real*3)*2:0;
             drawWeaponIcon(ctx,id,ch*0.55,ch*0.5+bob,ch/100,v,!unlocked);
             const tw=w-ch*1.15-(eq?70:12);
@@ -4775,7 +4817,7 @@ export class SkinEditor extends Panel {
     }
 
     weaponInfo(ctx,P,small) {
-        const id=settings.weapon||'pen';
+        const id=this.wSel||settings.weapon||'pen';
         const w=P.w-36;
         ctx.font=(small?12:13)+'px '+FONT;
         const lines=wrapText(ctx,t('weapon.'+id+'.desc',weaponParams(id)),w-20).slice(0,small?3:5);
@@ -4792,7 +4834,8 @@ export class SkinEditor extends Panel {
         ctx.fillStyle=PALETTE.ink;
         ctx.textAlign='left';
         ctx.textBaseline='middle';
-        fitText(ctx,t('weapon.'+info.id+'.name')+t('ui.sep')+t('weapon.equipped'),x+44,y+(small?14:16),w-54,small?14:16,'bold ');
+        const eqd=(settings.weapon||'pen')===info.id;
+        fitText(ctx,t('weapon.'+info.id+'.name')+(eqd?t('ui.sep')+t('weapon.equipped'):''),x+44,y+(small?14:16),w-54,small?14:16,'bold ');
         ctx.font=(small?12:13)+'px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         ctx.textBaseline='top';
@@ -4842,16 +4885,20 @@ export class SkinEditor extends Panel {
             y=this.drawOutfits(ctx,P,y,v,small,cur);
         }
         ctx.save();
-        ctx.translate(slide,0);
-        ctx.globalAlpha=Math.min(1,0.3+this.tabT);
+        if (this.tab!=='weapon') {
+            ctx.translate(slide,0);
+            ctx.globalAlpha=Math.min(1,0.3+this.tabT);
+        }
         y=this.tab==='weapon'?this.drawWeapons(ctx,P,y,v,small):(this.tab==='acc'?this.drawAccs(ctx,P,y,v,small,cur):this.drawColors(ctx,P,y,v,small,cur));
         ctx.restore();
         this.contentH=y-y0+6;
         ctx.restore();
         if (winfo) {
+            const ik=EASE.easeOutCubic(Math.max(0,Math.min(1,(this.tabT-TUNING.weaponUi.infoDelay)/TUNING.weaponUi.itemTime)));
+            const sk=EASE.easeOutCubic(Math.min(1,this.wSelT*2));
             ctx.save();
-            ctx.globalAlpha=Math.min(1,0.3+this.tabT);
-            this.drawWeaponInfo(ctx,P,V.y+V.h+6,v,small,winfo);
+            ctx.globalAlpha=ik*(0.4+0.6*sk);
+            this.drawWeaponInfo(ctx,P,V.y+V.h+6+(1-ik)*TUNING.weaponUi.rise+(1-sk)*6,v,small,winfo);
             ctx.restore();
         }
         const max=Math.max(0,this.contentH-V.h);
@@ -4920,7 +4967,9 @@ export class SkinEditor extends Panel {
         ctx.translate(rb.x+rb.w/2,rb.y+rb.h/2);
         ctx.rotate(Math.sin(rp*Math.PI*3)*0.06);
         ctx.translate(-(rb.x+rb.w/2),-(rb.y+rb.h/2));
-        drawButton(ctx,this.resetBtn,t('skin.reset'),v,(this.t-0.1)/0.3,this.hoverIdx===0,16);
+        const wtab=this.tab==='weapon';
+        const weq=wtab&&(settings.weapon||'pen')===(this.wSel||'pen');
+        drawButton(ctx,this.resetBtn,t(wtab?(weq?'weapon.equipped':'weapon.equip'):'skin.reset'),v,(this.t-0.1)/0.3,this.hoverIdx===0&&!weq,16);
         ctx.restore();
         drawButton(ctx,this.backBtn,t('menu.back'),v,(this.t-0.15)/0.3,this.hoverIdx===1,18);
         this.drawRandom(ctx,v,small);
@@ -7142,6 +7191,22 @@ export function drawWeaponIcon(ctx,id,x,y,s,v,locked) {
     ctx.save();
     ctx.translate(x,y);
     ctx.scale(s,s);
+    if (id===RANDOM_WEAPON.id) {
+        ctx.fillStyle=locked?PALETTE.farGray:PALETTE.paper;
+        ctx.beginPath();
+        ctx.arc(0,0,30,0,Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle=locked?PALETTE.midGray:PALETTE.ink;
+        ctx.lineWidth=2.6;
+        ctx.stroke();
+        ctx.fillStyle=locked?PALETTE.midGray:PALETTE.red;
+        ctx.font='bold 44px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText('?',0,3);
+        ctx.restore();
+        return;
+    }
     ctx.rotate(-0.6);
     const ink=locked?PALETTE.midGray:PALETTE.ink;
     const fill=locked?PALETTE.farGray:PALETTE.paper;
