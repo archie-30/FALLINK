@@ -45,7 +45,7 @@ import {weaponUnlocked,pickWeapon,unlockedWeapons,RANDOM_WEAPON,WEAPONS,WEAPON_O
 import {initMeta,gradeOf,grantCoins,clampSkin,grantLevelChest,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,earnDots,modeSeen,markModeSeen,pullRelic} from './core/meta.js';
 import {startRelic,relic,takeGuard,hasRelic,flashRelic,tickRelics,dmgMult,killRelic,pageRelic,perfectRelic,dripRelic,usePhoenix,inkMaxBonus,cardRelic,holdRelic,lowHp,relicState,restoreRelic,addRelic,removeRelic,gamblerMult} from './game/relic.js';
 import {saveRunSnap,loadRunSnap,clearRunSnap} from './core/runSave.js';
-import {GuidePopup,courseGuide,modeGuide,modesGuide,relicGuide} from './ui2d/guide.js';
+import {GuidePopup,courseGuide,modeGuide,modesGuide,relicGuide,coinGuide} from './ui2d/guide.js';
 import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast,ConfirmPopup} from './ui2d/meta.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
@@ -1955,6 +1955,10 @@ function boot() {
             codex.show();
         },
         training:()=>startGame('training'),
+        coins:()=>{
+            audio.play('ui');
+            guide.open2(coinGuide(),{ok:t('coins.more'),cancel:t('coins.back'),fit:true,keep:true,onOk:()=>guide.note(t('coins.soon'))});
+        },
         weapon:()=>{
             audio.play('ui');
             relicView.show();
@@ -2092,6 +2096,12 @@ function boot() {
         ok:()=>{
             audio.play('ui');
             const fn=guide.opts.onOk;
+            if (guide.opts.keep) {
+                if (fn) {
+                    fn();
+                }
+                return;
+            }
             guide.hide();
             if (fn) {
                 fn();

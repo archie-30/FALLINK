@@ -303,6 +303,8 @@ export const TUNING={
         autoClose:7
     },
     ui:{
+        guideNote:28,
+        guideNoteTime:2.2,
         resumeCount:3,
         scale:{refH:560,refW:900,min:0.72},
         text:{small:1,mid:1.12,large:1.26,minPx:10,maxPx:20},

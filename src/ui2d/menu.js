@@ -179,7 +179,7 @@ export class MainMenu extends Panel {
             return true;
         }
         if (this.walletRect&&inRect(this.walletRect,x,y)) {
-            this.actions.achieve();
+            this.actions.coins();
             return true;
         }
         const i=this.hitButton(x,y);

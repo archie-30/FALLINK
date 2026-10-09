@@ -67,6 +67,13 @@ export function relicGuide() {
     return {title:t('tut.relics.title'),icon:null,blocks:t('tut.relics.body').split('|').map(text=>({kind:'bullet',text}))};
 }
 
+export function coinGuide() {
+    const M=TUNING.meta;
+    const G=M.gradeCoins;
+    const P={boss:M.dotBoss,b:G.B,a:G.A,s:G.S,sp:G['S+'],lo:M.dotRange[0],hi:M.dotRange[1],lv:TUNING.levels.chest.dots,every:TUNING.levels.chestEvery};
+    return {title:t('coins.title'),icon:null,blocks:[1,2,3,4,5].map(i=>({kind:'bullet',text:t('coins.src.'+i,P)}))};
+}
+
 export function modesGuide() {
     const out=[];
     for (const mode of ['story','endless']) {
@@ -94,7 +101,14 @@ export class GuidePopup extends Panel {
         this.scroll=0;
         this.contentH=0;
         this.press=null;
+        this.noteText='';
+        this.noteAt=-9;
         this.show();
+    }
+
+    note(text) {
+        this.noteText=text;
+        this.noteAt=time.real;
     }
 
     layout() {
@@ -105,7 +119,7 @@ export class GuidePopup extends Panel {
         const bh=small?40:48;
         let ph=Math.min(h-(small?78:130),560);
         if (this.opts.fit&&this.contentH>0) {
-            ph=Math.min(ph,(small?58:76)+this.contentH+bh+(small?30:44));
+            ph=Math.min(ph,(small?58:76)+this.contentH+bh+(small?30:44)+(this.opts.keep?TUNING.ui.guideNote:0));
         }
         this.P={x:w/2-pw/2,y:h/2-ph/2,w:pw,h:ph};
         const two=!!this.opts.cancel;
@@ -123,7 +137,7 @@ export class GuidePopup extends Panel {
             this.buttons=[this.okBtn];
         }
         const top=this.P.y+(small?58:76);
-        this.V={x:this.P.x+14,y:top,w:pw-28,h:by-8-top};
+        this.V={x:this.P.x+14,y:top,w:pw-28,h:by-8-top-(this.opts.keep?TUNING.ui.guideNote:0)};
     }
 
     maxScroll() {
@@ -280,5 +294,19 @@ export class GuidePopup extends Panel {
             drawButton(ctx,this.cancelBtn,this.opts.cancel,v,ap,this.hoverIdx===0,small?17:19);
         }
         drawButton(ctx,this.okBtn,this.opts.ok||t('notice.ok'),v,ap,this.hoverIdx===(this.cancelBtn?1:0),small?17:19);
+        const nk=time.real-this.noteAt;
+        if (this.noteText&&nk<TUNING.ui.guideNoteTime) {
+            const pop=1+Math.max(0,1-nk/0.18)*0.25;
+            ctx.save();
+            ctx.globalAlpha=Math.min(1,(TUNING.ui.guideNoteTime-nk)/0.4);
+            ctx.translate(w/2,this.okBtn.y-TUNING.ui.guideNote/2-4);
+            ctx.scale(pop,pop);
+            ctx.fillStyle=PALETTE.red;
+            ctx.font='bold '+(small?14:15)+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText(this.noteText,0,0);
+            ctx.restore();
+        }
     }
 }
