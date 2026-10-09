@@ -73,7 +73,12 @@ export function loadProgress() {
         progress.beaten=[];
     }
     if (!Array.isArray(progress.bossIntro)) {
-        progress.bossIntro=progress.seen.filter(id=>ENEMIES[id]&&ENEMIES[id].boss);
+        progress.bossIntro=[];
+    }
+    for (const id of progress.seen.concat(progress.beaten)) {
+        if (ENEMIES[id]&&ENEMIES[id].boss&&!progress.bossIntro.includes(id)) {
+            progress.bossIntro.push(id);
+        }
     }
     const q=new URLSearchParams(location.search);
     if (q.get('seen')==='all') {

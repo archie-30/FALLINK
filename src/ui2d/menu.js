@@ -1710,7 +1710,9 @@ export class Codex extends Panel {
                     if (this.solo) {
                         const done=this.solo;
                         this.solo=null;
-                        this.hide();
+                        this.open=false;
+                        this.closing=false;
+                        this.t=0;
                         done();
                     }
                 }

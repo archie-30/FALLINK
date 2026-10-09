@@ -449,7 +449,13 @@ export class Player {
         put(q,ring(0.2,0.035),m.hat,0,1.18,0,Math.PI/2,0,0,true);
         put(q,cone(0.17,0.22,3),m.hat,0,1.06,0.22,Math.PI-0.2,0,0,true).scale.set(1,1,0.35);
         q=grp('backwear','balloon',B);
-        put(q,cyl(0.006,0.006,0.95,4),m.ink,0.22,1.55,-0.32,0,0,-0.12);
+        const tieA=new THREE.Vector3(0.1,1.0,-0.235);
+        const tieB=new THREE.Vector3(0.27,1.84,-0.32);
+        const tieD=tieB.clone().sub(tieA);
+        const tie=put(q,cyl(0.006,0.006,tieD.length(),4),m.ink,(tieA.x+tieB.x)/2,(tieA.y+tieB.y)/2,(tieA.z+tieB.z)/2);
+        tie.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),tieD.normalize());
+        put(q,ball(0.022,6,4),m.ink,tieA.x,tieA.y,tieA.z);
+        put(q,box(0.09,0.05,0.012),m.paper,tieA.x,tieA.y-0.005,tieA.z-0.004,0,0,0.3,true);
         put(q,ball(0.21,10,8),m.hat,0.28,2.12,-0.32,0,0,0,true).scale.set(1,1.18,1);
         put(q,cone(0.04,0.06,6),m.hat,0.27,1.86,-0.32,Math.PI,0,0);
         q=grp('backwear','yardstick',B);
@@ -918,16 +924,14 @@ export class Player {
             this.cdT=this.W.cooldown/((this.rapidT>0?this.rapidMult:1)*fireMult(this.hp));
             return;
         }
-        if (this.rapidT<=0) {
-            this.ammo--;
-            if (this.ammo<=0) {
-                if (this.W.refund) {
-                    this.pendReload=true;
-                    this.pendT=this.W.bulletLife+this.W.refund.wait;
-                }
-                else {
-                    this.startReload();
-                }
+        this.ammo--;
+        if (this.ammo<=0) {
+            if (this.W.refund) {
+                this.pendReload=true;
+                this.pendT=this.W.bulletLife+this.W.refund.wait;
+            }
+            else {
+                this.startReload();
             }
         }
     }

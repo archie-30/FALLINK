@@ -736,10 +736,16 @@ function boot() {
     };
     enemies.onSpawned=e=>{
         if (game.mode==='play'&&run.mode!=='training') {
+            const met=progress.seen.includes(e.type)||progress.beaten.includes(e.type);
             markSeen(e.type);
             if (e.def.boss&&!e.tutor&&(run.mode==='story'||run.mode==='endless')&&!progress.bossIntro.includes(e.type)) {
-                pendingBoss=e.type;
-                bossIntroT=TUNING.bossIntro.delay;
+                if (met||godMode()) {
+                    markBossIntro(e.type);
+                }
+                else {
+                    pendingBoss=e.type;
+                    bossIntroT=TUNING.bossIntro.delay;
+                }
             }
         }
     };
