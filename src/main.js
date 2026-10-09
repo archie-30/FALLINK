@@ -41,7 +41,7 @@ import {RewardView} from './ui2d/reward.js';
 import {UpgradeView} from './ui2d/upgrade.js';
 import {RelicGacha} from './ui2d/gacha.js';
 import {RunSummary,MainMenu,PauseMenu,SettingsMenu,Codex,TrainingPicker,LevelView,SkinEditor,TrainingMenu,Coach,LangPicker,InfoPopup,ChoicePanel,DeckPicker,LevelUpView,drawWeaponIcon} from './ui2d/menu.js';
-import {weaponUnlocked,pickWeapon,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
+import {weaponUnlocked,pickWeapon,unlockedWeapons,RANDOM_WEAPON,WEAPONS,WEAPON_ORDER} from './data/weapons.js';
 import {initMeta,gradeOf,grantCoins,clampSkin,grantLevelChest,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,earnDots,modeSeen,markModeSeen,pullRelic} from './core/meta.js';
 import {startRelic,relic,takeGuard,hasRelic,flashRelic,tickRelics,dmgMult,killRelic,pageRelic,perfectRelic,dripRelic,usePhoenix,inkMaxBonus,cardRelic,holdRelic,lowHp,relicState,restoreRelic,addRelic,removeRelic,gamblerMult} from './game/relic.js';
 import {saveRunSnap,loadRunSnap,clearRunSnap} from './core/runSave.js';
@@ -161,6 +161,8 @@ function boot() {
     const {scene,world,actors,fxScene}=createScene();
     const game={room:null,mode:'menu'};
     let menuAngle=0;
+    let randT=0;
+    let quietEquip=false;
     const player=new Player(actors);
     player.applySkin(clampSkin(settings.skin));
     const equipWeapon=(play=false)=>{
@@ -831,6 +833,9 @@ function boot() {
     };
     player.events.onArm=()=>audio.play('equip',1.2);
     player.events.onEquip=p=>{
+        if (quietEquip) {
+            return;
+        }
         audio.play('equip');
         if (game.mode==='play') {
             particles.burst(p.pos.x,1.2,p.pos.z,TUNING.equip.particles,{color:'ink',speed:[2,5],up:[2,5],size:[0.08,0.16]});
@@ -3367,6 +3372,20 @@ function boot() {
             skinZoom+=((skinEditor.open?1:0)-skinZoom)*(1-Math.exp(-S.follow*dt));
             const MM=TUNING.menu;
             menuAngle+=dt*MM.camSpin*(1-skinZoom);
+            const lvR=effectiveLevel();
+            if (settings.weapon===RANDOM_WEAPON.id&&weaponUnlocked(RANDOM_WEAPON.id,lvR)) {
+                randT-=dt;
+                if (randT<=0) {
+                    randT=MM.randomCycle;
+                    const list=unlockedWeapons(lvR);
+                    quietEquip=true;
+                    player.setWeapon(list[(list.indexOf(player.weaponId)+1)%list.length]);
+                    quietEquip=false;
+                }
+            }
+            else {
+                randT=0;
+            }
             const cam=rig.camera;
             const z=EASE.easeInOutCubic(skinZoom);
             const sa=Math.sin(menuAngle);
