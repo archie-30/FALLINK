@@ -459,7 +459,7 @@ export const TUNING={
         fogAlpha:0.9,
         fogPuffs:28
     },
-    weaponUi:{
+    weaponUi:{stagger:0.06,itemTime:0.5,rise:14,infoDelay:0.3,selTime:0.3,
         rowH:84,
         rowHSmall:64,
         listGap:10,
