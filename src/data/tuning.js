@@ -344,7 +344,10 @@ export const TUNING={
     langPick:{showLang:false,previewGap:46,btnW:240,btnH:70,gap:24,y:0.34,goW:200,goH:52,goGap:44,noteGap:24,sizeGap:58,sizeW:96,sizeH:44,sizeSep:14},
     settingsUi:{
         lang:{w:230,h:34,pad:14,item:36,openTime:0.32,closeTime:0.2,stagger:0.2,pickDecay:3,pop:0.1},
-        devCode:'0012830',
+        devLen:7,
+        devSalt:'8f093b6f3d135e1d4fff5abc17a4fc59',
+        devIter:150000,
+        devHash:'e12462891a9a4d1808211d8c4873a0a4c929c425869060b5245c239a50f66594',
         iconTap:20,
         pwErrDecay:1.6,
         pwPressDecay:5,

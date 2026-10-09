@@ -109,6 +109,25 @@ function drawStarterTag(ctx,id,x,y,px,v) {
     ctx.restore();
 }
 
+// The developer code is never stored in plain text: only a salted PBKDF2 hash ships with the game.
+async function checkDevCode(digits,U) {
+    const c=window.crypto&&window.crypto.subtle;
+    if (!c||digits.length!==U.devLen) {
+        return false;
+    }
+    try {
+        const enc=new TextEncoder();
+        const salt=Uint8Array.from(U.devSalt.match(/../g).map(x=>parseInt(x,16)));
+        const key=await c.importKey('raw',enc.encode(digits),'PBKDF2',false,['deriveBits']);
+        const bits=new Uint8Array(await c.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:U.devIter},key,256));
+        const hex=Array.from(bits,b=>b.toString(16).padStart(2,'0')).join('');
+        return hex===U.devHash;
+    }
+    catch (e) {
+        return false;
+    }
+}
+
 const MENU_ACTS=['start','endless','weapon','training','achieve','codex'];
 
 const MENU_SUBS=[0,1];
@@ -674,26 +693,38 @@ export class SettingsMenu extends Panel {
             P.digits=P.digits.slice(0,-1);
         }
         else if (k==='ok') {
-            if (P.digits===TUNING.settingsUi.devCode) {
-                P.open=false;
-                settings.godMode=true;
-                this.bump('god');
-                if (this.actions.devOn) {
-                    this.actions.devOn();
-                }
+            if (P.busy) {
                 return true;
             }
-            P.err=1;
-            P.digits='';
-            if (this.actions.wrong) {
-                this.actions.wrong();
-            }
+            const U=TUNING.settingsUi;
+            const tried=P.digits;
+            P.busy=true;
+            checkDevCode(tried,U).then(ok=>{
+                P.busy=false;
+                if (!P.open) {
+                    return;
+                }
+                if (ok) {
+                    P.open=false;
+                    settings.godMode=true;
+                    this.bump('god');
+                    if (this.actions.devOn) {
+                        this.actions.devOn();
+                    }
+                    return;
+                }
+                P.err=1;
+                P.digits='';
+                if (this.actions.wrong) {
+                    this.actions.wrong();
+                }
+            });
             return true;
         }
         else if (k==='close') {
             P.open=false;
         }
-        else if (P.digits.length<TUNING.settingsUi.devCode.length) {
+        else if (P.digits.length<TUNING.settingsUi.devLen) {
             P.digits+=k;
         }
         P.press=k;
@@ -1248,7 +1279,7 @@ export class SettingsMenu extends Panel {
         ctx.font=(small?'11px ':'13px ')+FONT;
         ctx.fillStyle=P.err>0?PALETTE.red:PALETTE.nearGray;
         ctx.fillText(t(P.err>0?'dev.wrong':'dev.hint'),w/2,by+(small?42:56));
-        const n=TUNING.settingsUi.devCode.length;
+        const n=TUNING.settingsUi.devLen;
         const dw=small?20:24;
         const dy=by+(small?68:88);
         for (let i=0;i<n;i++) {
