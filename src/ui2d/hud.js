@@ -688,7 +688,7 @@ export class Hud {
                 ctx.strokeStyle=PALETTE.paper;
                 ctx.lineJoin='round';
                 ctx.strokeText(pz.big.text,0,0);
-                ctx.fillStyle=pz.big.dim?PALETTE.midGray:PALETTE.ink;
+                ctx.fillStyle=pz.big.dim?PALETTE.midGray:(pz.big.color?PALETTE[pz.big.color]:PALETTE.ink);
                 ctx.fillText(pz.big.text,0,0);
                 ctx.restore();
             }

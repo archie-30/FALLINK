@@ -252,6 +252,10 @@ class Kit {
         this.mg.api.talk(text,dur);
     }
 
+    shake(a) {
+        this.mg.api.shake(a);
+    }
+
     win() {
         this.end(true);
     }
@@ -1920,9 +1924,13 @@ const GAMES={
                 g.stamp(t('mg.stamp.'+k),1.2,'ink',x,C.z);
                 g.pads[k]={x,z:C.z,r:C.r,ring,lit:0};
             }
-            g.cross=g.stamp('✕',1.6,'red',0,0,0.09);
+            g.cross=g.stamp('✕',P.markSize,'red',0,0,0.09);
             g.cross.visible=false;
+            g.circle=g.stamp('○',P.markSize,'crayonGreen',0,0,0.09);
+            g.circle.visible=false;
+            g.mark=null;
             g.crossT=0;
+            g.flash=null;
             const host=P.host||MINIGAMES.host;
             g.sign=new THREE.Group();
             g.sign.position.set(host[0]*g.flip,P.signY,host[1]);
@@ -1953,7 +1961,8 @@ const GAMES={
                 }
                 last=kind;
                 const near=fake&&g.r()<g.a(P.nearMiss);
-                const pre=fake?(near?t('mg.teacher.near'+(1+g.int(3))):''):t('mg.teacher.real');
+                const pool=g.r()<g.a(P.nearHard)?P.nearHardKeys:P.nearEasyKeys;
+                const pre=fake?(near?t('mg.teacher.near'+pool[g.int(pool.length)]):''):t('mg.teacher.real');
                 const trick=(kind==='left'||kind==='right')&&g.r()<g.a(P.handTrick);
                 g.list.push({kind,fake,trick,text:t('mg.teacher.say',{p:pre,c:t('mg.teacher.cmd.'+kind)})});
             }
@@ -1972,12 +1981,18 @@ const GAMES={
                 p.lit=Math.max(0,p.lit-dt*2.5);
                 p.ring.material=mat(p.lit>0.3?'accent':'dark');
             }
-            if (g.crossT>0) {
+            if (g.crossT>0&&g.mark) {
                 g.crossT-=dt;
                 const k=Math.max(0,g.crossT/g.P.crossTime);
-                g.cross.visible=g.crossT>0;
-                g.cross.scale.setScalar(0.6+0.6*Math.min(1,(1-k)*4));
-                g.cross.position.y=0.09+(1-k)*0.4;
+                g.mark.visible=g.crossT>0;
+                g.mark.scale.setScalar(0.6+0.8*Math.min(1,(1-k)*4));
+                g.mark.position.y=0.09+(1-k)*0.4;
+            }
+            if (g.flash) {
+                g.flash.t-=dt;
+                if (g.flash.t<=0) {
+                    g.flash=null;
+                }
             }
         },
         judge(g,pl,ok) {
@@ -1989,19 +2004,26 @@ const GAMES={
             g.state='ready';
             g.still=0;
             g.wait=g.a(P.gap)+g.r()*P.gapJitter;
+            for (const m of [g.cross,g.circle]) {
+                m.visible=false;
+            }
+            g.mark=ok?g.circle:g.cross;
+            g.mark.position.set(pl.pos.x,0.09,pl.pos.z);
+            g.mark.visible=true;
+            g.crossT=P.crossTime;
+            g.flash={text:t(ok?'mg.teacher.flash.ok':'mg.teacher.flash.wrong'),color:ok?'crayonGreen':'red',t:P.flashTime};
             if (ok) {
-                g.burst(pl.pos.x,pl.pos.z,'red',14,0.6);
+                g.burst(pl.pos.x,pl.pos.z,'red',22,0.6);
                 g.sound('bell',q.fake?1.5:1.25);
+                g.sound('bell',q.fake?2.0:1.68);
                 if (q.fake) {
                     g.talk(t('mg.teacher.ok'),P.talkTime);
                 }
             }
             else {
                 g.err++;
-                g.cross.position.set(pl.pos.x,0.09,pl.pos.z);
-                g.cross.visible=true;
-                g.crossT=P.crossTime;
-                g.burst(pl.pos.x,pl.pos.z,'ink',16,0.4);
+                g.burst(pl.pos.x,pl.pos.z,'ink',24,0.4);
+                g.shake(P.wrongShake);
                 g.sound('fail',1);
                 g.talk(t(q.fake?'mg.teacher.wrong.fake':'mg.teacher.wrong'),P.talkTime);
                 if (g.err>g.a(P.miss)) {
@@ -2098,12 +2120,13 @@ const GAMES={
         },
         info(g) {
             const left=Math.max(0,g.a(g.P.miss)-g.err);
-            const big=g.cur?{text:g.cur.text}:(g.away?{text:t('mg.teacher.home'),dim:true}:null);
+            const big=g.flash?{text:g.flash.text,color:g.flash.color}:(g.cur?{text:g.cur.text}:(g.away?{text:t('mg.teacher.home'),dim:true}:null));
             return {key:'mg.teacher.info',params:{n:Math.min(g.i+1,g.list.length),total:g.list.length,m:left},big};
         },
         teardown(g) {
             g.sign.visible=false;
             g.cross.visible=false;
+            g.circle.visible=false;
         }
     },
     count:{
@@ -2137,7 +2160,7 @@ const GAMES={
             scr.position.set(0,-0.05,0.21);
             face.add(scr);
             g.scr=scr;
-            g.solid([makeBox(wx,wz,0.6,0.45,0)]);
+            g.solid([makeBox(wx,wz,P.r,P.depth,0)]);
             g.shown='';
             g.lit=1;
             g.pop=0;
@@ -2247,6 +2270,7 @@ const GAMES={
                 if (g.pt>=P.show) {
                     g.phase='done';
                     if (g.result==='perfect'||g.result==='ok') {
+                        g.bonus=g.result==='perfect';
                         g.win();
                     }
                     else {
@@ -2321,7 +2345,7 @@ export class MiniGames {
                     g.room.removePiece(pc);
                 }
                 g.pieces=[];
-                this.api.onEnd(g.ok);
+                this.api.onEnd(g.ok,!!g.bonus);
             }
             return;
         }
