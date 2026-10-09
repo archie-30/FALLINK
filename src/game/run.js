@@ -454,7 +454,7 @@ export class Run {
         return pick[1].map(e=>e.slice());
     }
 
-    gameDone(ok) {
+    gameDone(ok,bonus=false) {
         const p=this.plan;
         if (ok&&!p.trainGame) {
             bump('games');
@@ -462,10 +462,10 @@ export class Run {
         const lines=ok?MINIGAMES.winLines:MINIGAMES.loseLines;
         this.hooks.npcSay(0,t(lines[Math.floor(this.rng.next()*lines.length)]));
         this.state='node';
-        const effects=p.trainGame?[]:this.prize(ok);
-        this.withReport({key:ok?'report.gameWin':'report.gameLose',params:{name:'event.'+p.game+'.title'}},fin=>{
+        const effects=p.trainGame?[]:this.prize(ok).concat(ok&&bonus?this.prize(true):[]);
+        this.withReport({key:ok?(bonus?'report.gamePerfect':'report.gameWin'):'report.gameLose',params:{name:'event.'+p.game+'.title'}},fin=>{
             if (p.trainGame) {
-                this.note(ok?'mg.win':'mg.lose');
+                this.note(ok?(bonus?'mg.perfect':'mg.win'):'mg.lose');
             }
             this.applyEffects(effects,fin);
         },()=>this.backToPeace());

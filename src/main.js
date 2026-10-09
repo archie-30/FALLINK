@@ -60,6 +60,7 @@ import {Npcs} from './game/npc.js';
 import {MiniGames} from './game/minigames.js';
 import {checkForUpdate} from './core/appUpdate.js';
 import {WorldMarks} from './ui2d/worldMarks.js';
+import {VERSION} from './data/version.js';
 
 const QUALITY_ORDER=['low','mid','high'];
 
@@ -73,6 +74,7 @@ function applyTheme() {
         meta.setAttribute('content',PALETTE.paper);
     }
     document.getElementById('rotate-text').textContent=t('ui.rotate');
+    document.getElementById('rotate-ver').textContent=VERSION.stage+' '+VERSION.number;
 }
 
 function exitFullscreen() {
@@ -1157,7 +1159,7 @@ function boot() {
             player.root.position.copy(player.pos);
             particles.burst(x,0.6,z,10,{color:'ink',speed:[1,3],up:[1,3]});
         },
-        onEnd:ok=>run.gameDone(ok)
+        onEnd:(ok,bonus)=>run.gameDone(ok,bonus)
     });
     function endlessAP(i) {
         return {act:Math.floor(i/ENDLESS.bossEvery)+1,page:i%ENDLESS.bossEvery+1};

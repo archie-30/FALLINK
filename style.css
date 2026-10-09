@@ -42,6 +42,13 @@ html,body {
     font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
     font-size:28px;
     letter-spacing:4px;
+    flex-direction:column;
+}
+#rotate-ver {
+    margin-top:14px;
+    font-size:14px;
+    letter-spacing:1px;
+    color:var(--midGray);
 }
 @media (orientation:portrait) {
     #rotate {
