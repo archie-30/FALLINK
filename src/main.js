@@ -45,7 +45,7 @@ import {weaponUnlocked,pickWeapon,unlockedWeapons,RANDOM_WEAPON,WEAPONS,WEAPON_O
 import {initMeta,gradeOf,grantCoins,clampSkin,grantLevelChest,setGate,setAchHold,bump,setMax,addKind,flushMeta,metaDirty,achQueue,grant,buy,buyAll,presetMissing,checkAch,claimAchChest,runChestCount,reviveReady,spendRevive,earnDots,modeSeen,markModeSeen,pullRelic} from './core/meta.js';
 import {startRelic,relic,takeGuard,hasRelic,flashRelic,tickRelics,dmgMult,killRelic,pageRelic,perfectRelic,dripRelic,usePhoenix,inkMaxBonus,cardRelic,holdRelic,lowHp,relicState,restoreRelic,addRelic,removeRelic,gamblerMult} from './game/relic.js';
 import {saveRunSnap,loadRunSnap,clearRunSnap} from './core/runSave.js';
-import {GuidePopup,courseGuide,modeGuide,modesGuide} from './ui2d/guide.js';
+import {GuidePopup,courseGuide,modeGuide,modesGuide,relicGuide} from './ui2d/guide.js';
 import {BuyPrompt,ChestView,AchievementView,RevivePopup,AchToast,ConfirmPopup} from './ui2d/meta.js';
 import {EASE} from './core/easing.js';
 import {UltCutin} from './ui2d/ultCutin.js';
@@ -1958,6 +1958,10 @@ function boot() {
         weapon:()=>{
             audio.play('ui');
             relicView.show();
+            if (!modeSeen('relics')) {
+                markModeSeen('relics');
+                guide.open2(relicGuide(),{ok:t('notice.ok'),fit:true});
+            }
         },
         skin:()=>{
             audio.play('ui');
