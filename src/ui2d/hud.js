@@ -175,7 +175,7 @@ export class Hud {
             const k=1-Math.min(1,(player.cdT||0)/W.cooldown);
             const a0=Math.PI/2+span/2;
             ctx.lineCap='round';
-            ctx.lineWidth=5;
+            ctx.lineWidth=B.stroke;
             ctx.strokeStyle=rgba('midGray',0.5);
             ctx.beginPath();
             ctx.arc(cx,cy-r,r,a0,a0-span,true);
@@ -568,7 +568,7 @@ export class Hud {
             ctx.textBaseline='middle';
             ctx.lineJoin='round';
             ctx.strokeStyle=rgba('paper',0.95);
-            ctx.lineWidth=5;
+            ctx.lineWidth=B.stroke;
             const txt=(f.n>0?'+':'')+f.n;
             ctx.strokeText(txt,0,0);
             ctx.fillStyle=f.n>0?PALETTE.red:PALETTE.ink;
@@ -631,7 +631,7 @@ export class Hud {
         ctx.restore();
     }
 
-    drawRunInfo(ctx,w,run,enemies) {
+    drawRunInfo(ctx,w,run,enemies,h=0) {
         if (!run||!run.plan) {
             return;
         }
@@ -673,6 +673,28 @@ export class Hud {
             ctx.fillStyle=PALETTE.red;
             const tail=pz.params&&pz.params.s!==undefined?t('ui.gap')+t('mg.time',{s:pz.params.s}):'';
             ctx.fillText(t(pz.key,pz.params)+tail,w/2,by+4);
+            if (pz.big) {
+                const B=TUNING.hud.bigCmd;
+                if (pz.big.text!==this.bigText) {
+                    this.bigText=pz.big.text;
+                    this.bigAt=time.real;
+                }
+                const k=Math.min(1,(time.real-this.bigAt)/B.pop);
+                ctx.save();
+                ctx.translate(w/2,Math.max(by+B.y,h*B.yFrac));
+                ctx.scale(1+(1-k)*B.grow,1+(1-k)*B.grow);
+                ctx.font='bold '+(pz.big.dim?B.dimSize:B.size)+'px '+FONT;
+                ctx.lineWidth=B.stroke;
+                ctx.strokeStyle=PALETTE.paper;
+                ctx.lineJoin='round';
+                ctx.strokeText(pz.big.text,0,0);
+                ctx.fillStyle=pz.big.dim?PALETTE.midGray:PALETTE.ink;
+                ctx.fillText(pz.big.text,0,0);
+                ctx.restore();
+            }
+            else {
+                this.bigText=null;
+            }
         }
         const ch=p.challenge;
         if (ch&&(run.state==='combat'||run.state==='cleared')) {
@@ -904,7 +926,7 @@ export class Hud {
         ctx.stroke();
         if (p>0.005) {
             ctx.strokeStyle=col;
-            ctx.lineWidth=5;
+            ctx.lineWidth=B.stroke;
             ctx.lineCap='round';
             ctx.beginPath();
             ctx.moveTo(x0,y);

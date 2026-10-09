@@ -140,7 +140,7 @@ export class Overlay {
                 }
                 this.screenSpace(false);
             }
-            this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies);
+            this.hud.drawRunInfo(ctx,this.width,game.run,game.enemies,this.height);
             const rr=game.run;
             this.hud.relicOn=!!rr.stats&&!rr.training()&&!rr.tutorial()&&rr.state!=='summary';
             if (this.hud.relicOn&&!game.pause.open) {

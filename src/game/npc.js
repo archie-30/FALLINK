@@ -219,6 +219,25 @@ const MODELS={
         eyes(body,1.42,0.33,0.13,0.06);
         return {r:0.7,h:2.0};
     },
+    teacher(body) {
+        body.add(cyl(0.34,0.5,1.15,'dark',0,0.58,0));
+        body.add(bx(0.2,0.3,0.04,'light',0,1.0,0.36));
+        body.add(ball(0.35,'light',0,1.42,0));
+        body.add(ball(0.2,'ink',0,1.66,-0.22));
+        body.add(cyl(0.36,0.36,0.12,'ink',0,1.62,0,12));
+        for (const s of [-1,1]) {
+            const lens=cyl(0.1,0.1,0.03,'ink',s*0.13,1.45,0.32,12);
+            lens.rotation.x=Math.PI/2;
+            body.add(lens);
+        }
+        body.add(bx(0.08,0.02,0.02,'ink',0,1.46,0.34));
+        const stick=cyl(0.02,0.025,0.95,'accent',0.42,1.0,0.25,6);
+        stick.rotation.x=0.9;
+        stick.rotation.z=-0.3;
+        body.add(stick);
+        eyes(body,1.4,0.33,0.13,0.05);
+        return {r:0.7,h:2.0};
+    },
     item(body,root,s) {
         root.add(cyl(0.55,0.62,0.7,'cover',0,0.35,0,10));
         root.add(cyl(0.62,0.62,0.06,'dark',0,0.72,0,10));

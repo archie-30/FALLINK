@@ -254,6 +254,9 @@ export class Run {
         }
         plan.node=plan.node==='library'?'library':(this.notebook()&&!this.overtime?this.node:'battle');
         plan.exits=plan.boss?[{kind:'library'}]:this.makeExits();
+        if (plan.node==='library'&&plan.exits.length===1) {
+            plan.exits[0].label='exit.nextAct';
+        }
         this.library=false;
         this.plan=plan;
         this.course=plan.course?new CourseRun(plan.course,plan,this.hooks.course):null;

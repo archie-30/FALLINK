@@ -247,6 +247,10 @@ class Kit {
         this.mg.api.place(x,z);
     }
 
+    talk(text,dur) {
+        this.mg.api.talk(text,dur);
+    }
+
     win() {
         this.end(true);
     }
@@ -1897,6 +1901,209 @@ const GAMES={
         info(g) {
             return {key:'mg.cups.'+g.phase};
         }
+    },
+    teacher:{
+        setup(g) {
+            const P=g.P;
+            const C=P.circles;
+            g.cx=P.center[0];
+            g.cz=P.center[1];
+            g.ring(P.centerR,'dark',g.cx,g.cz);
+            g.disc(P.centerR*0.9,'cover',g.cx,g.cz,0.03);
+            g.stamp(t('mg.stamp.home'),0.9,'midGray',g.cx,g.cz);
+            g.pads={};
+            for (const [k,sx] of [['left',-1],['right',1]]) {
+                const x=sx*C.x;
+                const ring=g.ring(C.r,'dark',x,C.z);
+                g.disc(C.r*0.9,'light',x,C.z,0.03);
+                g.stamp(t('mg.stamp.'+k),1.2,'ink',x,C.z);
+                g.pads[k]={x,z:C.z,r:C.r,ring,lit:0};
+            }
+            g.cross=g.stamp('✕',1.6,'red',0,0,0.09);
+            g.cross.visible=false;
+            g.crossT=0;
+            const host=P.host||MINIGAMES.host;
+            g.sign=new THREE.Group();
+            g.sign.position.set(host[0]*g.flip,P.signY,host[1]);
+            g.add(g.sign);
+            g.box(0.9,0.14,0.14,'accent',0,0,0,g.sign);
+            const head=g.cone(0.26,0.4,'accent',0.6,0,0,g.sign);
+            head.rotation.z=-Math.PI/2;
+            g.sign.visible=false;
+        },
+        begin(g) {
+            const P=g.P;
+            g.place(g.cx,g.cz);
+            g.timer(g.a(P.timer));
+            const n=g.a(P.cmds);
+            g.list=[];
+            let fakes=0;
+            let last='';
+            for (let i=0;i<n;i++) {
+                const fake=i>=P.warm&&fakes<P.fakeMax&&g.r()<g.a(P.fake);
+                fakes=fake?fakes+1:0;
+                let kind;
+                if (!fake&&g.r()<g.a(P.seqChance)) {
+                    kind=g.r()<0.5?'lr':'rl';
+                }
+                else {
+                    const opts=['left','right','dash'].filter(k=>k!==last);
+                    kind=opts[g.int(opts.length)];
+                }
+                last=kind;
+                const near=fake&&g.r()<g.a(P.nearMiss);
+                const pre=fake?(near?t('mg.teacher.near'+(1+g.int(3))):''):t('mg.teacher.real');
+                const trick=(kind==='left'||kind==='right')&&g.r()<g.a(P.handTrick);
+                g.list.push({kind,fake,trick,text:t('mg.teacher.say',{p:pre,c:t('mg.teacher.cmd.'+kind)})});
+            }
+            g.i=0;
+            g.err=0;
+            g.state='ready';
+            g.still=0;
+            g.wait=g.a(P.gap)+g.r()*P.gapJitter;
+            g.cur=null;
+            g.prevDash=0;
+            g.away=false;
+        },
+        idle(g,dt) {
+            for (const k in g.pads) {
+                const p=g.pads[k];
+                p.lit=Math.max(0,p.lit-dt*2.5);
+                p.ring.material=mat(p.lit>0.3?'accent':'dark');
+            }
+            if (g.crossT>0) {
+                g.crossT-=dt;
+                const k=Math.max(0,g.crossT/g.P.crossTime);
+                g.cross.visible=g.crossT>0;
+                g.cross.scale.setScalar(0.6+0.6*Math.min(1,(1-k)*4));
+                g.cross.position.y=0.09+(1-k)*0.4;
+            }
+        },
+        judge(g,pl,ok) {
+            const P=g.P;
+            const q=g.cur;
+            g.cur=null;
+            g.sign.visible=false;
+            g.i++;
+            g.state='ready';
+            g.still=0;
+            g.wait=g.a(P.gap)+g.r()*P.gapJitter;
+            if (ok) {
+                g.burst(pl.pos.x,pl.pos.z,'red',14,0.6);
+                g.sound('bell',q.fake?1.5:1.25);
+                if (q.fake) {
+                    g.talk(t('mg.teacher.ok'),P.talkTime);
+                }
+            }
+            else {
+                g.err++;
+                g.cross.position.set(pl.pos.x,0.09,pl.pos.z);
+                g.cross.visible=true;
+                g.crossT=P.crossTime;
+                g.burst(pl.pos.x,pl.pos.z,'ink',16,0.4);
+                g.sound('fail',1);
+                g.talk(t(q.fake?'mg.teacher.wrong.fake':'mg.teacher.wrong'),P.talkTime);
+                if (g.err>g.a(P.miss)) {
+                    g.lose();
+                    return;
+                }
+            }
+            if (g.i>=g.list.length) {
+                g.win();
+            }
+        },
+        tick(g,dt,pl) {
+            const P=g.P;
+            const dashed=pl.dashT>0&&g.prevDash<=0;
+            g.prevDash=pl.dashT;
+            const d=Math.hypot(pl.pos.x-g.cx,pl.pos.z-g.cz);
+            g.away=d>=P.centerR;
+            if (g.state==='ready') {
+                const sp=Math.hypot(pl.vel.x,pl.vel.z);
+                if (d<P.centerR&&sp<P.stillSpeed&&pl.dashT<=0) {
+                    g.still+=dt;
+                }
+                else if (d>=P.centerR) {
+                    g.still=0;
+                }
+                if (g.still<P.still) {
+                    return;
+                }
+                g.wait-=dt;
+                if (g.wait>0) {
+                    return;
+                }
+                const q=g.list[g.i];
+                g.cur=q;
+                g.state=q.fake?'fake':'act';
+                g.ct=0;
+                g.step=0;
+                g.limitT=q.fake?g.a(P.fakeHold):(q.kind==='lr'||q.kind==='rl'?g.a(P.seqWin):g.a(P.win));
+                g.talk(q.text,g.limitT+0.3);
+                g.sound('page',q.fake?1.1:1.4);
+                if (q.trick) {
+                    g.sign.visible=true;
+                    g.sign.rotation.y=q.kind==='left'?0:Math.PI;
+                }
+                return;
+            }
+            const q=g.cur;
+            g.ct+=dt;
+            if (g.state==='fake') {
+                if (d>P.leaveR||dashed) {
+                    this.judge(g,pl,false);
+                    return;
+                }
+                if (g.ct>=g.limitT) {
+                    this.judge(g,pl,true);
+                }
+                return;
+            }
+            const inL=g.inside(pl,g.pads.left.x,g.pads.left.z,g.pads.left.r);
+            const inR=g.inside(pl,g.pads.right.x,g.pads.right.z,g.pads.right.r);
+            if (q.kind==='dash') {
+                if (dashed) {
+                    this.judge(g,pl,true);
+                    return;
+                }
+                if (inL||inR) {
+                    this.judge(g,pl,false);
+                    return;
+                }
+            }
+            else {
+                const seq=q.kind==='lr'?['left','right']:(q.kind==='rl'?['right','left']:[q.kind]);
+                const want=seq[g.step];
+                const other=want==='left'?'right':'left';
+                const inWant=want==='left'?inL:inR;
+                const inOther=want==='left'?inR:inL;
+                if (inOther&&!(g.step>0&&seq[g.step-1]===other)) {
+                    this.judge(g,pl,false);
+                    return;
+                }
+                if (inWant) {
+                    g.pads[want].lit=1;
+                    g.step++;
+                    if (g.step>=seq.length) {
+                        this.judge(g,pl,true);
+                        return;
+                    }
+                    g.sound('bell',1.1);
+                }
+            }
+            if (g.ct>=g.limitT) {
+                this.judge(g,pl,false);
+            }
+        },
+        info(g) {
+            const left=Math.max(0,g.a(g.P.miss)-g.err);
+            const big=g.cur?{text:g.cur.text}:(g.away?{text:t('mg.teacher.home'),dim:true}:null);
+            return {key:'mg.teacher.info',params:{n:Math.min(g.i+1,g.list.length),total:g.list.length,m:left},big};
+        },
+        teardown(g) {
+            g.sign.visible=false;
+            g.cross.visible=false;
+        }
     }
 };
 
@@ -2021,6 +2228,6 @@ export class MiniGames {
         if (g.limit>0) {
             params.s=Math.ceil(g.left);
         }
-        return {key:q.key,params};
+        return {key:q.key,params,big:q.big||null};
     }
 }

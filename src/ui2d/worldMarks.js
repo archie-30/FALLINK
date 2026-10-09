@@ -14,6 +14,9 @@ const SHOP=NOTEBOOK.shop;
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
 export function exitLabel(ex) {
+    if (ex.label) {
+        return t(ex.label);
+    }
     if (ex.kind==='node') {
         return t('node.'+ex.node);
     }

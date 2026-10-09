@@ -481,7 +481,7 @@ export const TUNING={
         hoverScale:0.06,
         pressScale:0.18,
         dropdown:{openTime:0.22,closeTime:0.15,pickDecay:3,itemH:34,mapItemH:40,stagger:0.08},
-        games:{openTime:0.36,closeTime:0.26,maxDt:0.034,lift:34,scale:0.06,stagger:0.025,itemTime:0.45}
+        games:{openTime:0.36,closeTime:0.26,maxDt:0.034,lift:34,scale:0.06,stagger:0.025,itemTime:0.45,row:96,rowSmall:76,dragTol:8,scrollFollow:16,barMin:28}
     },
     weaponFx:{
         pencil:{color:'nearGray',capacity:160,radius:0.1,size:0.1,trailWidth:0.05},
@@ -681,6 +681,7 @@ export const TUNING={
     },
     evolve:{grow:0.14,pulse:5,shake:0.5,restart:0.8},
     hud:{
+        bigCmd:{y:30,yFrac:0.24,size:34,dimSize:22,pop:0.22,grow:0.35,stroke:5},
         trainBossY:6,
         toastTime:3,
         toastMax:4,
