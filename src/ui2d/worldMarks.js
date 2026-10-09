@@ -4,6 +4,7 @@ import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
 import {EASE} from '../core/easing.js';
 import {sketchRect,drawShape} from './sketch.js';
+import {wrapText} from './cardView.js';
 import {relicParams} from '../data/relics.js';
 import {drawChoiceIcon,CHOICE_ICONS} from './menu.js';
 import {NOTEBOOK} from '../data/notebook.js';
@@ -44,23 +45,28 @@ export class WorldMarks {
         const W=TUNING.worldMarks;
         ctx.font='bold 15px '+FONT;
         let bw=ctx.measureText(label).width+30;
+        let lines=[];
         if (sub) {
-            ctx.font='13px '+FONT;
-            bw=Math.max(bw,Math.min(W.subMaxW,ctx.measureText(sub).width+30));
+            ctx.font=W.subFont+'px '+FONT;
+            const full=Math.max(...String(sub).split('\n').map(q=>ctx.measureText(q).width));
+            bw=Math.max(bw,Math.min(W.subMaxW,full+30));
+            lines=String(sub).split('\n').flatMap(q=>wrapText(ctx,q,bw-28));
         }
-        const bh=W.promptH+(sub?W.subH:0);
-        const x=p.x-bw/2;
-        const y=p.y-bh+Math.sin(time.real*W.bobRate)*W.bob;
+        const bh=W.promptH+(lines.length?lines.length*W.subLine+10:0);
+        const sw=this.sw||p.x*2;
+        const x=Math.max(8,Math.min(sw-8-bw,p.x-bw/2));
+        const cx=x+bw/2;
+        const y=Math.max(8,p.y-bh+Math.sin(time.real*W.bobRate)*W.bob);
         ctx.fillStyle=rgba('paper',0.96);
         ctx.fillRect(x,y,bw,bh);
         drawShape(ctx,sketchRect(x,y,bw,bh,{width:hot?3:2,seed}),hot?PALETTE.red:PALETTE.ink,v);
         ctx.fillStyle=hot?PALETTE.red:PALETTE.ink;
         ctx.font='bold 15px '+FONT;
-        ctx.fillText(label,p.x,y+W.promptH/2+1);
-        if (sub) {
-            ctx.font='13px '+FONT;
+        ctx.fillText(label,cx,y+W.promptH/2+1,bw-16);
+        if (lines.length) {
+            ctx.font=W.subFont+'px '+FONT;
             ctx.fillStyle=PALETTE.nearGray;
-            ctx.fillText(sub,p.x,y+W.promptH+W.subH/2-4,bw-20);
+            lines.forEach((ln,i)=>ctx.fillText(ln,cx,y+W.promptH+W.subLine/2-2+i*W.subLine));
         }
         this.prompt={x:x-W.touchPad,y:y-W.touchPad,w:bw+W.touchPad*2,h:bh+W.touchPad*2};
     }

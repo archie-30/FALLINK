@@ -189,9 +189,6 @@ export class Hud {
             }
             return;
         }
-        if (player.rapidT>0) {
-            return;
-        }
         for (let i=0;i<n;i++) {
             const a=Math.PI/2+span/2-span*(i+0.5)/n;
             const x=cx+Math.cos(a)*r;
