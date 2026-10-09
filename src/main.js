@@ -58,6 +58,7 @@ import {DamageNumbers} from './ui2d/damageNumbers.js';
 import {Doors,doorXs} from './game/doors.js';
 import {Npcs} from './game/npc.js';
 import {MiniGames} from './game/minigames.js';
+import {checkForUpdate} from './core/appUpdate.js';
 import {WorldMarks} from './ui2d/worldMarks.js';
 
 const QUALITY_ORDER=['low','mid','high'];
@@ -3446,6 +3447,7 @@ function boot() {
     if (!device.fullscreen&&!device.native) {
         setTimeout(()=>popup.open2(t('fullscreen.title'),t('fullscreen.body')),(TUNING.ui.loaderMin+TUNING.ui.loaderFade)*1000);
     }
+    checkForUpdate(key=>overlay.hud.toast(t(key),key));
     window.INKRAGE={ctx,guide,overlay,confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,progress,langPick,levelUp,doors,npcs,minis,marks,choice,deckPick,popup,device,weaponSys,relicView,coach,audio,ultCutin,trainingMenu,trainStats,skinEditor,trainingPicker,levelView,transition,hand,deck,ink,effects,deckView,renderer,scene,fxScene,rig,player,input,game,run,reward,upgradeView,pickups,summary,codex,pauseMenu,mainMenu,settingsMenu,settings,time,applyQuality,enemies,playerBullets,enemyBullets,particles,fx};
 }
 

@@ -1,6 +1,6 @@
 {
     "name": "inkrage",
-    "version": "0.9.21",
+    "version": "0.9.53",
     "private": true,
     "description": "INKRAGE - hand-drawn 3D shooter x deckbuilder",
     "type": "module",
@@ -14,7 +14,8 @@
     },
     "dependencies": {
         "@capacitor/android": "^8.5.2",
-        "@capacitor/core": "^8.5.2"
+        "@capacitor/core": "^8.5.2",
+        "@capawesome/capacitor-app-update": "^8.1.0"
     },
     "devDependencies": {
         "@capacitor/cli": "^8.5.2",
