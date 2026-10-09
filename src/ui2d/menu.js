@@ -25,6 +25,7 @@ import {ACC_SLOTS,ACC_DEFAULT} from '../data/cosmetics.js';
 import {ownsTone,ownsAcc,owns,presetOwned,presetItems,saveOutfit,clampSkin,chestsReady,levelChestsReady,randomSkin} from '../core/meta.js';
 import {drawAcc,drawAccIcon,drawLock,drawWallet,drawCoin,drawMiniChest,drawItemIcon} from './meta.js';
 import {drawRelicIcon} from './relicIcons.js';
+import {RELIC_ORDER} from '../data/relics.js';
 
 function lerp1(a,b,f) {
     return a+(b-a)*Math.max(0,Math.min(1,f));
@@ -6425,6 +6426,9 @@ export class Coach extends Panel {
         else if (step.draw==='rewards') {
             this.drawRewardsIllus(ctx,x,y,w,h,v);
         }
+        else if (step.draw==='relics') {
+            this.drawRelicsIllus(ctx,x,y,w,h,v);
+        }
         else if (step.draw==='end') {
             this.drawPages(ctx,x,y-h*0.08,w,h,v,false,true);
             const e=1+Math.sin(this.animT*3)*0.05;
@@ -6446,6 +6450,87 @@ export class Coach extends Panel {
         if (step.ctl&&ctl) {
             this.drawControl(ctx,step.ctl,x+10,y+h-8,w);
         }
+    }
+
+    drawRelicsIllus(ctx,x,y,w,h,v) {
+        const R=TUNING.tutorial.relicIllus;
+        const k=(this.animT%R.loop)/R.loop;
+        const round=Math.floor(this.animT/R.loop);
+        const seg=(a,b)=>Math.max(0,Math.min(1,(k-a)/(b-a)));
+        const ids=[0,1,2].map(i=>RELIC_ORDER[(round*3+i*5)%RELIC_ORDER.length]);
+        const s=Math.min(w,h)/R.scaleDiv;
+        const gap=Math.min(w*0.24,s*R.gap);
+        const cy=y+h*0.5;
+        const pick=1;
+        const slots=4;
+        const sr=s*R.slotR;
+        const sx0=x+w-sr*2*slots-14;
+        const sy=y+sr+12;
+        const owned=round%3;
+        ctx.save();
+        ctx.fillStyle=PALETTE.nearGray;
+        ctx.font='bold 12px '+FONT;
+        ctx.textAlign='left';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('tut.relicSlots'),x+12,sy);
+        for (let i=0;i<slots;i++) {
+            const qx=sx0+sr+i*sr*2.1;
+            ctx.strokeStyle=PALETTE.midGray;
+            ctx.lineWidth=1.4;
+            ctx.setLineDash([3,3]);
+            ctx.beginPath();
+            ctx.arc(qx,sy,sr*0.9,0,Math.PI*2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (i<owned) {
+                drawRelicIcon(ctx,RELIC_ORDER[(round+i*7+11)%RELIC_ORDER.length],qx,sy,sr/R.iconR,v,false,true);
+            }
+        }
+        const fly=seg(R.flyAt,R.flyEnd);
+        ids.forEach((id,i)=>{
+            const px=x+w/2+(i-1)*gap;
+            const appear=EASE.easeOutBack(seg(0.02+i*0.05,0.16+i*0.05));
+            if (i===pick&&fly>0) {
+                const e=EASE.easeInOutCubic(fly);
+                const tx=sx0+sr+owned*sr*2.1;
+                const qx=px+(tx-px)*e;
+                const qy=cy+(sy-cy)*e-Math.sin(e*Math.PI)*h*0.18;
+                const sc=s*(1-e)+(sr/R.iconR)*e;
+                drawRelicIcon(ctx,id,qx,qy,sc,v,false,true);
+                return;
+            }
+            ctx.save();
+            ctx.globalAlpha*=Math.min(1,appear)*(i!==pick&&k>R.flyAt?1-seg(R.flyAt,R.flyAt+0.1)*0.7:1);
+            ctx.translate(px,cy);
+            ctx.scale(appear,appear);
+            drawRelicIcon(ctx,id,0,0,s,v,false,true);
+            ctx.restore();
+        });
+        const hop=Math.min(2,Math.floor(seg(0.2,0.44)*3));
+        const at=k<R.flyAt?(hop===2?1:[0,2][hop]):pick;
+        if (k>0.18&&k<R.flyAt+0.02) {
+            const bx=x+w/2+(at-1)*gap;
+            const half=s*R.boxHalf;
+            ctx.save();
+            ctx.setLineDash([6,4]);
+            ctx.lineDashOffset=-time.real*16;
+            ctx.strokeStyle=PALETTE.red;
+            ctx.lineWidth=2.2;
+            ctx.beginPath();
+            ctx.moveTo(bx-half+8,cy-half);
+            ctx.arcTo(bx+half,cy-half,bx+half,cy+half,8);
+            ctx.arcTo(bx+half,cy+half,bx-half,cy+half,8);
+            ctx.arcTo(bx-half,cy+half,bx-half,cy-half,8);
+            ctx.arcTo(bx-half,cy-half,bx+half,cy-half,8);
+            ctx.stroke();
+            ctx.restore();
+        }
+        ctx.fillStyle=PALETTE.red;
+        ctx.font='bold 15px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('tut.relicNote'),x+w/2,y+h*0.86);
+        ctx.restore();
     }
 
     drawRewardsIllus(ctx,x,y,w,h,v) {

@@ -14,6 +14,7 @@ export const TUTOR_STEPS=[
     {key:'upgrade',info:true,draw:'merge',merge:true},
     {key:'unlock',info:true,draw:'unlock'},
     {key:'rewards',info:true,draw:'rewards'},
+    {key:'relics',info:true,draw:'relics'},
     {key:'end',info:true,draw:'end'}
 ];
 

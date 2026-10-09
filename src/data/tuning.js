@@ -525,6 +525,7 @@ export const TUNING={
         sleeveSoft:0.85
     },
     tutorial:{
+        relicIllus:{loop:4.5,scaleDiv:340,gap:125,slotR:20,iconR:46,boxHalf:58,flyAt:0.5,flyEnd:0.72},
         need:{pad:3,kill:3,dodge:2,card:2,cancel:1,deck:1,detail:1,ult:1},
         holdTime:2.4,
         remind:30,
