@@ -1,1 +1,1 @@
-export const VERSION={stage:'beta',number:'v0.10.16'};
+export const VERSION={stage:'beta',number:'v0.10.17'};
