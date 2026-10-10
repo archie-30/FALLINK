@@ -82,7 +82,7 @@ export class CourseRun {
         let live=0;
         const pool=[];
         for (const e of list) {
-            if (!e.alive||e.def.boss) {
+            if (!e.alive||e.def.boss||e.def.part) {
                 continue;
             }
             if (e.courseNum===this.step) {
@@ -142,7 +142,7 @@ export class CourseRun {
                 }
             }
         }
-        if (!e.courseOrig||e.def.boss) {
+        if (!e.courseOrig||e.def.boss||e.def.part) {
             return;
         }
         if (this.id==='pe'||this.id==='copy') {
@@ -289,7 +289,7 @@ export class CourseRun {
         let copies=0;
         const pool=[];
         for (const e of list) {
-            if (!e.alive||e.def.boss||e.state==='spawn') {
+            if (!e.alive||e.def.boss||e.def.part||e.state==='spawn') {
                 continue;
             }
             if (e.copyOf) {

@@ -78,7 +78,6 @@ export class Player {
         this.reloadT=0;
         this.hp=this.maxHp;
         this.invuln=0;
-        this.lateHit=null;
         this.safeT=0;
         this.bulletProofT=0;
         this.shield=0;
@@ -401,10 +400,12 @@ export class Player {
         }
         put(q,box(0.06,0.014,0.014),m.ink,0,0.06,0.31);
         q=grp('eyewear','mask',H);
-        put(q,box(0.3,0.15,0.04),m.paper,0,-0.1,0.27,0,0,0,true);
-        for (const sx of [-1,1]) {
-            put(q,box(0.012,0.012,0.22),m.ink,sx*0.19,-0.05,0.17,0,sx*0.35,0);
-        }
+        put(q,new THREE.SphereGeometry(0.33,12,5,Math.PI/2-0.62,1.24,1.62,0.56),m.paper,0,0,0,0,0,0,true);
+        const strap=new THREE.TorusGeometry(0.325,0.011,4,18,Math.PI*2-1.24);
+        strap.rotateZ(Math.PI/2+0.62);
+        strap.rotateX(Math.PI/2);
+        put(q,strap,m.ink,0,-0.07,0,0.18,0,0);
+        put(q,box(0.1,0.008,0.012),m.ink,0,-0.1,0.318);
         q=grp('eyewear','glasses',H);
         for (const sx of [-1,1]) {
             put(q,ring(0.072,0.013),m.ink,sx*0.1,0.03,0.3);
@@ -851,7 +852,6 @@ export class Player {
             }
             return false;
         }
-        this.lateHit={t:0,hp:this.hp,dmg};
         this.hp=Math.max(0,this.hp-dmg);
         this.invuln=P.invulnTime+(this.ghost?0:hurtInvulnBonus());
         if (!this.ghost) {
@@ -1093,25 +1093,7 @@ export class Player {
         }
         this.dashCd=Math.max(0,this.dashCd-dt*(this.hasteT>0?this.hasteMult:1)*this.courseDash);
         this.hasteT=Math.max(0,this.hasteT-dt);
-        if (this.lateHit) {
-            this.lateHit.t+=dt;
-            if (this.lateHit.t>P.lateDodge) {
-                this.lateHit=null;
-            }
-        }
         if (input.consumeDash()&&this.dashCd<=0&&!(this.leapT>0)) {
-            const L=this.lateHit;
-            if (L&&this.hp>0) {
-                this.lateHit=null;
-                this.hp=L.hp;
-                this.dodged=true;
-                if (this.events.onLateDodge) {
-                    this.events.onLateDodge(this,L.dmg);
-                }
-                if (this.events.onDodge) {
-                    this.events.onDodge(this);
-                }
-            }
             let dx=this.aimDirX;
             let dz=this.aimDirZ;
             if (moveLen>0.1) {
@@ -1124,7 +1106,7 @@ export class Player {
             if (!this.ghost) {
                 flashRelic('sneakers',P.dashIframe+dashIframeBonus());
             }
-            this.dodged=!!L&&this.hp>0;
+            this.dodged=false;
             this.dashCd=P.dashCooldown;
             this.moveYaw=Math.atan2(dx,dz);
             this.stv+=P.dashStretch;

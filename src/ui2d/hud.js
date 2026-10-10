@@ -639,10 +639,33 @@ export class Hud {
         ctx.restore();
     }
 
+    drawAlarmEdge(ctx,w,h,enemies) {
+        const boss=enemies&&enemies.boss();
+        const v=boss&&boss.edgePulse?boss.edgePulse():0;
+        if (v<=0||h<=0) {
+            return;
+        }
+        const E=TUNING.alarmMarks.edgeGlow;
+        const a=E.alpha*v*(1-E.breath+E.breath*Math.sin(time.real*E.rate*Math.PI*2));
+        const d=Math.min(w,h)*E.depth;
+        const side=(x0,y0,x1,y1,rx,ry,rw,rh)=>{
+            const g=ctx.createLinearGradient(x0,y0,x1,y1);
+            g.addColorStop(0,rgba('gold',a));
+            g.addColorStop(1,rgba('gold',0));
+            ctx.fillStyle=g;
+            ctx.fillRect(rx,ry,rw,rh);
+        };
+        side(0,0,0,d,0,0,w,d);
+        side(0,h,0,h-d,0,h-d,w,d);
+        side(0,0,d,0,0,0,d,h);
+        side(w,0,w-d,0,w-d,0,d,h);
+    }
+
     drawRunInfo(ctx,w,run,enemies,h=0) {
         if (!run||!run.plan) {
             return;
         }
+        this.drawAlarmEdge(ctx,w,h,enemies);
         const p=run.plan;
         const PB=TUNING.hud.progress;
         if (p.training) {
@@ -756,7 +779,7 @@ export class Hud {
                 const my=y+(hint?A.hudY2:A.hudY);
                 ctx.fillStyle=rgba('paper',0.85);
                 ctx.fillRect(mx,my,mw,A.hudH);
-                ctx.globalAlpha=hot?0.7+0.3*Math.sin(time.real*(8+k*12)):1;
+                ctx.globalAlpha=hot?0.8+0.2*Math.sin(time.real*TUNING.alarmMarks.edgeGlow.rate*Math.PI*2):1;
                 ctx.fillStyle=PALETTE.red;
                 ctx.fillRect(mx,my,mw*k,A.hudH);
                 ctx.globalAlpha=1;
@@ -768,6 +791,27 @@ export class Hud {
                 ctx.fillStyle=hot?PALETTE.red:PALETTE.ink;
                 ctx.fillText(t('alarm.bar'),mx-6,my+A.hudH/2+1);
                 ctx.textAlign='center';
+                ctx.textBaseline='top';
+            }
+            const q=boss.calcQ;
+            if (q) {
+                const C=TUNING.calcMarks;
+                const my=y+(hint?C.y2:C.y);
+                ctx.font='bold '+C.font+'px '+FONT;
+                const tw=ctx.measureText(q.text).width+C.pad*4;
+                const th=C.font+C.pad*2;
+                const bx=w/2-tw/2;
+                ctx.fillStyle=rgba('paper',0.92);
+                ctx.fillRect(bx,my,tw,th);
+                drawShape(ctx,sketchRect(bx,my,tw,th,{width:1.8,seed:741}),q.solved?PALETTE.red:PALETTE.ink);
+                ctx.textAlign='center';
+                ctx.textBaseline='middle';
+                ctx.fillStyle=q.solved?PALETTE.red:PALETTE.ink;
+                ctx.fillText(q.text,w/2,my+th/2+1);
+                if (!q.solved) {
+                    ctx.fillStyle=q.frac<0.3?PALETTE.red:PALETTE.ink;
+                    ctx.fillRect(bx+C.pad,my+th-C.barH-3,(tw-C.pad*2)*q.frac,C.barH);
+                }
                 ctx.textBaseline='top';
             }
         }

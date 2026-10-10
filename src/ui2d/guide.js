@@ -70,7 +70,7 @@ export function relicGuide() {
 export function coinGuide() {
     const M=TUNING.meta;
     const G=M.gradeCoins;
-    const P={b:G.B,a:G.A,s:G.S,sp:G['S+'],lo:M.dotRange[0],hi:M.dotRange[1],lv:TUNING.levels.chest.dots,every:TUNING.levels.chestEvery};
+    const P={b:G.B,a:G.A,s:G.S,sp:G['S+'],spp:G['S++'],lo:M.dotRange[0],hi:M.dotRange[1],lv:TUNING.levels.chest.dots,every:TUNING.levels.chestEvery};
     return {title:t('coins.title'),icon:null,blocks:[1,2,3,4].map(i=>({kind:'bullet',text:t('coins.src.'+i,P)}))};
 }
 

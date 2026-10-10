@@ -391,7 +391,10 @@ export function clampSkin(skin) {
 
 export function saveOutfit(i,skin) {
     progress.outfits[i]={...skin};
-    bump('outfits',1,true);
+    const n=progress.outfits.filter(Boolean).length;
+    if (n>(progress.stats.outfits||0)) {
+        bump('outfits',n-(progress.stats.outfits||0),true);
+    }
     flushMeta();
 }
 

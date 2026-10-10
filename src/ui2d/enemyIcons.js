@@ -219,5 +219,30 @@ export const ENEMY_ICONS={
         drawShape(ctx,sketchLine(-11,-9,-4,-6,{width:2,seed:1872,overshoot:0}),PALETTE.ink,v);
         drawShape(ctx,sketchLine(11,-9,4,-6,{width:2,seed:1873,overshoot:0}),PALETTE.ink,v);
         dot(ctx,0,0,2.4,PALETTE.ink);
+    },
+    calculator(ctx,v) {
+        for (const sx of [-1,1]) {
+            drawShape(ctx,sketchLine(sx*20,2,sx*28,14,{width:2.6,seed:1880+sx,overshoot:0}),PALETTE.ink,v);
+            fillPoly(ctx,rectPoly(sx*11-5,30,10,6),PALETTE.nearGray);
+        }
+        fillPoly(ctx,rectPoly(-20,-30,40,60),PALETTE.midGray);
+        drawShape(ctx,hatchFill(rectPoly(-20,-30,40,60),{spacing:5,seed:1883,width:0.8}),PALETTE.nearGray,v);
+        drawShape(ctx,sketchRect(-20,-30,40,60,{width:2,seed:1884}),PALETTE.ink,v);
+        fillPoly(ctx,rectPoly(-15,-25,30,15),PALETTE.paper);
+        drawShape(ctx,sketchRect(-15,-25,30,15,{width:1.6,seed:1885}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(-11,-21,-4,-18,{width:2,seed:1886,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(11,-21,4,-18,{width:2,seed:1887,overshoot:0}),PALETTE.ink,v);
+        dot(ctx,-7,-14,1.8,PALETTE.ink);
+        dot(ctx,7,-14,1.8,PALETTE.ink);
+        for (let r=0;r<4;r++) {
+            for (let c=0;c<4;c++) {
+                fillPoly(ctx,rectPoly(-15+c*8,-6+r*8,6,5),c===3?PALETTE.red:PALETTE.paper);
+            }
+        }
+    },
+    calcBubble(ctx,v) {
+        dot(ctx,0,0,22,PALETTE.paper);
+        drawShape(ctx,sketchCircle(0,0,22,{width:2,seed:1890}),PALETTE.ink,v);
+        dot(ctx,-9,-9,4,PALETTE.farGray);
     }
 };
