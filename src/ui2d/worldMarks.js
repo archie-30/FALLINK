@@ -80,10 +80,34 @@ export class WorldMarks {
         const k=Math.max(0,Math.min(1,e.alarmBar/B.max));
         const hot=e.alarmBar>=B.show||e.state==='burst';
         ctx.save();
+        const pl=game.player.renderPos;
         for (let i=0;i<e.pads.length;i++) {
             const q=e.pads[i];
             if (q.done) {
                 continue;
+            }
+            const dx=q.x-pl.x;
+            const dz=q.z-pl.z;
+            if (Math.hypot(dx,dz)>e.def.pad.r) {
+                game.project(pl.x,A.arrowLift,pl.z,p);
+                game.project(q.x,A.arrowLift,q.z,this.arrowTmp||(this.arrowTmp={x:0,y:0}));
+                const an=Math.atan2(this.arrowTmp.y-p.y,this.arrowTmp.x-p.x);
+                const rr=A.arrowR+Math.sin(time.real*A.padBob*2+i)*A.arrowBob;
+                ctx.save();
+                ctx.translate(p.x+Math.cos(an)*rr,p.y+Math.sin(an)*rr);
+                ctx.rotate(an);
+                ctx.fillStyle=PALETTE.red;
+                ctx.strokeStyle=PALETTE.paper;
+                ctx.lineWidth=2;
+                ctx.beginPath();
+                ctx.moveTo(A.arrow,0);
+                ctx.lineTo(-A.arrow*0.7,-A.arrow*0.75);
+                ctx.lineTo(-A.arrow*0.35,0);
+                ctx.lineTo(-A.arrow*0.7,A.arrow*0.75);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fill();
+                ctx.restore();
             }
             game.project(q.x,A.padLift,q.z,p);
             const m=A.edge;

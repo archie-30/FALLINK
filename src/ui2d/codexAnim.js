@@ -1707,7 +1707,7 @@ export const ENEMY_ATTACKS={
                 S.tele(cx+Math.cos(a0)*1.4,PY+Math.sin(a0)*1.4,cx+Math.cos(a0)*10,PY+Math.sin(a0)*10,seg(k,0.02,0.15),1-seg(k,0.2,0.22));
                 const f=seg(k,0.22,0.9);
                 if (f>0&&f<1) {
-                    alarmRay(S,cx,PY,a0+Math.PI*2*f,1.4,11,PALETTE.red,0.12);
+                    alarmRay(S,cx,PY,a0+Math.PI*2*f,1.4,11,PALETTE.ink,0.14);
                 }
             }
         },
@@ -1765,21 +1765,24 @@ export const ENEMY_ATTACKS={
             period:3.6,
             draw(S,k) {
                 const cx=11;
-                const dash=seg(k,0.56,0.64);
+                const dash=seg(k,0.62,0.7);
                 const x=lerp(4,7,easeOut(dash));
                 S.player(x,PY,0,{flash:dash>0&&dash<1?0.5:0});
                 if (dash>0&&dash<1) {
                     S.line(4,PY,x,PY,PALETTE.midGray,0.3,0.5);
                 }
-                const kick=seg(k,0.12,0.2)*(1-seg(k,0.3,0.4));
-                S.enemy('alarm',cx,PY,{size:2.6,shake:kick>0?k:0});
-                S.ring(cx,PY,1.8,PALETTE.red,0.05,seg(k,0.0,0.08)*(1-seg(k,0.15,0.18)),[0.2,0.15]);
-                [0,0.08].forEach((d,i)=>{
-                    const f=seg(k,0.18+d,0.85+d);
-                    if (f>0&&f<1) {
-                        S.ring(cx+(i?0.5:-0.5),PY-0.4,0.6+f*9,PALETTE.ink,0.22,1-f*0.6);
+                const tele=k<0.22;
+                S.enemy('alarm',cx,PY,{size:2.6,shake:tele?k:0});
+                if (tele) {
+                    for (let j=0;j<3;j++) {
+                        const f=(k/0.1+j/3)%1;
+                        S.ring(cx,PY,0.8+f*5,PALETTE.red,0.12,(1-f)*0.8*seg(k,0,0.04));
                     }
-                });
+                }
+                const f=seg(k,0.22,0.85);
+                if (f>0&&f<1) {
+                    S.ring(cx,PY,0.6+f*9,PALETTE.ink,0.24,1-f*0.6);
+                }
             }
         },
         {

@@ -3887,7 +3887,7 @@ class Alarm extends Enemy {
         this.lastDing=-9;
         this.burstDmg=0;
         this.snoozeT=0;
-        this.redStrips=this.redStrips||[];
+        this.warnMeshes=this.warnMeshes||[];
         this.waveMeshes=this.waveMeshes||[];
         this.padMeshes=this.padMeshes||[];
     }
@@ -3902,17 +3902,6 @@ class Alarm extends Enemy {
         }
     }
 
-    redStrip(i) {
-        while (this.redStrips.length<=i) {
-            const m=new THREE.Mesh(this.strip(0).geometry,inkMaterial('red'));
-            m.visible=false;
-            m.frustumCulled=false;
-            this.fxScene.add(m);
-            this.redStrips.push(m);
-        }
-        return this.redStrips[i];
-    }
-
     waveMesh(i) {
         while (this.waveMeshes.length<=i) {
             const m=new THREE.Mesh(geo('ring',()=>new THREE.PlaneGeometry(2,2).rotateX(-Math.PI/2)),ringMaterial('ink'));
@@ -3923,6 +3912,18 @@ class Alarm extends Enemy {
             this.waveMeshes.push(m);
         }
         return this.waveMeshes[i];
+    }
+
+    warnMesh(i) {
+        while (this.warnMeshes.length<=i) {
+            const m=new THREE.Mesh(geo('ring',()=>new THREE.PlaneGeometry(2,2).rotateX(-Math.PI/2)),ringMaterial('red'));
+            m.visible=false;
+            m.frustumCulled=false;
+            m.position.y=0.05;
+            this.fxScene.add(m);
+            this.warnMeshes.push(m);
+        }
+        return this.warnMeshes[i];
     }
 
     padMesh(i) {
@@ -3948,7 +3949,7 @@ class Alarm extends Enemy {
     }
 
     hideFx() {
-        for (const m of this.redStrips||[]) {
+        for (const m of this.warnMeshes||[]) {
             m.visible=false;
         }
         for (const m of this.waveMeshes||[]) {
@@ -4018,7 +4019,7 @@ class Alarm extends Enemy {
     }
 
     beam(o) {
-        const b={a:0,speed:0,warn:1,dur:1,width:0.4,red:false,gap:null,len:24,inner:1.9,flip:false,flipped:false,rang:false,role:null,burst:false,boom:false,t:0,cd:0,...o};
+        const b={a:0,speed:0,warn:1,dur:1,width:0.4,thin:false,gap:null,len:24,inner:1.9,flip:false,flipped:false,rang:false,role:null,burst:false,boom:false,t:0,cd:0,...o};
         this.beams.push(b);
         return b;
     }
@@ -4090,10 +4091,11 @@ class Alarm extends Enemy {
             if (w.delay>0) {
                 w.delay-=dt;
                 if (w.delay<=0) {
-                    if (w.side!==undefined) {
-                        this.kicks[w.side>0?1:0]=1;
+                    if (w.bell) {
+                        this.kicks[0]=1;
+                        this.kicks[1]=1;
                     }
-                    this.sfx(ctx,'alarmBell',w.side>0?1.12:1);
+                    this.sfx(ctx,'alarmBell',1);
                     ctx.fx.cameraShake(w.burst?0.45:0.15);
                 }
                 continue;
@@ -4238,6 +4240,8 @@ class Alarm extends Enemy {
         const S=this.def.snooze;
         this.clearHazards();
         this.pads=[];
+        this.stunT=0;
+        this.lockT=0;
         if (full) {
             this.bar=0;
             this.snoozeT=this.evolved?S.time2:S.time;
@@ -4320,7 +4324,7 @@ class Alarm extends Enemy {
         if (k==='second') {
             const S=d.second;
             const dir=rng.sign();
-            this.beam({a:Math.atan2(this.nz,this.nx)-dir*0.9,speed:dir*Math.PI*2/S.period*sp,warn:S.warn,dur:S.period*S.turns/sp,width:S.width,red:true,len:S.len,inner:S.inner,flip:ev,role:'s'});
+            this.beam({a:Math.atan2(this.nz,this.nx)-dir*0.9,speed:dir*Math.PI*2/S.period*sp,warn:S.warn,dur:S.period*S.turns/sp,width:S.width,thin:true,len:S.len,inner:S.inner,flip:ev,role:'s'});
             this.sfx(ctx,'alarmTick',0.8);
         }
         else if (k==='hands') {
@@ -4351,25 +4355,31 @@ class Alarm extends Enemy {
                 text+=':'+String(s).padStart(2,'0');
             }
             for (const [a,role] of ang) {
-                this.beam({a,warn:C.show,dur:C.live,width:role==='s'?d.second.width*2:C.width,red:role==='s',len:C.len,inner:C.inner,role,loud:true});
+                this.beam({a,warn:C.show,dur:C.live,width:role==='s'?d.second.width*2:C.width,thin:role==='s',len:C.len,inner:C.inner,role,loud:true});
             }
             this.say={text,t:0,dur:C.show+C.live,keep:true};
             this.sfx(ctx,'alarmTick',1.3);
         }
         else {
             const B=d.bells;
-            const sets=ev?B.sets2:B.sets;
-            this.teleRing(2.6,B.tele);
-            for (let s=0;s<sets;s++) {
-                for (const side of [-1,1]) {
-                    this.waves.push({x:this.pos.x+side*0.95,z:this.pos.z,r:0.6,speed:B.speed*(ev?1.1:1),max:B.max,width:B.width,hit:false,delay:B.tele+s*B.setGap+(side>0?B.delay:0),side});
-                }
-            }
+            this.waves.push({x:this.pos.x,z:this.pos.z,r:0.8,speed:B.speed*(ev?d.p2.speed:1),max:B.max,width:B.width,hit:false,delay:B.tele,warn:B.tele,bell:true});
+            this.kicks[0]=0.6;
+            this.kicks[1]=0.6;
+            this.sfx(ctx,'alarmTick',1.1);
+        }
+    }
+
+    update(dt,ctx) {
+        this.thought=false;
+        super.update(dt,ctx);
+        if (!this.thought&&this.alive&&this.state!=='spawn'&&!this.evolving&&!this.dummy) {
+            this.tickPads(dt,ctx);
         }
     }
 
     think(dt,ctx) {
         const d=this.def;
+        this.thought=true;
         this.manual=true;
         this.vel.set(0,0,0);
         this.aimX=0;
@@ -4410,7 +4420,6 @@ class Alarm extends Enemy {
         const ox=this.pos.x;
         const oz=this.pos.z;
         let si=0;
-        let ri=0;
         let li=8;
         const roles={h:null,m:null,s:null};
         for (const b of this.beams) {
@@ -4423,7 +4432,7 @@ class Alarm extends Enemy {
                 const k=Math.min(1,b.t/(b.warn*0.5));
                 for (const [r0,r1] of this.segs(b)) {
                     const r2=r0+(r1-r0)*k;
-                    this.putLine(this.line(li++),ox+cx*r0,oz+cz*r0,ox+cx*r2,oz+cz*r2,b.red?0.14:0.22);
+                    this.putLine(this.line(li++),ox+cx*r0,oz+cz*r0,ox+cx*r2,oz+cz*r2,b.thin?0.14:0.22);
                 }
                 if (b.speed!==0) {
                     const a2=b.a+Math.sign(b.speed)*0.2;
@@ -4433,19 +4442,32 @@ class Alarm extends Enemy {
             else {
                 const fade=Math.max(0,Math.min(1,1-(b.t-b.warn-b.dur)/0.25));
                 for (const [r0,r1] of this.segs(b)) {
-                    const m=b.red?this.redStrip(ri++):this.strip(si++);
+                    const m=this.strip(si++);
                     this.putLine(m,ox+cx*r0,oz+cz*r0,ox+cx*r1,oz+cz*r1,b.width*2.2);
                     m.material.uniforms.uAlpha.value=fade;
                 }
             }
         }
         this.hideStrips(si);
-        for (let i=ri;i<this.redStrips.length;i++) {
-            this.redStrips[i].visible=false;
-        }
         let wi=0;
+        let ki=0;
+        const BW=this.def.bells;
         for (const w of this.waves) {
             if (w.delay>0) {
+                if (w.warn) {
+                    const e=(w.warn-w.delay)/BW.warnCycle;
+                    for (let j=0;j<BW.warnRings;j++) {
+                        const f=(e+j/BW.warnRings)%1;
+                        const m=this.warnMesh(ki++);
+                        const R=w.r+f*BW.warnReach;
+                        m.visible=true;
+                        m.position.x=w.x;
+                        m.position.z=w.z;
+                        m.scale.set(R,1,R);
+                        m.material.uniforms.uWidth.value=Math.min(2,BW.warnWidth*2/R);
+                        m.material.uniforms.uAlpha.value=(1-f)*Math.min(1,e*3)*BW.warnAlpha;
+                    }
+                }
                 continue;
             }
             const m=this.waveMesh(wi++);
@@ -4460,6 +4482,9 @@ class Alarm extends Enemy {
         for (let i=wi;i<this.waveMeshes.length;i++) {
             this.waveMeshes[i].visible=false;
         }
+        for (let i=ki;i<this.warnMeshes.length;i++) {
+            this.warnMeshes[i].visible=false;
+        }
         const P=this.def.pad;
         const B=this.def.bar;
         const k=Math.max(0,Math.min(1,(this.bar-B.show)/(B.max-B.show)));
@@ -4472,8 +4497,18 @@ class Alarm extends Enemy {
                 pm.prog.visible=false;
                 continue;
             }
+            if (q.done) {
+                q.out=(q.out||0)+dt;
+            }
+            const gone=q.done?Math.min(1,q.out/P.vanish):0;
+            if (gone>=1) {
+                pm.fill.visible=false;
+                pm.edge.visible=false;
+                pm.prog.visible=false;
+                continue;
+            }
             const pop=EASE.easeOutBack(Math.min(1,q.t/0.3));
-            const r=P.r*pop;
+            const r=P.r*pop*(1+gone*0.4);
             const blink=0.5+0.5*Math.sin(time.real*(6+k*14));
             for (const m of [pm.fill,pm.edge,pm.prog]) {
                 m.visible=true;
@@ -4481,13 +4516,13 @@ class Alarm extends Enemy {
                 m.position.z=q.z;
             }
             pm.fill.scale.set(r,1,r);
-            pm.fill.material.uniforms.uAlpha.value=q.done?0.35:0.12+0.2*blink;
+            pm.fill.material.uniforms.uAlpha.value=q.done?0.45*(1-gone):0.12+0.2*blink;
             pm.edge.scale.set(r,1,r);
-            pm.edge.material.uniforms.uAlpha.value=q.done?1:0.55+0.45*blink;
+            pm.edge.material.uniforms.uAlpha.value=q.done?1-gone:0.55+0.45*blink;
             pm.edge.material.uniforms.uTime.value=time.real*0.6;
             pm.prog.scale.set(r*1.25,1,r*1.25);
             pm.prog.material.uniforms.uProgress.value=q.hold/q.need;
-            pm.prog.material.uniforms.uAlpha.value=1;
+            pm.prog.material.uniforms.uAlpha.value=1-gone;
         }
         const bk=this.bar/this.def.bar.max;
         this.blush.visible=bk>0.02;

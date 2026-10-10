@@ -338,7 +338,7 @@ export const TUNING={
     npc:{iconTilt:0.9,iconSway:1.3,goneRate:3,goneLift:0.8,bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
     worldMarks:{sayFont:17,sayLift:46,sayTime:3.2,sayMargin:12,sayTop:170,sayLeft:190,subH:22,subMaxW:360,subFont:14,subLine:19,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14,padSegs:28,padLift:1.4},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
-    alarmMarks:{w:120,h:13,lift:0.25,shake:2.5,font:13,label:8,padLift:1.2,padR:13,padBob:4,edge:30,hudW:0.6,hudH:9,hudY:44,hudY2:58},
+    alarmMarks:{w:120,h:13,lift:0.25,shake:2.5,font:13,label:8,padLift:1.2,padR:13,padBob:4,edge:30,hudW:0.6,hudH:9,hudY:44,hudY2:58,arrow:11,arrowR:58,arrowBob:4,arrowLift:0.9},
     hand:{showTime:0.55,hideOffset:260},
     choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,descMax:5,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     shopArm:{time:3},
