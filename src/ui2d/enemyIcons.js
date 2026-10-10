@@ -195,5 +195,29 @@ export const ENEMY_ICONS={
         drawShape(ctx,sketchLine(-8,-16,-2,-13,{width:2.2,seed:1846,overshoot:0}),PALETTE.paper,v);
         drawShape(ctx,sketchLine(8,-16,2,-13,{width:2.2,seed:1847,overshoot:0}),PALETTE.paper,v);
         drawShape(ctx,sketchCircle(0,18,12,{width:1.4,seed:1848}),PALETTE.red,v);
+    },
+    alarm(ctx,v) {
+        for (const sx of [-1,1]) {
+            drawShape(ctx,sketchLine(sx*13,22,sx*19,32,{width:3,seed:1860+sx,overshoot:0}),PALETTE.ink,v);
+            const bx=sx*17;
+            fillPoly(ctx,[[bx-11*sx,-24],[bx+2*sx,-36],[bx+10*sx,-26]],PALETTE.midGray);
+            drawShape(ctx,sketchPolygon([[bx-11*sx,-24],[bx+2*sx,-36],[bx+10*sx,-26]],{width:1.6,seed:1863+sx,overshoot:0}),PALETTE.ink,v);
+        }
+        drawShape(ctx,sketchLine(0,-24,0,-33,{width:2,seed:1866,overshoot:0}),PALETTE.ink,v);
+        dot(ctx,0,-34,3,PALETTE.red);
+        dot(ctx,0,0,26,PALETTE.red);
+        drawShape(ctx,sketchCircle(0,0,26,{width:2,seed:1867}),PALETTE.ink,v);
+        dot(ctx,0,0,20,PALETTE.paper);
+        drawShape(ctx,sketchCircle(0,0,20,{width:1.4,seed:1868}),PALETTE.ink,v);
+        for (let i=0;i<12;i+=3) {
+            const a=i/12*Math.PI*2;
+            dot(ctx,Math.sin(a)*16,-Math.cos(a)*16,1.6,PALETTE.ink);
+        }
+        drawShape(ctx,sketchLine(0,0,0,-15,{width:2.4,seed:1869,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(0,0,10,4,{width:3,seed:1870,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(0,0,-12,10,{width:1.2,seed:1871,overshoot:0}),PALETTE.red,v);
+        drawShape(ctx,sketchLine(-11,-9,-4,-6,{width:2,seed:1872,overshoot:0}),PALETTE.ink,v);
+        drawShape(ctx,sketchLine(11,-9,4,-6,{width:2,seed:1873,overshoot:0}),PALETTE.ink,v);
+        dot(ctx,0,0,2.4,PALETTE.ink);
     }
 };

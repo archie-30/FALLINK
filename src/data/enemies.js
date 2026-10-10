@@ -515,5 +515,41 @@ export const ENEMIES={
             head:{light:'farGray',mid:'midGray',dark:'nearGray'},
             limb:{light:'red',mid:'red',dark:'darkRed'}
         }
+    },
+    alarm:{
+        ink:4,
+        nameKey:'enemy.alarm',
+        hp:1200,
+        radius:1.7,
+        scale:1.0,
+        height:4.2,
+        speed:0,
+        accel:1,
+        boss:true,
+        knockMult:0,
+        weakMult:2,
+        contactDamage:1,
+        spawnTime:1.8,
+        shards:[16,22],
+        evolve:{at:0.5,time:2.4},
+        gap:[1.0,1.5],
+        first:2.2,
+        bar:{rate:5,rate2:7,max:100,show:60,after:40,tick:[0.62,0.14],pitch:[1,1.7]},
+        pad:{r:1.4,hold:0.8,hold2:0.6,decay:0.5,inset:2.4,minDist:5,window:6,avoid:0.45},
+        snooze:{time:3.5,time2:4,half:1.5,ink:1},
+        second:{warn:1,period:6,turns:1,width:0.14,len:24,inner:1.9},
+        hands:{warn:1.1,dur:6,speeds:[0.36,0.78,-0.6],width:0.42,gap:[5.5,8.5],gapW:2.6,len:24,inner:1.9},
+        chime:{show:1.2,live:0.5,width:0.45,len:24,inner:1.9,hours:[2,10]},
+        bells:{tele:0.7,delay:0.4,speed:6.5,max:18,width:0.45,sets:1,sets2:2,setGap:1.1},
+        burst:{warn:0.9,speed:9,max:22,width:0.8,time:4,mult:3,cap:2,spin:0.45,width2:0.4,len:24,inner:1.9},
+        p2:{beams:3,speed:1.4,flipWarn:0.45},
+        hitCool:1,
+        bulletDamage:1,
+        shardTone:'body',
+        tones:{
+            body:{light:'red',mid:'red',dark:'darkRed'},
+            head:{light:'paper',mid:'farGray',dark:'midGray'},
+            limb:{light:'farGray',mid:'midGray',dark:'nearGray'}
+        }
     }
 };

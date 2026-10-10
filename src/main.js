@@ -266,6 +266,8 @@ function boot() {
     const art=new CardArt();
     const deckView=new DeckView();
     ctx.enemyMgr=enemies;
+    ctx.sfx=(n,p)=>audio.play(n,p);
+    ctx.addInk=n=>ink.add(n);
     const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,puppet,weaponSys,ink,scene:actors,fxScene},TUNING);
     ctx.dangerRings=dangerRings;
     ctx.weaponSys=weaponSys;
@@ -3184,7 +3186,9 @@ function boot() {
             }
             low=DF.lowBase+DF.lowPulse*Math.pow(Math.max(0,Math.sin(heart*Math.PI*2)),2);
         }
-        renderer.post.uniforms.uBleed.value=Math.max(bleed,low);
+        const al=enemies.boss();
+        const ap=al&&al.edgePulse?al.edgePulse():0;
+        renderer.post.uniforms.uBleed.value=Math.max(bleed,low,ap);
     }
     const gov={scale:1,acc:0,n:0,good:0,slow:0,cool:0};
     function setRenderScale(k) {

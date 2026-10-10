@@ -1451,7 +1451,7 @@ export class SettingsMenu extends Panel {
 
 const FOE_LIST=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','compass','eraserMonster'];
 
-const BOSS_LIST=['inkBottle','scissors','book','exam','bookFinal'];
+const BOSS_LIST=['inkBottle','scissors','book','exam','bookFinal','alarm'];
 
 export class Codex extends Panel {
     constructor(actions) {

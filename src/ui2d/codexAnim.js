@@ -8,7 +8,7 @@ const SH=9;
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 const PX=3;
 const PY=4.5;
-const BOSSES=new Set(['inkBottle','scissors','book','exam','bookFinal']);
+const BOSSES=new Set(['inkBottle','scissors','book','exam','bookFinal','alarm']);
 
 function clamp01(v) {
     return Math.max(0,Math.min(1,v));
@@ -1395,6 +1395,34 @@ export const CARD_ANIMS={
     }
 };
 
+function alarmMeter(S,x,y,k,a=1) {
+    S.rect(x-1.3,y-0.17,2.6,0.34,PALETTE.paper,a);
+    S.rect(x-1.3,y-0.17,2.6*clamp01(k),0.34,PALETTE.red,a);
+    S.line(x-1.3+2.6*0.6,y-0.17,x-1.3+2.6*0.6,y+0.17,PALETTE.ink,0.04,a);
+    const c=S.ctx;
+    c.globalAlpha=a;
+    c.strokeStyle=PALETTE.ink;
+    c.lineWidth=0.06;
+    c.strokeRect(x-1.3,y-0.17,2.6,0.34);
+    c.globalAlpha=1;
+}
+
+function alarmRay(S,cx,cy,a,r0,r1,color,w,al=1) {
+    S.line(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0,cx+Math.cos(a)*r1,cy+Math.sin(a)*r1,color,w,al);
+}
+
+function alarmPad(S,x,y,k,hold,done=0) {
+    if (k<=0) {
+        return;
+    }
+    const r=0.9*easeOut(Math.min(1,k));
+    S.circle(x,y,r,PALETTE.red,done>0?0.3:0.12+0.1*Math.sin(k*40));
+    S.ring(x,y,r,PALETTE.red,0.08,1,[0.25,0.18]);
+    if (hold>0) {
+        S.ring(x,y,r*1.25,PALETTE.red,0.1,1,null,-Math.PI/2,-Math.PI/2+Math.PI*2*clamp01(hold));
+    }
+}
+
 export const ENEMY_ATTACKS={
     stampSoldier:[
         {
@@ -1659,6 +1687,180 @@ export const ENEMY_ATTACKS={
                 const e=pts[Math.min(20,n)];
                 S.enemy('exam',e[0],e[1]-0.6,{size:1.8});
                 S.player(lerp(10,2.2,f),lerp(7.6,7.8,f),0);
+            }
+        }
+    ],
+    alarm:[
+        {
+            key:'second',
+            dmg:{kind:'hit',n:1},
+            period:4.2,
+            draw(S,k) {
+                const cx=11;
+                const a0=Math.PI*0.6;
+                const dash=seg(k,0.34,0.4);
+                S.player(5,lerp(PY+1.3,PY-1.3,easeOut(dash)),-Math.PI/2,{flash:dash>0&&dash<1?0.5:0});
+                if (dash>0&&dash<1) {
+                    S.line(5,PY+1.3,5,lerp(PY+1.3,PY-1.3,easeOut(dash)),PALETTE.midGray,0.3,0.5);
+                }
+                S.enemy('alarm',cx,PY,{size:2.6});
+                S.tele(cx+Math.cos(a0)*1.4,PY+Math.sin(a0)*1.4,cx+Math.cos(a0)*10,PY+Math.sin(a0)*10,seg(k,0.02,0.15),1-seg(k,0.2,0.22));
+                const f=seg(k,0.22,0.9);
+                if (f>0&&f<1) {
+                    alarmRay(S,cx,PY,a0+Math.PI*2*f,1.4,11,PALETTE.red,0.12);
+                }
+            }
+        },
+        {
+            key:'hands',
+            dmg:{kind:'hit',n:1},
+            period:4.4,
+            draw(S,k) {
+                const cx=11;
+                const g0=4.4;
+                const g1=5.9;
+                const near=seg(k,0.05,0.2);
+                S.player(lerp(PX,cx-5.15,near),PY,0);
+                S.enemy('alarm',cx,PY,{size:2.6});
+                const f=seg(k,0.25,0.92);
+                const a1=Math.PI*0.75+f*2.2;
+                const a2=Math.PI*0.25+f*4.2;
+                S.ring(cx,PY,(g0+g1)/2,PALETTE.red,0.04,0.5*(1-seg(k,0.92,1)),[0.2,0.2]);
+                for (const a of [a1,a2]) {
+                    if (k<0.25) {
+                        S.tele(cx+Math.cos(a)*1.4,PY+Math.sin(a)*1.4,cx+Math.cos(a)*g0,PY+Math.sin(a)*g0,seg(k,0.05,0.2));
+                        S.tele(cx+Math.cos(a)*g1,PY+Math.sin(a)*g1,cx+Math.cos(a)*11,PY+Math.sin(a)*11,seg(k,0.05,0.2));
+                    }
+                    else if (f<1) {
+                        alarmRay(S,cx,PY,a,1.4,g0,PALETTE.ink,0.4);
+                        alarmRay(S,cx,PY,a,g1,12,PALETTE.ink,0.4);
+                    }
+                }
+            }
+        },
+        {
+            key:'chime',
+            dmg:{kind:'hit',n:1},
+            period:3.6,
+            draw(S,k) {
+                const cx=11;
+                const step=easeOut(seg(k,0.22,0.36));
+                S.player(5,PY+step*2,0);
+                S.enemy('alarm',cx,PY,{size:2.6});
+                S.text('9:00',cx,PY-2.2,18,PALETTE.red,seg(k,0.03,0.08)*(1-seg(k,0.7,0.75)));
+                const live=seg(k,0.48,0.5)*(1-seg(k,0.66,0.72));
+                for (const a of [Math.PI,-Math.PI/2]) {
+                    if (live<=0) {
+                        S.tele(cx+Math.cos(a)*1.4,PY+Math.sin(a)*1.4,cx+Math.cos(a)*10,PY+Math.sin(a)*10,seg(k,0.08,0.3),k<0.5?1:0);
+                    }
+                    else {
+                        alarmRay(S,cx,PY,a,1.4,11,PALETTE.ink,0.4,live);
+                    }
+                }
+            }
+        },
+        {
+            key:'bells',
+            dmg:{kind:'hit',n:1},
+            period:3.6,
+            draw(S,k) {
+                const cx=11;
+                const dash=seg(k,0.56,0.64);
+                const x=lerp(4,7,easeOut(dash));
+                S.player(x,PY,0,{flash:dash>0&&dash<1?0.5:0});
+                if (dash>0&&dash<1) {
+                    S.line(4,PY,x,PY,PALETTE.midGray,0.3,0.5);
+                }
+                const kick=seg(k,0.12,0.2)*(1-seg(k,0.3,0.4));
+                S.enemy('alarm',cx,PY,{size:2.6,shake:kick>0?k:0});
+                S.ring(cx,PY,1.8,PALETTE.red,0.05,seg(k,0.0,0.08)*(1-seg(k,0.15,0.18)),[0.2,0.15]);
+                [0,0.08].forEach((d,i)=>{
+                    const f=seg(k,0.18+d,0.85+d);
+                    if (f>0&&f<1) {
+                        S.ring(cx+(i?0.5:-0.5),PY-0.4,0.6+f*9,PALETTE.ink,0.22,1-f*0.6);
+                    }
+                });
+            }
+        },
+        {
+            key:'burst',
+            dmg:{kind:'hit',n:2},
+            period:4.6,
+            draw(S,k) {
+                const cx=11;
+                S.player(4.2,PY+1.6,0);
+                const fill=seg(k,0,0.2);
+                const on=k>=0.2&&k<0.9;
+                S.enemy('alarm',cx,PY,{size:2.6,shake:on?k:0});
+                alarmMeter(S,cx,PY-2,lerp(0.7,1,fill),1);
+                S.text('!',cx+1.7,PY-2,18,PALETTE.red,on?0.6+0.4*Math.sin(k*60):0);
+                const w=seg(k,0.24,0.6);
+                if (w>0&&w<1) {
+                    S.ring(cx,PY,1.4+w*12,PALETTE.red,0.35,1-w*0.5);
+                }
+                const f=seg(k,0.3,0.88);
+                const n=6;
+                for (let i=0;i<n;i++) {
+                    const a=i/n*Math.PI*2+f*1.2;
+                    if (k<0.4) {
+                        S.tele(cx+Math.cos(a)*1.4,PY+Math.sin(a)*1.4,cx+Math.cos(a)*10,PY+Math.sin(a)*10,seg(k,0.25,0.38));
+                    }
+                    else if (f<1) {
+                        alarmRay(S,cx,PY,a,1.4,11,PALETTE.ink,0.3);
+                    }
+                }
+                S.text('×3',cx,PY+2.2,18,PALETTE.red,seg(k,0.4,0.45)*(1-seg(k,0.85,0.9)));
+            }
+        },
+        {
+            key:'press',
+            dmg:{kind:'none',n:0},
+            period:4.6,
+            draw(S,k) {
+                const cx=11;
+                const pad=[3,7.2];
+                const bar=lerp(0.45,0.75,seg(k,0,0.2));
+                const hit=seg(k,0.45,0.5);
+                const walk=inOut(seg(k,0.15,0.35));
+                const px=lerp(6,pad[0],walk);
+                const py=lerp(3,pad[1],walk);
+                S.player(px,py,Math.PI/2);
+                alarmPad(S,pad[0],pad[1],seg(k,0.12,0.2)*(1-seg(k,0.55,0.6)),seg(k,0.35,0.5),hit);
+                const z=k>=0.5;
+                S.enemy('alarm',cx,PY,{size:2.6,rot:z?0.25:0,flash:hit>0&&hit<1?1-hit:0});
+                alarmMeter(S,cx,PY-2,z?0:bar);
+                S.text('Zzz',cx+1.4,PY-2.6-seg(k,0.5,1)*0.4,16,PALETTE.ink,z?1-seg(k,0.9,1):0);
+                S.text('×2',cx,PY+2.2,18,PALETTE.red,z?1-seg(k,0.9,1):0);
+                S.num('+1',px,py,seg(k,0.5,0.75),PALETTE.ink,15);
+                if (z) {
+                    S.stream(px+0.9,py-0.4,cx-0.8,PY+0.4,k,0.55,0.85,0.06,0.12);
+                }
+            }
+        },
+        {
+            key:'double',
+            dmg:{kind:'none',n:0},
+            period:5.2,
+            draw(S,k) {
+                const cx=8;
+                const A=[2,1.6];
+                const B=[14,7.4];
+                const w1=inOut(seg(k,0.08,0.24));
+                const w2=inOut(seg(k,0.4,0.62));
+                const px=k<0.4?lerp(6,A[0],w1):lerp(A[0],B[0],w2);
+                const py=k<0.4?lerp(PY,A[1],w1):lerp(A[1],B[1],w2);
+                S.player(px,py,0);
+                const h1=seg(k,0.24,0.34);
+                const h2=seg(k,0.62,0.72);
+                const show=seg(k,0.02,0.1)*(1-seg(k,0.76,0.8));
+                alarmPad(S,A[0],A[1],show,h1,h1>=1?1:0);
+                alarmPad(S,B[0],B[1],show,h2,h2>=1?1:0);
+                const z=k>=0.74;
+                S.enemy('alarm',cx,PY,{size:2.4,rot:z?0.25:0});
+                alarmMeter(S,cx,PY-1.9,z?0:lerp(0.6,0.95,seg(k,0,0.74)));
+                S.text('6s',cx,PY+1.9,15,PALETTE.red,show*(1-seg(k,0.7,0.73)));
+                S.text('Zzz',cx+1.3,PY-2.5-seg(k,0.74,1)*0.4,16,PALETTE.ink,z?1-seg(k,0.94,1):0);
+                S.text('×2',cx,PY+2.1,18,PALETTE.red,z?1-seg(k,0.94,1):0);
             }
         }
     ],

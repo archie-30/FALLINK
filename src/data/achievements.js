@@ -3,7 +3,7 @@ export const ACHIEVEMENTS=[
     {id:'elite10',stat:'elites',goals:[15,40,80],icon:'elite'},
     {id:'boss1',stat:'bosses',goals:[1],icon:'boss'},
     {id:'boss10',stat:'bosses',goals:[6,12,25],icon:'boss'},
-    {id:'bossAll',stat:'bossKinds',goals:[5],icon:'boss'},
+    {id:'bossAll',stat:'bossKinds',goals:[6],icon:'boss'},
     {id:'cleanBoss',stat:'cleanBoss',goals:[1],icon:'heal'},
     {id:'clean10',stat:'cleanPages',goals:[12,30,60],icon:'heal'},
     {id:'clutch',stat:'clutch',goals:[1],icon:'rest'},
@@ -32,7 +32,7 @@ export const ACHIEVEMENTS=[
     {id:'gacha',stat:'pulls',goals:[1,5,10],icon:'capsule'},
     {id:'gachaBroke',stat:'gachaBroke',goals:[1],icon:'capsule'},
     {id:'relicAll',stat:'relicsOwned',goals:[8,15,22],icon:'book'},
-    {id:'codexAll',stat:'seen',goals:[13],icon:'book'}
+    {id:'codexAll',stat:'seen',goals:[14],icon:'book'}
 ];
 
 export const ACH_LEGACY={kill1000:'kill100#3',dodge100:'dodge10#3',cards1000:'cards200#3',clear3:'clear1#2',endless25:'endless10#2'};

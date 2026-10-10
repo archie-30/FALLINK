@@ -738,6 +738,30 @@ export class Hud {
                 ctx.fillStyle=PALETTE.red;
                 ctx.fillText(t('boss.hint.'+boss.type),w/2,y+40);
             }
+            if (boss.alarmBar!==undefined) {
+                const A=TUNING.alarmMarks;
+                const B=boss.def.bar;
+                const k=Math.max(0,Math.min(1,boss.alarmBar/B.max));
+                const hot=boss.alarmBar>=B.show||boss.state==='burst';
+                const mw=bw*A.hudW;
+                const mx=w/2-mw/2;
+                const my=y+(hint?A.hudY2:A.hudY);
+                ctx.fillStyle=rgba('paper',0.85);
+                ctx.fillRect(mx,my,mw,A.hudH);
+                ctx.globalAlpha=hot?0.7+0.3*Math.sin(time.real*(8+k*12)):1;
+                ctx.fillStyle=PALETTE.red;
+                ctx.fillRect(mx,my,mw*k,A.hudH);
+                ctx.globalAlpha=1;
+                drawShape(ctx,sketchLine(mx+mw*B.show/B.max,my-2,mx+mw*B.show/B.max,my+A.hudH+2,{width:1.4,seed:735,overshoot:0}),PALETTE.ink);
+                drawShape(ctx,sketchRect(mx,my,mw,A.hudH,{width:1.4,seed:736}),PALETTE.ink);
+                ctx.font='bold 12px '+FONT;
+                ctx.textAlign='right';
+                ctx.textBaseline='middle';
+                ctx.fillStyle=hot?PALETTE.red:PALETTE.ink;
+                ctx.fillText(t('alarm.bar'),mx-6,my+A.hudH/2+1);
+                ctx.textAlign='center';
+                ctx.textBaseline='top';
+            }
         }
     }
 

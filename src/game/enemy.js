@@ -1,7 +1,7 @@
 import*as THREE from 'three';
 import {TUNING} from '../data/tuning.js';
 import {ENEMIES} from '../data/enemies.js';
-import {toonMaterial,hullMaterial,unlitMaterial,lineMaterial,trapMaterial,inkMaterial,registerShadow,pal,renderFlags} from '../render/materials.js';
+import {toonMaterial,hullMaterial,unlitMaterial,lineMaterial,trapMaterial,inkMaterial,ringMaterial,registerShadow,pal,renderFlags} from '../render/materials.js';
 import {resolveCircle,clampToBounds,circleVs} from '../core/collision.js';
 import {EASE} from '../core/easing.js';
 import {RNG} from '../core/rng.js';
@@ -3771,7 +3771,752 @@ class BookFinal extends Book {
     }
 }
 
-const CLASSES={bookmark:Bookmark,stampSoldier:StampSoldier,scissorMinion:ScissorMinion,doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkCloud:InkCloud,inkBottle:InkBottle,scissors:Scissors,book:Book,exam:Exam,bookFinal:BookFinal};
+function rayHit(p,ox,oz,a,r0,r1,w) {
+    const cx=Math.cos(a);
+    const cz=Math.sin(a);
+    const qx=p.pos.x-ox;
+    const qz=p.pos.z-oz;
+    const u=Math.max(r0,Math.min(r1,qx*cx+qz*cz));
+    return Math.hypot(qx-cx*u,qz-cz*u)<w+TUNING.player.radius;
+}
+
+function handAngle(a) {
+    return Math.atan2(-Math.cos(a),-Math.sin(a));
+}
+
+class Alarm extends Enemy {
+    buildBody() {
+        const body=this.mat('body');
+        const head=this.mat('head');
+        const limb=this.mat('limb');
+        const ink=this.inkMat();
+        const red=unlitMaterial({color:'red'});
+        this.clock=new THREE.Group();
+        this.clock.position.y=2.05;
+        this.clock.add(this.hullify(new THREE.Mesh(geo('alCase',()=>new THREE.CylinderGeometry(1.55,1.55,1.0,24).rotateX(Math.PI/2)),body)));
+        const rim=new THREE.Mesh(geo('alRim',()=>new THREE.TorusGeometry(1.42,0.1,6,28)),ink);
+        rim.position.z=0.5;
+        this.clock.add(rim);
+        const face=new THREE.Mesh(geo('alFace',()=>new THREE.CircleGeometry(1.36,28)),head);
+        face.position.z=0.505;
+        this.clock.add(face);
+        this.blush=new THREE.Mesh(geo('alBlush',()=>new THREE.CircleGeometry(1.34,28)),red);
+        this.blush.position.z=0.512;
+        this.clock.add(this.blush);
+        for (let i=0;i<12;i++) {
+            const big=i%3===0;
+            const m=new THREE.Mesh(geo(big?'alTickB':'alTick',()=>new THREE.BoxGeometry(big?0.1:0.06,big?0.28:0.15,0.02)),ink);
+            const a=i/12*Math.PI*2;
+            m.position.set(Math.sin(a)*1.14,Math.cos(a)*1.14,0.52);
+            m.rotation.z=-a;
+            this.clock.add(m);
+        }
+        const hand=(key,w,len,m)=>{
+            const g=new THREE.Group();
+            g.position.z=0.53;
+            const h=new THREE.Mesh(geo(key,()=>new THREE.BoxGeometry(w,len,0.03).translate(0,len/2-0.12,0)),m);
+            g.add(h);
+            this.clock.add(g);
+            return g;
+        };
+        this.hHand=hand('alHour',0.14,0.78,ink);
+        this.mHand=hand('alMin',0.09,1.12,ink);
+        this.sHand=hand('alSec',0.04,1.22,red);
+        this.sHand.position.z=0.545;
+        const cap=new THREE.Mesh(geo('alCap',()=>new THREE.CylinderGeometry(0.1,0.1,0.06,10).rotateX(Math.PI/2)),ink);
+        cap.position.z=0.56;
+        this.clock.add(cap);
+        for (const sx of [-1,1]) {
+            const e=new THREE.Mesh(geo('alEye',()=>new THREE.SphereGeometry(0.11,8,6)),ink);
+            e.position.set(sx*0.48,0.3,0.54);
+            e.scale.set(1,1.3,0.4);
+            this.clock.add(e);
+            const br=new THREE.Mesh(geo('alBrow',()=>new THREE.BoxGeometry(0.36,0.07,0.03)),ink);
+            br.position.set(sx*0.46,0.55,0.55);
+            br.rotation.z=-sx*0.45;
+            this.clock.add(br);
+        }
+        const mouth=new THREE.Mesh(geo('alMouth',()=>new THREE.BoxGeometry(0.42,0.06,0.03)),ink);
+        mouth.position.set(0,-0.55,0.55);
+        this.clock.add(mouth);
+        this.bells=[];
+        for (const sx of [-1,1]) {
+            const g=new THREE.Group();
+            g.position.set(sx*0.95,1.3,0);
+            g.userData.base=-sx*0.5;
+            g.rotation.z=g.userData.base;
+            const dome=this.hullify(new THREE.Mesh(geo('alBell',()=>new THREE.SphereGeometry(0.62,14,8,0,Math.PI*2,0,Math.PI/2)),limb));
+            dome.position.y=0.05;
+            g.add(dome);
+            const knob=new THREE.Mesh(geo('alKnob',()=>new THREE.SphereGeometry(0.12,8,6)),ink);
+            knob.position.y=0.7;
+            g.add(knob);
+            this.clock.add(g);
+            this.bells.push(g);
+        }
+        this.hammer=new THREE.Group();
+        this.hammer.position.y=1.45;
+        const stick=new THREE.Mesh(geo('alStick',()=>new THREE.BoxGeometry(0.07,0.5,0.07).translate(0,0.25,0)),ink);
+        this.hammer.add(stick);
+        const ball=new THREE.Mesh(geo('alBall',()=>new THREE.SphereGeometry(0.13,8,6)),red);
+        ball.position.y=0.52;
+        this.hammer.add(ball);
+        this.clock.add(this.hammer);
+        for (const sx of [-1,1]) {
+            const f=this.hullify(new THREE.Mesh(geo('alFoot',()=>new THREE.ConeGeometry(0.22,0.6,6)),limb));
+            f.position.set(sx*0.95,-1.55,0);
+            f.rotation.z=sx*0.5;
+            this.clock.add(f);
+        }
+        this.body.add(this.clock);
+    }
+
+    onReset() {
+        this.bar=0;
+        this.beams=[];
+        this.waves=[];
+        this.pads=[];
+        this.padT=0;
+        this.lastPad=-1;
+        this.relight=false;
+        this.tickT=0;
+        this.patternT=this.def.first;
+        this.last=null;
+        this.kicks=[0,0];
+        this.faceT=0;
+        this.lastDing=-9;
+        this.burstDmg=0;
+        this.snoozeT=0;
+        this.redStrips=this.redStrips||[];
+        this.waveMeshes=this.waveMeshes||[];
+        this.padMeshes=this.padMeshes||[];
+    }
+
+    get alarmBar() {
+        return this.bar;
+    }
+
+    sfx(ctx,n,p=1) {
+        if (ctx.sfx) {
+            ctx.sfx(n,p);
+        }
+    }
+
+    redStrip(i) {
+        while (this.redStrips.length<=i) {
+            const m=new THREE.Mesh(this.strip(0).geometry,inkMaterial('red'));
+            m.visible=false;
+            m.frustumCulled=false;
+            this.fxScene.add(m);
+            this.redStrips.push(m);
+        }
+        return this.redStrips[i];
+    }
+
+    waveMesh(i) {
+        while (this.waveMeshes.length<=i) {
+            const m=new THREE.Mesh(geo('ring',()=>new THREE.PlaneGeometry(2,2).rotateX(-Math.PI/2)),ringMaterial('ink'));
+            m.visible=false;
+            m.frustumCulled=false;
+            m.position.y=0.06;
+            this.fxScene.add(m);
+            this.waveMeshes.push(m);
+        }
+        return this.waveMeshes[i];
+    }
+
+    padMesh(i) {
+        while (this.padMeshes.length<=i) {
+            const g=geo('ring',()=>new THREE.PlaneGeometry(2,2).rotateX(-Math.PI/2));
+            const mk=(m,y)=>{
+                const q=new THREE.Mesh(g,m);
+                q.visible=false;
+                q.frustumCulled=false;
+                q.position.y=y;
+                this.fxScene.add(q);
+                return q;
+            };
+            const fill=mk(ringMaterial('red'),0.04);
+            fill.material.uniforms.uWidth.value=2;
+            const edge=mk(ringMaterial('red'),0.05);
+            edge.material.uniforms.uWidth.value=0.1;
+            edge.material.uniforms.uDash.value=12;
+            const prog=mk(trapMaterial('red',true),0.06);
+            this.padMeshes.push({fill,edge,prog});
+        }
+        return this.padMeshes[i];
+    }
+
+    hideFx() {
+        for (const m of this.redStrips||[]) {
+            m.visible=false;
+        }
+        for (const m of this.waveMeshes||[]) {
+            m.visible=false;
+        }
+        for (const q of this.padMeshes||[]) {
+            q.fill.visible=false;
+            q.edge.visible=false;
+            q.prog.visible=false;
+        }
+    }
+
+    hide() {
+        super.hide();
+        this.beams=[];
+        this.waves=[];
+        this.pads=[];
+        this.hideFx();
+    }
+
+    clearHazards() {
+        this.beams=[];
+        this.waves=[];
+        this.tele=null;
+    }
+
+    onEvolveStart() {
+        this.clearHazards();
+        this.pads=[];
+        this.relight=false;
+    }
+
+    damageMult() {
+        return this.state==='snooze'?this.def.weakMult:1;
+    }
+
+    stun(t,full) {
+        if (this.state==='snooze'||this.state==='burst') {
+            return;
+        }
+        super.stun(t,full);
+    }
+
+    edgePulse() {
+        const B=this.def.bar;
+        if (!this.alive||this.state==='spawn') {
+            return 0;
+        }
+        if (this.state==='burst') {
+            return 0.3+0.12*Math.sin(time.real*18);
+        }
+        if (this.bar<B.show) {
+            return 0;
+        }
+        const k=(this.bar-B.show)/(B.max-B.show);
+        return (0.06+0.22*k)*Math.pow(Math.max(0,Math.sin(time.real*(3+k*6)*Math.PI)),2);
+    }
+
+    ding(ctx,p=1) {
+        if (this.t-this.lastDing<0.3) {
+            return;
+        }
+        this.lastDing=this.t;
+        this.kicks[0]=1;
+        this.kicks[1]=1;
+        this.sfx(ctx,'alarmBell',p);
+    }
+
+    beam(o) {
+        const b={a:0,speed:0,warn:1,dur:1,width:0.4,red:false,gap:null,len:24,inner:1.9,flip:false,flipped:false,rang:false,role:null,burst:false,boom:false,t:0,cd:0,...o};
+        this.beams.push(b);
+        return b;
+    }
+
+    segs(b) {
+        return b.gap?[[b.inner,b.gap[0]],[b.gap[1],b.len]]:[[b.inner,b.len]];
+    }
+
+    harm(ctx,dx,dz,burst) {
+        if (burst&&this.burstDmg>=this.def.burst.cap) {
+            return false;
+        }
+        const p=ctx.player;
+        p.noteDodge();
+        const ok=p.hurt(1,dx,dz);
+        if (ok&&burst) {
+            this.burstDmg++;
+        }
+        return ok;
+    }
+
+    tickHazards(dt,ctx) {
+        const d=this.def;
+        const p=ctx.player;
+        const ox=this.pos.x;
+        const oz=this.pos.z;
+        for (let i=this.beams.length-1;i>=0;i--) {
+            const b=this.beams[i];
+            b.t+=dt;
+            b.cd=Math.max(0,b.cd-dt);
+            if (b.t>=b.warn&&b.t<b.warn+b.dur) {
+                if (!b.boom) {
+                    b.boom=true;
+                    if (b.loud) {
+                        this.ding(ctx,1.2);
+                        ctx.fx.cameraShake(0.25);
+                    }
+                }
+                if (b.flip&&!b.flipped) {
+                    const half=b.warn+b.dur/2;
+                    if (!b.rang&&b.t>=half-d.p2.flipWarn) {
+                        b.rang=true;
+                        this.ding(ctx,0.9);
+                    }
+                    if (b.t>=half) {
+                        b.flipped=true;
+                        b.speed=-b.speed;
+                    }
+                }
+                b.a+=b.speed*dt;
+                if (b.cd<=0) {
+                    for (const [r0,r1] of this.segs(b)) {
+                        if (rayHit(p,ox,oz,b.a,r0,r1,b.width)) {
+                            const s=Math.sign(b.speed)||(((p.pos.x-ox)*-Math.sin(b.a)+(p.pos.z-oz)*Math.cos(b.a))>0?1:-1);
+                            if (this.harm(ctx,-Math.sin(b.a)*s,Math.cos(b.a)*s,b.burst)) {
+                                b.cd=d.hitCool;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            if (b.t>=b.warn+b.dur+0.25) {
+                this.beams.splice(i,1);
+            }
+        }
+        for (let i=this.waves.length-1;i>=0;i--) {
+            const w=this.waves[i];
+            if (w.delay>0) {
+                w.delay-=dt;
+                if (w.delay<=0) {
+                    if (w.side!==undefined) {
+                        this.kicks[w.side>0?1:0]=1;
+                    }
+                    this.sfx(ctx,'alarmBell',w.side>0?1.12:1);
+                    ctx.fx.cameraShake(w.burst?0.45:0.15);
+                }
+                continue;
+            }
+            w.r+=w.speed*dt;
+            const dist=Math.hypot(p.pos.x-w.x,p.pos.z-w.z);
+            if (!w.hit&&Math.abs(dist-w.r)<w.width+TUNING.player.radius) {
+                const l=dist||1;
+                if (this.harm(ctx,(p.pos.x-w.x)/l,(p.pos.z-w.z)/l,w.burst)) {
+                    w.hit=true;
+                }
+            }
+            if (w.r>=w.max) {
+                this.waves.splice(i,1);
+            }
+        }
+    }
+
+    beamBlocks(x,z) {
+        const a=Math.atan2(z-this.pos.z,x-this.pos.x);
+        return this.beams.some(b=>Math.abs(wrap(b.a-a))<this.def.pad.avoid||(b.speed!==0&&Math.abs(wrap(b.a+b.speed*0.8-a))<this.def.pad.avoid));
+    }
+
+    corners(ctx) {
+        const P=this.def.pad;
+        const b=ctx.room.bounds;
+        const out=[];
+        for (const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) {
+            const v=new THREE.Vector3(sx<0?b.minX+P.inset:b.maxX-P.inset,0,sz<0?b.minZ+P.inset:b.maxZ-P.inset);
+            resolveCircle(v,P.r*0.6,ctx.room.colliders,3);
+            clampToBounds(v,P.inset-0.4,b);
+            out.push(v);
+        }
+        return out;
+    }
+
+    spawnPads(ctx) {
+        const P=this.def.pad;
+        const p=ctx.player;
+        const cs=this.corners(ctx);
+        const far=i=>Math.hypot(cs[i].x-p.pos.x,cs[i].z-p.pos.z)>=P.minDist;
+        const free=i=>!this.beamBlocks(cs[i].x,cs[i].z);
+        let pick=[];
+        if (this.evolved) {
+            const pairs=[[0,3],[1,2]];
+            const opts=[0,1].filter(j=>j!==this.lastPad);
+            let j=opts.find(q=>pairs[q].every(far)&&pairs[q].every(free));
+            if (j===undefined) {
+                j=opts[0];
+            }
+            this.lastPad=j;
+            pick=pairs[j];
+        }
+        else {
+            const all=[0,1,2,3].filter(i=>i!==this.lastPad);
+            const tries=[i=>far(i)&&free(i),far,free,()=>true];
+            let c=[];
+            for (const f of tries) {
+                c=all.filter(f);
+                if (c.length) {
+                    break;
+                }
+            }
+            const i=c[Math.floor(rng.next()*c.length)];
+            this.lastPad=i;
+            pick=[i];
+        }
+        const need=this.evolved?P.hold2:P.hold;
+        this.pads=pick.map(i=>({x:cs[i].x,z:cs[i].z,hold:0,need,done:false,t:0}));
+        this.padT=0;
+        this.relight=false;
+        this.tickT=0;
+        for (const q of this.pads) {
+            ctx.particles.burst(q.x,0.3,q.z,10,{color:'red',speed:[2,5],up:[2,5]});
+        }
+    }
+
+    tickBar(dt,ctx) {
+        const B=this.def.bar;
+        if (this.state==='snooze'||this.state==='burst') {
+            return;
+        }
+        this.bar=Math.min(B.max,this.bar+(this.evolved?B.rate2:B.rate)*dt);
+        if (this.bar>=B.max) {
+            this.startBurst(ctx);
+            return;
+        }
+        if (!this.pads.length&&(this.bar>=B.show||this.relight)) {
+            this.spawnPads(ctx);
+        }
+        if (this.pads.length) {
+            const k=Math.max(0,Math.min(1,(this.bar-B.show)/(B.max-B.show)));
+            this.tickT-=dt;
+            if (this.tickT<=0) {
+                this.tickT=B.tick[0]+(B.tick[1]-B.tick[0])*k;
+                this.sfx(ctx,'alarmTick',B.pitch[0]+(B.pitch[1]-B.pitch[0])*k);
+            }
+        }
+    }
+
+    tickPads(dt,ctx) {
+        if (!this.pads.length||this.state==='snooze'||this.state==='burst') {
+            return;
+        }
+        const P=this.def.pad;
+        const p=ctx.player;
+        let done=0;
+        for (const q of this.pads) {
+            q.t+=dt;
+            if (!q.done) {
+                const inside=Math.hypot(p.pos.x-q.x,p.pos.z-q.z)<P.r;
+                q.hold=inside?q.hold+dt:Math.max(0,q.hold-dt*P.decay);
+                if (q.hold>=q.need) {
+                    q.done=true;
+                    q.hold=q.need;
+                    this.sfx(ctx,'alarmPress',1+done*0.15);
+                    ctx.particles.burst(q.x,0.4,q.z,16,{color:'red',speed:[3,7],up:[2,6]});
+                }
+            }
+            if (q.done) {
+                done++;
+            }
+        }
+        if (done>=this.pads.length) {
+            this.snooze(ctx,true);
+            return;
+        }
+        if (this.evolved) {
+            this.padT+=dt;
+            if (this.padT>=P.window) {
+                if (done>0) {
+                    this.snooze(ctx,false);
+                }
+                else {
+                    this.pads=[];
+                }
+            }
+        }
+    }
+
+    snooze(ctx,full) {
+        const S=this.def.snooze;
+        this.clearHazards();
+        this.pads=[];
+        if (full) {
+            this.bar=0;
+            this.snoozeT=this.evolved?S.time2:S.time;
+            if (ctx.addInk) {
+                ctx.addInk(S.ink);
+            }
+        }
+        else {
+            this.bar*=0.5;
+            this.snoozeT=S.half;
+        }
+        this.setState('snooze');
+        this.say={text:t('alarm.snooze'),t:0,dur:this.snoozeT,keep:true};
+        this.sqv-=4;
+        this.flashT=0.15;
+        ctx.fx.cameraShake(0.2);
+        ctx.particles.burst(this.pos.x,3,this.pos.z,14,{color:'paper',speed:[1,3],up:[2,4]});
+    }
+
+    startBurst(ctx) {
+        const B=this.def.burst;
+        this.clearHazards();
+        this.pads=[];
+        this.burstDmg=0;
+        this.burstOn=false;
+        this.burstBell=0;
+        this.setState('burst');
+        this.teleRing(3.4,B.warn);
+        this.say={text:t('alarm.burst'),t:0,dur:B.warn+B.time,keep:true};
+        this.sfx(ctx,'alarmBurst');
+        ctx.fx.cameraShake(0.35);
+        this.sqv+=5;
+    }
+
+    burstTick(dt,ctx) {
+        const d=this.def;
+        const B=d.burst;
+        if (!this.burstOn&&this.stateT>=B.warn) {
+            this.burstOn=true;
+            this.tele=null;
+            this.waves.push({x:this.pos.x,z:this.pos.z,r:d.radius,speed:B.speed,max:B.max,width:B.width,hit:false,burst:true,delay:0.001});
+            const n=(this.evolved?d.p2.beams:2)*B.mult;
+            const a0=rng.range(0,Math.PI*2);
+            const dir=rng.sign();
+            for (let i=0;i<n;i++) {
+                this.beam({a:a0+i/n*Math.PI*2,speed:dir*B.spin,warn:B.warn,dur:B.time,width:B.width2,len:B.len,inner:B.inner,burst:true});
+            }
+            ctx.particles.burst(this.pos.x,2,this.pos.z,30,{color:'red',speed:[5,12],up:[2,8]});
+        }
+        if (this.burstOn) {
+            this.burstBell-=dt;
+            if (this.burstBell<=0&&this.beams.length) {
+                this.burstBell=0.5;
+                this.kicks[0]=1;
+                this.kicks[1]=1;
+                this.sfx(ctx,'alarmBell',1.25);
+            }
+            if (!this.beams.length&&!this.waves.length) {
+                this.bar=d.bar.after;
+                this.relight=true;
+                this.say=null;
+                this.setState('move');
+                this.patternT=d.gap[1];
+            }
+        }
+    }
+
+    startPattern(ctx) {
+        const d=this.def;
+        const ev=this.evolved;
+        const sp=ev?d.p2.speed:1;
+        const list=['second','hands','chime','bells'];
+        let k=list[Math.floor(rng.next()*list.length)];
+        if (k===this.last) {
+            k=list[(list.indexOf(k)+1)%list.length];
+        }
+        this.last=k;
+        this.pattern=k;
+        this.setState('attack');
+        if (k==='second') {
+            const S=d.second;
+            const dir=rng.sign();
+            this.beam({a:Math.atan2(this.nz,this.nx)-dir*0.9,speed:dir*Math.PI*2/S.period*sp,warn:S.warn,dur:S.period*S.turns/sp,width:S.width,red:true,len:S.len,inner:S.inner,flip:ev,role:'s'});
+            this.sfx(ctx,'alarmTick',0.8);
+        }
+        else if (k==='hands') {
+            const H=d.hands;
+            const n=ev?d.p2.beams:2;
+            const g=rng.range(H.gap[0],H.gap[1]);
+            const a0=rng.range(0,Math.PI*2);
+            const step=n===2?Math.PI/2:Math.PI*2/n;
+            for (let i=0;i<n;i++) {
+                this.beam({a:a0+i*step,speed:H.speeds[i]*sp,warn:H.warn,dur:H.dur,width:H.width,gap:[g-H.gapW/2,g+H.gapW/2],len:H.len,inner:H.inner,flip:ev,role:['h','m',null][i]});
+            }
+        }
+        else if (k==='chime') {
+            const C=d.chime;
+            const h=C.hours[0]+Math.floor(rng.next()*(C.hours[1]-C.hours[0]+1));
+            const ang=[[-Math.PI/2+h/12*Math.PI*2,'h'],[-Math.PI/2,'m']];
+            let text=h+':00';
+            if (ev) {
+                const ok=[];
+                for (let s=0;s<60;s+=5) {
+                    const a=-Math.PI/2+s/60*Math.PI*2;
+                    if (ang.every(([b])=>Math.abs(wrap(a-b))>0.7)) {
+                        ok.push([s,a]);
+                    }
+                }
+                const [s,a]=ok[Math.floor(rng.next()*ok.length)];
+                ang.push([a,'s']);
+                text+=':'+String(s).padStart(2,'0');
+            }
+            for (const [a,role] of ang) {
+                this.beam({a,warn:C.show,dur:C.live,width:role==='s'?d.second.width*2:C.width,red:role==='s',len:C.len,inner:C.inner,role,loud:true});
+            }
+            this.say={text,t:0,dur:C.show+C.live,keep:true};
+            this.sfx(ctx,'alarmTick',1.3);
+        }
+        else {
+            const B=d.bells;
+            const sets=ev?B.sets2:B.sets;
+            this.teleRing(2.6,B.tele);
+            for (let s=0;s<sets;s++) {
+                for (const side of [-1,1]) {
+                    this.waves.push({x:this.pos.x+side*0.95,z:this.pos.z,r:0.6,speed:B.speed*(ev?1.1:1),max:B.max,width:B.width,hit:false,delay:B.tele+s*B.setGap+(side>0?B.delay:0),side});
+                }
+            }
+        }
+    }
+
+    think(dt,ctx) {
+        const d=this.def;
+        this.manual=true;
+        this.vel.set(0,0,0);
+        this.aimX=0;
+        this.aimZ=1;
+        this.faceT+=this.state==='snooze'?0:dt;
+        this.kicks[0]*=Math.exp(-5*dt);
+        this.kicks[1]*=Math.exp(-5*dt);
+        this.tickHazards(dt,ctx);
+        this.tickBar(dt,ctx);
+        this.tickPads(dt,ctx);
+        if (this.state==='snooze') {
+            if (this.stateT>=this.snoozeT) {
+                this.say=null;
+                this.setState('move');
+                this.patternT=d.gap[0];
+            }
+            return;
+        }
+        if (this.state==='burst') {
+            this.burstTick(dt,ctx);
+            return;
+        }
+        if (this.state==='move') {
+            this.patternT-=dt;
+            if (this.patternT<=0) {
+                this.startPattern(ctx);
+            }
+            return;
+        }
+        if (this.state==='attack'&&!this.beams.length&&!this.waves.length) {
+            this.setState('move');
+            this.patternT=rng.range(d.gap[0],d.gap[1]);
+        }
+    }
+
+    sync(alpha,dt) {
+        super.sync(alpha,dt);
+        const ox=this.pos.x;
+        const oz=this.pos.z;
+        let si=0;
+        let ri=0;
+        let li=8;
+        const roles={h:null,m:null,s:null};
+        for (const b of this.beams) {
+            const cx=Math.cos(b.a);
+            const cz=Math.sin(b.a);
+            if (b.role) {
+                roles[b.role]=b.a;
+            }
+            if (b.t<b.warn) {
+                const k=Math.min(1,b.t/(b.warn*0.5));
+                for (const [r0,r1] of this.segs(b)) {
+                    const r2=r0+(r1-r0)*k;
+                    this.putLine(this.line(li++),ox+cx*r0,oz+cz*r0,ox+cx*r2,oz+cz*r2,b.red?0.14:0.22);
+                }
+                if (b.speed!==0) {
+                    const a2=b.a+Math.sign(b.speed)*0.2;
+                    this.putLine(this.line(li++),ox+Math.cos(a2)*b.inner,oz+Math.sin(a2)*b.inner,ox+Math.cos(a2)*b.inner*3,oz+Math.sin(a2)*b.inner*3,0.08);
+                }
+            }
+            else {
+                const fade=Math.max(0,Math.min(1,1-(b.t-b.warn-b.dur)/0.25));
+                for (const [r0,r1] of this.segs(b)) {
+                    const m=b.red?this.redStrip(ri++):this.strip(si++);
+                    this.putLine(m,ox+cx*r0,oz+cz*r0,ox+cx*r1,oz+cz*r1,b.width*2.2);
+                    m.material.uniforms.uAlpha.value=fade;
+                }
+            }
+        }
+        this.hideStrips(si);
+        for (let i=ri;i<this.redStrips.length;i++) {
+            this.redStrips[i].visible=false;
+        }
+        let wi=0;
+        for (const w of this.waves) {
+            if (w.delay>0) {
+                continue;
+            }
+            const m=this.waveMesh(wi++);
+            const R=w.r+w.width;
+            m.visible=true;
+            m.position.x=w.x;
+            m.position.z=w.z;
+            m.scale.set(R,1,R);
+            m.material.uniforms.uWidth.value=Math.min(2,w.width*2/R);
+            m.material.uniforms.uAlpha.value=Math.min(1,(w.max-w.r)/2);
+        }
+        for (let i=wi;i<this.waveMeshes.length;i++) {
+            this.waveMeshes[i].visible=false;
+        }
+        const P=this.def.pad;
+        const B=this.def.bar;
+        const k=Math.max(0,Math.min(1,(this.bar-B.show)/(B.max-B.show)));
+        for (let i=0;i<Math.max(this.pads.length,this.padMeshes.length);i++) {
+            const q=this.pads[i];
+            const pm=this.padMesh(i);
+            if (!q) {
+                pm.fill.visible=false;
+                pm.edge.visible=false;
+                pm.prog.visible=false;
+                continue;
+            }
+            const pop=EASE.easeOutBack(Math.min(1,q.t/0.3));
+            const r=P.r*pop;
+            const blink=0.5+0.5*Math.sin(time.real*(6+k*14));
+            for (const m of [pm.fill,pm.edge,pm.prog]) {
+                m.visible=true;
+                m.position.x=q.x;
+                m.position.z=q.z;
+            }
+            pm.fill.scale.set(r,1,r);
+            pm.fill.material.uniforms.uAlpha.value=q.done?0.35:0.12+0.2*blink;
+            pm.edge.scale.set(r,1,r);
+            pm.edge.material.uniforms.uAlpha.value=q.done?1:0.55+0.45*blink;
+            pm.edge.material.uniforms.uTime.value=time.real*0.6;
+            pm.prog.scale.set(r*1.25,1,r*1.25);
+            pm.prog.material.uniforms.uProgress.value=q.hold/q.need;
+            pm.prog.material.uniforms.uAlpha.value=1;
+        }
+        const bk=this.bar/this.def.bar.max;
+        this.blush.visible=bk>0.02;
+        this.blush.scale.setScalar(Math.max(0.01,bk));
+        const ft=this.faceT;
+        const sA=roles.s??-Math.PI/2+ft*Math.PI*2/6;
+        const mA=roles.m??-Math.PI/2+ft*0.12;
+        const hA=roles.h??-Math.PI/3+ft*0.01;
+        this.sHand.rotation.z=handAngle(sA);
+        this.mHand.rotation.z=handAngle(mA);
+        this.hHand.rotation.z=handAngle(hA);
+    }
+
+    pose() {
+        const tm=time.real;
+        const k=this.bar/this.def.bar.max;
+        const sleep=this.state==='snooze';
+        const amp=this.state==='burst'?0.45:(sleep?0:k*k*0.4);
+        const f=10+k*16;
+        this.bells.forEach((b,i)=>{
+            b.rotation.z=b.userData.base+Math.sin(tm*f+i*1.7)*amp+this.kicks[i]*Math.sin(tm*45+i)*0.35;
+        });
+        this.hammer.rotation.z=Math.sin(tm*f*1.3)*(amp+Math.max(this.kicks[0],this.kicks[1])*0.4)*1.4;
+        this.clock.rotation.z=sleep?0.22:Math.sin(tm*f*0.5)*amp*0.2;
+        this.clock.position.y=sleep?1.9+Math.sin(tm*2)*0.05:2.05+Math.abs(Math.sin(tm*f))*amp*0.25;
+    }
+}
+
+const CLASSES={bookmark:Bookmark,stampSoldier:StampSoldier,scissorMinion:ScissorMinion,doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkCloud:InkCloud,inkBottle:InkBottle,scissors:Scissors,book:Book,exam:Exam,bookFinal:BookFinal,alarm:Alarm};
 
 export class EnemyManager {
     constructor(parent,fxScene) {
