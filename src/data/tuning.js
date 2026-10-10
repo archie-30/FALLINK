@@ -220,7 +220,7 @@ export const TUNING={
         deadZone:0.14,
         fireRingRange:[0.55,0.9],
         nudge:{waveDur:1.4,waves:3,waveGap:0.25,waveGrow:0.9,waveAlpha:0.75,waveWidth:4,idle:10,every:3,dur:0.5,amp:6,rate:42,stagger:0.12,interactEvery:1.3,interactDur:0.35,interactAmp:3,interactTilt:0.12},
-        skill:{scale:0.46,sizeRange:[0.75,1.3],gap:14,angles:[2.9,3.55,4.2,4.88],ultMul:1.15,dashMul:0.92,grab:1.15,dragRadius:1.3,moveSlop:12,cancelReach:1.15,auraCast:0.35},
+        skill:{scale:0.46,sizeRange:[0.75,1.3],gap:14,angles:[2.9,3.55,4.2,4.88],ultMul:1.15,dashMul:0.92,reloadMul:0.72,reloadAngle:-0.75,grab:1.15,dragRadius:1.3,moveSlop:12,cancelReach:1.15,auraCast:0.35},
         stickMin:50,
         stickMax:76,
         stickScale:0.1,
@@ -341,7 +341,8 @@ export const TUNING={
     worldMarks:{sayFont:17,sayLift:46,sayTime:3.2,sayMargin:12,sayTop:170,sayLeft:190,subH:22,subMaxW:360,subFont:14,subLine:19,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14,padSegs:28,padLift:1.4},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
     alarmMarks:{w:120,h:13,lift:0.25,shake:2.5,font:13,label:8,padLift:1.2,padR:13,padBob:4,edge:30,hudW:0.6,hudH:9,hudY:44,hudY2:58,arrow:15,arrowR:62,hurryAt:85,alertRate:6,alertPop:0.06,alertLift:2.6,alertFont:16,arrowBob:4,arrowLift:0.9},
-    wallTele:{rows:3,front:2.2,gap:2.6,half:15,width:0.22,thin:0.25},
+    wallTele:{front:2.2,half:15,width:0.22,reach:9,alpha:0.45},
+    moveTele:{width:3,alpha:0.4},
     hand:{showTime:0.55,hideOffset:260},
     choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,descMax:5,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     shopArm:{time:3},
@@ -743,8 +744,7 @@ export const TUNING={
         endless:[5,12,20],
         customSlots:4,
         dotChance:0.2,
-        dotRange:[1,3],
-        dotBoss:2
+        dotRange:[1,3]
     },
     courses:{
         perAct:4,
@@ -789,7 +789,7 @@ export const TUNING={
     metaUi:{
         chest:{shake:0.9,burst:0.35,itemGap:0.32,itemPop:0.45,float:6,rays:12},
         toast:{time:3.4,slide:0.35,w:300,wSmall:240,h:62,hSmall:52,top:14},
-        ach:{pipW:46,pipGap:13,pipR:4.5,rowH:82,rowHSmall:80,twoCol:600,barH:16,chestR:19,stagger:0.02,rise:0.3,drop:8,scrollFollow:14,dragSlop:8},
+        ach:{pipW:46,pipGap:13,pipR:4.5,rowH:82,rowHSmall:80,twoCol:600,barH:16,chestR:19,stagger:0.02,rise:0.3,drop:8,scrollFollow:14,dragSlop:8,topPad:6},
         buy:{w:340,wSmall:300,wBundle:460,wBundleSmall:420,chip:46,chipSmall:40,stamp:0.45,close:0.7},
         revive:{w:420,wSmall:340,pulse:3},
         confirm:{w:460,wSmall:400,h:300,hSmall:250,flood:0.9},

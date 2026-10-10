@@ -794,12 +794,6 @@ function boot() {
             bump('bosses');
             bump('boss.'+e.type);
             addKind('boss',e.type);
-            if (run.mode==='story'||run.mode==='endless') {
-                const got=earnDots(TUNING.meta.dotBoss);
-                if (got>0) {
-                    overlay.hud.toast(t('run.dotsGain',{n:got}));
-                }
-            }
         }
         fx.hitStop(F.hitStopKill,true);
         fx.cameraShake(F.shakeKill);

@@ -1313,7 +1313,7 @@ export class AchievementView extends Panel {
             const tier=achTier(q);
             return {q,i,tier,done:tier>=q.goals.length};
         });
-        const y0=y-this.scroll;
+        const y0=y-this.scroll+U.topPad;
         for (let k=0;k<order.length;k++) {
             const {q,done,tier}=order[k];
             const cur=Math.min(tier,q.goals.length-1);
@@ -1388,7 +1388,7 @@ export class AchievementView extends Panel {
             }
             ctx.restore();
         }
-        this.contentH=Math.ceil(order.length/cols)*(rh+10)+6;
+        this.contentH=Math.ceil(order.length/cols)*(rh+10)+6+U.topPad;
         ctx.restore();
         const max=Math.max(0,this.contentH-V.h);
         if (max>0) {

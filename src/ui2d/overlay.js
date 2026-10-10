@@ -140,6 +140,7 @@ export class Overlay {
                 this.screenSpace(false);
                 this.screenSpace(true);
                 this.drawDash(input,player);
+                this.drawReload(input,player);
                 if (game.hand.visible()) {
                     this.drawSkills(input,game.hand,game.ink,game.art);
                 }
@@ -206,6 +207,7 @@ export class Overlay {
             this.screenSpace(true);
             this.drawSticks(input,false);
             this.drawDash(input,player);
+            this.drawReload(input,player);
             this.drawSkills(input,null,null,game.art);
             this.screenSpace(false);
         }
@@ -528,6 +530,34 @@ export class Overlay {
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('ui.dash'),d.x,d.y+1);
+    }
+
+    drawReload(input,player) {
+        const R=input.reloadBtn;
+        const ctx=this.ctx;
+        const W=player.W;
+        const can=W&&!W.heat&&!W.cooldown;
+        const busy=player.reloadT>0;
+        const full=!can||player.ammo>=W.magazine;
+        const r=R.r*(R.id>=0?0.92:1);
+        ctx.fillStyle=rgba('paper',0.55);
+        ctx.beginPath();
+        ctx.arc(R.x,R.y,r,0,Math.PI*2);
+        ctx.fill();
+        this.ring(R.x,R.y,r,full&&!busy?2:3,full&&!busy?rgba('ink',0.4):PALETTE.ink,74);
+        if (busy&&W.reloadTime) {
+            const f=1-player.reloadT/W.reloadTime;
+            ctx.strokeStyle=PALETTE.red;
+            ctx.lineWidth=4;
+            ctx.beginPath();
+            ctx.arc(R.x,R.y,r+6,-Math.PI/2,-Math.PI/2+f*Math.PI*2);
+            ctx.stroke();
+        }
+        ctx.fillStyle=full&&!busy?PALETTE.midGray:PALETTE.ink;
+        ctx.font='bold 13px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('ui.reload'),R.x,R.y+1);
     }
 
     drawCrosshair(x,y,down,locked=false,reload=0) {

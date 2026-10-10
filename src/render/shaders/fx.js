@@ -471,3 +471,22 @@ void main() {
     gl_FragColor=vec4(uColor,uAlpha*0.14);
 }
 `;
+
+export const FADE_FRAG=`
+${OCCLUDE}
+uniform vec3 uColor;
+uniform float uAlpha;
+uniform float uAxis;
+uniform float uFlip;
+varying vec2 vUv;
+varying float vDepth;
+varying vec3 vWorldPos;
+void main() {
+    if (occluded(vDepth)) {
+        discard;
+    }
+    float u=uAxis>0.5?vUv.y:vUv.x;
+    float k=uFlip>0.5?1.0-u:u;
+    gl_FragColor=vec4(uColor,uAlpha*pow(k,1.6));
+}
+`;
