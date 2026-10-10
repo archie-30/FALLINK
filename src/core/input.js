@@ -33,8 +33,6 @@ export class Input {
         this.interactArmed=false;
         this.reloadQueued=false;
         this.touches=new Map();
-        this.multiTapArmed=true;
-        this.onToggleDebug=null;
         this.onCycleQuality=null;
         this.onFirstTouch=null;
         this.onCardKey=null;
@@ -149,13 +147,6 @@ export class Input {
     }
 
     keyDown(e) {
-        if (e.code==='F3') {
-            e.preventDefault();
-            if (this.onToggleDebug) {
-                this.onToggleDebug();
-            }
-            return;
-        }
         if (e.code==='F2') {
             e.preventDefault();
             if (this.onCycleQuality) {
@@ -294,12 +285,6 @@ export class Input {
         }
         this.lastDevice='touch';
         this.touches.set(e.pointerId,{x,y,t:performance.now()});
-        if (this.touches.size>=3&&this.multiTapArmed) {
-            this.multiTapArmed=false;
-            if (this.onToggleDebug) {
-                this.onToggleDebug();
-            }
-        }
         if (this.reloadAt(x,y)) {
             this.pressReload(e.pointerId);
             return;
@@ -450,9 +435,6 @@ export class Input {
             return;
         }
         this.touches.delete(e.pointerId);
-        if (this.touches.size===0) {
-            this.multiTapArmed=true;
-        }
         if (e.pointerId===this.move.id) {
             this.releaseStick(this.move);
         }

@@ -74,6 +74,23 @@ export class WorldMarks {
         this.prompt={x:x-W.touchPad,y:y-W.touchPad,w:bw+W.touchPad*2,h:bh+W.touchPad*2};
     }
 
+    drawBubbleNum(ctx,game,e,p) {
+        const C=TUNING.calcMarks;
+        game.project(e.renderPos.x,e.def.float+e.root.position.y,e.renderPos.z,p);
+        ctx.save();
+        ctx.globalAlpha=e.state==='spawn'?Math.min(1,e.t/e.spawnTime):1;
+        ctx.font='bold '+C.num+'px '+FONT;
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.lineJoin='round';
+        ctx.lineWidth=C.numStroke;
+        ctx.strokeStyle=PALETTE.paper;
+        ctx.strokeText(String(e.num),p.x,p.y);
+        ctx.fillStyle=PALETTE.ink;
+        ctx.fillText(String(e.num),p.x,p.y);
+        ctx.restore();
+    }
+
     drawAlarm(ctx,game,e,p,v) {
         const A=TUNING.alarmMarks;
         const B=e.def.bar;
@@ -313,6 +330,9 @@ export class WorldMarks {
         for (const e of game.enemies.list) {
             if (e.alarmBar!==undefined&&e.alive&&e.state!=='spawn') {
                 this.drawAlarm(ctx,game,e,p,v);
+            }
+            if (e.num!==undefined&&e.alive&&e.type==='calcBubble') {
+                this.drawBubbleNum(ctx,game,e,p);
             }
             if (e.say&&e.alive) {
                 game.project(e.renderPos.x,e.def.height*(e.elite?TUNING.elite.scale:1)+TUNING.taunt.lift,e.renderPos.z,p);

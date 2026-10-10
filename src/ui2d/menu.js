@@ -1451,7 +1451,7 @@ export class SettingsMenu extends Panel {
 
 const FOE_LIST=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','compass','eraserMonster'];
 
-const BOSS_LIST=['inkBottle','scissors','book','exam','bookFinal','alarm'];
+const BOSS_LIST=['inkBottle','scissors','book','exam','bookFinal','alarm','calculator'];
 
 export class Codex extends Panel {
     constructor(actions) {
@@ -2771,7 +2771,7 @@ export class RunSummary {
             ctx.fillText(g,bx+pad,yy);
             ctx.font=(on?'bold ':'')+'13px '+FONT;
             ctx.fillStyle=PALETTE.ink;
-            ctx.fillText(label,bx+pad+32,yy+1);
+            ctx.fillText(label,bx+pad+40,yy+1);
             yy+=20;
         }
         ctx.restore();

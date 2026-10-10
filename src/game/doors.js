@@ -298,7 +298,7 @@ export class Doors {
         const piece=room.addPiece('door',g,cols.concat([leafCol]),{x:wx,z:z-t,radius:W,erasable:false});
         const portal=new THREE.Mesh(plane(W*0.95,H*0.85),fxMaterial(tex.glow));
         portal.position.set(wx,H*0.43,z-t-A+0.1);
-        const swirl=new THREE.Mesh(plane(W*0.8,W*0.8),fxMaterial(tex.swirl));
+        const swirl=new THREE.Mesh(plane(H*0.8,H*0.8),fxMaterial(tex.swirl));
         swirl.position.set(wx,H*0.5,z-t-A+0.12);
         const pool=new THREE.Mesh(plane(W*1.6,A+2.4),fxMaterial(tex.pool));
         pool.rotation.x=-Math.PI/2;
@@ -306,13 +306,13 @@ export class Doors {
         const zb=z-t-A;
         const tunnel=[];
         for (let i=0;i<TUNING.doors.tunnelLayers;i++) {
-            const m=new THREE.Mesh(plane(W*0.9,W*0.9),fxMaterial(tex.tunnel));
+            const m=new THREE.Mesh(plane(H*0.9,H*0.9),fxMaterial(tex.tunnel));
             m.position.set(wx,H*0.48,zb+0.105+i*0.004);
             tunnel.push(m);
         }
         const rays=new THREE.Mesh(plane(W*0.9,H*0.9),fxMaterial(tex.rays));
         rays.position.set(wx,H*0.45,zb+0.115);
-        const rune=new THREE.Mesh(plane(W*1.05,W*1.05),fxMaterial(tex.rune));
+        const rune=new THREE.Mesh(plane(H*0.9,H*0.9),fxMaterial(tex.rune));
         rune.position.set(wx,H*0.5,zb+0.13);
         this.fx.add(portal,...tunnel,rays,swirl,rune,pool);
         return {group:g,leaves,piece,cols,leafCol,x:wx,z,t,open:0,target:0,portal,swirl,pool,tunnel,rays,rune,fxMeshes:[portal,swirl,pool,rays,rune,...tunnel],time:Math.random()*5,emit:0,delay:0};

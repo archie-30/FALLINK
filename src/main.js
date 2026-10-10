@@ -747,7 +747,7 @@ function boot() {
         particles.burst(e.pos.x,1.8,e.pos.z,3,{color:'red',speed:[2,5],up:[1,3]});
     };
     enemies.onSpawned=e=>{
-        if (game.mode==='play'&&run.mode!=='training') {
+        if (game.mode==='play'&&run.mode!=='training'&&!e.def.part) {
             const met=progress.seen.includes(e.type)||progress.beaten.includes(e.type);
             markSeen(e.type);
             if (e.def.boss&&!e.tutor&&(run.mode==='story'||run.mode==='endless')&&!progress.bossIntro.includes(e.type)) {
@@ -928,13 +928,6 @@ function boot() {
             run.stats.taken+=dmg;
         }
         particles.burst(p.pos.x,1.0,p.pos.z,PT.redHurt,{color:'red',speed:[2,6],up:[2,6],size:[0.08,0.16]});
-    };
-    player.events.onLateDodge=(p,dmg)=>{
-        bleed=Math.max(0,bleed-DF.bleed);
-        if (run.stats) {
-            run.stats.damage=Math.max(0,run.stats.damage-1);
-            run.stats.taken=Math.max(0,run.stats.taken-dmg);
-        }
     };
     player.events.onGuard=(p,dx,dz)=>{
         audio.play('clear',1.3);
@@ -2459,12 +2452,6 @@ function boot() {
         art.setScale(overlay.dpr*hand.s*uiS*1.2);
         rig.setAspect(w/h);
     }
-    let debugHide=false;
-    input.onToggleDebug=()=>{
-        if (settings.godMode) {
-            debugHide=!debugHide;
-        }
-    };
     input.onCycleQuality=()=>{
         const i=QUALITY_ORDER.indexOf(settings.quality);
         settings.quality=QUALITY_ORDER[(i+1)%QUALITY_ORDER.length];
@@ -2946,7 +2933,6 @@ function boot() {
             openPause();
         }
     });
-    overlay.showDebug=false;
     window.addEventListener('resize',resize);
     window.addEventListener('orientationchange',()=>setTimeout(resize,150));
     if (window.visualViewport) {
@@ -2954,7 +2940,6 @@ function boot() {
     }
     resize();
     applyQuality();
-    const debugInfo={fps:0,calls:0,triangles:0,quality:'',pixelRatio:1,resolution:''};
     const projectFn=(x,y,z,out)=>toUi(rig.worldToScreen(tmpV.set(x,y,z),renderer.width,renderer.height,out));
     const gameUi={confirmPop,achView,chestView,buyPrompt,revivePopup,achToast,effects,clones,dmgNums,project:projectFn,ink,hand,art,deckView,deck,run,enemies,reward,upgradeView,summary,transition,dt:0,mode:'menu',mainMenu,pause:pauseMenu,settingsMenu,codex,levelView,trainingPicker,skinEditor,trainingMenu,trainStats,ultCutin,coach,langPick,relicView,popup,guide,choice,deckPick,doors,npcs,marks,levelUp,minis,player};
     let aimTarget=null;
@@ -2974,7 +2959,7 @@ function boot() {
             if (!aimTarget) {
                 let bd=Infinity;
                 for (const e of enemies.list) {
-                    if (e.state==='spawn') {
+                    if (e.state==='spawn'||e.def.noAim) {
                         continue;
                     }
                     const d=Math.hypot(e.renderPos.x-px,e.renderPos.z-pz)-e.def.radius;
@@ -2994,7 +2979,7 @@ function boot() {
             let best=A.stickCone;
             const a0=Math.atan2(aim.dz,aim.dx);
             for (const e of enemies.list) {
-                if (e.state==='spawn') {
+                if (e.state==='spawn'||e.def.noAim) {
                     continue;
                 }
                 const dx=e.renderPos.x-player.renderPos.x;
@@ -3059,28 +3044,24 @@ function boot() {
     let skinZoom=0;
     let achCheckT=0;
     const NO_AIM={mode:'none'};
-    const spin={yaw:null,acc:0,idle:0,back:0,x:0,z:0};
-    function trackSpin(dt) {
+    const spins=[{yaw:null,acc:0,idle:0,back:0},{yaw:null,acc:0,idle:0,back:0}];
+    function spinStep(spin,y,dt) {
         const K=TUNING.spin;
-        if (game.mode!=='play'||fx.paused||dt<=0||run.state==='dead') {
+        if (y===null) {
             spin.yaw=null;
+            spin.idle+=dt;
+            if (spin.idle>K.pause) {
+                spin.acc=0;
+            }
             return;
         }
-        const y=player.aimYaw;
         if (spin.yaw===null) {
             spin.yaw=y;
-            spin.x=player.pos.x;
-            spin.z=player.pos.z;
             return;
         }
         let d=y-spin.yaw;
         d=Math.atan2(Math.sin(d),Math.cos(d));
         spin.yaw=y;
-        if (Math.hypot(player.pos.x-spin.x,player.pos.z-spin.z)>K.radius) {
-            spin.acc=0;
-            spin.x=player.pos.x;
-            spin.z=player.pos.z;
-        }
         if (Math.abs(d)/dt<K.still) {
             spin.idle+=dt;
             if (spin.idle>K.pause) {
@@ -3100,6 +3081,16 @@ function boot() {
         spin.back=0;
         spin.acc+=d;
         setMax('spinTurns',Math.floor(Math.abs(spin.acc)/(Math.PI*2)));
+    }
+    function trackSpin(dt) {
+        if (game.mode!=='play'||fx.paused||dt<=0||run.state==='dead') {
+            spins[0].yaw=null;
+            spins[1].yaw=null;
+            return;
+        }
+        spinStep(spins[0],player.aimYaw,dt);
+        const v=player.vel;
+        spinStep(spins[1],Math.hypot(v.x,v.z)>TUNING.spin.moveMin?Math.atan2(v.x,v.z):null,dt);
     }
     function update(dt) {
         if (run.state!=='dead') {
@@ -3221,9 +3212,7 @@ function boot() {
             }
             low=DF.lowBase+DF.lowPulse*Math.pow(Math.max(0,Math.sin(heart*Math.PI*2)),2);
         }
-        const al=enemies.boss();
-        const ap=al&&al.edgePulse?al.edgePulse():0;
-        renderer.post.uniforms.uBleed.value=Math.max(bleed,low,ap);
+        renderer.post.uniforms.uBleed.value=Math.max(bleed,low);
     }
     const gov={scale:1,acc:0,n:0,good:0,slow:0,cool:0};
     function setRenderScale(k) {
@@ -3483,17 +3472,7 @@ function boot() {
         if (transition.state==='capture') {
             transition.capture(renderer.gl.domElement,renderer.width,renderer.height);
         }
-        const st=renderer.stats();
-        debugInfo.fps=time.fps;
-        debugInfo.calls=st.calls;
-        debugInfo.triangles=st.triangles;
-        debugInfo.quality=settings.quality;
-        debugInfo.pixelRatio=renderer.pixelRatio;
-        debugInfo.scale=gov.scale;
-        debugInfo.cap=time.fpsCap;
-        overlay.showDebug=!!settings.godMode&&!debugHide;
-        debugInfo.resolution=renderer.post.target.width+'×'+renderer.post.target.height;
-        overlay.draw(input,player,debugInfo,gameUi);
+        overlay.draw(input,player,gameUi);
     }
     const loop=createLoop(update,render);
     loop.start();

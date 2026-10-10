@@ -59,7 +59,6 @@ export class Overlay {
         this.width=1;
         this.height=1;
         this.dpr=1;
-        this.showDebug=false;
         this.hud=new Hud();
     }
 
@@ -95,7 +94,7 @@ export class Overlay {
         ctx.restore();
     }
 
-    draw(input,player,debug,game) {
+    draw(input,player,game) {
         const ctx=this.ctx;
         ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
         ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
@@ -233,9 +232,6 @@ export class Overlay {
             const lock=play&&!game.frozen&&!!game.aimTarget&&game.aimTarget.alive;
             const reload=play&&!game.frozen&&player.reloadT>0?1-player.reloadT/player.W.reloadTime:0;
             this.drawCrosshair(input.mouse.x/this.us,input.mouse.y/this.us,input.mouse.down,lock,reload);
-        }
-        if (this.showDebug&&debug) {
-            this.drawDebug(debug);
         }
     }
 
@@ -601,33 +597,5 @@ export class Overlay {
         ctx.stroke();
         ctx.fillStyle=col;
         ctx.fillRect(x-1.5,y-1.5,3,3);
-    }
-
-    drawDebug(d) {
-        const ctx=this.ctx;
-        const lines=[
-            t('debug.fps')+' '+d.fps.toFixed(0)+' / '+(d.cap||'—'),
-            t('debug.scale')+' '+Math.round((d.scale??1)*100)+'%',
-            t('debug.calls')+' '+d.calls,
-            t('debug.tris')+' '+d.triangles,
-            t('debug.quality')+' '+t('quality.'+d.quality)+' ('+d.pixelRatio.toFixed(2)+'x)',
-            t('debug.resolution')+' '+d.resolution,
-            t('debug.hint')
-        ];
-        ctx.font='14px '+FONT;
-        ctx.textAlign='left';
-        ctx.textBaseline='top';
-        const w=230;
-        const h=lines.length*19+14;
-        const x=this.width-w-10;
-        ctx.fillStyle=rgba('paper',0.85);
-        ctx.fillRect(x,70,w,h);
-        ctx.strokeStyle=PALETTE.ink;
-        ctx.lineWidth=1.5;
-        ctx.strokeRect(x,70,w,h);
-        ctx.fillStyle=PALETTE.ink;
-        for (let i=0;i<lines.length;i++) {
-            ctx.fillText(lines[i],x+10,78+i*19);
-        }
     }
 }

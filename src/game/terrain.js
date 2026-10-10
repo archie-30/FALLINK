@@ -1,5 +1,5 @@
 import*as THREE from 'three';
-import {toonMaterial,dissolveVariant,trapMaterial,inkMaterial,countdownMaterial,unlitMaterial,pal} from '../render/materials.js';
+import {toonMaterial,dissolveVariant,trapMaterial,inkMaterial,countdownMaterial,unlitMaterial,pal,setArenaClip} from '../render/materials.js';
 import {makeBox,makeCircle,circleVs} from '../core/collision.js';
 import {RNG,hash1} from '../core/rng.js';
 import {EASE} from '../core/easing.js';
@@ -858,6 +858,7 @@ export class Room {
         const hw=def.size[0]/2;
         const hd=def.size[1]/2;
         this.bounds={minX:-hw,maxX:hw,minZ:-hd,maxZ:hd};
+        setArenaClip(this.bounds);
         this.spawn=new THREE.Vector3(def.spawn[0],0,def.spawn[1]);
         this.zones=new Zones(fxScene,this);
         const ground=new THREE.Mesh(cachedGeo('ground',()=>new THREE.PlaneGeometry(400,400)),toonMaterial({...TONES.ground,grid:[hw,hd]}));

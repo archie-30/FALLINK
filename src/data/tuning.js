@@ -97,7 +97,6 @@ export const TUNING={
     player:{
         weaponHull:false,
         weaponSoft:0.85,
-        lateDodge:0.09,
         arm:{drawTime:0.45,stowTime:0.3,ready:0.7,spin:3.2,lift:0.5,back:0.4,raise:0.9},
         radius:0.5,
         visualScale:1.35,
@@ -330,18 +329,19 @@ export const TUNING={
         xpTime:1.2,
         drawer:{endPad:64,closeTime:0.28,tilt:0.025,rowsAt:0.45,rowStagger:0.03,rowRise:10,bottomPad:14,barMin:24,fadeH:34,dragSlop:6,follow:16,peek:52,peekSmall:40,frac:0.8,maxW:900,time:0.45,actGap:10,head:52,headSmall:40,foot:46,footSmall:38,row:27,rowSmall:21},
         grade:{
-            story:[['S+',45000],['S',35000],['A',20000],['B',10000],['C',5000],['D',-1]],
-            endless:[['S+',80000],['S',60000],['A',30000],['B',15000],['C',5000],['D',-1]]
+            story:[['S++',60000],['S+',45000],['S',35000],['A',20000],['B',10000],['C',5000],['D',-1]],
+            endless:[['S++',110000],['S+',80000],['S',60000],['A',30000],['B',15000],['C',5000],['D',-1]]
         }
     },
     trainPicker:{minScale:0.64,maxScale:0.86,refH:980},
     pauseUi:{compactH:840,center:0.42,titleGap:44,colW:200,rowH:44,gap:10,hintGap:22},
-    doors:{width:2.4,height:1.9,backH:1.3,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,tunnelLayers:3,tunnelRate:0.45,tunnelScale:[0.25,1.25],tunnelSpin:0.6,tunnelAlpha:0.8,raysAlpha:0.45,raysRate:2.3,runeSpin:0.35,runeAlpha:0.7,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
+    doors:{width:2.4,height:1.9,backH:1.12,post:0.28,side:0.3,sideH:0.9,alcove:2.8,leaf:0.12,swing:1.75,openTime:0.8,closeTime:0.35,stagger:0.18,spread:0.5,pairSpread:0.36,insideK:0.7,glow:0.85,floor:0.5,swirlAlpha:0.55,swirlRate:1.2,tunnelLayers:3,tunnelRate:0.45,tunnelScale:[0.25,1],tunnelSpin:0.6,tunnelAlpha:0.8,raysAlpha:0.45,raysRate:2.3,runeSpin:0.35,runeAlpha:0.7,pulse:0.25,pulseRate:3,emitEvery:0.08,burstCount:24},
     minigame:{endDelay:0.9,bellShake:0.18,bell:{impulse:3.2,k:34,damp:3.4,clapK:70,clapDamp:5,flash:0.28,squash:0.1,wave:2.6,decay:1.4},tilesSearch:4000,popTime:0.35,popGap:0.04,wallRise:0.5,wallGap:0.03,wallSink:0.5},
     npc:{iconTilt:0.9,iconSway:1.3,goneRate:3,goneLift:0.8,bellPitch:[0.8,1,1.2,1.45],range:1.6,turn:6,bobRate:2.2,bobAmp:0.06,squash:0.025,popDecay:2.5,popScale:0.25,floatAmp:0.15,floatRate:2,floatBase:0.2,sealedScale:0.9,lidRate:6,lidOpen:1.3},
     worldMarks:{sayFont:17,sayLift:46,sayTime:3.2,sayMargin:12,sayTop:170,sayLeft:190,subH:22,subMaxW:360,subFont:14,subLine:19,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14,padSegs:28,padLift:1.4},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
-    alarmMarks:{w:120,h:13,lift:0.25,shake:2.5,font:13,label:8,padLift:1.2,padR:13,padBob:4,edge:30,hudW:0.6,hudH:9,hudY:44,hudY2:58,arrow:15,arrowR:62,hurryAt:85,alertRate:6,alertPop:0.06,alertLift:2.6,alertFont:16,arrowBob:4,arrowLift:0.9},
+    calcMarks:{y:46,y2:60,font:30,pad:10,barH:5,num:30,numStroke:6},
+    alarmMarks:{edgeGlow:{alpha:0.32,breath:0.25,rate:0.5,depth:0.11},w:120,h:13,lift:0.25,shake:2.5,font:13,label:8,padLift:1.2,padR:13,padBob:4,edge:30,hudW:0.6,hudH:9,hudY:44,hudY2:58,arrow:15,arrowR:62,hurryAt:85,alertRate:6,alertPop:0.06,alertLift:2.6,alertFont:16,arrowBob:4,arrowLift:0.9},
     wallTele:{front:2.2,half:15,width:0.22,reach:9,alpha:0.45},
     moveTele:{width:3,alpha:0.4},
     hand:{showTime:0.55,hideOffset:260},
@@ -738,7 +738,7 @@ export const TUNING={
     meta:{
         price:{color:2,acc:5,weapon:25},
         relicV:2,
-        gradeCoins:{'S+':4,S:3,A:2,B:1},
+        gradeCoins:{'S++':6,'S+':4,S:3,A:2,B:1},
         revive:{min:1,max:10,invuln:2.5,once:true},
         chestEvery:5,
         chestItems:2,
@@ -758,7 +758,7 @@ export const TUNING={
         music:{every:2.6,first:1.6,life:3,radius:1.3,max:2,minFar:2.2,rangeX:5.5,rangeZ:3.6,foeGap:3,tries:32,goal:5,reward:{score:900,hp:1,ink:1}},
         ui:{barW:300,barWSmall:200,barY:48,shift:14,iconR:15,iconGap:12}
     },
-    spin:{radius:2.5,still:0.3,pause:2,back:0.8},
+    spin:{still:0.3,pause:2,back:0.8,moveMin:1},
     gachaUi:{dim:0.95,intro:0.5,clicks:[0.6,0.95,1.3,1.65],clickTime:0.22,drop:2.0,bounces:[2.27,2.55,2.68],fly:2.75,flyEnd:3.3,cy:0.42,boxFollow:14,balls:15,shake:1.5,bounce:3.2,wobbleEvery:1.6,charge:0.85,cracks:[0,0.28,0.56],flash:0.4,closeAfter:0.9,sparks:56,confetti:60},
     relics:{
         price:15,
