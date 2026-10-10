@@ -341,6 +341,7 @@ export const TUNING={
     worldMarks:{sayFont:17,sayLift:46,sayTime:3.2,sayMargin:12,sayTop:170,sayLeft:190,subH:22,subMaxW:360,subFont:14,subLine:19,enterLift:0.6,doorLift:0.5,doorIn:0.6,edgeTop:88,edgeBottom:150,npcLift:0.6,iconR:13,bob:3,bobRate:3,promptH:34,bangH:8,touchPad:14,padSegs:28,padLift:1.4},
     doorFx:{close:0.9,hold:0.12,open:0.4,lines:72,lineW:9,lineIn0:0.55,lineIn1:0.08,startR:0.03,endR:1.4,core:0.55,ringPts:40,ringJag:0.1,ringW:2.4,ringAlpha:0.7,flatFrom:0.82},
     alarmMarks:{w:120,h:13,lift:0.25,shake:2.5,font:13,label:8,padLift:1.2,padR:13,padBob:4,edge:30,hudW:0.6,hudH:9,hudY:44,hudY2:58,arrow:15,arrowR:62,hurryAt:85,alertRate:6,alertPop:0.06,alertLift:2.6,alertFont:16,arrowBob:4,arrowLift:0.9},
+    wallTele:{rows:3,front:2.2,gap:2.6,half:15,width:0.22,thin:0.25},
     hand:{showTime:0.55,hideOffset:260},
     choiceUi:{maxW:960,gap:18,cardMaxW:380,textPad:22,descMax:5,cardH:236,head:170,titleY:46,iconR:26,cardIconR:24,iconY:50,margin:44,rule:30,tapeW:70,tilt:-0.006,cardTilt:0.018,titleSize:32,bodySize:20,bodyLine:28,bodyLines:3,labelSize:24,descSize:17,descLine:23,pickTime:0.35},
     shopArm:{time:3},
@@ -387,7 +388,7 @@ export const TUNING={
         wheelLine:40
     },
     effects:{
-        leap:{speed:22,life:0.5,time:0.68,height:2.4,tries:12,grace:0.08,land:3},
+        leap:{speed:22,life:0.5,time:0.72,height:2.2,tries:12,grace:0.08,land:1.8,shake:0.12,fov:0.7},
         puppet:{alpha:0.95,spin:2.5,ring:0.6,ringR:1.8},
         ball:{radius:0.36,speed:22,maxLen:80,previewSegs:2,previewTail:4,step:0.12,hop:9,hopH:0.35,spin:14},
         stamp:{fall:0.32,hold:0.45,drop:7,lift:2,scale:0.95,shake:0.32},

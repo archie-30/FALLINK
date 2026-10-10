@@ -264,6 +264,7 @@ export class CardEffects {
         const g=this.g;
         this.updateExtras(dt);
         this.updateCardProps(dt);
+        this.tickLeap();
         freeCards.left=Math.max(0,freeCards.left-dt);
         for (let i=this.timers.length-1;i>=0;i--) {
             this.timers[i].left-=dt;
@@ -310,7 +311,7 @@ export class CardEffects {
         g.particles.burst(target.x,1.0,target.z,8,{color:card.def.rarity==='rare'?'red':'ink',speed:[1,4],up:[1,4],size:[0.08,0.16],life:[0.25,0.5]});
         const params=cardParams(card);
         const p=g.player;
-        const keep=target.ox!==undefined;
+        const keep=target.ox!==undefined&&!card.def.fromSelf;
         const sx=p.pos.x;
         const sz=p.pos.z;
         if (keep) {
@@ -1252,12 +1253,8 @@ export class CardEffects {
         const L=this.E.leap;
         const sx=p.pos.x;
         const sz=p.pos.z;
-        const gray=(g.weaponSys&&g.weaponSys.pencil)||g.playerBullets;
-        for (let i=0;i<count;i++) {
-            const a=i/count*Math.PI*2;
-            const sys=i%2?gray:g.playerBullets;
-            sys.spawn(sx+Math.cos(a)*0.5,sz+Math.sin(a)*0.5,Math.cos(a),Math.sin(a),L.speed,damage,L.life);
-        }
+        this.leapRing(sx,sz,count,damage,0);
+        this.leapLand={count,damage};
         const r=this.T.player.radius;
         const room=g.room;
         let tx=x;
@@ -1283,8 +1280,33 @@ export class CardEffects {
         g.rings.spawn(sx,sz,2,'ink',0.3);
         g.decals.spawn(sx,sz,1.2,'ink','midGray');
         g.particles.burst(sx,0.4,sz,16,{color:'nearGray',speed:[2,6],up:[2,5],size:[0.08,0.16]});
-        g.fx.cameraShake(0.2);
-        g.fx.fovPunch(1.2);
+        g.fx.cameraShake(L.shake);
+        g.fx.fovPunch(L.fov);
+    }
+
+    leapRing(x,z,count,damage,off) {
+        const g=this.g;
+        const L=this.E.leap;
+        const gray=(g.weaponSys&&g.weaponSys.pencil)||g.playerBullets;
+        for (let i=0;i<count;i++) {
+            const a=(i+off)/count*Math.PI*2;
+            const sys=i%2?gray:g.playerBullets;
+            sys.spawn(x+Math.cos(a)*0.5,z+Math.sin(a)*0.5,Math.cos(a),Math.sin(a),L.speed,damage,L.life);
+        }
+    }
+
+    tickLeap() {
+        const g=this.g;
+        const p=g.player;
+        if (!this.leapLand||p.leapT>0) {
+            return;
+        }
+        const q=this.leapLand;
+        this.leapLand=null;
+        this.leapRing(p.pos.x,p.pos.z,q.count,q.damage,0.5);
+        g.rings.spawn(p.pos.x,p.pos.z,2,'ink',0.3);
+        g.particles.burst(p.pos.x,0.3,p.pos.z,12,{color:'nearGray',speed:[2,5],up:[1,4],size:[0.08,0.16]});
+        g.fx.cameraShake(this.E.leap.shake);
     }
 
     tickBall(s,dt) {

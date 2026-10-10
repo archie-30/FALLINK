@@ -1029,6 +1029,11 @@ export const CARD_ANIMS={
             S.circle(lerp(PX,tx,f),lerp(PY,ty,f)+0.5,0.5*(1-Math.sin(f*Math.PI)*0.4),PALETTE.farGray,0.6);
             S.player(x,y,0);
             S.burst(tx,ty,1,seg(k,0.6,0.75),PALETTE.midGray);
+            for (let i=0;i<8;i++) {
+                const an=(i+0.5)/8*Math.PI*2;
+                S.fly(tx+Math.cos(an)*0.6,ty+Math.sin(an)*0.6,tx+Math.cos(an)*4.2,ty+Math.sin(an)*4.2,k,0.6,0.76,'ink');
+            }
+            S.target('doodle',tx+2.6,ty-2.8,k,0.72);
         }
     },
     puppet:{
@@ -2526,6 +2531,11 @@ export const ENEMY_ATTACKS={
                 const gap=5.8;
                 S.player(PX,lerp(PY,gap,seg(k,0.1,0.35)),0);
                 S.enemy('book',13.8,PY,{size:2.6});
+                const tw=seg(k,0,0.12)*(1-seg(k,0.15,0.17));
+                for (let r=0;r<3;r++) {
+                    const h=SH/2*Math.max(0,Math.min(1,tw*1.3-r*0.15));
+                    S.line(12-r*2.6,PY-h,12-r*2.6,PY+h,PALETTE.red,0.12-r*0.03,tw*0.9,[0.25,0.18]);
+                }
                 for (let v=0;v<2;v++) {
                     const f=seg(k,0.15+v*0.3,0.75+v*0.3);
                     if (f<=0||f>=1) {
