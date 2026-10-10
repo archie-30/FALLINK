@@ -1786,6 +1786,41 @@ export const ENEMY_ATTACKS={
             }
         },
         {
+            key:'hop',
+            dmg:{kind:'hit',n:1},
+            period:4.4,
+            draw(S,k) {
+                const home=[12,PY];
+                const pts=[[5,3],[6.5,6.6]];
+                const legs=[[home,pts[0],0.08],[pts[0],pts[1],0.4],[pts[1],home,0.72]];
+                const px=lerp(5,8,inOut(seg(k,0.2,0.32)));
+                const py=lerp(3,3.4,seg(k,0.2,0.32))+lerp(0,3.4,inOut(seg(k,0.5,0.62)));
+                S.player(k<0.4?px:lerp(8,9.5,seg(k,0.5,0.62)),k<0.4?py:lerp(3.4,PY,seg(k,0.5,0.62)),0);
+                let x=home[0];
+                let y=home[1];
+                let lift=0;
+                for (const [a,b,t0] of legs) {
+                    const tele=seg(k,t0,t0+0.14);
+                    const air=seg(k,t0+0.14,t0+0.24);
+                    if (tele>0&&air<1) {
+                        S.ring(b[0],b[1],1.3,PALETTE.red,0.08,0.9,[0.25,0.18]);
+                        S.circle(b[0],b[1],1.3*tele,PALETTE.red,0.15);
+                    }
+                    if (air>0) {
+                        x=lerp(a[0],b[0],air);
+                        y=lerp(a[1],b[1],air);
+                        lift=Math.sin(air*Math.PI)*2;
+                    }
+                    const w=seg(k,t0+0.24,t0+0.34);
+                    if (w>0&&w<1) {
+                        S.ring(b[0],b[1],1.3+w*2.5,PALETTE.ink,0.18,1-w);
+                    }
+                }
+                S.circle(x,y+0.9,0.9*(1-lift*0.15),PALETTE.ink,0.12);
+                S.enemy('alarm',x,y-lift,{size:2.2});
+            }
+        },
+        {
             key:'burst',
             dmg:{kind:'hit',n:2},
             period:5,
