@@ -589,6 +589,11 @@ export class Hand {
         return false;
     }
 
+    canQuick(slot) {
+        const v=this.views.find(o=>o.slot===slot);
+        return !!v&&v.state==='idle'&&v.card.def.targeting==='none';
+    }
+
     quickCast(slot) {
         const v=this.views.find(o=>o.slot===slot);
         if (!v||v.state!=='idle'||v.card.def.targeting!=='none') {
@@ -1132,9 +1137,23 @@ export class Hand {
         const sc=0.62*s;
         const riffle=this.riffleT>0?Math.sin(this.riffleT*40)*0.08:0;
         const layers=Math.min(3,drawN);
+        const H=TUNING.tutorial.pileHint;
+        const now=performance.now()/1000;
+        const ph=now%H.every;
+        const shake=this.pileHint&&ph<H.shake?Math.sin(ph*H.rate)*H.amp*(1-ph/H.shake):0;
+        if (this.pileHint) {
+            const g=0.5+0.5*Math.sin(now*H.glowRate);
+            ctx.save();
+            ctx.shadowColor=PALETTE.red;
+            ctx.shadowBlur=H.blur*(0.6+0.4*g);
+            ctx.strokeStyle=rgba('red',0.55+0.45*g);
+            ctx.lineWidth=3;
+            ctx.strokeRect(d.x-H.pad,d.y-H.pad,d.w+H.pad*2,d.h+H.pad*2);
+            ctx.restore();
+        }
         for (let i=0;i<layers;i++) {
             ctx.save();
-            ctx.translate(dx-i*2.5,dy-i*2.5);
+            ctx.translate(dx-i*2.5+shake,dy-i*2.5);
             ctx.rotate(-0.05+i*0.03+riffle*(i%2?1:-1));
             ctx.scale(sc,sc);
             ctx.drawImage(art.back(variant),-CARD_W/2,-CARD_H/2,CARD_W,CARD_H);

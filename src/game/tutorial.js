@@ -85,6 +85,15 @@ export class TutorialDirector {
         this.hooks.task(s);
     }
 
+    reopen() {
+        if (this.phase!=='task') {
+            return;
+        }
+        const T=TUNING.tutorial;
+        this.taskT=T.remind-T.reopenGap;
+        this.hooks.remind(this.step(),this.index);
+    }
+
     placePad() {
         const T=TUNING.tutorial;
         const p=T.pads[(this.counts.pad||0)%T.pads.length];

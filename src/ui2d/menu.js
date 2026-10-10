@@ -5915,12 +5915,6 @@ export class TrainingMenu extends Panel {
                 ctx.textAlign='right';
                 ctx.fillText(t('trainMenu.bossLocked'),ir.x+ir.w-6,iy+ih/2);
             }
-            if (kind==='weapon') {
-                ctx.fillStyle=PALETTE.nearGray;
-                ctx.font='11px '+FONT;
-                ctx.textAlign='right';
-                ctx.fillText(t('weapon.'+id+'.short'),ir.x+ir.w-6,iy+ih/2);
-            }
             ctx.restore();
             const act=()=>{
                 if (!ok) {
@@ -6044,6 +6038,11 @@ export class Coach extends Panel {
             out.push({x:Math.random(),y:-Math.random(),v:C.speed[0]+Math.random()*(C.speed[1]-C.speed[0]),s:C.size[0]+Math.random()*(C.size[1]-C.size[0]),r:Math.random()*6,w:(Math.random()-0.5)*C.spin,c:i%3});
         }
         return out;
+    }
+
+    hitStrip(x,y) {
+        const r=this.stripRect;
+        return !!this.strip&&!this.open&&this.strip.stamp<0&&!!r&&x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h;
     }
 
     task(step) {
@@ -6199,9 +6198,20 @@ export class Coach extends Panel {
             return;
         }
         if (kind==='cards') {
-            const on=Math.floor(k/0.9)%2;
-            keycap(ctx,0,-42,32,32,'1',on===0);
-            keycap(ctx,40,-42,32,32,'2',on===1);
+            const cyc=k%3.6;
+            if (cyc<1.8) {
+                const on=Math.floor(k/0.9)%2;
+                keycap(ctx,0,-42,32,32,'1',on===0);
+                keycap(ctx,40,-42,32,32,'2',on===1);
+                return;
+            }
+            keycap(ctx,0,-42,32,32,'1',cyc<2.4);
+            keycap(ctx,40,-42,52,32,t('tut.key.esc'),cyc>=2.6&&cyc<3.0);
+            ctx.fillStyle=PALETTE.red;
+            ctx.font='bold 13px '+FONT;
+            ctx.textAlign='left';
+            ctx.textBaseline='middle';
+            ctx.fillText(t('tut.cancelKey'),0,-72);
             return;
         }
         keycap(ctx,0,-42,32,32,'3',(k%1.2)<0.5,true);
@@ -6245,23 +6255,54 @@ export class Coach extends Panel {
             return;
         }
         if (kind==='cards') {
-            const f=(k%1.8)/1.8;
+            const cyc=k%3.6;
+            const cancel=cyc>=1.8;
+            const f=(cyc%1.8)/1.8;
             const drag=Math.max(0,Math.min(1,(f-0.15)/0.5));
+            const hold=drag>0&&f<0.8;
+            const tx=cancel?14:98;
+            const ty=cancel?-70:-68;
             roundBtn(ctx,22,-24,20,'',false);
-            roundBtn(ctx,68,-24,20,'',drag>0&&drag<1);
-            if (drag>0&&drag<1) {
+            roundBtn(ctx,68,-24,20,'',hold);
+            if (cancel&&hold) {
+                const on=drag>=1;
+                ctx.fillStyle=on?PALETTE.red:rgba('paper',0.95);
+                ctx.beginPath();
+                ctx.arc(tx,ty,13,0,Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle=PALETTE.red;
+                ctx.lineWidth=2.4;
+                ctx.stroke();
+                ctx.strokeStyle=on?PALETTE.paper:PALETTE.red;
+                ctx.beginPath();
+                ctx.moveTo(tx-5,ty-5);
+                ctx.lineTo(tx+5,ty+5);
+                ctx.moveTo(tx+5,ty-5);
+                ctx.lineTo(tx-5,ty+5);
+                ctx.stroke();
+            }
+            if (hold) {
+                const px=68+(tx-68)*drag;
+                const py=-24+(ty+24)*drag;
                 ctx.strokeStyle=PALETTE.red;
                 ctx.lineWidth=2.4;
                 ctx.setLineDash([5,4]);
                 ctx.beginPath();
                 ctx.moveTo(68,-24);
-                ctx.lineTo(68+drag*30,-24-drag*44);
+                ctx.lineTo(px,py);
                 ctx.stroke();
                 ctx.setLineDash([]);
                 ctx.fillStyle=PALETTE.red;
                 ctx.beginPath();
-                ctx.arc(68+drag*30,-24-drag*44,7,0,Math.PI*2);
+                ctx.arc(px,py,7,0,Math.PI*2);
                 ctx.fill();
+            }
+            if (cancel) {
+                ctx.fillStyle=PALETTE.red;
+                ctx.font='bold 13px '+FONT;
+                ctx.textAlign='left';
+                ctx.textBaseline='middle';
+                ctx.fillText(t('tut.cancelTag'),30,-70);
             }
             return;
         }
@@ -6776,6 +6817,7 @@ export class Coach extends Panel {
         const h=(sm?S.hSmall:S.h)+(goals.length-1)*lh;
         const x=this.width/2-w/2;
         const y=S.top-(1-EASE.easeOutBack(Math.min(1,s.t/0.35)))*(h+S.top);
+        this.stripRect={x,y,w,h};
         ctx.save();
         ctx.fillStyle=rgba('paper',0.95);
         ctx.fillRect(x,y,w,h);

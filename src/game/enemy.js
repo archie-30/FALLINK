@@ -1,7 +1,7 @@
 import*as THREE from 'three';
 import {TUNING} from '../data/tuning.js';
 import {ENEMIES} from '../data/enemies.js';
-import {toonMaterial,hullMaterial,unlitMaterial,lineMaterial,trapMaterial,inkMaterial,ringMaterial,registerShadow,pal,renderFlags} from '../render/materials.js';
+import {toonMaterial,hullMaterial,unlitMaterial,lineMaterial,trapMaterial,inkMaterial,ringMaterial,fadeMaterial,registerShadow,pal,renderFlags} from '../render/materials.js';
 import {resolveCircle,clampToBounds,circleVs} from '../core/collision.js';
 import {EASE} from '../core/easing.js';
 import {RNG} from '../core/rng.js';
@@ -57,6 +57,7 @@ export class Enemy {
         this.mats=[];
         this.hulls=[];
         this.lines=[];
+        this.fades=[];
         this.strips=[];
         this.ring=null;
         this.tele=null;
@@ -137,6 +138,46 @@ export class Enemy {
             this.lines.push(m);
         }
         return this.lines[i];
+    }
+
+    fade(i) {
+        while (this.fades.length<=i) {
+            const g=geo('line',()=>{
+                const q=new THREE.PlaneGeometry(1,1);
+                q.rotateX(-Math.PI/2);
+                q.translate(0.5,0,0);
+                return q;
+            });
+            const m=new THREE.Mesh(g,fadeMaterial('red'));
+            m.visible=false;
+            m.frustumCulled=false;
+            this.fxScene.add(m);
+            this.fades.push(m);
+        }
+        return this.fades[i];
+    }
+
+    fadeRay(i,ox,oz,a,r0,r1,dir,w,alpha) {
+        const cx=Math.cos(a);
+        const cz=Math.sin(a);
+        const s=dir>0?1:-1;
+        const px=-cz*s*w/2;
+        const pz=cx*s*w/2;
+        const m=this.fade(i);
+        this.putLine(m,ox+cx*r0+px,oz+cz*r0+pz,ox+cx*r1+px,oz+cz*r1+pz,w);
+        m.position.y=0.035;
+        m.material.uniforms.uAxis.value=1;
+        m.material.uniforms.uFlip.value=dir>0?0:1;
+        m.material.uniforms.uAlpha.value=alpha;
+    }
+
+    fadeBand(i,ax,az,bx,bz,w,alpha) {
+        const m=this.fade(i);
+        this.putLine(m,ax,az,bx,bz,w);
+        m.position.y=0.035;
+        m.material.uniforms.uAxis.value=0;
+        m.material.uniforms.uFlip.value=1;
+        m.material.uniforms.uAlpha.value=alpha;
     }
 
     ringMesh() {
@@ -255,6 +296,9 @@ export class Enemy {
         this.hideStrips();
         for (const l of this.lines) {
             l.visible=false;
+        }
+        for (const f of this.fades) {
+            f.visible=false;
         }
         if (this.ring) {
             this.ring.visible=false;
@@ -591,6 +635,9 @@ export class Enemy {
         for (const l of this.lines) {
             l.visible=false;
         }
+        for (const f of this.fades) {
+            f.visible=false;
+        }
         if (this.ring) {
             this.ring.visible=false;
         }
@@ -600,14 +647,12 @@ export class Enemy {
                 const W=TUNING.wallTele;
                 const px=-tg.dz;
                 const pz=tg.dx;
-                for (let i=0;i<W.rows;i++) {
-                    const ln=this.line(i);
-                    const cx=this.renderPos.x+tg.dx*(W.front+i*W.gap);
-                    const cz=this.renderPos.z+tg.dz*(W.front+i*W.gap);
-                    const half=W.half*Math.max(0,Math.min(1,k*1.3-i*0.15));
-                    this.putLine(ln,cx-px*half,cz-pz*half,cx+px*half,cz+pz*half,W.width*(1-i*W.thin));
-                    ln.position.y=0.04;
-                }
+                const cx=this.renderPos.x+tg.dx*W.front;
+                const cz=this.renderPos.z+tg.dz*W.front;
+                const half=W.half*k;
+                this.putLine(this.line(0),cx-px*half,cz-pz*half,cx+px*half,cz+pz*half,W.width);
+                this.line(0).position.y=0.04;
+                this.fadeBand(0,cx,cz,cx+tg.dx*W.reach*k,cz+tg.dz*W.reach*k,half*2,W.alpha*k);
             }
             else if (tg.type==='line') {
                 const base=Math.atan2(tg.dz,tg.dx);
@@ -3770,6 +3815,8 @@ class BookFinal extends Book {
             if (w.t<w.warn) {
                 const m=this.line(li++);
                 put(m,sg.ax,sg.az,sg.bx,sg.bz,0.3);
+                const MT=TUNING.moveTele;
+                this.fadeRay(1,this.pos.x,this.pos.z,Math.atan2(sg.bz-sg.az,sg.bx-sg.ax),this.def.sweep.inner,this.def.sweep.outer,w.dir,MT.width*1.3,MT.alpha*Math.min(1,w.t/(w.warn*0.5)));
                 const a=w.a0+w.dir*this.def.sweep.arc;
                 const m2=this.line(li++);
                 put(m2,this.pos.x+Math.cos(a)*this.def.sweep.inner,this.pos.z+Math.sin(a)*this.def.sweep.inner,this.pos.x+Math.cos(a)*this.def.sweep.outer,this.pos.z+Math.sin(a)*this.def.sweep.outer,0.12);
@@ -3930,6 +3977,7 @@ class Alarm extends Enemy {
         this.hop=null;
         this.hopQ=[];
         this.hopY=0;
+        this.fallY=0;
         this.airborne=false;
         this.warnMeshes=this.warnMeshes||[];
         this.waveMeshes=this.waveMeshes||[];
@@ -4018,13 +4066,9 @@ class Alarm extends Enemy {
         this.beams=[];
         this.waves=[];
         this.tele=null;
-        if (this.hop) {
-            this.pos.x=this.hop.tx;
-            this.pos.z=this.hop.tz;
-        }
+        this.fallY=this.hop?this.hopY:0;
         this.hop=null;
         this.hopQ=[];
-        this.hopY=0;
         this.airborne=false;
     }
 
@@ -4502,6 +4546,10 @@ class Alarm extends Enemy {
         this.aimX=0;
         this.aimZ=1;
         this.faceT+=this.state==='snooze'?0:dt;
+        if (this.fallY>0) {
+            this.fallY=Math.max(0,this.fallY-dt*this.def.hop.fall);
+            this.hopY=this.fallY;
+        }
         this.kicks[0]*=Math.exp(-5*dt);
         this.kicks[1]*=Math.exp(-5*dt);
         this.guardPads(ctx);
@@ -4551,6 +4599,7 @@ class Alarm extends Enemy {
         const oz=this.pos.z;
         let si=0;
         let li=8;
+        let fi=1;
         const roles={h:null,m:null,s:null};
         for (const b of this.beams) {
             if (b.t<0) {
@@ -4568,8 +4617,10 @@ class Alarm extends Enemy {
                     this.putLine(this.line(li++),ox+cx*r0,oz+cz*r0,ox+cx*r2,oz+cz*r2,b.thin?0.14:0.22);
                 }
                 if (b.speed!==0) {
-                    const a2=b.a+Math.sign(b.speed)*0.2;
-                    this.putLine(this.line(li++),ox+Math.cos(a2)*b.inner,oz+Math.sin(a2)*b.inner,ox+Math.cos(a2)*b.inner*3,oz+Math.sin(a2)*b.inner*3,0.08);
+                    const MT=TUNING.moveTele;
+                    for (const [r0,r1] of this.segs(b)) {
+                        this.fadeRay(fi++,ox,oz,b.a,r0,r0+(r1-r0)*k,b.speed,MT.width,MT.alpha);
+                    }
                 }
             }
             else {
@@ -4752,6 +4803,28 @@ export class EnemyManager {
         for (const e of arr) {
             if (e.alive) {
                 e.update(e.def.boss?dt*TUNING.bossTempo*(1+e.tier*TUNING.bossScale.tempo):dt,ctx);
+            }
+        }
+        if (D&&D.active) {
+            const P=TUNING.effects.puppet;
+            const fp=D.fig.pos;
+            for (const e of arr) {
+                if (!e.alive||e.def.boss||e.state==='spawn'||e.dummy||e.stunT>0) {
+                    continue;
+                }
+                const dx=fp.x-e.pos.x;
+                const dz=fp.z-e.pos.z;
+                const l=Math.hypot(dx,dz);
+                if (l<=P.near+e.def.radius) {
+                    continue;
+                }
+                const step=Math.min(l-P.near-e.def.radius,P.pull*dt);
+                e.pos.x+=dx/l*step;
+                e.pos.z+=dz/l*step;
+                if (!e.def.flying) {
+                    resolveCircle(e.pos,e.def.radius,e.colliders(ctx),2);
+                }
+                clampToBounds(e.pos,e.def.radius,ctx.room.bounds);
             }
         }
         ctx.player=real;

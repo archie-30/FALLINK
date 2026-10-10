@@ -83,7 +83,86 @@ function makeTextures() {
         t.colorSpace=THREE.SRGBColorSpace;
         return t;
     };
-    tex={glow:mk(glow),pool:mk(pool),swirl:mk(swirl)};
+    const tunnel=document.createElement('canvas');
+    tunnel.width=128;
+    tunnel.height=128;
+    const tc=tunnel.getContext('2d');
+    tc.translate(64,64);
+    const core=tc.createRadialGradient(0,0,0,0,0,40);
+    core.addColorStop(0,col(0.95));
+    core.addColorStop(0.45,col(0.35));
+    core.addColorStop(1,col(0));
+    tc.fillStyle=core;
+    tc.fillRect(-64,-64,128,128);
+    tc.lineCap='round';
+    for (let k=0;k<4;k++) {
+        const rr=22+k*11;
+        tc.strokeStyle=k%2?col(0.8):rgba('ink',0.5-k*0.08);
+        tc.lineWidth=k%2?3:2;
+        tc.beginPath();
+        for (let i=0;i<=48;i++) {
+            const a=i/48*Math.PI*2;
+            const j=Math.sin(a*5+k*1.7)*1.6+Math.sin(a*11+k)*0.8;
+            const x=Math.cos(a)*(rr+j);
+            const y=Math.sin(a)*(rr+j);
+            if (i===0) {
+                tc.moveTo(x,y);
+            }
+            else {
+                tc.lineTo(x,y);
+            }
+        }
+        tc.stroke();
+    }
+    const rune=document.createElement('canvas');
+    rune.width=128;
+    rune.height=128;
+    const rc=rune.getContext('2d');
+    rc.translate(64,64);
+    rc.strokeStyle=col(0.95);
+    rc.lineWidth=2.5;
+    rc.beginPath();
+    rc.arc(0,0,58,0,Math.PI*2);
+    rc.stroke();
+    rc.lineWidth=1.5;
+    rc.beginPath();
+    rc.arc(0,0,48,0,Math.PI*2);
+    rc.stroke();
+    rc.lineWidth=2.2;
+    for (let i=0;i<16;i++) {
+        const a=i/16*Math.PI*2;
+        rc.save();
+        rc.rotate(a);
+        rc.beginPath();
+        if (i%4===0) {
+            rc.moveTo(-3,-56);
+            rc.lineTo(0,-50);
+            rc.lineTo(3,-56);
+        }
+        else if (i%2===0) {
+            rc.arc(0,-53,2.2,0,Math.PI*2);
+        }
+        else {
+            rc.moveTo(0,-56);
+            rc.lineTo(0,-50);
+        }
+        rc.stroke();
+        rc.restore();
+    }
+    const rays=document.createElement('canvas');
+    rays.width=128;
+    rays.height=128;
+    const yc=rays.getContext('2d');
+    for (let i=0;i<9;i++) {
+        const x=8+i*14+Math.sin(i*2.3)*4;
+        const w=3+(i*7%5);
+        const lgr=yc.createLinearGradient(0,128,0,0);
+        lgr.addColorStop(0,col(0.7));
+        lgr.addColorStop(1,col(0));
+        yc.fillStyle=lgr;
+        yc.fillRect(x,0,w,128);
+    }
+    tex={glow:mk(glow),pool:mk(pool),swirl:mk(swirl),tunnel:mk(tunnel),rune:mk(rune),rays:mk(rays)};
 }
 
 function fxMaterial(map) {
@@ -116,7 +195,7 @@ export class Doors {
         if (!tex) {
             makeTextures();
         }
-        for (const k of ['glow','swirl','pool']) {
+        for (const k of ['glow','swirl','pool','tunnel','rune','rays']) {
             const m=new THREE.Mesh(plane(1,1),fxMaterial(tex[k]));
             m.visible=false;
             this.fx.add(m);
@@ -224,8 +303,19 @@ export class Doors {
         const pool=new THREE.Mesh(plane(W*1.6,A+2.4),fxMaterial(tex.pool));
         pool.rotation.x=-Math.PI/2;
         pool.position.set(wx,0.03,z-t-A/2+0.4);
-        this.fx.add(portal,swirl,pool);
-        return {group:g,leaves,piece,cols,leafCol,x:wx,z,t,open:0,target:0,portal,swirl,pool,fxMeshes:[portal,swirl,pool],time:Math.random()*5,emit:0,delay:0};
+        const zb=z-t-A;
+        const tunnel=[];
+        for (let i=0;i<TUNING.doors.tunnelLayers;i++) {
+            const m=new THREE.Mesh(plane(W*0.9,W*0.9),fxMaterial(tex.tunnel));
+            m.position.set(wx,H*0.48,zb+0.105+i*0.004);
+            tunnel.push(m);
+        }
+        const rays=new THREE.Mesh(plane(W*0.9,H*0.9),fxMaterial(tex.rays));
+        rays.position.set(wx,H*0.45,zb+0.115);
+        const rune=new THREE.Mesh(plane(W*1.05,W*1.05),fxMaterial(tex.rune));
+        rune.position.set(wx,H*0.5,zb+0.13);
+        this.fx.add(portal,...tunnel,rays,swirl,rune,pool);
+        return {group:g,leaves,piece,cols,leafCol,x:wx,z,t,open:0,target:0,portal,swirl,pool,tunnel,rays,rune,fxMeshes:[portal,swirl,pool,rays,rune,...tunnel],time:Math.random()*5,emit:0,delay:0};
     }
 
     setSolid(d,closed) {
@@ -291,6 +381,16 @@ export class Doors {
             d.pool.material.opacity=lit*D.floor*pulse;
             d.swirl.material.opacity=lit*D.swirlAlpha;
             d.swirl.rotation.z=-d.time*D.swirlRate;
+            d.tunnel.forEach((m,i)=>{
+                const p=(d.time*D.tunnelRate+i/d.tunnel.length)%1;
+                const sc=D.tunnelScale[0]+(D.tunnelScale[1]-D.tunnelScale[0])*p;
+                m.scale.set(sc,sc,1);
+                m.rotation.z=(i%2?1:-1)*d.time*D.tunnelSpin+i;
+                m.material.opacity=lit*D.tunnelAlpha*Math.sin(p*Math.PI);
+            });
+            d.rays.material.opacity=lit*D.raysAlpha*(0.7+0.3*Math.sin(d.time*D.raysRate)*Math.sin(d.time*D.raysRate*0.37+1));
+            d.rune.rotation.z=d.time*D.runeSpin;
+            d.rune.material.opacity=lit*D.runeAlpha*pulse;
             if (lit>0.6) {
                 d.emit-=dt;
                 if (d.emit<=0) {

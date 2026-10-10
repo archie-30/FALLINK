@@ -277,46 +277,58 @@ export const SOUNDS={
     gachaWhoosh:{
         gap:0.3,
         gain:0.4,
+        rev:0.2,
         layers:[
-            {kind:'noise',dur:0.5,attack:0.3,gain:0.28,filter:{type:'bandpass',f0:500,f1:2600,q:1.1}},
-            {kind:'tone',wave:'sine',f0:90,f1:160,dur:0.45,attack:0.25,gain:0.18}
+            {kind:'tone',wave:'sine',f0:70,f1:45,dur:0.35,gain:0.3},
+            {kind:'noise',dur:0.08,gain:0.22,filter:{type:'bandpass',f0:1200,q:2}},
+            {kind:'noise',dur:0.55,delay:0.06,attack:0.3,gain:0.16,filter:{type:'bandpass',f0:500,f1:3200,q:1.1}},
+            {kind:'tone',wave:'triangle',f0:520,f1:1040,dur:0.4,delay:0.12,attack:0.2,gain:0.05,trem:{rate:18,depth:0.7}},
+            {kind:'tone',wave:'sine',f0:1568,dur:0.25,delay:0.45,gain:0.05}
         ]
     },
     gachaClick:{
         gap:0.08,
         gain:0.42,
-        rev:0.08,
+        rev:0.1,
         layers:[
-            {kind:'noise',dur:0.04,gain:0.4,filter:{type:'bandpass',f0:2600,q:4}},
-            {kind:'tone',wave:'square',f0:520,f1:260,dur:0.05,gain:0.06},
-            {kind:'noise',dur:0.05,delay:0.06,gain:0.28,filter:{type:'bandpass',f0:1500,q:4}},
-            {kind:'tone',wave:'sine',f0:180,f1:90,dur:0.09,gain:0.22,delay:0.06}
+            {kind:'noise',dur:0.03,gain:0.34,filter:{type:'bandpass',f0:3200,q:5}},
+            {kind:'noise',dur:0.03,delay:0.045,gain:0.28,filter:{type:'bandpass',f0:2600,q:5}},
+            {kind:'noise',dur:0.04,delay:0.09,gain:0.3,filter:{type:'bandpass',f0:1800,q:4}},
+            {kind:'tone',wave:'square',f0:420,f1:210,dur:0.06,gain:0.05,delay:0.09},
+            {kind:'tone',wave:'sine',f0:160,f1:80,dur:0.12,gain:0.24,delay:0.09},
+            {kind:'tone',wave:'triangle',f0:2093,dur:0.14,gain:0.05,delay:0.1}
         ]
     },
     gachaRise:{
         gap:0.5,
         gain:0.32,
         layers:[
-            {kind:'tone',wave:'sawtooth',f0:220,f1:880,dur:1.4,attack:1.1,gain:0.05,filter:{type:'lowpass',f0:600,f1:3200,q:2}},
-            {kind:'tone',wave:'triangle',f0:330,f1:1320,dur:1.4,attack:1.1,gain:0.06},
-            {kind:'noise',dur:1.4,attack:1.2,gain:0.12,filter:{type:'highpass',f0:1200,f1:6000,q:0.7}}
+            {kind:'noise',dur:1.4,attack:0.4,gain:0.14,filter:{type:'bandpass',f0:1400,f1:2600,q:1.5},trem:{rate:16,depth:0.9}},
+            {kind:'tone',wave:'triangle',f0:262,f1:1047,dur:1.4,attack:1.0,gain:0.06,trem:{rate:8,depth:0.6}},
+            {kind:'tone',wave:'sawtooth',f0:131,f1:523,dur:1.4,attack:1.1,gain:0.04,filter:{type:'lowpass',f0:500,f1:2800,q:2}},
+            {kind:'tone',wave:'sine',f0:65,dur:1.4,attack:0.6,gain:0.12,trem:{rate:4,depth:0.8}},
+            {kind:'noise',dur:1.4,attack:1.2,gain:0.08,filter:{type:'highpass',f0:1500,f1:7000,q:0.7}}
         ]
     },
     gachaDrop:{
         gap:0.2,
         gain:0.5,
+        rev:0.15,
         layers:[
-            {kind:'noise',dur:0.12,gain:0.22,filter:{type:'bandpass',f0:900,f1:400,q:1.2}},
-            {kind:'tone',wave:'sine',f0:200,f1:70,dur:0.2,gain:0.38},
-            {kind:'tone',wave:'triangle',f0:640,f1:420,dur:0.08,gain:0.08,delay:0.02}
+            {kind:'noise',dur:0.3,gain:0.14,filter:{type:'bandpass',f0:1600,f1:600,q:1.4},trem:{rate:24,depth:0.9}},
+            {kind:'noise',dur:0.1,delay:0.25,gain:0.2,filter:{type:'bandpass',f0:800,f1:350,q:1.2}},
+            {kind:'tone',wave:'sine',f0:180,f1:60,dur:0.24,gain:0.36,delay:0.25},
+            {kind:'tone',wave:'triangle',f0:700,f1:460,dur:0.08,gain:0.07,delay:0.27},
+            {kind:'tone',wave:'triangle',f0:2349,dur:0.18,gain:0.04,delay:0.3}
         ]
     },
     gachaBounce:{
         gap:0.06,
         gain:0.45,
         layers:[
-            {kind:'tone',wave:'sine',f0:260,f1:150,dur:0.1,gain:0.3},
-            {kind:'tone',wave:'triangle',f0:900,f1:700,dur:0.05,gain:0.06}
+            {kind:'tone',wave:'sine',f0:280,f1:150,dur:0.1,gain:0.28},
+            {kind:'noise',dur:0.025,gain:0.12,filter:{type:'bandpass',f0:2400,q:3}},
+            {kind:'tone',wave:'triangle',f0:900,f1:700,dur:0.05,gain:0.05}
         ]
     },
     gachaHover:{

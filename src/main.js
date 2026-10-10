@@ -794,12 +794,6 @@ function boot() {
             bump('bosses');
             bump('boss.'+e.type);
             addKind('boss',e.type);
-            if (run.mode==='story'||run.mode==='endless') {
-                const got=earnDots(TUNING.meta.dotBoss);
-                if (got>0) {
-                    overlay.hud.toast(t('run.dotsGain',{n:got}));
-                }
-            }
         }
         fx.hitStop(F.hitStopKill,true);
         fx.cameraShake(F.shakeKill);
@@ -955,6 +949,15 @@ function boot() {
         const R=TUNING.effects.fortRadius;
         particles.burst(p.pos.x-dx*R,1.0,p.pos.z-dz*R,6,{color:'farGray',speed:[1,4],up:[1,3],size:[0.06,0.12]});
         audio.play('draw',1.8);
+    };
+    player.events.onBulletProof=(p,x,z)=>{
+        particles.burst(x,1.0,z,5,{color:'red',speed:[1,3],up:[1,3],size:[0.05,0.1]});
+        if (time.real-fortFx<TUNING.effects.fortFxGap) {
+            return;
+        }
+        fortFx=time.real;
+        rings.spawn(p.pos.x,p.pos.z,0.9,'red',0.25);
+        audio.play('draw',2);
     };
     player.events.onFortEnd=p=>{
         paperShards.burst(p.pos.x,1.0,p.pos.z,8,0,0,1.2);
@@ -2154,6 +2157,10 @@ function boot() {
             return id;
         },
         sfx:(k,p)=>audio.play('gacha'+k[0].toUpperCase()+k.slice(1),p||1),
+        info:()=>{
+            audio.play('ui');
+            guide.open2(relicGuide(),{ok:t('notice.ok'),fit:true});
+        },
         back:()=>{
             audio.play('ui');
             relicView.hide();
@@ -2574,6 +2581,10 @@ function boot() {
             if (coach.open) {
                 return coach.down(x,y);
             }
+            if (run.tutorial()&&run.director&&run.director.reopen&&coach.hitStrip(x,y)) {
+                run.director.reopen();
+                return true;
+            }
             if (type!=='mouse'&&marks.hitPrompt(x,y)&&tryInteract()) {
                 return true;
             }
@@ -2832,8 +2843,9 @@ function boot() {
         }
         const tv=hand.targetView;
         if (type==='down') {
-            skillQuick=hand.quickCast(slot);
+            skillQuick=hand.canQuick(slot);
             if (skillQuick) {
+                hand.cancelTargeting();
                 return;
             }
             skillToggle=!!(tv&&tv.slot===slot);
@@ -2844,6 +2856,7 @@ function boot() {
         }
         if (skillQuick) {
             skillQuick=false;
+            hand.quickCast(slot);
             return;
         }
         if (moved&&mag>0&&tv&&tv.slot===slot) {
@@ -3156,6 +3169,9 @@ function boot() {
         homingBullets.update(dt,room);
         lobs.update(dt);
         deck.update(dt);
+        const tutDeck=run.tutorial()&&coach.strip&&coach.strip.step.key==='deck'&&coach.strip.stamp<0?coach.strip:null;
+        hand.pileHint=!!tutDeck&&!deckView.open&&(tutDeck.counts.detail||0)<1;
+        deckView.tutHint=tutDeck?((tutDeck.counts.detail||0)>=1?'done':'pick'):null;
         hand.idleT=run.state==='combat'&&run.mode!=='training'&&run.mode!=='tutorial'&&hand.visible()?(hand.idleT||0)+dt:0;
         room.update(dt,enemies);
         effects.update(dt);

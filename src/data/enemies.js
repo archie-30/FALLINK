@@ -534,7 +534,7 @@ export const ENEMIES={
         evolve:{at:0.5,time:2.4},
         gap:[0.45,0.8],
         first:1.2,
-        hop:{tele:0.9,homeTele:0.6,air:0.6,height:3.5,r:2.4,count:2,count2:3,margin:3,wave:{speed:7,max:6,width:0.4}},
+        hop:{tele:0.9,homeTele:0.6,air:0.6,height:3.5,fall:14,r:2.4,count:2,count2:3,margin:3,wave:{speed:7,max:6,width:0.4}},
         bar:{rate:5,rate2:7,max:100,show:60,after:40,tick:[0.62,0.14],pitch:[1,1.7]},
         pad:{r:1.4,hold:0.8,hold2:0.6,decay:0.5,inset:2.4,minDist:5,avoid:0.45,vanish:0.3,safe:0.15},
         snooze:{time:3.5,time2:4,ink:1},

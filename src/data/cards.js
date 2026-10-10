@@ -526,9 +526,9 @@ export const CARDS={
         mode:'summon',
         targeting:'point',
         range:8,
-        params:{duration:5,shields:3},
+        params:{duration:5},
         upgraded:{cost:3},
-        effect:(g,t,p)=>g.puppet(t.x,t.z,p.duration,p.shields)
+        effect:(g,t,p)=>g.puppet(t.x,t.z,p.duration)
     },
     bounceBall:{
         id:'bounceBall',

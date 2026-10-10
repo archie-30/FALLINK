@@ -25,6 +25,7 @@ export class Input {
         this.move=makeStick();
         this.aim=makeStick();
         this.dash={x:0,y:0,r:TUNING.input.dashButtonRadius,id:-1,flash:0};
+        this.reloadBtn={x:0,y:0,r:TUNING.input.dashButtonRadius,id:-1,flash:0};
         this.skills=[makeSkill(0),makeSkill(1),makeSkill(2)];
         this.onSkill=null;
         this.dashQueued=false;
@@ -110,6 +111,10 @@ export class Input {
         this.dash.r=sr*K.dashMul;
         this.dash.x=this.aim.cx+Math.cos(K.angles[0])*ring;
         this.dash.y=this.aim.cy+Math.sin(K.angles[0])*ring;
+        const R=this.reloadBtn;
+        R.r=sr*K.reloadMul;
+        R.x=this.move.cx+Math.cos(K.reloadAngle)*(r+K.gap+R.r);
+        R.y=this.move.cy+Math.sin(K.reloadAngle)*(r+K.gap+R.r);
         for (const k of this.skills) {
             const big=k.slot===2?K.ultMul:1;
             k.r=sr*big;
@@ -135,6 +140,7 @@ export class Input {
         this.releaseStick(this.move);
         this.releaseStick(this.aim);
         this.dash.id=-1;
+        this.reloadBtn.id=-1;
         for (const k of this.skills) {
             this.releaseSkill(k);
         }
@@ -245,6 +251,12 @@ export class Input {
                 }
                 return;
             }
+            if (this.reloadAt(x,y)) {
+                this.lastDevice='touch';
+                this.touches.set(e.pointerId,{x,y,t:performance.now()});
+                this.pressReload(e.pointerId);
+                return;
+            }
             const d=this.dash;
             const st=this.stickAt(x,y);
             const onDash=d.id<0&&!this.skillHeld()&&Math.hypot(x-d.x,y-d.y)<=d.r*1.2;
@@ -286,6 +298,10 @@ export class Input {
             if (this.onToggleDebug) {
                 this.onToggleDebug();
             }
+        }
+        if (this.reloadAt(x,y)) {
+            this.pressReload(e.pointerId);
+            return;
         }
         const d=this.dash;
         if (d.id<0&&!this.skillHeld()&&Math.hypot(x-d.x,y-d.y)<=d.r*1.25) {
@@ -337,6 +353,18 @@ export class Input {
                 this.dragSkill(k,x,y);
             }
         }
+    }
+
+    reloadAt(x,y) {
+        const R=this.reloadBtn;
+        return R.id<0&&!this.skillHeld()&&Math.hypot(x-R.x,y-R.y)<=R.r*TUNING.input.skill.grab;
+    }
+
+    pressReload(id) {
+        const R=this.reloadBtn;
+        R.id=id;
+        R.flash=1;
+        this.reloadQueued=true;
     }
 
     pressDash(id) {
@@ -436,6 +464,10 @@ export class Input {
         }
         if (e.pointerId===this.dash.id) {
             this.dash.id=-1;
+        this.reloadBtn.id=-1;
+        }
+        if (e.pointerId===this.reloadBtn.id) {
+            this.reloadBtn.id=-1;
         }
         for (const k of this.skills) {
             if (k.id===e.pointerId) {
@@ -496,6 +528,7 @@ export class Input {
         this.releaseStick(this.move);
         this.releaseStick(this.aim);
         this.dash.id=-1;
+        this.reloadBtn.id=-1;
         for (const k of this.skills) {
             k.id=-1;
             k.moved=false;

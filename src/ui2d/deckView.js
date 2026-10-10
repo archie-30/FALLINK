@@ -272,16 +272,28 @@ export class DeckView {
         ctx.fillRect(bx,by,bw,bh);
         ctx.save();
         ctx.translate(bx,by);
-        drawShape(ctx,sketchRect(0,0,bw,bh,{width:2,seed:77}),PALETTE.ink,variant);
+        drawShape(ctx,sketchRect(0,0,bw,bh,{width:this.tutHint==='done'?3:2,seed:77}),this.tutHint==='done'?PALETTE.red:PALETTE.ink,variant);
         ctx.restore();
-        ctx.fillStyle=PALETTE.ink;
+        ctx.fillStyle=this.tutHint==='done'?PALETTE.red:PALETTE.ink;
         ctx.font='bold 16px '+FONT;
         ctx.textAlign='center';
         ctx.textBaseline='middle';
         ctx.fillText(t('deck.close'),w/2,by+bh/2+1);
-        ctx.font='13px '+FONT;
-        ctx.fillStyle=PALETTE.nearGray;
-        ctx.fillText(t(this.touch?'deck.tapHint':'deck.hoverHint'),w/2,by-16);
+        if (this.tutHint) {
+            const done=this.tutHint==='done';
+            const pu=0.5+0.5*Math.sin(time.real*(done?8:4));
+            ctx.save();
+            ctx.font='bold '+(done?19:16)+'px '+FONT;
+            ctx.fillStyle=PALETTE.red;
+            ctx.globalAlpha=a*(0.7+0.3*pu);
+            ctx.fillText(t(done?'tut.deckDone':(this.touch?'tut.deckPick.touch':'tut.deckPick')),w/2,by-18);
+            ctx.restore();
+        }
+        else {
+            ctx.font='13px '+FONT;
+            ctx.fillStyle=PALETTE.nearGray;
+            ctx.fillText(t(this.touch?'deck.tapHint':'deck.hoverHint'),w/2,by-16);
+        }
         const hv=this.open?this.hovered():null;
         if (hv) {
             ctx.save();
