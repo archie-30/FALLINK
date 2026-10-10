@@ -1165,8 +1165,19 @@ export class AchievementView extends Panel {
 
     update(dt) {
         super.update(dt);
+        const A=TUNING.metaUi.ach;
+        if (this.fling&&!this.press) {
+            const before=this.scrollTo;
+            this.scrollTo+=this.fling*dt;
+            this.clampScroll();
+            this.scroll=this.scrollTo;
+            this.fling*=Math.exp(-A.flingDecay*dt);
+            if (Math.abs(this.fling)<A.flingStop||this.scrollTo===before) {
+                this.fling=0;
+            }
+        }
         this.clampScroll();
-        this.scroll+=(this.scrollTo-this.scroll)*Math.min(1,dt*TUNING.metaUi.ach.scrollFollow);
+        this.scroll+=(this.scrollTo-this.scroll)*Math.min(1,dt*A.scrollFollow);
         this.bump=Math.max(0,this.bump-dt*2);
         const f=this.nextChest().f;
         this.barK+=(f-this.barK)*Math.min(1,dt*4*(this.t>0.3?1:0));
@@ -1188,8 +1199,9 @@ export class AchievementView extends Panel {
                 return true;
             }
         }
+        this.fling=0;
         if (inRect(this.V,x,y)) {
-            this.press={x0:x,y0:y,s0:this.scrollTo,moved:false};
+            this.press={x0:x,y0:y,s0:this.scrollTo,moved:false,ly:y,lt:performance.now(),vel:0};
         }
         return true;
     }
@@ -1199,9 +1211,15 @@ export class AchievementView extends Panel {
         if (!p) {
             return;
         }
-        if (Math.hypot(x-p.x0,y-p.y0)>TUNING.metaUi.ach.dragSlop) {
+        const A=TUNING.metaUi.ach;
+        if (Math.hypot(x-p.x0,y-p.y0)>A.dragSlop) {
             p.moved=true;
         }
+        const now=performance.now();
+        const dt=Math.max(1,now-p.lt)/1000;
+        p.vel+=(-(y-p.ly)/dt-p.vel)*Math.min(1,dt*A.flingSmooth);
+        p.ly=y;
+        p.lt=now;
         if (p.moved) {
             this.scrollTo=p.s0-(y-p.y0);
             this.clampScroll();
@@ -1210,6 +1228,11 @@ export class AchievementView extends Panel {
     }
 
     up() {
+        const p=this.press;
+        const A=TUNING.metaUi.ach;
+        if (p&&p.moved&&performance.now()-p.lt<A.flingWindow) {
+            this.fling=Math.max(-A.flingMax,Math.min(A.flingMax,p.vel));
+        }
         this.press=null;
     }
 

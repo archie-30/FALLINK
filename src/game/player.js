@@ -824,7 +824,7 @@ export class Player {
     }
 
     get maxHp() {
-        return TUNING.player.maxHp+(this.ghost?0:maxHpBonus());
+        return TUNING.player.maxHp+(this.ghost?0:maxHpBonus()+(this.hpMod||0));
     }
 
     hurt(dmg,dx,dz) {

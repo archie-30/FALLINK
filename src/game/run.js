@@ -899,9 +899,12 @@ export class Run {
         const ev=NOTEBOOK.events.find(e=>e.id===p.event);
         this.npcUsed[i]=true;
         this.hooks.npcUsed(i);
-        const opts=ev.options.map(o=>({id:o.id}));
+        const hp=this.hooks.hp();
+        const safe=ev.options.filter(o=>!o.effects.some(e=>e[0]==='hurt'&&e[1]>=hp));
+        const list=safe.length?safe:ev.options;
+        const opts=list.map(o=>({id:o.id}));
         this.hooks.openChoice({kind:'event',id:ev.id,options:opts},k=>{
-            this.withReport({key:'report.event',params:{name:'event.'+ev.id+'.title'}},fin=>this.applyEffects(ev.options[k].effects.slice(),fin),done);
+            this.withReport({key:'report.event',params:{name:'event.'+ev.id+'.title'}},fin=>this.applyEffects(list[k].effects.slice(),fin),done);
         });
         return true;
     }
@@ -1052,6 +1055,11 @@ export class Run {
             const n=this.gamble(arg);
             const lost=this.hooks.hurt(n);
             this.note(lost>0?'note.hurt':'note.guarded',{n});
+            cont();
+        }
+        else if (kind==='maxHp'||kind==='maxInk') {
+            const d=this.hooks.maxStat(kind,arg);
+            this.note('note.'+kind+(d>0?'Up':(d<0?'Down':'Cap')),{n:Math.abs(d)});
             cont();
         }
         else if (kind==='ink') {
