@@ -81,6 +81,26 @@ export class WorldMarks {
         const hot=e.alarmBar>=B.show||e.state==='burst';
         ctx.save();
         const pl=game.player.renderPos;
+        if (e.pads.some(q=>!q.done)&&e.state!=='snooze'&&e.state!=='burst') {
+            const hurry=e.alarmBar>=A.hurryAt;
+            const pu=0.5+0.5*Math.sin(time.real*(hurry?A.alertRate*2:A.alertRate));
+            const sc=1+pu*(hurry?A.alertPop*2:A.alertPop);
+            game.project(pl.x,A.alertLift,pl.z,p);
+            ctx.save();
+            ctx.translate(p.x,p.y);
+            ctx.scale(sc,sc);
+            ctx.font='bold '+A.alertFont+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='bottom';
+            ctx.lineWidth=4;
+            ctx.lineJoin='round';
+            ctx.strokeStyle=rgba('paper',0.92);
+            ctx.fillStyle=PALETTE.red;
+            const msg=t(hurry?'alarm.hurry':'alarm.go');
+            ctx.strokeText(msg,0,0);
+            ctx.fillText(msg,0,0);
+            ctx.restore();
+        }
         for (let i=0;i<e.pads.length;i++) {
             const q=e.pads[i];
             if (q.done) {

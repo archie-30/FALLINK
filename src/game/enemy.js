@@ -189,6 +189,7 @@ export class Enemy {
         this.act=o.act||0;
         this.tier=o.tier||0;
         this.minionT=TUNING.bossScale.summonFirst;
+        this.minionWaves=[];
         this.elite=!!o.elite;
         this.dummy=!!o.dummy;
         this.immortal=!!o.immortal;
@@ -402,12 +403,32 @@ export class Enemy {
         if (ctx.enemyMgr.list.length>=B.summonCap) {
             return;
         }
-        for (const type of B.minions[k]) {
+        const list=B.minions[k].map(type=>{
             const a=rng.range(0,Math.PI*2);
-            const e=ctx.enemyMgr.spawn(type,this.pos.x+Math.cos(a)*3.5,this.pos.z+Math.sin(a)*3.5,{});
+            return [type,this.pos.x+Math.cos(a)*3.5,this.pos.z+Math.sin(a)*3.5];
+        });
+        for (const e of this.summonWave(ctx,list)) {
             ctx.particles.burst(e.pos.x,0.4,e.pos.z,8,{color:'midGray',speed:[1,4],up:[1,4]});
+            this.sqv+=0.7;
         }
-        this.sqv+=2;
+    }
+
+    canSummon() {
+        this.minionWaves=(this.minionWaves||[]).filter(w=>w.some(q=>q.e.alive&&q.e.uid===q.uid));
+        return this.minionWaves.length<TUNING.bossScale.waveCap;
+    }
+
+    summonWave(ctx,list) {
+        if (!this.canSummon()) {
+            return [];
+        }
+        const w=[];
+        for (const [type,x,z,o] of list) {
+            const e=ctx.enemyMgr.spawn(type,x,z,o||{});
+            w.push({e,uid:e.uid});
+        }
+        this.minionWaves.push(w);
+        return w.map(q=>q.e);
     }
 
     colliders(ctx) {
@@ -1556,9 +1577,7 @@ class InkBottle extends Enemy {
                 this.finish();
             }
             else if (this.pattern==='summon') {
-                for (const sx of [-1,1]) {
-                    ctx.enemyMgr.spawn('blob',px+sx*2.6,pz+1.5,{hpMult:1,quick:false});
-                }
+                this.summonWave(ctx,[-1,1].map(sx=>['blob',px+sx*2.6,pz+1.5,{hpMult:1,quick:false}]));
                 this.finish();
             }
         }
@@ -2619,10 +2638,10 @@ class Book extends Enemy {
             }
             else if (this.pattern==='summon') {
                 const types=['doodle','doodle','bird'];
-                for (let i=0;i<types.length;i++) {
+                this.summonWave(ctx,types.map((type,i)=>{
                     const a=Math.atan2(this.nz,this.nx)+(i-1)*0.9;
-                    ctx.enemyMgr.spawn(types[i],this.pos.x+Math.cos(a)*3.2,this.pos.z+Math.sin(a)*3.2,{});
-                }
+                    return [type,this.pos.x+Math.cos(a)*3.2,this.pos.z+Math.sin(a)*3.2];
+                }));
                 this.rest();
             }
             return;
@@ -3886,6 +3905,12 @@ class Alarm extends Enemy {
         this.lastDing=-9;
         this.burstDmg=0;
         this.snoozeT=0;
+        this.homeX=this.pos.x;
+        this.homeZ=this.pos.z;
+        this.hop=null;
+        this.hopQ=[];
+        this.hopY=0;
+        this.airborne=false;
         this.warnMeshes=this.warnMeshes||[];
         this.waveMeshes=this.waveMeshes||[];
         this.padMeshes=this.padMeshes||[];
@@ -3973,6 +3998,68 @@ class Alarm extends Enemy {
         this.beams=[];
         this.waves=[];
         this.tele=null;
+        if (this.hop) {
+            this.pos.x=this.hop.tx;
+            this.pos.z=this.hop.tz;
+        }
+        this.hop=null;
+        this.hopQ=[];
+        this.hopY=0;
+        this.airborne=false;
+    }
+
+    canContact() {
+        return !this.airborne;
+    }
+
+    nextHop(ctx) {
+        const H=this.def.hop;
+        const q=this.hopQ.shift();
+        const b=ctx.room.bounds;
+        const p=ctx.player.pos;
+        const home=q==='home';
+        const tx=home?this.homeX:Math.max(b.minX+H.margin,Math.min(b.maxX-H.margin,p.x));
+        const tz=home?this.homeZ:Math.max(b.minZ+H.margin,Math.min(b.maxZ-H.margin,p.z));
+        this.hop={sx:this.pos.x,sz:this.pos.z,tx,tz,t:0,tele:H.tele*(home?H.homeTele:1)};
+        ctx.dangerRings.spawn(tx,tz,H.r,'red',this.hop.tele+H.air);
+        this.kicks[0]=0.8;
+        this.kicks[1]=0.8;
+        this.sfx(ctx,'alarmTick',0.7);
+    }
+
+    hopTick(dt,ctx) {
+        const H=this.def.hop;
+        const h=this.hop;
+        h.t+=dt;
+        if (h.t<h.tele) {
+            this.sq=Math.max(this.sq,-0.25*Math.min(1,h.t/h.tele));
+            return;
+        }
+        const f=Math.min(1,(h.t-h.tele)/H.air);
+        this.pos.x=h.sx+(h.tx-h.sx)*f;
+        this.pos.z=h.sz+(h.tz-h.sz)*f;
+        this.hopY=Math.sin(f*Math.PI)*H.height;
+        this.airborne=f<1;
+        if (f<1) {
+            return;
+        }
+        this.hopY=0;
+        this.sqv+=5;
+        ctx.fx.cameraShake(0.4);
+        ctx.particles.burst(h.tx,0.4,h.tz,18,{color:'ink',speed:[3,8],up:[2,5]});
+        this.sfx(ctx,'alarmBell',0.7);
+        const p=ctx.player;
+        const dx=p.pos.x-h.tx;
+        const dz=p.pos.z-h.tz;
+        const l=Math.hypot(dx,dz);
+        if (l<H.r+TUNING.player.radius) {
+            this.harm(ctx,dx/(l||1),dz/(l||1),false);
+        }
+        this.waves.push({x:h.tx,z:h.tz,r:H.r*0.6,speed:H.wave.speed,max:H.wave.max,width:H.wave.width,hit:false,delay:0});
+        this.hop=null;
+        if (this.hopQ.length) {
+            this.nextHop(ctx);
+        }
     }
 
     onEvolveStart() {
@@ -3986,7 +4073,7 @@ class Alarm extends Enemy {
     }
 
     stun(t,full) {
-        if (this.state==='snooze'||this.state==='burst') {
+        if (this.state==='snooze'||this.state==='burst'||this.airborne) {
             return;
         }
         super.stun(t,full);
@@ -4299,9 +4386,10 @@ class Alarm extends Enemy {
         const d=this.def;
         const ev=this.evolved;
         const sp=ev?d.p2.speed:1;
-        const list=['second','hands','chime','bells'];
-        let k=list[Math.floor(rng.next()*list.length)];
-        if (k===this.last) {
+        const away=Math.hypot(this.pos.x-this.homeX,this.pos.z-this.homeZ)>1.5;
+        const list=['second','hands','chime','bells','hop'];
+        let k=away?'hop':list[Math.floor(rng.next()*list.length)];
+        if (k===this.last&&!away) {
             k=list[(list.indexOf(k)+1)%list.length];
         }
         this.last=k;
@@ -4312,6 +4400,17 @@ class Alarm extends Enemy {
             const dir=rng.sign();
             this.beam({a:Math.atan2(this.nz,this.nx)-dir*0.9,speed:dir*Math.PI*2/S.period*sp,warn:S.warn,dur:S.period*S.turns/sp,width:S.width,thin:true,len:S.len,inner:S.inner,flip:ev,role:'s'});
             this.sfx(ctx,'alarmTick',0.8);
+        }
+        else if (k==='hop') {
+            const H=d.hop;
+            this.hopQ=[];
+            if (!away) {
+                for (let i=0;i<(ev?H.count2:H.count);i++) {
+                    this.hopQ.push('player');
+                }
+            }
+            this.hopQ.push('home');
+            this.nextHop(ctx);
         }
         else if (k==='hands') {
             const H=d.hands;
@@ -4397,7 +4496,10 @@ class Alarm extends Enemy {
             }
             return;
         }
-        if (this.state==='attack'&&!this.beams.length&&!this.waves.length) {
+        if (this.state==='attack'&&this.hop) {
+            this.hopTick(dt,ctx);
+        }
+        if (this.state==='attack'&&!this.beams.length&&!this.waves.length&&!this.hop) {
             this.setState('move');
             this.patternT=rng.range(d.gap[0],d.gap[1])+(this.pattern==='bells'?d.bells.rest:0);
         }
@@ -4405,6 +4507,10 @@ class Alarm extends Enemy {
 
     sync(alpha,dt) {
         super.sync(alpha,dt);
+        const hy=this.hopY||0;
+        this.root.position.y=hy;
+        this.shadow.position.y=0.03-hy;
+        this.shadow.scale.setScalar(this.def.radius*3.2*(1-0.4*hy/this.def.hop.height));
         const ox=this.pos.x;
         const oz=this.pos.z;
         let si=0;
