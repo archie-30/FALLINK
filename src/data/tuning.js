@@ -646,7 +646,7 @@ export const TUNING={
     brushSwing:{start:0.4,band:0.35,bulletPad:0.3,propPad:0.3,compassClear:0.75},
     bossIntro:{delay:0.9},
     achFx:{dodgeChain:{window:7}},
-    dodgeFx:{ink:1,slow:0.3,slowTime:0.55,blur:0.9,blurTime:0.4,flash:0.18,cooldown:0.8},
+    dodgeFx:{ink:0.5,slow:0.3,slowTime:0.55,blur:0.9,blurTime:0.4,flash:0.18,cooldown:0.8},
     bossDrop:{
         interval:[9,14],
         first:6,
