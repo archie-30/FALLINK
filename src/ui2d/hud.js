@@ -600,9 +600,9 @@ export class Hud {
         const BN=TUNING.hud.banner;
         const k2=textScale();
         const tf=Math.round(BN.title*k2);
-        const sf=Math.round(BN.sub*k2);
+        const sf=BN.sub;
         const pad=Math.round(BN.pad*k2);
-        const lead=Math.round(sf*BN.lead);
+        const lead=Math.round(sf*k2*BN.lead);
         const maxW=Math.min(w-48,BN.maxW);
         ctx.font='bold '+tf+'px '+FONT;
         let tw=ctx.measureText(this.bannerText).width;

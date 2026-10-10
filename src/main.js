@@ -62,6 +62,10 @@ import {checkForUpdate} from './core/appUpdate.js';
 import {WorldMarks} from './ui2d/worldMarks.js';
 import {VERSION} from './data/version.js';
 
+if (window.FontFace&&document.fonts) {
+    new FontFace(TUNING.ui.bodyFont,'url('+TUNING.ui.bodyFontUrl+')').load().then(f=>document.fonts.add(f)).catch(()=>{});
+}
+
 const QUALITY_ORDER=['low','mid','high'];
 
 function applyTheme() {

@@ -309,6 +309,8 @@ export const TUNING={
         resumeCount:3,
         scale:{refH:560,refW:900,min:0.72},
         text:{small:1,mid:1.12,large:1.26,minPx:10,maxPx:20},
+        bodyFont:'InkKai',
+        bodyFontUrl:'src/fonts/InkKai.woff2',
         fit:{smallH:640,ratio:1.62,min:760},
         dangerHover:0.18,
         loaderMin:0.7,

@@ -13,6 +13,8 @@ import {cardCost} from '../game/card.js';
 
 const FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
+const BODY_FONT='"'+TUNING.ui.bodyFont+'",'+FONT;
+
 const FONT_CACHE=new Map();
 
 function scaledFont(v,k) {
@@ -20,10 +22,13 @@ function scaledFont(v,k) {
     let out=FONT_CACHE.get(key);
     if (out===undefined) {
         const T=TUNING.ui.text;
-        out=v.replace(/(\d+(?:\.\d+)?)px/,(m,n)=>{
+        out=k===1?v:v.replace(/(\d+(?:\.\d+)?)px/,(m,n)=>{
             const px=Number(n);
             return px>=T.minPx&&px<=T.maxPx?Math.round(px*k)+'px':m;
         });
+        if (!/bold|\b[6-9]00\b/.test(out)&&out.includes(FONT)) {
+            out=out.replace(FONT,BODY_FONT);
+        }
         FONT_CACHE.set(key,out);
     }
     return out;
@@ -40,7 +45,7 @@ function installFontScale(ctx) {
             return d.get.call(this);
         },
         set(v) {
-            d.set.call(this,this.fontK===1?v:scaledFont(v,this.fontK));
+            d.set.call(this,scaledFont(v,this.fontK));
         },
         configurable:true
     });
