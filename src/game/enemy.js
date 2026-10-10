@@ -281,6 +281,11 @@ export class Enemy {
         this.teleSeen();
     }
 
+    teleWall(dx,dz,dur) {
+        this.tele={type:'wall',dx,dz,dur,t:0};
+        this.teleSeen();
+    }
+
     teleRing(r,dur) {
         this.tele={type:'ring',r,dur,t:0};
         this.teleSeen();
@@ -591,7 +596,20 @@ export class Enemy {
         }
         if (tg) {
             const k=EASE.easeOutCubic(Math.min(1,tg.t/(tg.dur*0.7)));
-            if (tg.type==='line') {
+            if (tg.type==='wall') {
+                const W=TUNING.wallTele;
+                const px=-tg.dz;
+                const pz=tg.dx;
+                for (let i=0;i<W.rows;i++) {
+                    const ln=this.line(i);
+                    const cx=this.renderPos.x+tg.dx*(W.front+i*W.gap);
+                    const cz=this.renderPos.z+tg.dz*(W.front+i*W.gap);
+                    const half=W.half*Math.max(0,Math.min(1,k*1.3-i*0.15));
+                    this.putLine(ln,cx-px*half,cz-pz*half,cx+px*half,cz+pz*half,W.width*(1-i*W.thin));
+                    ln.position.y=0.04;
+                }
+            }
+            else if (tg.type==='line') {
                 const base=Math.atan2(tg.dz,tg.dx);
                 for (let i=0;i<tg.count;i++) {
                     const a=tg.count>1?base+(i/(tg.count-1)-0.5)*tg.spread:base;
@@ -2517,7 +2535,7 @@ class Book extends Enemy {
                 this.pattern=this.choose(ctx);
                 this.setState('telegraph');
                 if (this.pattern==='wall') {
-                    this.teleLine(this.nx,this.nz,14,0.7,3,0.9);
+                    this.teleWall(this.nx,this.nz,0.7);
                 }
                 else if (this.pattern==='slam') {
                     this.teleRing(4,0.7);
@@ -3571,7 +3589,7 @@ class BookFinal extends Book {
                 this.pattern=this.choose();
                 this.setState('telegraph');
                 if (this.pattern==='wall') {
-                    this.teleLine(this.nx,this.nz,14,0.8,3,0.9);
+                    this.teleWall(this.nx,this.nz,0.8);
                 }
                 else if (this.pattern==='sweep') {
                     this.teleRing(d.sweep.inner,0.5);
@@ -3900,6 +3918,8 @@ class Alarm extends Enemy {
         this.tickT=0;
         this.patternT=this.def.first;
         this.last=null;
+        this.bag=[];
+        this.burstNext=false;
         this.kicks=[0,0];
         this.faceT=0;
         this.lastDing=-9;
@@ -4060,6 +4080,10 @@ class Alarm extends Enemy {
         if (this.hopQ.length) {
             this.nextHop(ctx);
         }
+    }
+
+    onEvolved() {
+        this.burstNext=true;
     }
 
     onEvolveStart() {
@@ -4387,11 +4411,18 @@ class Alarm extends Enemy {
         const ev=this.evolved;
         const sp=ev?d.p2.speed:1;
         const away=Math.hypot(this.pos.x-this.homeX,this.pos.z-this.homeZ)>1.5;
-        const list=['second','hands','chime','bells','hop'];
-        let k=away?'hop':list[Math.floor(rng.next()*list.length)];
-        if (k===this.last&&!away) {
-            k=list[(list.indexOf(k)+1)%list.length];
+        if (!this.bag.length) {
+            const list=['second','hands','chime','bells','hop'];
+            for (let i=list.length-1;i>0;i--) {
+                const j=Math.floor(rng.next()*(i+1));
+                [list[i],list[j]]=[list[j],list[i]];
+            }
+            if (list[0]===this.last) {
+                list.push(list.shift());
+            }
+            this.bag=list;
         }
+        const k=away?'hop':this.bag.shift();
         this.last=k;
         this.pattern=k;
         this.setState('attack');
@@ -4487,6 +4518,11 @@ class Alarm extends Enemy {
         }
         if (this.state==='burst') {
             this.burstTick(dt,ctx);
+            return;
+        }
+        if (this.burstNext) {
+            this.burstNext=false;
+            this.startBurst(ctx);
             return;
         }
         if (this.state==='move') {

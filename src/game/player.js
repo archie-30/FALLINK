@@ -1107,7 +1107,7 @@ export class Player {
         if (this.leapT>0) {
             this.leapT-=dt;
             const f=1-Math.max(0,this.leapT)/this.leapDur;
-            const e=f*f*(3-2*f);
+            const e=(1-Math.cos(f*Math.PI))/2;
             this.vel.set(0,0,0);
             this.pos.x=this.leapX0+(this.leapX1-this.leapX0)*e;
             this.pos.z=this.leapZ0+(this.leapZ1-this.leapZ0)*e;

@@ -511,6 +511,7 @@ export const CARDS={
         mode:'throw',
         targeting:'point',
         range:8,
+        fromSelf:true,
         params:{count:8,damage:15},
         upgraded:{cost:3,params:{count:12,damage:18}},
         effect:(g,t,p)=>g.sketchLeap(t.x,t.z,p.count,p.damage)
@@ -539,8 +540,8 @@ export const CARDS={
         mode:'shoot',
         targeting:'direction',
         range:14,
-        params:{damage:12,bounces:3},
-        upgraded:{cost:2,params:{damage:12,bounces:4}},
+        params:{damage:15,bounces:3},
+        upgraded:{cost:2,params:{damage:15,bounces:4}},
         effect:(g,t,p)=>g.bounceBall(t.dx,t.dz,p.damage,p.bounces)
     },
     stamp:{
