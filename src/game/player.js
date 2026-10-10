@@ -79,6 +79,7 @@ export class Player {
         this.hp=this.maxHp;
         this.invuln=0;
         this.safeT=0;
+        this.bulletProofT=0;
         this.shield=0;
         this.fortT=0;
         this.fortAge=0;
@@ -888,6 +889,12 @@ export class Player {
             }
             return true;
         }
+        if (this.bulletProofT>0) {
+            if (this.events.onBulletProof) {
+                this.events.onBulletProof(this,x,z);
+            }
+            return true;
+        }
         if (this.isInvulnerable()) {
             if ((this.dashT>0||this.dashIT>0)&&!this.dodged) {
                 this.dodged=true;
@@ -1050,6 +1057,7 @@ export class Player {
         const room=ctx.room;
         this.prev.copy(this.pos);
         this.invuln=Math.max(0,this.invuln-dt);
+        this.bulletProofT=Math.max(0,(this.bulletProofT||0)-dt);
         this.safeT=Math.max(0,(this.safeT||0)-dt);
         if (this.fortT>0) {
             this.fortT-=dt;
@@ -1509,6 +1517,11 @@ export class Clone {
     sync(alpha) {
         if (this.active) {
             this.fig.sync(alpha);
+            const P=TUNING.effects.puppet;
+            if (this.decoy&&this.t<P.drop) {
+                const k=this.t/P.drop;
+                this.fig.root.position.y+=P.dropH*(1-k*k);
+            }
         }
     }
 }

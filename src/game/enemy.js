@@ -4805,6 +4805,28 @@ export class EnemyManager {
                 e.update(e.def.boss?dt*TUNING.bossTempo*(1+e.tier*TUNING.bossScale.tempo):dt,ctx);
             }
         }
+        if (D&&D.active) {
+            const P=TUNING.effects.puppet;
+            const fp=D.fig.pos;
+            for (const e of arr) {
+                if (!e.alive||e.def.boss||e.state==='spawn'||e.dummy||e.stunT>0) {
+                    continue;
+                }
+                const dx=fp.x-e.pos.x;
+                const dz=fp.z-e.pos.z;
+                const l=Math.hypot(dx,dz);
+                if (l<=P.near+e.def.radius) {
+                    continue;
+                }
+                const step=Math.min(l-P.near-e.def.radius,P.pull*dt);
+                e.pos.x+=dx/l*step;
+                e.pos.z+=dz/l*step;
+                if (!e.def.flying) {
+                    resolveCircle(e.pos,e.def.radius,e.colliders(ctx),2);
+                }
+                clampToBounds(e.pos,e.def.radius,ctx.room.bounds);
+            }
+        }
         ctx.player=real;
     }
 

@@ -179,7 +179,10 @@ export class CardEffects {
     clear() {
         this.timers.length=0;
         this.sweeps.length=0;
-        this.puppetShield=null;
+        this.pupFx=null;
+        if (this.g.player) {
+            this.g.player.bulletProofT=0;
+        }
         if (this.g.puppet) {
             this.g.puppet.stop();
         }
@@ -1216,15 +1219,7 @@ export class CardEffects {
 
     updateCardProps(dt) {
         const g=this.g;
-        const P=this.puppetShield;
-        if (P&&P.left>0) {
-            P.left-=dt;
-            if (P.left<=0) {
-                const p=g.player;
-                p.setShield(p.shield-Math.min(P.add,p.shield));
-                this.puppetShield=null;
-            }
-        }
+        this.tickPuppetFx(dt);
         const pup=g.puppet;
         if (pup&&pup.active) {
             this.pupRing=(this.pupRing||0)-dt;
@@ -1369,27 +1364,48 @@ export class CardEffects {
         g.fx.cameraShake(0.15);
     }
 
-    puppet(x,z,duration,shields) {
+    puppet(x,z,duration) {
         const g=this.g;
         const p=g.player;
+        const P=this.E.puppet;
         if (!g.puppet) {
             return;
         }
         g.puppet.start(x,z,duration,0,true);
         g.enemies.decoy=g.puppet;
-        this.pupRing=0;
-        const add=Math.max(0,shields-p.shield);
-        if (add>0) {
-            p.setShield(p.shield+add);
-        }
-        const prev=this.puppetShield&&this.puppetShield.left>0?this.puppetShield.add:0;
-        this.puppetShield={left:duration,add:prev+add};
+        this.pupRing=P.drop+P.ring;
+        this.pupFx={x,z,t:0,landed:false,waves:0};
+        p.bulletProofT=Math.max(p.bulletProofT||0,duration);
         p.sqv+=2;
-        g.fx.fovPunch(1.4);
-        g.fx.cameraShake(0.25);
-        g.rings.spawn(x,z,this.E.puppet.ringR*1.4,'red',0.5);
-        g.particles.burst(x,0.6,z,18,{color:'red',speed:[1,4],up:[2,5],size:[0.08,0.16]});
+        g.fx.fovPunch(1.2);
+        g.rings.spawn(x,z,P.ringR*1.6,'red',P.drop);
         g.particles.burst(p.pos.x,1.0,p.pos.z,12,{color:'farGray',speed:[2,4],up:[2,4],size:[0.08,0.14]});
+    }
+
+    tickPuppetFx(dt) {
+        const q=this.pupFx;
+        if (!q) {
+            return;
+        }
+        const g=this.g;
+        const P=this.E.puppet;
+        q.t+=dt;
+        if (!q.landed&&q.t>=P.drop) {
+            q.landed=true;
+            g.fx.cameraShake(P.shake);
+            g.fx.fovPunch(P.fov);
+            g.fx.hitStop(P.stop,true);
+            g.decals.spawn(q.x,q.z,P.splat,'red','darkRed');
+            g.particles.burst(q.x,0.4,q.z,30,{color:'red',speed:[4,10],up:[3,8],size:[0.1,0.22]});
+            g.particles.burst(q.x,0.4,q.z,20,{color:'ink',speed:[3,8],up:[1,4],size:[0.08,0.18]});
+        }
+        while (q.landed&&q.waves<P.waves&&q.t>=P.drop+q.waves*P.waveGap) {
+            g.rings.spawn(q.x,q.z,P.waveR*(1+q.waves*0.6),q.waves%2?'ink':'red',0.5);
+            q.waves++;
+        }
+        if (q.waves>=P.waves) {
+            this.pupFx=null;
+        }
     }
 
     bounceBall(dx,dz,damage,bounces) {

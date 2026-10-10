@@ -68,6 +68,8 @@ export class RelicGacha extends Panel {
         super.hover(x,y);
         this.hx=x;
         this.hy=y;
+        const I=this.infoBtn;
+        this.infoHover=!!I&&Math.hypot(x-I.x,y-I.y)<=I.r*1.8;
     }
 
     say(key,params) {
@@ -82,11 +84,7 @@ export class RelicGacha extends Panel {
         const A=this.anim;
         if (A) {
             const g=G();
-            if (A.phase==='roll') {
-                A.t=g.flyEnd;
-                A.skip=true;
-            }
-            else if (A.phase==='wait') {
+            if (A.phase==='wait') {
                 A.phase='charge';
                 A.pt=0;
                 A.crack=0;
@@ -106,6 +104,11 @@ export class RelicGacha extends Panel {
         }
         if (inRect(this.pullBtn,x,y)) {
             this.pull();
+            return true;
+        }
+        const I=this.infoBtn;
+        if (I&&Math.hypot(x-I.x,y-I.y)<=I.r*1.8) {
+            this.actions.info();
             return true;
         }
         if (inRect(this.G,x,y)) {
@@ -972,7 +975,24 @@ export class RelicGacha extends Panel {
         ctx.textAlign='right';
         fitText(ctx,t('gacha.owned',{n:own,m:RELIC_ORDER.length}),P.x+P.w-20,ty,small?110:150,small?13:15,'bold ');
         ctx.textAlign='left';
-        fitText(ctx,t('gacha.hint'),P.x+32+ttw,ty+1,P.w-ttw-(small?180:230),small?11:13,'');
+        const hmax=P.w-ttw-(small?210:260);
+        fitText(ctx,t('gacha.hint'),P.x+32+ttw,ty+1,hmax,small?11:13,'');
+        const hw=Math.min(hmax,ctx.measureText(t('gacha.hint')).width);
+        const ir=small?9:10;
+        this.infoBtn={x:P.x+32+ttw+hw+ir+8,y:ty,r:ir};
+        ctx.save();
+        ctx.translate(this.infoBtn.x,this.infoBtn.y);
+        ctx.fillStyle=this.infoHover?PALETTE.ink:PALETTE.paper;
+        ctx.beginPath();
+        ctx.arc(0,0,ir,0,Math.PI*2);
+        ctx.fill();
+        drawShape(ctx,sketchCircle(0,0,ir,{width:1.6,seed:4607}),PALETTE.ink,v);
+        ctx.fillStyle=this.infoHover?PALETTE.paper:PALETTE.ink;
+        ctx.font='bold italic '+(ir+4)+'px Georgia,serif';
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText('i',0,1);
+        ctx.restore();
         drawShape(ctx,sketchLine(P.x+16,ty+(small?16:24),P.x+P.w-16,ty+(small?16:24),{width:1.2,seed:4605}),rgba('midGray',0.7),v);
         this.drawGrid(ctx,v,small);
         this.drawMachine(ctx,v,small);

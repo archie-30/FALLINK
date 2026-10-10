@@ -1037,31 +1037,40 @@ export const CARD_ANIMS={
         }
     },
     puppet:{
-        period:3.4,
+        period:3.6,
         draw(S,k,t) {
             const cx=9;
             const cy=PY;
-            const on=seg(k,0.08,0.16)*(1-seg(k,0.86,0.94));
+            const drop=seg(k,0.06,0.14);
+            const on=(drop>=1?1:0)*(1-seg(k,0.88,0.95));
             S.player(PX,PY,0);
-            if (on>0) {
-                for (let i=0;i<2;i++) {
-                    const r=((t*0.9+i*0.5)%1)*2.2;
-                    S.ring(cx,cy,r,PALETTE.red,0.07,on*(1-r/2.2));
-                }
-                S.player(cx,cy,t*2,{ghost:true,alpha:on*0.9});
-                const n=3;
-                for (let i=0;i<n;i++) {
-                    const an=t*0.8+i*Math.PI*2/n;
-                    S.rect(PX+Math.cos(an)*1.3-0.12,PY+Math.sin(an)*1.3-0.35,0.24,0.7,PALETTE.paper,on);
+            if (drop>0&&drop<1) {
+                S.ring(cx,cy,1.1,PALETTE.red,0.08,0.8,[0.2,0.15]);
+                S.player(cx,cy-6*(1-drop*drop),0,{ghost:true});
+            }
+            const land=seg(k,0.14,0.32);
+            for (let i=0;i<3;i++) {
+                const f=seg(k,0.14+i*0.03,0.32+i*0.03);
+                if (f>0&&f<1) {
+                    S.ring(cx,cy,0.6+f*(3+i),i%2?PALETTE.ink:PALETTE.red,0.14,1-f);
                 }
             }
+            S.burst(cx,cy,1.6,land,PALETTE.red);
+            if (on>0) {
+                S.player(cx,cy,t*2,{ghost:true,alpha:on*0.9});
+                S.ring(PX,PY,0.75,PALETTE.red,0.06,on*0.6,[0.15,0.12]);
+            }
+            const pull=easeOut(seg(k,0.18,0.8))*on;
             const foes=[['doodle',13.5,1.6],['sprayer',14,7.4],['blob',12.5,4.5]];
             foes.forEach(([id,x,y],i)=>{
-                const pull=on*0.35;
-                S.enemy(id,lerp(x,cx+2,pull),lerp(y,cy,pull*0.6));
-                const k0=0.25+i*0.15;
-                S.fly(lerp(x,cx+2,pull)-0.6,lerp(y,cy,pull*0.6),cx+0.4,cy,k,k0,k0+0.12,'enemy');
+                S.enemy(id,lerp(x,cx+1.4+i*0.3,pull),lerp(y,cy+(i-1)*1.1,pull));
             });
+            S.fly(13.4,7,PX+0.5,PY+0.3,k,0.45,0.62,'enemy');
+            const hit=seg(k,0.62,0.74);
+            if (hit>0&&hit<1) {
+                S.burst(PX+0.4,PY+0.2,0.8,hit,PALETTE.red);
+                S.text('0',PX+0.4,PY-1.1-hit*0.6,14,PALETTE.red,1-hit);
+            }
         }
     },
     bounceBall:{
