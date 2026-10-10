@@ -1788,31 +1788,31 @@ export const ENEMY_ATTACKS={
         {
             key:'burst',
             dmg:{kind:'hit',n:2},
-            period:4.6,
+            period:5,
             draw(S,k) {
                 const cx=11;
                 S.player(4.2,PY+1.6,0);
-                const fill=seg(k,0,0.2);
-                const on=k>=0.2&&k<0.9;
+                const fill=seg(k,0,0.15);
+                const on=k>=0.15&&k<0.92;
                 S.enemy('alarm',cx,PY,{size:2.6,shake:on?k:0});
                 alarmMeter(S,cx,PY-2,lerp(0.7,1,fill),1);
                 S.text('!',cx+1.7,PY-2,18,PALETTE.red,on?0.6+0.4*Math.sin(k*60):0);
-                const w=seg(k,0.24,0.6);
+                const w=seg(k,0.18,0.45);
                 if (w>0&&w<1) {
                     S.ring(cx,PY,1.4+w*12,PALETTE.red,0.35,1-w*0.5);
                 }
-                const f=seg(k,0.3,0.88);
+                const f=seg(k,0.62,0.92);
                 const n=6;
                 for (let i=0;i<n;i++) {
                     const a=i/n*Math.PI*2+f*1.2;
-                    if (k<0.4) {
-                        S.tele(cx+Math.cos(a)*1.4,PY+Math.sin(a)*1.4,cx+Math.cos(a)*10,PY+Math.sin(a)*10,seg(k,0.25,0.38));
+                    if (k<0.62) {
+                        S.tele(cx+Math.cos(a)*1.4,PY+Math.sin(a)*1.4,cx+Math.cos(a)*10,PY+Math.sin(a)*10,seg(k,0.5,0.6));
                     }
                     else if (f<1) {
                         alarmRay(S,cx,PY,a,1.4,11,PALETTE.ink,0.3);
                     }
                 }
-                S.text('×3',cx,PY+2.2,18,PALETTE.red,seg(k,0.4,0.45)*(1-seg(k,0.85,0.9)));
+                S.text('×3',cx,PY+2.2,18,PALETTE.red,seg(k,0.62,0.66)*(1-seg(k,0.88,0.92)));
             }
         },
         {
@@ -1842,28 +1842,34 @@ export const ENEMY_ATTACKS={
         },
         {
             key:'double',
-            dmg:{kind:'none',n:0},
-            period:5.2,
+            dmg:{kind:'hit',n:1},
+            period:4.6,
             draw(S,k) {
-                const cx=8;
-                const A=[2,1.6];
-                const B=[14,7.4];
-                const w1=inOut(seg(k,0.08,0.24));
-                const w2=inOut(seg(k,0.4,0.62));
-                const px=k<0.4?lerp(6,A[0],w1):lerp(A[0],B[0],w2);
-                const py=k<0.4?lerp(PY,A[1],w1):lerp(A[1],B[1],w2);
-                S.player(px,py,0);
-                const h1=seg(k,0.24,0.34);
-                const h2=seg(k,0.62,0.72);
-                const show=seg(k,0.02,0.1)*(1-seg(k,0.76,0.8));
-                alarmPad(S,A[0],A[1],show,h1,h1>=1?1:0);
-                alarmPad(S,B[0],B[1],show,h2,h2>=1?1:0);
-                const z=k>=0.74;
-                S.enemy('alarm',cx,PY,{size:2.4,rot:z?0.25:0});
-                alarmMeter(S,cx,PY-1.9,z?0:lerp(0.6,0.95,seg(k,0,0.74)));
-                S.text('6s',cx,PY+1.9,15,PALETTE.red,show*(1-seg(k,0.7,0.73)));
-                S.text('Zzz',cx+1.3,PY-2.5-seg(k,0.74,1)*0.4,16,PALETTE.ink,z?1-seg(k,0.94,1):0);
-                S.text('×2',cx,PY+2.1,18,PALETTE.red,z?1-seg(k,0.94,1):0);
+                const cx=11;
+                const g0=4.4;
+                const g1=5.9;
+                const near=seg(k,0.05,0.2);
+                S.player(lerp(PX,cx-5.15,near),PY,0);
+                const flip=0.58;
+                const ding=seg(k,flip-0.08,flip)*(1-seg(k,flip,flip+0.04));
+                S.enemy('alarm',cx,PY,{size:2.6,shake:ding>0?k:0});
+                S.text('!',cx+1.6,PY-2,18,PALETTE.red,ding);
+                S.ring(cx,PY,(g0+g1)/2,PALETTE.red,0.04,0.5*(1-seg(k,0.92,1)),[0.2,0.2]);
+                const f=seg(k,0.25,0.92);
+                const fwd=Math.min(f,flip-0.25>0?(flip-0.25)/0.67:0);
+                const u=fwd-Math.max(0,f-fwd);
+                for (let i=0;i<3;i++) {
+                    const a=Math.PI*0.75+i*Math.PI*2/3+u*[3,5,-4][i];
+                    if (k<0.25) {
+                        S.tele(cx+Math.cos(a)*1.4,PY+Math.sin(a)*1.4,cx+Math.cos(a)*g0,PY+Math.sin(a)*g0,seg(k,0.05,0.2));
+                        S.tele(cx+Math.cos(a)*g1,PY+Math.sin(a)*g1,cx+Math.cos(a)*11,PY+Math.sin(a)*11,seg(k,0.05,0.2));
+                    }
+                    else if (f<1) {
+                        alarmRay(S,cx,PY,a,1.4,g0,PALETTE.ink,0.4);
+                        alarmRay(S,cx,PY,a,g1,12,PALETTE.ink,0.4);
+                    }
+                }
+                S.text('×1.4',cx,PY+2.3,15,PALETTE.red,seg(k,0.25,0.3)*(1-seg(k,0.9,0.95)));
             }
         }
     ],

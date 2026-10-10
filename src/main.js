@@ -62,6 +62,10 @@ import {checkForUpdate} from './core/appUpdate.js';
 import {WorldMarks} from './ui2d/worldMarks.js';
 import {VERSION} from './data/version.js';
 
+if (window.FontFace&&document.fonts) {
+    new FontFace(TUNING.ui.bodyFont,'url('+TUNING.ui.bodyFontUrl+')').load().then(f=>document.fonts.add(f)).catch(()=>{});
+}
+
 const QUALITY_ORDER=['low','mid','high'];
 
 function applyTheme() {
@@ -268,6 +272,7 @@ function boot() {
     ctx.enemyMgr=enemies;
     ctx.sfx=(n,p)=>audio.play(n,p);
     ctx.addInk=n=>ink.add(n);
+    ctx.notice=s=>overlay.hud.toast(s);
     const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,puppet,weaponSys,ink,scene:actors,fxScene},TUNING);
     ctx.dangerRings=dangerRings;
     ctx.weaponSys=weaponSys;
