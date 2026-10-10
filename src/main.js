@@ -1491,6 +1491,22 @@ function boot() {
             return before-player.hp;
         },
         addInk:n=>ink.addOver(n),
+        maxStat:(kind,n)=>{
+            const L=TUNING.limits[kind];
+            const key=kind==='maxHp'?'maxHpMod':'maxInkMod';
+            const base=kind==='maxHp'?TUNING.player.maxHp:TUNING.ink.max;
+            const cur=base+(run.stats[key]||0);
+            const d=Math.max(L[0],Math.min(L[1],cur+n))-cur;
+            run.stats[key]=(run.stats[key]||0)+d;
+            if (kind==='maxHp') {
+                player.hpMod=run.stats[key];
+                player.hp=Math.max(1,Math.min(player.maxHp,player.hp+Math.max(0,d)));
+            }
+            else {
+                ink.max=TUNING.ink.max+inkMaxBonus()+run.stats[key];
+            }
+            return d;
+        },
         transition:mid=>{
             audio.play('page');
             transition.run(mid);
@@ -1729,6 +1745,7 @@ function boot() {
         coach.reset();
         mainMenu.hide();
         game.mode='play';
+        player.hpMod=0;
         player.hp=player.maxHp;
         ink.value=TUNING.ink.start;
         trainFixed=[];
@@ -1766,6 +1783,7 @@ function boot() {
         deck.provider=null;
         effects.lastUlt=null;
         run.restore(s);
+        player.hpMod=run.stats&&run.stats.maxHpMod||0;
         player.hp=Math.max(1,Math.min(player.maxHp,s.hp||player.maxHp));
         ink.value=Math.max(0,s.ink??TUNING.ink.start);
         if (settle) {
@@ -3121,7 +3139,9 @@ function boot() {
                 ink.value=ink.max;
             }
         }
-        ink.max=TUNING.ink.max+inkMaxBonus();
+        const rs=game.mode==='play'&&run.stats?run.stats:null;
+        ink.max=TUNING.ink.max+inkMaxBonus()+(rs&&rs.maxInkMod||0);
+        player.hpMod=rs&&rs.maxHpMod||0;
         tickRelics(dt);
         if (overlay.hud.relicInfo&&game.mode==='play'&&run.state==='combat') {
             overlay.hud.openRelicInfo('');
@@ -3192,7 +3212,8 @@ function boot() {
             minis.update(dt,player);
             npcs.update(dt,player,i=>run.canInteract(i));
             doors.update(dt,player);
-            input.interactReady=!fx.paused&&!transition.active&&((doors.focus>=0&&run.canExit())||(npcs.focus>=0&&run.canInteract(npcs.focus))||minis.wantsInteract(player));
+            const qb=enemies.boss();
+            input.interactReady=!fx.paused&&!transition.active&&!(qb&&qb.nearTile&&qb.nearTile(player))&&((doors.focus>=0&&run.canExit())||(npcs.focus>=0&&run.canInteract(npcs.focus))||minis.wantsInteract(player));
             buyArmT-=dt;
             if (npcs.armed>=0&&(npcs.focus!==npcs.armed||buyArmT<=0||!input.interactReady||input.lastDevice!=='touch')) {
                 npcs.armed=-1;

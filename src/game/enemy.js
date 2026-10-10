@@ -454,7 +454,7 @@ export class Enemy {
             return;
         }
         const k=Math.min(this.tier,B.summonEvery.length)-1;
-        this.minionT=B.summonEvery[k]*(this.def.summonMult||1);
+        this.minionT=(this.tier>=B.lateTier?B.lateSummon:B.summonEvery[k])*(this.def.summonMult||1);
         if (ctx.enemyMgr.list.length>=B.summonCap) {
             return;
         }
@@ -550,7 +550,7 @@ export class Enemy {
         }
         else {
             this.think(dt,ctx);
-            if (d.boss&&this.tier>0&&this.tier<TUNING.bossScale.lateTier&&ctx.enemyMgr) {
+            if (d.boss&&this.tier>0&&ctx.enemyMgr) {
                 this.summonTick(dt,ctx);
             }
         }
@@ -5070,6 +5070,20 @@ class Calculator extends Enemy {
         this.setState('ask');
         this.sfx(ctx,'alarmTick',1.2);
         ctx.fx.cameraShake(0.15);
+    }
+
+    get edgeWarn() {
+        const S=this.alive?this.sweeps.find(s=>s.t>-this.def.minus.gap):null;
+        if (!S) {
+            return null;
+        }
+        return {side:S.axis==='z'?(S.dir>0?'top':'bottom'):(S.dir>0?'left':'right')};
+    }
+
+    nearTile(p) {
+        const Q=this.def.quiz;
+        const r=Q.keyR*Q.guard;
+        return this.alive&&this.state==='ask'&&this.tiles.some(k=>!k.done&&Math.abs(p.pos.x-k.x)<r&&Math.abs(p.pos.z-k.z)<r);
     }
 
     swapTiles() {

@@ -47,13 +47,13 @@ export const NOTEBOOK={
     supply:[['heal',1],['ink',3],['score',300]],
     chests:['rare','supply','mimic'],
     fxNotes:['note.upgraded','note.removed','note.downgraded'],
-    badNotes:['mg.lose','note.hurt','note.removed','note.scoreLoss','note.downgraded','note.eliteNext','gacha.broken','chest.mimic','challenge.failed'],
+    badNotes:['mg.lose','note.hurt','note.maxHpDown','note.maxInkDown','note.removed','note.scoreLoss','note.downgraded','note.eliteNext','gacha.broken','chest.mimic','challenge.failed'],
     events:[
         {
             id:'spill',
             model:'bottle',
             options:[
-                {id:'dip',effects:[['ink',5],['hurt',2]]},
+                {id:'dip',effects:[['maxInk',1],['ink',3],['hurt',1]]},
                 {id:'mop',effects:[['score',-300],['upgradeRandom',1]]},
                 {id:'leave',effects:[]}
             ]
@@ -71,7 +71,7 @@ export const NOTEBOOK={
             id:'wall',
             model:'board',
             options:[
-                {id:'copy',effects:[['hurt',3],['card','rare']]},
+                {id:'copy',effects:[['hurt',2],['card','rare']]},
                 {id:'sign',effects:[['score',800],['eliteNext']]},
                 {id:'leave',effects:[]}
             ]
@@ -89,7 +89,7 @@ export const NOTEBOOK={
             model:'gacha',
             options:[
                 {id:'hp',effects:[['hurt',2],['roll',[[0.35,'gacha.rare',[['card','rare']]],[0.45,'gacha.common',[['card','common']]],[0.2,'gacha.broken',[['removeRandom']]]]]]},
-                {id:'score',effects:[['score',-600],['roll',[[0.4,'gacha.shine',[['upgradeRandom',2]]],[0.45,'gacha.ink',[['ink',3]]],[0.15,'gacha.broken',[['removeRandom']]]]]]},
+                {id:'score',effects:[['score',-600],['roll',[[0.4,'gacha.shine',[['upgradeRandom',2]]],[0.45,'gacha.ink',[['maxInk',1],['ink',2]]],[0.15,'gacha.broken',[['removeRandom']]]]]]},
                 {id:'leave',effects:[]}
             ]
         },
@@ -97,7 +97,7 @@ export const NOTEBOOK={
             id:'sharpener',
             model:'sharpener',
             options:[
-                {id:'sharp',effects:[['upgradeRandom',2],['hurt',3]]},
+                {id:'sharp',effects:[['upgradeRandom',2],['maxHp',-1]]},
                 {id:'short',effects:[['removeRandom'],['heal',2]]},
                 {id:'leave',effects:[]}
             ]
@@ -106,7 +106,7 @@ export const NOTEBOOK={
             id:'coffee',
             model:'mug',
             options:[
-                {id:'drink',effects:[['heal',2],['downgrade']]},
+                {id:'drink',effects:[['maxHp',1],['heal',1],['downgrade']]},
                 {id:'leave',effects:[]}
             ]
         },

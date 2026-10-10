@@ -13,7 +13,8 @@ export const MINIGAMES={
         [3,[['reward','mixed']]],
         [1,[['reward','rare']]],
         [2,[['heal',2]]],
-        [2,[['ink',4]]],
+        [1,[['maxInk',1],['ink',2]]],
+        [1,[['maxHp',1],['heal',1]]],
         [2,[['upgradeRandom',1]]],
         [1,[['upgradeRandom',2]]],
         [2,[['card','common']]],
@@ -28,6 +29,7 @@ export const MINIGAMES={
         [2,[['removeRandom']]],
         [2,[['downgrade']]],
         [1,[['eliteNext']]],
+        [1,[['maxInk',-1]]],
         [1,[['ambush',false]]]
     ],
     games:{

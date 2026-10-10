@@ -661,11 +661,29 @@ export class Hud {
         side(w,0,w-d,0,w-d,0,d,h);
     }
 
+    drawSweepEdge(ctx,w,h,enemies) {
+        const boss=enemies&&enemies.boss();
+        const q=boss&&boss.edgeWarn;
+        if (!q||h<=0) {
+            return;
+        }
+        const E=TUNING.calcMarks.edge;
+        const a=E.alpha*(1-E.breath+E.breath*Math.sin(time.real*E.rate*Math.PI*2));
+        const d=Math.min(w,h)*E.depth;
+        const B={top:[0,0,0,d,0,0,w,d],bottom:[0,h,0,h-d,0,h-d,w,d],left:[0,0,d,0,0,0,d,h],right:[w,0,w-d,0,w-d,0,d,h]}[q.side];
+        const g=ctx.createLinearGradient(B[0],B[1],B[2],B[3]);
+        g.addColorStop(0,rgba('red',a));
+        g.addColorStop(1,rgba('red',0));
+        ctx.fillStyle=g;
+        ctx.fillRect(B[4],B[5],B[6],B[7]);
+    }
+
     drawRunInfo(ctx,w,run,enemies,h=0) {
         if (!run||!run.plan) {
             return;
         }
         this.drawAlarmEdge(ctx,w,h,enemies);
+        this.drawSweepEdge(ctx,w,h,enemies);
         const p=run.plan;
         const PB=TUNING.hud.progress;
         if (p.training) {

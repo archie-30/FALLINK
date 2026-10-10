@@ -186,9 +186,10 @@ const ICONS={
         }
         drawShape(ctx,sketchPath(pts,{width:1.6,seed:142,overshoot:0}),PALETTE.ink,v);
     },
-    paperShield(ctx,v,cx,cy) {
-        for (let i=0;i<3;i++) {
-            const a=-2.2+i*1.1;
+    paperShield(ctx,v,cx,cy,card) {
+        const n=card&&card.upgraded?3:2;
+        for (let i=0;i<n;i++) {
+            const a=-1.65+(i-(n-1)/2)*1.1;
             const pts=[];
             for (let k=0;k<=6;k++) {
                 const b=a-0.4+k*0.8/6;
@@ -673,7 +674,7 @@ function renderIcon(card,v,scale) {
     ctx.scale(0.62,0.62);
     const icon=ICONS[card.id];
     if (icon) {
-        icon(ctx,v,0,0);
+        icon(ctx,v,0,0,card);
     }
     return c;
 }
@@ -699,7 +700,7 @@ function renderFace(card,v,scale) {
         ctx.save();
         ctx.translate(W/2+2,92);
         ctx.scale(1.3,1.3);
-        icon(ctx,v,0,0);
+        icon(ctx,v,0,0,card);
         ctx.restore();
     }
     ctx.fillStyle=PALETTE.ink;
