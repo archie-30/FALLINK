@@ -7,7 +7,7 @@ import {sketchRect,sketchLine,sketchPath,hatchFill,rectPoly,drawShape} from './s
 import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
 import {CARDS} from '../data/cards.js';
-import {ACTS} from '../data/levels.js';
+import {actDef} from '../data/levels.js';
 import {drawCourseIcon} from './courseIcons.js';
 import {drawRelicIcon} from './relicIcons.js';
 import {relic,relicLit} from '../game/relic.js';
@@ -813,6 +813,15 @@ export class Hud {
                     ctx.fillRect(bx+C.pad,my+th-C.barH-3,(tw-C.pad*2)*q.frac,C.barH);
                 }
                 ctx.textBaseline='top';
+                if (q.hint) {
+                    ctx.font='bold '+C.hint+'px '+FONT;
+                    ctx.lineJoin='round';
+                    ctx.lineWidth=4;
+                    ctx.strokeStyle=rgba('paper',0.9);
+                    ctx.strokeText(q.hint,w/2,my+th+6);
+                    ctx.fillStyle=PALETTE.red;
+                    ctx.fillText(q.hint,w/2,my+th+6);
+                }
             }
         }
     }
@@ -820,7 +829,7 @@ export class Hud {
     drawProgress(ctx,w,run,force=false,y=TUNING.hud.progress.y) {
         const P=TUNING.hud.progress;
         const p=run.plan;
-        const n=ACTS[p.act].rooms+1;
+        const n=actDef(p.act).rooms+1;
         const pos=p.act*100+p.index;
         const now=time.real;
         let g=this.prog;

@@ -501,10 +501,10 @@ export class CardEffects {
         g.particles.burst(x,0.3,z,10,{color:'ink',speed:[1,radius*1.5],up:[1,3],size:[0.06,0.12]});
     }
 
-    paperShield(hits) {
+    paperShield(hits,duration) {
         const g=this.g;
         const p=g.player;
-        p.setShield(hits);
+        p.setShield(hits,duration);
         p.sqv+=2;
         g.fx.fovPunch(0.8);
         g.particles.burst(p.pos.x,1.0,p.pos.z,12,{color:'farGray',speed:[2,4],up:[2,4],size:[0.08,0.14]});

@@ -364,6 +364,11 @@ export class Enemy {
         return 1;
     }
 
+    weakX(m) {
+        const B=TUNING.bossScale;
+        return this.def.boss&&this.tier>=B.lateTier?Math.min(m,B.lateWeak):m;
+    }
+
     onEvolveStart() {
     }
 
@@ -545,7 +550,7 @@ export class Enemy {
         }
         else {
             this.think(dt,ctx);
-            if (d.boss&&this.tier>0&&ctx.enemyMgr) {
+            if (d.boss&&this.tier>0&&this.tier<TUNING.bossScale.lateTier&&ctx.enemyMgr) {
                 this.summonTick(dt,ctx);
             }
         }
@@ -1515,7 +1520,7 @@ class InkBottle extends Enemy {
         const l=Math.hypot(dx,dz)||1;
         const wx=-Math.sin(this.yaw);
         const wz=-Math.cos(this.yaw);
-        return (dx*wx+dz*wz)/l>Math.cos(d.weakAngle)?d.weakMult:1;
+        return (dx*wx+dz*wz)/l>Math.cos(d.weakAngle)?this.weakX(d.weakMult):1;
     }
 
     canContact() {
@@ -1772,7 +1777,7 @@ class Scissors extends Enemy {
     }
 
     damageMult() {
-        return this.state==='stuck'?this.def.weakMult:1;
+        return this.state==='stuck'?this.weakX(this.def.weakMult):1;
     }
 
     phase2() {
@@ -2528,7 +2533,7 @@ class Book extends Enemy {
     }
 
     damageMult() {
-        return this.state==='rest'?this.def.weakMult:1;
+        return this.state==='rest'?this.weakX(this.def.weakMult):1;
     }
 
     phase2() {
@@ -2817,7 +2822,7 @@ class Exam extends Enemy {
     }
 
     damageMult() {
-        return this.state==='rest'?this.def.weakMult:1;
+        return this.state==='rest'?this.weakX(this.def.weakMult):1;
     }
 
     phase2() {
@@ -3455,7 +3460,7 @@ class BookFinal extends Book {
     }
 
     damageMult() {
-        return this.state==='rest'?this.def.weakMult:1;
+        return this.state==='rest'?this.weakX(this.def.weakMult):1;
     }
 
     choose() {
@@ -4131,14 +4136,15 @@ class Alarm extends Enemy {
         this.burstNext=true;
     }
 
-    onEvolveStart() {
+    onEvolveStart(ctx) {
+        this.padLinger(ctx);
         this.clearHazards();
         this.pads=[];
         this.relight=false;
     }
 
     damageMult() {
-        return this.state==='snooze'?this.def.weakMult:1;
+        return this.state==='snooze'?this.weakX(this.def.weakMult):1;
     }
 
     stun(t,full) {
@@ -4357,6 +4363,16 @@ class Alarm extends Enemy {
         }
     }
 
+    padLinger(ctx) {
+        const P=this.def.pad;
+        const p=ctx.player;
+        for (const q of this.pads) {
+            if (Math.hypot(p.pos.x-q.x,p.pos.z-q.z)<P.r+TUNING.player.radius) {
+                p.safeT=Math.max(p.safeT||0,P.linger);
+            }
+        }
+    }
+
     guardPads(ctx) {
         const P=this.def.pad;
         const p=ctx.player;
@@ -4384,6 +4400,7 @@ class Alarm extends Enemy {
                 q.hold=inside?q.hold+dt:Math.max(0,q.hold-dt*P.decay);
                 if (q.hold>=q.need) {
                     q.done=true;
+                    p.safeT=Math.max(p.safeT||0,P.linger);
                     q.hold=q.need;
                     this.sfx(ctx,'alarmPress',1+done*0.15);
                     ctx.particles.burst(q.x,0.4,q.z,16,{color:'red',speed:[3,7],up:[2,6]});
@@ -4400,6 +4417,7 @@ class Alarm extends Enemy {
 
     snooze(ctx) {
         const S=this.def.snooze;
+        this.padLinger(ctx);
         this.clearHazards();
         this.pads=[];
         this.stunT=0;
@@ -4419,6 +4437,7 @@ class Alarm extends Enemy {
 
     startBurst(ctx) {
         const B=this.def.burst;
+        this.padLinger(ctx);
         this.clearHazards();
         this.pads=[];
         this.burstDmg=0;
@@ -4750,30 +4769,30 @@ class Alarm extends Enemy {
     }
 }
 
-const SEEK_TAG=64;
 const LCD_FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
-const digitMats={};
+const labelMats={};
+const tileTmp=new THREE.Vector3();
 
-function digitMat(ch) {
-    if (!digitMats[ch]) {
+function labelMat(ch) {
+    if (!labelMats[ch]) {
         const c=document.createElement('canvas');
-        c.width=64;
-        c.height=64;
+        c.width=128;
+        c.height=128;
         const x=c.getContext('2d');
-        x.font='bold 54px '+LCD_FONT;
+        x.font='bold '+(ch.length>1?82:104)+'px '+LCD_FONT;
         x.textAlign='center';
         x.textBaseline='middle';
         x.lineJoin='round';
-        x.lineWidth=9;
+        x.lineWidth=16;
         x.strokeStyle=PALETTE.paper;
-        x.strokeText(ch,32,35);
+        x.strokeText(ch,64,70);
         x.fillStyle=PALETTE.ink;
-        x.fillText(ch,32,35);
+        x.fillText(ch,64,70);
         const tex=new THREE.CanvasTexture(c);
         tex.colorSpace=THREE.NoColorSpace;
-        digitMats[ch]=iconMaterial(tex);
+        labelMats[ch]=iconMaterial(tex);
     }
-    return digitMats[ch];
+    return labelMats[ch];
 }
 
 function shuffle(list) {
@@ -4782,69 +4801,6 @@ function shuffle(list) {
         [list[i],list[j]]=[list[j],list[i]];
     }
     return list;
-}
-
-class CalcBubble extends Enemy {
-    buildBody() {
-        const head=this.mat('head');
-        this.ball=this.hullify(new THREE.Mesh(geo('cbBall',()=>new THREE.SphereGeometry(1.1,16,12)),head));
-        this.ball.position.y=this.def.float;
-        this.body.add(this.ball);
-        const shine=new THREE.Mesh(geo('cbShine',()=>new THREE.SphereGeometry(0.2,8,6)),unlitMaterial({color:'paper'}));
-        shine.position.set(-0.5,this.def.float+0.5,0.62);
-        shine.scale.set(1,0.7,0.5);
-        this.body.add(shine);
-    }
-
-    onReset() {
-        const d=this.def;
-        this.num=undefined;
-        this.right=false;
-        this.seek=false;
-        this.speedMult=1;
-        this.dir=rng.range(0,Math.PI*2);
-        this.shootT=rng.range(d.firstShot[0],d.firstShot[1]);
-        this.bob=rng.range(0,6);
-    }
-
-    canContact() {
-        return false;
-    }
-
-    think(dt,ctx) {
-        const d=this.def;
-        const b=ctx.room.bounds;
-        const m=d.radius+0.6;
-        this.manual=true;
-        this.dir+=rng.range(-1,1)*dt*1.2;
-        let cx=Math.cos(this.dir);
-        let cz=Math.sin(this.dir);
-        if ((this.pos.x<b.minX+m&&cx<0)||(this.pos.x>b.maxX-m&&cx>0)) {
-            cx=-cx;
-        }
-        if ((this.pos.z<b.minZ+m&&cz<0)||(this.pos.z>b.maxZ-m&&cz>0)) {
-            cz=-cz;
-        }
-        this.dir=Math.atan2(cz,cx);
-        const sp=d.speed*this.speedMult;
-        this.vel.set(cx*sp,0,cz*sp);
-        this.aimX=this.nx;
-        this.aimZ=this.nz;
-        this.shootT-=dt;
-        if (this.shootT<=0) {
-            this.shootT=rng.range(d.shoot[0],d.shoot[1]);
-            const i=ctx.enemyBullets.spawn(this.pos.x+this.nx*d.radius,this.pos.z+this.nz*d.radius,this.nx,this.nz,d.bulletSpeed,d.bulletDamage,d.bulletLife);
-            if (i>=0&&this.seek) {
-                ctx.enemyBullets.tag[i]|=SEEK_TAG;
-            }
-            this.sqv+=1.5;
-        }
-    }
-
-    sync(alpha,dt) {
-        super.sync(alpha,dt);
-        this.root.position.y=Math.sin(time.real*2+this.bob)*this.def.bob;
-    }
 }
 
 class Calculator extends Enemy {
@@ -4949,15 +4905,17 @@ class Calculator extends Enemy {
     onReset() {
         this.patternT=this.def.first;
         this.q=null;
-        this.bubbles=[];
+        this.tiles=[];
         this.queue=[];
         this.rows=[];
         this.beams=[];
-        this.sweep=null;
+        this.sweeps=[];
         this.bag=[];
         this.last=null;
         this.press=0;
+        this.shotT=0;
         this.digits=this.digits||[];
+        this.tileMeshes=this.tileMeshes||[];
         this.say=null;
         this.paint('');
     }
@@ -4968,7 +4926,7 @@ class Calculator extends Enemy {
             return null;
         }
         const solved=this.state==='daze';
-        return {text:q.a+' '+q.op+' '+q.b+' = '+(solved?q.ans:'?'),frac:solved?0:Math.max(0,1-q.t/q.time),solved};
+        return {text:q.a+' '+q.op+' '+q.b+' = '+(solved?q.ans:'?'),frac:solved?0:Math.max(0,1-q.t/q.time),solved,hint:solved?'':t('calc.hint')};
     }
 
     sfx(ctx,n,p=1) {
@@ -4984,7 +4942,7 @@ class Calculator extends Enemy {
     }
 
     damageMult() {
-        return this.state==='daze'?this.def.weakMult:1;
+        return this.state==='daze'?this.weakX(this.def.weakMult):1;
     }
 
     stun(t,full) {
@@ -4994,53 +4952,38 @@ class Calculator extends Enemy {
         super.stun(t,full);
     }
 
-    dropBubble(e) {
-        const L=this.mgr&&this.mgr.list;
-        if (L) {
-            const i=L.indexOf(e);
-            if (i>=0) {
-                L.splice(i,1);
+    clearTiles(ctx) {
+        for (const k of this.tiles) {
+            if (!k.done&&ctx) {
+                ctx.particles.burst(k.x,0.5,k.z,8,{color:'midGray',speed:[2,4],up:[1,3]});
             }
         }
-        e.hide();
-    }
-
-    clearBubbles(ctx) {
-        for (const B of this.bubbles) {
-            if (B.done) {
-                continue;
-            }
-            B.done=true;
-            const e=B.e;
-            if (e.alive&&e.uid===B.uid) {
-                if (ctx) {
-                    ctx.particles.burst(e.pos.x,1.6,e.pos.z,10,{color:'paper',speed:[2,5],up:[1,4]});
-                }
-                this.dropBubble(e);
-            }
-        }
-        this.bubbles=[];
+        this.tiles=[];
     }
 
     clearHazards() {
         this.rows=[];
         this.beams=[];
-        this.sweep=null;
+        this.sweeps=[];
     }
 
     hide() {
         super.hide();
-        this.clearBubbles(null);
+        this.tiles=[];
         this.clearHazards();
         this.q=null;
         for (const m of this.digits||[]) {
             m.visible=false;
         }
+        for (const q of this.tileMeshes||[]) {
+            q.box.visible=false;
+            q.top.visible=false;
+        }
     }
 
     onEvolveStart(ctx) {
         this.clearHazards();
-        this.clearBubbles(ctx);
+        this.clearTiles(ctx);
         this.queue=[];
         this.q=null;
         this.paint('');
@@ -5054,14 +4997,19 @@ class Calculator extends Enemy {
         const Q=this.def.quiz;
         const b=ctx.room.bounds;
         const p=ctx.player.pos;
-        let best=null;
+        let best=[(b.minX+b.maxX)/2,b.maxZ-Q.margin];
         let bs=-Infinity;
-        for (let i=0;i<60;i++) {
+        for (let i=0;i<80;i++) {
             const x=rng.range(b.minX+Q.margin,b.maxX-Q.margin);
             const z=rng.range(b.minZ+Q.margin,b.maxZ-Q.margin);
             const dp=Math.hypot(x-p.x,z-p.z);
             const db=Math.hypot(x-this.pos.x,z-this.pos.z);
             const dt=taken.reduce((m,q)=>Math.min(m,Math.hypot(x-q[0],z-q[1])),99);
+            tileTmp.set(x,0,z);
+            resolveCircle(tileTmp,Q.keyR+Q.clear,ctx.room.colliders,2);
+            if (Math.hypot(tileTmp.x-x,tileTmp.z-z)>0.01) {
+                continue;
+            }
             const score=Math.min(dp-Q.minPlayer,db-Q.minBoss,dt-Q.minGap);
             if (score>=0) {
                 return [x,z];
@@ -5104,47 +5052,81 @@ class Calculator extends Enemy {
     }
 
     ask(ctx) {
-        const d=this.def;
-        const Q=d.quiz;
+        const Q=this.def.quiz;
         const q=this.question();
-        this.q={...q,t:0,time:this.evolved?Q.time2:Q.time};
+        this.q={...q,t:0,time:this.evolved?Q.time2:Q.time,swapped:false};
         const taken=[];
-        this.bubbles=[];
-        for (const v of q.nums) {
+        this.tiles=q.nums.map(v=>{
             const s=this.spot(ctx,taken);
             taken.push(s);
-            const e=ctx.enemyMgr.spawn('calcBubble',s[0],s[1],{hpMult:1});
-            e.noReward=true;
-            e.num=v;
-            e.right=v===q.ans;
-            e.seek=this.evolved&&!e.right;
-            e.speedMult=this.evolved?d.bubble.speedMult2:1;
-            this.bubbles.push({e,uid:e.uid,right:e.right,done:false});
+            return {x:s[0],z:s[1],fx:s[0],fz:s[1],tx:s[0],tz:s[1],mt:1,num:v,right:v===q.ans,done:false,press:0,t:0};
+        });
+        for (const k of this.tiles) {
+            ctx.particles.burst(k.x,0.4,k.z,8,{color:'ink',speed:[2,5],up:[2,5]});
         }
         this.paint(q.a+q.op+q.b+'=?');
         this.press=1;
+        this.shotT=Q.shoot;
         this.setState('ask');
         this.sfx(ctx,'alarmTick',1.2);
         ctx.fx.cameraShake(0.15);
     }
 
+    swapTiles() {
+        const live=this.tiles.filter(k=>!k.done);
+        const spots=shuffle(live.map(k=>[k.x,k.z]));
+        if (live.length>1&&spots.every((s,i)=>s[0]===live[i].x&&s[1]===live[i].z)) {
+            spots.push(spots.shift());
+        }
+        live.forEach((k,i)=>{
+            k.fx=k.x;
+            k.fz=k.z;
+            k.tx=spots[i][0];
+            k.tz=spots[i][1];
+            k.mt=0;
+        });
+    }
+
     tickQuiz(dt,ctx) {
+        const Q=this.def.quiz;
         const q=this.q;
+        const p=ctx.player;
         q.t+=dt;
-        for (const B of this.bubbles) {
-            if (B.done) {
+        if (this.evolved&&!q.swapped&&q.t>=q.time*Q.swapAt) {
+            q.swapped=true;
+            this.swapTiles();
+            this.sfx(ctx,'alarmTick',0.8);
+        }
+        for (const k of this.tiles) {
+            k.t+=dt;
+            if (k.mt<1) {
+                k.mt=Math.min(1,k.mt+dt/Q.swapTime);
+                const f=EASE.easeInOutCubic(k.mt);
+                k.x=k.fx+(k.tx-k.fx)*f;
+                k.z=k.fz+(k.tz-k.fz)*f;
+            }
+            if (k.done||k.t<Q.pop) {
                 continue;
             }
-            const e=B.e;
-            if (e.alive&&e.uid===B.uid) {
-                continue;
+            if (p.dashT>0&&Math.abs(p.pos.x-k.x)<Q.keyR&&Math.abs(p.pos.z-k.z)<Q.keyR) {
+                k.done=true;
+                k.press=1;
+                if (k.right) {
+                    this.solved(ctx,k);
+                    return;
+                }
+                this.wrong(ctx,k);
             }
-            B.done=true;
-            if (B.right) {
-                this.solved(ctx);
-                return;
+        }
+        this.shotT-=dt;
+        if (this.shotT<=0) {
+            this.shotT=this.evolved?Q.shoot2:Q.shoot;
+            const a=Math.atan2(this.nz,this.nx);
+            for (const o of [-1,0,1]) {
+                const b=a+o*Q.shotSpread;
+                ctx.enemyBullets.spawn(this.pos.x+Math.cos(b)*1.8,this.pos.z+Math.sin(b)*1.8,Math.cos(b),Math.sin(b),Q.shotSpeed,this.def.bulletDamage,4);
             }
-            this.wrong(ctx,e.pos.x,e.pos.z);
+            this.press=1;
         }
         if (q.t>=q.time) {
             this.timeout(ctx);
@@ -5154,20 +5136,26 @@ class Calculator extends Enemy {
     burstRing(ctx,x,z,n) {
         const Q=this.def.quiz;
         fireRing(ctx,x,z,n,rng.range(0,Math.PI*2),Q.ringSpeed,this.def.bulletDamage,4);
-        ctx.particles.burst(x,1.6,z,14,{color:'red',speed:[3,7],up:[2,5]});
+        ctx.particles.burst(x,0.6,z,14,{color:'red',speed:[3,7],up:[2,5]});
     }
 
-    wrong(ctx,x,z) {
-        this.burstRing(ctx,x,z,this.def.quiz.wrongRing);
+    wrong(ctx,k) {
+        this.burstRing(ctx,k.x,k.z,this.def.quiz.wrongRing);
         this.sfx(ctx,'fail',1.1);
         ctx.fx.cameraShake(0.2);
         this.sqv+=2;
         this.flashT=0.1;
     }
 
-    solved(ctx) {
+    solved(ctx,k) {
         const q=this.q;
-        this.clearBubbles(ctx);
+        for (const o of this.tiles) {
+            if (!o.done) {
+                o.done=true;
+                ctx.particles.burst(o.x,0.5,o.z,8,{color:'midGray',speed:[2,4],up:[1,3]});
+            }
+        }
+        ctx.particles.burst(k.x,0.6,k.z,20,{color:'paper',speed:[3,7],up:[2,6]});
         this.paint(q.a+q.op+q.b+'='+q.ans,'red');
         this.setState('daze');
         this.say={text:t('calc.daze'),t:0,dur:this.def.daze.time,keep:true};
@@ -5179,11 +5167,13 @@ class Calculator extends Enemy {
 
     timeout(ctx) {
         const Q=this.def.quiz;
-        const live=this.bubbles.filter(B=>!B.done&&B.e.alive&&B.e.uid===B.uid);
-        for (const B of live) {
-            this.burstRing(ctx,B.e.pos.x,B.e.pos.z,Q.timeoutRing);
+        for (const k of this.tiles) {
+            if (!k.done) {
+                k.done=true;
+                k.press=1;
+                this.burstRing(ctx,k.x,k.z,Q.timeoutRing);
+            }
         }
-        this.clearBubbles(ctx);
         this.paint('Error','red');
         this.say={text:t('calc.timeout'),t:0,dur:1.4,keep:false};
         this.sfx(ctx,'alarmBurst',1.2);
@@ -5225,6 +5215,7 @@ class Calculator extends Enemy {
         }
         this.pattern=k;
         this.press=1;
+        this.tiles=this.tiles.filter(q=>q.press>0.05);
         if (k==='zero') {
             this.zero(ctx);
             return;
@@ -5248,7 +5239,7 @@ class Calculator extends Enemy {
     zero(ctx) {
         const Z=this.def.zero;
         this.clearHazards();
-        this.clearBubbles(ctx);
+        this.clearTiles(ctx);
         ctx.enemyBullets.clear();
         this.shielded=true;
         this.setState('zero');
@@ -5292,10 +5283,12 @@ class Calculator extends Enemy {
     startPlus(ctx) {
         const P=this.def.plus;
         const dir=rng.sign();
-        const dur=this.evolved?P.dur2:P.dur;
-        const a0=rng.range(0,Math.PI/2);
+        const ev=this.evolved;
+        const dur=ev?P.dur2:P.dur;
+        const turn=ev?P.turn2:P.turn;
+        const a0=Math.atan2(this.nz,this.nx)+Math.PI/4;
         for (let i=0;i<4;i++) {
-            this.beams.push({a:a0+i*Math.PI/2,speed:dir*P.turn/dur,warn:P.warn,dur,t:0,cd:0});
+            this.beams.push({a:a0+i*Math.PI/2,speed:dir*turn/dur,warn:P.warn,dur,t:0,cd:0});
         }
     }
 
@@ -5308,11 +5301,15 @@ class Calculator extends Enemy {
         const pc=axis==='z'?ctx.player.pos.z:ctx.player.pos.x;
         const fwd=pc-lo>hi-pc?1:-1;
         const from=fwd>0?lo+M.half:hi-M.half;
-        this.sweep={axis,from,to:fwd>0?hi-M.half:lo+M.half,dir:fwd,pos:from,t:0,warn:M.warn,speed:this.evolved?M.speed2:M.speed,cd:0};
+        const to=fwd>0?hi-M.half:lo+M.half;
+        const speed=this.evolved?M.speed2:M.speed;
+        for (let i=0;i<M.count;i++) {
+            this.sweeps.push({axis,from,to,dir:fwd,pos:from,t:-i*M.gap,warn:M.warn,speed,cd:0});
+        }
     }
 
     busy() {
-        return this.rows.length>0||this.beams.length>0||!!this.sweep;
+        return this.rows.length>0||this.beams.length>0||this.sweeps.length>0;
     }
 
     tickRain(dt,ctx) {
@@ -5365,63 +5362,42 @@ class Calculator extends Enemy {
     }
 
     tickSweep(dt,ctx) {
-        const S=this.sweep;
-        if (!S) {
-            return;
-        }
         const M=this.def.minus;
         const p=ctx.player;
-        S.t+=dt;
-        S.cd=Math.max(0,S.cd-dt);
-        if (S.t<S.warn) {
-            return;
-        }
-        S.pos+=S.dir*S.speed*dt;
-        const pc=S.axis==='z'?p.pos.z:p.pos.x;
-        if (S.cd<=0&&Math.abs(pc-S.pos)<M.half+TUNING.player.radius) {
-            if (this.harm(ctx,S.axis==='x'?S.dir:0,S.axis==='z'?S.dir:0)) {
-                S.cd=this.def.hitCool;
-            }
-        }
-        if ((S.to-S.pos)*S.dir<=0) {
-            this.sweep=null;
-        }
-    }
-
-    steerBullets(dt,ctx) {
-        if (!this.evolved) {
-            return;
-        }
-        const S=ctx.enemyBullets;
-        const p=ctx.player.pos;
-        const k=ENEMIES.calcBubble.homing*dt;
-        for (let i=0;i<S.n;i++) {
-            if (!(S.tag[i]&SEEK_TAG)) {
+        for (let i=this.sweeps.length-1;i>=0;i--) {
+            const S=this.sweeps[i];
+            S.t+=dt;
+            S.cd=Math.max(0,S.cd-dt);
+            if (S.t<S.warn) {
                 continue;
             }
-            const vx=S.vx[i];
-            const vz=S.vz[i];
-            const sp=Math.hypot(vx,vz);
-            if (sp<0.01) {
-                continue;
+            S.pos+=S.dir*S.speed*dt;
+            const pc=S.axis==='z'?p.pos.z:p.pos.x;
+            if (S.cd<=0&&Math.abs(pc-S.pos)<M.half+TUNING.player.radius) {
+                if (this.harm(ctx,S.axis==='x'?S.dir:0,S.axis==='z'?S.dir:0)) {
+                    S.cd=this.def.hitCool;
+                }
             }
-            const cur=Math.atan2(vz,vx);
-            const a=cur+Math.max(-k,Math.min(k,wrap(Math.atan2(p.z-S.z[i],p.x-S.x[i])-cur)));
-            S.vx[i]=Math.cos(a)*sp;
-            S.vz[i]=Math.sin(a)*sp;
+            if ((S.to-S.pos)*S.dir<=0) {
+                this.sweeps.splice(i,1);
+            }
         }
     }
 
     think(dt,ctx) {
         const d=this.def;
-        this.mgr=ctx.enemyMgr||this.mgr;
         this.bounds=ctx.room.bounds;
         this.manual=true;
         this.vel.set(0,0,0);
         this.aimX=0;
         this.aimZ=1;
         this.press=Math.max(0,this.press-dt*3);
-        this.steerBullets(dt,ctx);
+        for (const k of this.tiles) {
+            if (k.done) {
+                k.press=Math.max(0,k.press-dt*d.quiz.fade);
+            }
+        }
+        this.tiles=this.tiles.filter(k=>!k.done||k.press>0);
         this.tickRain(dt,ctx);
         this.tickBeams(dt,ctx);
         this.tickSweep(dt,ctx);
@@ -5462,7 +5438,7 @@ class Calculator extends Enemy {
 
     digitMesh(i,ch) {
         while (this.digits.length<=i) {
-            const m=new THREE.Mesh(geo('caDigit',()=>new THREE.PlaneGeometry(1,1)),digitMat('0'));
+            const m=new THREE.Mesh(geo('caDigit',()=>new THREE.PlaneGeometry(1,1)),labelMat('0'));
             m.rotation.x=-0.7;
             m.frustumCulled=false;
             m.visible=false;
@@ -5472,12 +5448,37 @@ class Calculator extends Enemy {
             this.digits.push(m);
         }
         const m=this.digits[i];
-        const mat=digitMat(ch);
+        const mat=labelMat(ch);
         if (m.material!==mat) {
             m.material=mat;
         }
         m.visible=true;
         return m;
+    }
+
+    tileMat() {
+        if (!this._tileMat) {
+            this._tileMat=toonMaterial({...this.def.tones.head,jitter:TUNING.boil.vertexJitter,unique:true});
+        }
+        return this._tileMat;
+    }
+
+    tileMesh(i) {
+        const Q=this.def.quiz;
+        while (this.tileMeshes.length<=i) {
+            const box=new THREE.Mesh(geo('caTile',()=>new THREE.BoxGeometry(Q.keySize,Q.keyH,Q.keySize)),this.tileMat());
+            box.add(new THREE.Mesh(box.geometry,this.hull));
+            const top=new THREE.Mesh(geo('caTileTop',()=>new THREE.PlaneGeometry(Q.keySize*0.9,Q.keySize*0.9).rotateX(-Math.PI/2)),labelMat('0'));
+            for (const m of [box,top]) {
+                m.frustumCulled=false;
+                m.visible=false;
+                if (this.root.parent) {
+                    this.root.parent.add(m);
+                }
+            }
+            this.tileMeshes.push({box,top});
+        }
+        return this.tileMeshes[i];
     }
 
     sync(alpha,dt) {
@@ -5486,10 +5487,34 @@ class Calculator extends Enemy {
         const ox=this.pos.x;
         const oz=this.pos.z;
         const MT=TUNING.moveTele;
+        const Q=d.quiz;
         let li=0;
         let fi=0;
         let si=0;
         let di=0;
+        for (let i=0;i<Math.max(this.tiles.length,this.tileMeshes.length);i++) {
+            const k=this.tiles[i];
+            const tm=this.tileMesh(i);
+            if (!k) {
+                tm.box.visible=false;
+                tm.top.visible=false;
+                continue;
+            }
+            const pop=EASE.easeOutBack(Math.min(1,k.t/Q.pop));
+            const lift=k.mt<1?Math.sin(k.mt*Math.PI)*Q.hop:0;
+            const y=Q.keyH/2-(k.done?Q.keyH*Q.sink:0)+lift;
+            const sc=Math.max(0.01,pop*(k.done?k.press:1));
+            const mat=labelMat(String(k.num));
+            if (tm.top.material!==mat) {
+                tm.top.material=mat;
+            }
+            tm.box.visible=true;
+            tm.top.visible=true;
+            tm.box.position.set(k.x,y,k.z);
+            tm.box.scale.set(sc,1,sc);
+            tm.top.position.set(k.x,y+Q.keyH/2+0.02,k.z);
+            tm.top.scale.set(sc,1,sc);
+        }
         if (this.bounds) {
             const R=d.rain;
             for (const r of this.rows) {
@@ -5535,13 +5560,15 @@ class Calculator extends Enemy {
                     m.material.uniforms.uAlpha.value=fade;
                 }
             }
-            const S=this.sweep;
-            if (S) {
-                const b=this.bounds;
+            const b=this.bounds;
+            for (const S of this.sweeps) {
+                if (S.t<0) {
+                    continue;
+                }
                 const seg=v=>S.axis==='z'?[b.minX,v,b.maxX,v]:[v,b.minZ,v,b.maxZ];
+                const [ax,az,bx,bz]=seg(S.pos);
                 if (S.t<S.warn) {
                     const k=Math.min(1,S.t/(S.warn*0.5));
-                    const [ax,az,bx,bz]=seg(S.pos);
                     this.putLine(this.line(li++),ax,az,ax+(bx-ax)*k,az+(bz-az)*k,0.22);
                     const e=S.pos+S.dir*d.minus.reach*k;
                     const [cx,cz]=S.axis==='z'?[(ax+bx)/2,S.pos]:[S.pos,(az+bz)/2];
@@ -5549,7 +5576,6 @@ class Calculator extends Enemy {
                     this.fadeBand(fi++,cx,cz,ex,ez,S.axis==='z'?b.maxX-b.minX:b.maxZ-b.minZ,MT.alpha*k);
                 }
                 else {
-                    const [ax,az,bx,bz]=seg(S.pos);
                     const m=this.strip(si++);
                     this.putLine(m,ax,az,bx,bz,d.minus.half*2.2);
                     m.material.uniforms.uAlpha.value=1;
@@ -5580,7 +5606,7 @@ class Calculator extends Enemy {
     }
 }
 
-const CLASSES={bookmark:Bookmark,stampSoldier:StampSoldier,scissorMinion:ScissorMinion,doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkCloud:InkCloud,inkBottle:InkBottle,scissors:Scissors,book:Book,exam:Exam,bookFinal:BookFinal,alarm:Alarm,calculator:Calculator,calcBubble:CalcBubble};
+const CLASSES={bookmark:Bookmark,stampSoldier:StampSoldier,scissorMinion:ScissorMinion,doodle:Doodle,sprayer:Sprayer,blob:Blob,blobSmall:Blob,compass:Compass,eraserMonster:EraserMonster,bird:Bird,inkCloud:InkCloud,inkBottle:InkBottle,scissors:Scissors,book:Book,exam:Exam,bookFinal:BookFinal,alarm:Alarm,calculator:Calculator};
 
 export class EnemyManager {
     constructor(parent,fxScene) {
@@ -5647,7 +5673,7 @@ export class EnemyManager {
         }
         for (const e of arr) {
             if (e.alive) {
-                e.update(e.def.boss?dt*TUNING.bossTempo*(1+e.tier*TUNING.bossScale.tempo):dt,ctx);
+                e.update(e.def.boss?dt*TUNING.bossTempo*(1+Math.min(e.tier,TUNING.bossScale.tempoTierMax)*TUNING.bossScale.tempo):dt,ctx);
             }
         }
         if (D&&D.active) {

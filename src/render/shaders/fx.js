@@ -490,3 +490,29 @@ void main() {
     gl_FragColor=vec4(uColor,uAlpha*pow(k,1.6));
 }
 `;
+
+export const PORTAL_VERT=`
+varying vec2 vUv;
+varying float vDepth;
+void main() {
+    vUv=uv;
+    vec4 vp=modelViewMatrix*vec4(position,1.0);
+    vDepth=-vp.z;
+    gl_Position=projectionMatrix*vp;
+}
+`;
+
+export const PORTAL_FRAG=`
+${OCCLUDE}
+uniform sampler2D tMap;
+uniform float uOpacity;
+varying vec2 vUv;
+varying float vDepth;
+void main() {
+    if (occluded(vDepth)) {
+        discard;
+    }
+    vec4 c=texture2D(tMap,vUv);
+    gl_FragColor=vec4(c.rgb,c.a*uOpacity);
+}
+`;

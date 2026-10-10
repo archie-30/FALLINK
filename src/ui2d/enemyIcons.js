@@ -239,10 +239,5 @@ export const ENEMY_ICONS={
                 fillPoly(ctx,rectPoly(-15+c*8,-6+r*8,6,5),c===3?PALETTE.red:PALETTE.paper);
             }
         }
-    },
-    calcBubble(ctx,v) {
-        dot(ctx,0,0,22,PALETTE.paper);
-        drawShape(ctx,sketchCircle(0,0,22,{width:2,seed:1890}),PALETTE.ink,v);
-        dot(ctx,-9,-9,4,PALETTE.farGray);
     }
 };

@@ -1437,13 +1437,14 @@ function alarmPad(S,x,y,k,hold,done=0) {
     }
 }
 
-function calcBubble(S,x,y,n,a=1) {
+function calcKey(S,x,y,n,a=1,press=0) {
     if (a<=0) {
         return;
     }
-    S.circle(x,y,0.78,PALETTE.paper,a);
-    S.ring(x,y,0.78,PALETTE.ink,0.07,a);
-    S.circle(x-0.32,y-0.32,0.12,PALETTE.farGray,a);
+    const h=0.75*(1-press*0.25);
+    S.rect(x-h+0.08,y-h+0.12,h*2,h*2,PALETTE.ink,0.15*a);
+    S.rect(x-h,y-h,h*2,h*2,press>0?PALETTE.farGray:PALETTE.paper,a);
+    S.path([[x-h,y-h],[x+h,y-h],[x+h,y+h],[x-h,y+h],[x-h,y-h]],PALETTE.ink,0.08,a);
     S.text(String(n),x,y+0.04,17,PALETTE.ink,a);
 }
 
@@ -1939,28 +1940,32 @@ export const ENEMY_ATTACKS={
             period:5,
             draw(S,k) {
                 const cx=12.5;
-                const pop=0.42;
-                const solved=k>=pop;
-                const bs=[[6,2.2,13],[8.4,6.6,9],[4.6,7,4],[8,3.8,17]];
+                const hit=0.46;
+                const solved=k>=hit;
+                const ks=[[6,2.3,13],[8.4,6.6,9],[4.4,7,4],[8.2,3.9,17]];
                 S.text(solved?'6+7=13':'6+7=?',cx,PY-2.4,18,solved?PALETTE.red:PALETTE.ink,seg(k,0.02,0.08));
-                S.enemy('calculator',cx,PY,{size:2.6,rot:solved?Math.sin(k*30)*0.12:0,flash:seg(k,pop,pop+0.05)*(1-seg(k,pop+0.05,pop+0.12))});
+                S.enemy('calculator',cx,PY,{size:2.6,rot:solved?Math.sin(k*30)*0.12:0,flash:seg(k,hit,hit+0.05)*(1-seg(k,hit+0.05,hit+0.12))});
                 if (solved) {
                     S.stars(cx,PY-0.6,k);
                     S.text('×2',cx,PY+2.3,18,PALETTE.red,1-seg(k,0.9,1));
                 }
-                bs.forEach(([x,y,n],i)=>{
-                    const bx=x+Math.sin(k*6+i)*0.25;
-                    const by=y+Math.cos(k*5+i*2)*0.2;
-                    const gone=solved?seg(k,pop,pop+0.08):0;
-                    if (i===0&&solved) {
-                        S.burst(bx,by,1.4,seg(k,pop,pop+0.15),PALETTE.red);
-                        return;
-                    }
-                    calcBubble(S,bx,by,n,seg(k,0.04,0.1)*(1-gone));
+                ks.forEach(([x,y,n],i)=>{
+                    const up=seg(k,0.04+i*0.02,0.12+i*0.02);
+                    const gone=solved?seg(k,hit,hit+0.1):0;
+                    calcKey(S,x,y,n,up*(i===0?1-seg(k,hit+0.2,hit+0.3):1-gone),i===0&&solved?1:0);
                 });
-                const ang=Math.atan2(2.2-PY,6-2.4);
-                S.player(2.4,PY,ang,{kick:k<pop?(k*12)%1:0});
-                S.stream(3,PY-0.3,5.6,2.4,k,0.14,pop-0.08,0.07,0.08);
+                S.burst(6,2.3,1.6,seg(k,hit,hit+0.15),PALETTE.red);
+                const dash=seg(k,hit-0.1,hit);
+                const px=lerp(2.6,6,easeOut(dash));
+                const py=lerp(5.2,2.3,easeOut(dash));
+                if (dash>0&&dash<1) {
+                    S.line(2.6,5.2,px,py,PALETTE.midGray,0.3,0.5);
+                }
+                S.player(px,py,Math.atan2(2.3-5.2,6-2.6),{flash:dash>0&&dash<1?0.5:0});
+                for (let j=0;j<3;j++) {
+                    const a=Math.PI+(j-1)*0.28;
+                    S.fly(cx-1.6,PY,cx-1.6+Math.cos(a)*7,PY+Math.sin(a)*7*0.5,k,0.12,0.32);
+                }
             }
         },
         {
@@ -2004,7 +2009,7 @@ export const ENEMY_ATTACKS={
                 S.enemy('calculator',cx,PY,{size:2.6});
                 S.text('+',cx+1.6,PY-2,22,PALETTE.red,seg(k,0.02,0.08)*(1-seg(k,0.88,0.92)));
                 for (let i=0;i<4;i++) {
-                    const a=a0+i*Math.PI/2+f*Math.PI/2;
+                    const a=a0+i*Math.PI/2+f*Math.PI*1.25;
                     if (k<0.28) {
                         S.tele(cx+Math.cos(a)*1.4,PY+Math.sin(a)*1.4,cx+Math.cos(a)*10,PY+Math.sin(a)*10,seg(k,0.04,0.24));
                     }
@@ -2023,16 +2028,17 @@ export const ENEMY_ATTACKS={
                 S.enemy('calculator',cx,PY,{size:2.4});
                 S.text('−',cx+1.5,PY-2,24,PALETTE.red,seg(k,0.02,0.08)*(1-seg(k,0.88,0.92)));
                 const warn=seg(k,0.05,0.3);
-                const f=seg(k,0.3,0.85);
-                const x=lerp(0.8,10.5,f);
                 if (k<0.3) {
                     S.tele(0.8,0.6,0.8,8.4,warn);
                     S.rect(0.8,0.6,3*warn,7.8,PALETTE.red,0.12*warn);
                 }
-                else if (f<1) {
-                    S.line(x,0.6,x,8.4,PALETTE.ink,0.4);
+                for (const d of [0,0.16]) {
+                    const f=seg(k,0.3+d,0.75+d);
+                    if (f>0&&f<1) {
+                        S.line(lerp(0.8,10.5,f),0.6,lerp(0.8,10.5,f),8.4,PALETTE.ink,0.4);
+                    }
                 }
-                const dash=seg(k,0.46,0.54);
+                const dash=seg(k,0.44,0.52);
                 S.player(lerp(5.4,3,easeOut(dash)),PY+0.6,Math.PI,{flash:dash>0&&dash<1?0.5:0});
                 if (dash>0&&dash<1) {
                     S.line(5.4,PY+0.6,lerp(5.4,3,easeOut(dash)),PY+0.6,PALETTE.midGray,0.3,0.5);
@@ -2053,8 +2059,8 @@ export const ENEMY_ATTACKS={
                     const r=1.6+((k*3+hash(i))%1)*4;
                     S.bullet(cx+Math.cos(a)*r,PY+Math.sin(a)*r*0.8,'enemy',cleared?1-seg(k,hit,hit+0.06):1);
                 }
-                calcBubble(S,6.4,2.4,8,cleared?1-seg(k,hit,hit+0.06):1);
-                calcBubble(S,6,6.8,3,cleared?1-seg(k,hit,hit+0.06):1);
+                calcKey(S,6.4,2.4,8,cleared?1-seg(k,hit,hit+0.06):1);
+                calcKey(S,6,6.8,3,cleared?1-seg(k,hit,hit+0.06):1);
                 S.enemy('calculator',cx,PY,{size:2.6,shake:cleared&&k<hit+0.05?k:0});
                 S.text('AC',cx,PY-2.3,20,PALETTE.red,seg(k,hit-0.05,hit)*(1-seg(k,0.6,0.65)));
                 const sh=cleared&&k<0.7;
@@ -2071,21 +2077,15 @@ export const ENEMY_ATTACKS={
                 const cx=13;
                 S.text('8−3=?',cx,PY-2.4,18,PALETTE.ink);
                 S.enemy('calculator',cx,PY,{size:2.4});
-                const bs=[[7,1.8,5],[9.6,7,4],[4.6,7.4,6],[8.8,3.6,9],[5.2,2.6,12]];
-                bs.forEach(([x,y,n],i)=>calcBubble(S,x+Math.sin(k*8+i)*0.35,y+Math.cos(k*7+i*2)*0.3,n));
-                const px=lerp(2.2,3.2,inOut(seg(k,0.3,0.7)));
-                const py=lerp(4.4,5.6,inOut(seg(k,0.3,0.7)));
-                S.player(px,py,0);
-                for (const [x0,y0,t0] of [[9.6,7,0.1],[4.6,7.4,0.35],[8.8,3.6,0.55]]) {
-                    const f=seg(k,t0,t0+0.4);
-                    if (f>0&&f<1) {
-                        const c=[x0-2,y0-2.5];
-                        const [bx,by]=bez([x0,y0],c,[px,py],f*0.92);
-                        S.bullet(bx,by,'enemy');
-                    }
-                }
+                const from=[[7,1.8],[9.6,7],[4.6,7.4],[8.8,3.8],[4.4,2.4]];
+                const to=[[4.6,7.4],[7,1.8],[8.8,3.8],[4.4,2.4],[9.6,7]];
+                const nums=[5,4,6,9,12];
+                const f=inOut(seg(k,0.4,0.6));
+                const hop=Math.sin(seg(k,0.4,0.6)*Math.PI)*0.8;
+                from.forEach((p,i)=>calcKey(S,lerp(p[0],to[i][0],f),lerp(p[1],to[i][1],f)-hop,nums[i]));
+                S.text('⇄',7,PY,22,PALETTE.red,seg(k,0.36,0.4)*(1-seg(k,0.6,0.64)));
+                S.player(2.2,PY,0);
                 S.text('7s',cx-1.6,PY+2.3,16,PALETTE.red);
-                S.text('×1.3',cx+1.4,PY+2.3,16,PALETTE.red);
             }
         }
     ],

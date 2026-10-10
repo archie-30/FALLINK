@@ -1,5 +1,5 @@
 import*as THREE from 'three';
-import {toonMaterial} from '../render/materials.js';
+import {toonMaterial,portalMaterial} from '../render/materials.js';
 import {makeBox} from '../core/collision.js';
 import {TUNING} from '../data/tuning.js';
 import {PALETTE,hexToRgb,rgba} from '../data/palette.js';
@@ -166,7 +166,7 @@ function makeTextures() {
 }
 
 function fxMaterial(map) {
-    return new THREE.MeshBasicMaterial({map,transparent:true,depthTest:false,depthWrite:false,opacity:0,side:THREE.DoubleSide});
+    return portalMaterial(map);
 }
 
 export function doorXs(n,hw) {
