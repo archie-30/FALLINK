@@ -792,6 +792,7 @@ function boot() {
         }
         if (e.def.boss) {
             bump('bosses');
+            bump('boss.'+e.type);
             addKind('boss',e.type);
             if (run.mode==='story'||run.mode==='endless') {
                 const got=earnDots(TUNING.meta.dotBoss);

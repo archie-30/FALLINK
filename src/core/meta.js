@@ -406,9 +406,6 @@ export function statValue(stat) {
     if (stat==='owned') {
         return ownedCount();
     }
-    if (stat.startsWith('beat:')) {
-        return P.beaten.includes(stat.slice(5))?1:0;
-    }
     if (stat==='bossKinds') {
         return (P.kinds.boss||[]).length;
     }
