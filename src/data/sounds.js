@@ -376,5 +376,45 @@ export const SOUNDS={
             {kind:'tone',wave:'sine',f0:2637,dur:1,gain:0.04,delay:0.42,trem:{rate:11,depth:0.6}},
             {kind:'tone',wave:'sine',f0:130,dur:0.6,gain:0.2,delay:0.33}
         ]
+    },
+    alarmTick:{
+        gap:0.05,
+        gain:0.32,
+        rev:0.05,
+        layers:[
+            {kind:'noise',dur:0.03,gain:0.35,filter:{type:'bandpass',f0:3200,q:5}},
+            {kind:'tone',wave:'square',f0:1400,f1:1100,dur:0.03,gain:0.04}
+        ]
+    },
+    alarmBell:{
+        gap:0.08,
+        gain:0.42,
+        rev:0.3,
+        layers:[
+            {kind:'tone',wave:'triangle',f0:1320,dur:0.5,gain:0.16,trem:{rate:28,depth:0.8}},
+            {kind:'tone',wave:'sine',f0:2640,dur:0.35,gain:0.06,trem:{rate:28,depth:0.8}},
+            {kind:'noise',dur:0.03,gain:0.12,filter:{type:'highpass',f0:4000}}
+        ]
+    },
+    alarmPress:{
+        gap:0.1,
+        gain:0.5,
+        rev:0.15,
+        layers:[
+            {kind:'noise',dur:0.05,gain:0.4,filter:{type:'bandpass',f0:1800,q:3}},
+            {kind:'tone',wave:'sine',f0:180,f1:80,dur:0.12,gain:0.3},
+            {kind:'tone',wave:'triangle',f0:660,f1:440,dur:0.25,gain:0.08,delay:0.05}
+        ]
+    },
+    alarmBurst:{
+        gap:0.5,
+        gain:0.5,
+        rev:0.35,
+        layers:[
+            {kind:'tone',wave:'square',f0:1180,dur:1.2,gain:0.05,trem:{rate:24,depth:1},filter:{type:'lowpass',f0:3000,q:1}},
+            {kind:'tone',wave:'triangle',f0:1580,dur:1.2,gain:0.08,trem:{rate:24,depth:1}},
+            {kind:'tone',wave:'sine',f0:120,f1:50,dur:0.6,gain:0.35},
+            {kind:'noise',dur:0.3,gain:0.2,filter:{type:'lowpass',f0:1200,f1:300,q:0.6}}
+        ]
     }
 };

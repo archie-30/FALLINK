@@ -82,7 +82,7 @@ export function loadProgress() {
     }
     const q=new URLSearchParams(location.search);
     if (q.get('seen')==='all') {
-        progress.seen=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','compass','eraserMonster','inkBottle','scissors','book','exam','bookFinal'];
+        progress.seen=['doodle','blob','sprayer','stampSoldier','inkCloud','bird','compass','eraserMonster','inkBottle','scissors','book','exam','bookFinal','alarm'];
     }
     const lv=Number(q.get('level'));
     if (lv>0) {

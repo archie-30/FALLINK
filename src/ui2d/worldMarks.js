@@ -74,6 +74,62 @@ export class WorldMarks {
         this.prompt={x:x-W.touchPad,y:y-W.touchPad,w:bw+W.touchPad*2,h:bh+W.touchPad*2};
     }
 
+    drawAlarm(ctx,game,e,p,v) {
+        const A=TUNING.alarmMarks;
+        const B=e.def.bar;
+        const k=Math.max(0,Math.min(1,e.alarmBar/B.max));
+        const hot=e.alarmBar>=B.show||e.state==='burst';
+        ctx.save();
+        for (let i=0;i<e.pads.length;i++) {
+            const q=e.pads[i];
+            if (q.done) {
+                continue;
+            }
+            game.project(q.x,A.padLift,q.z,p);
+            const m=A.edge;
+            const x=Math.max(m,Math.min((this.sw||p.x*2)-m,p.x));
+            const y=Math.max(m+A.padR,Math.min((this.sh||p.y*2)-m,p.y))-Math.abs(Math.sin(time.real*A.padBob+i))*A.padR*0.5;
+            ctx.fillStyle=PALETTE.red;
+            ctx.beginPath();
+            ctx.arc(x,y,A.padR,0,Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle=PALETTE.paper;
+            ctx.lineWidth=3;
+            ctx.beginPath();
+            ctx.arc(x,y,A.padR-3,-Math.PI/2,-Math.PI/2+Math.PI*2*q.hold/q.need);
+            ctx.stroke();
+            ctx.fillStyle=PALETTE.paper;
+            ctx.font='bold '+A.font+'px '+FONT;
+            ctx.textAlign='center';
+            ctx.textBaseline='middle';
+            ctx.fillText('!',x,y+1);
+        }
+        game.project(e.renderPos.x,e.def.height+A.lift,e.renderPos.z,p);
+        const sh=hot?Math.sin(time.real*40)*A.shake*k:0;
+        const x=p.x-A.w/2+sh;
+        const y=p.y-A.h/2;
+        ctx.fillStyle=rgba('paper',0.92);
+        ctx.fillRect(x,y,A.w,A.h);
+        ctx.globalAlpha=hot?0.7+0.3*Math.sin(time.real*(8+k*12)):1;
+        ctx.fillStyle=PALETTE.red;
+        ctx.fillRect(x,y,A.w*k,A.h);
+        ctx.globalAlpha=1;
+        const mx=x+A.w*B.show/B.max;
+        ctx.strokeStyle=PALETTE.ink;
+        ctx.lineWidth=1.5;
+        ctx.beginPath();
+        ctx.moveTo(mx,y);
+        ctx.lineTo(mx,y+A.h);
+        ctx.stroke();
+        drawShape(ctx,sketchRect(x,y,A.w,A.h,{width:1.6,seed:2390}),PALETTE.ink,v);
+        ctx.fillStyle=hot?PALETTE.red:PALETTE.ink;
+        ctx.font='bold '+A.font+'px '+FONT;
+        ctx.textAlign='right';
+        ctx.textBaseline='middle';
+        ctx.fillText(t('alarm.bar'),x-A.label,y+A.h/2+1);
+        ctx.restore();
+    }
+
     drawSpeech(ctx,p,q,v,foe=false) {
         const W=TUNING.worldMarks;
         const k=Math.min(1,q.t/0.25,(q.dur-q.t)/0.3);
@@ -211,6 +267,9 @@ export class WorldMarks {
             this.drawPrompt(ctx,p,t(touch?'npc.tap':'npc.press')+t('ui.gap')+t(mp.key),v,2360);
         }
         for (const e of game.enemies.list) {
+            if (e.alarmBar!==undefined&&e.alive&&e.state!=='spawn') {
+                this.drawAlarm(ctx,game,e,p,v);
+            }
             if (e.say&&e.alive) {
                 game.project(e.renderPos.x,e.def.height*(e.elite?TUNING.elite.scale:1)+TUNING.taunt.lift,e.renderPos.z,p);
                 this.drawSpeech(ctx,p,e.say,v,true);
