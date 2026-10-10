@@ -133,9 +133,9 @@ export const CARDS={
         type:'defense',
         mode:'self',
         targeting:'none',
-        params:{hits:3},
-        upgraded:{cost:3,params:{hits:4}},
-        effect:(g,t,p)=>g.paperShield(p.hits)
+        params:{hits:2,duration:7},
+        upgraded:{cost:3,params:{hits:3,duration:7}},
+        effect:(g,t,p)=>g.paperShield(p.hits,p.duration)
     },
     inkDash:{
         id:'inkDash',
@@ -200,8 +200,8 @@ export const CARDS={
         type:'defense',
         mode:'self',
         targeting:'none',
-        params:{heal:2},
-        upgraded:{cost:3,params:{heal:3}},
+        params:{heal:1},
+        upgraded:{cost:3,params:{heal:2}},
         effect:(g,t,p)=>g.heal(p.heal)
     },
     shockwave:{
@@ -484,7 +484,7 @@ export const CARDS={
         type:'defense',
         mode:'self',
         targeting:'none',
-        params:{duration:4},
+        params:{duration:5},
         upgraded:{cost:2},
         effect:(g,t,p)=>g.inkBarrier(p.duration)
     },

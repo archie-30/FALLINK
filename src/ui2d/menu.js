@@ -2208,7 +2208,7 @@ export class Codex extends Panel {
         const atks=ENEMY_ATTACKS[id];
         const stw=Math.min(C.stageMax,rw*C.stageFrac);
         const sth=stw*9/16;
-        let ay=top;
+        let ay=top+C.clipPad;
         for (let i=0;i<atks.length;i++) {
             const a=atks[i];
             ctx.font='13px '+FONT;
@@ -2931,7 +2931,9 @@ export class RunSummary {
             }
         }
         const s=this.stats;
-        const sub=(s.mode==='endless'?t('mode.endless'):t('mode.story'))+(s.mode==='endless'?'':' · '+t('summary.actN',{n:s.act+(this.victory?0:1)}));
+        const at=s.at;
+        const where=at?(at.overtime?t('summary.overtime')+' · '+t('summary.pageN',{n:at.page+1}):t('summary.actN',{n:at.act+1})+' · '+(at.boss?t('hud.bossPage'):t('summary.pageN',{n:at.page+1}))):(s.mode==='endless'?'':t('summary.actN',{n:s.act+(this.victory?0:1)}));
+        const sub=(s.mode==='endless'?t('mode.endless'):t('mode.story'))+(where?' · '+where:'');
         ctx.globalAlpha=Math.max(0,Math.min(1,(T-0.3)/0.3));
         ctx.font=(small?'13px ':'16px ')+FONT;
         ctx.fillStyle=PALETTE.nearGray;

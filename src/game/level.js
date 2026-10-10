@@ -1,4 +1,4 @@
-import {LAYOUTS,NORMAL_LAYOUTS,ACTS,ENEMY_COST,ENEMY_ORDER,STORY_INTRO,ENDLESS,ROOM_TYPES,BOSS_POOL,PAIRED} from '../data/levels.js';
+import {actDef,LAYOUTS,NORMAL_LAYOUTS,ACTS,ENEMY_COST,ENEMY_ORDER,STORY_INTRO,ENDLESS,ROOM_TYPES,BOSS_POOL,PAIRED} from '../data/levels.js';
 
 export const MODS=['dark','elite','hurry'];
 
@@ -28,7 +28,7 @@ function weightedPick(pool,rng,maxCost) {
 function storyTypes(act,index) {
     let g=index;
     for (let a=0;a<act;a++) {
-        g+=ACTS[a].rooms;
+        g+=actDef(a).rooms;
     }
     return Math.max(1,STORY_INTRO.filter(r=>r<=g).length);
 }
@@ -103,7 +103,7 @@ function buildWaves(pool,budget,nw,rng,fresh) {
 }
 
 export function planRoom(act,index,rng,lastLayout,o={}) {
-    const A=ACTS[act];
+    const A=actDef(act);
     if (index>=A.rooms) {
         const type=pickBoss(rng,o.used);
         return {act,index,boss:true,bossType:type,tier:act,layoutKey:'bossArena',layout:LAYOUTS.bossArena,hpMult:A.bossMult,bossHp:A.bossHp,waves:[[{type,boss:true}]]};

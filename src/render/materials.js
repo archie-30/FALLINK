@@ -3,7 +3,7 @@ import {PALETTE} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {device} from '../core/settings.js';
 import {TOON_VERT,TOON_FRAG,HULL_VERT,HULL_FRAG,UNLIT_VERT,UNLIT_FRAG,SHADOW_VERT,SHADOW_FRAG} from './shaders/toon.js';
-import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,STAMP_FRAG,ICON_VERT,ICON_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG,COUNT_FRAG,FADE_FRAG} from './shaders/fx.js';
+import {PARTICLE_VERT,PARTICLE_FRAG,TRAIL_VERT,TRAIL_FRAG,FLASH_VERT,FLASH_FRAG,LINE_VERT,LINE_FRAG,DECAL_VERT,DECAL_FRAG,STAMP_FRAG,ICON_VERT,ICON_FRAG,DASH_FRAG,RING_FRAG,TRAP_FRAG,INK_FRAG,BRUSH_FRAG,BEAM_FRAG,COUNT_FRAG,FADE_FRAG,PORTAL_VERT,PORTAL_FRAG} from './shaders/fx.js';
 
 const colorCache={};
 
@@ -321,6 +321,21 @@ export function flashMaterial(atlas) {
         depthTest:false,
         depthWrite:false
     });
+}
+
+export function portalMaterial(map) {
+    const u=fxUniforms({tMap:{value:map},uOpacity:{value:0}});
+    const mat=new THREE.ShaderMaterial({
+        vertexShader:PORTAL_VERT,
+        fragmentShader:PORTAL_FRAG,
+        uniforms:u,
+        transparent:true,
+        depthTest:false,
+        depthWrite:false,
+        side:THREE.DoubleSide
+    });
+    Object.defineProperty(mat,'opacity',{get:()=>u.uOpacity.value,set:v=>{u.uOpacity.value=v;},configurable:true});
+    return mat;
 }
 
 export function lineMaterial(color) {

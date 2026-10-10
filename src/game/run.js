@@ -1,4 +1,4 @@
-import {ACTS,ENDLESS,TRAINING,LAYOUTS,PEACE_LAYOUTS,PEACE_VARY,LIBRARY} from '../data/levels.js';
+import {ACTS,actDef,ENDLESS,TRAINING,LAYOUTS,PEACE_LAYOUTS,PEACE_VARY,LIBRARY} from '../data/levels.js';
 import {settings} from '../core/settings.js';
 import {STARTING_DECK,CARDS,unlockedCards,UNLOCKS,TUTORIAL_DECK} from '../data/cards.js';
 import {TUNING} from '../data/tuning.js';
@@ -121,7 +121,7 @@ export class Run {
     }
 
     totalRooms() {
-        return ACTS[this.act].rooms+1;
+        return actDef(this.act).rooms+1;
     }
 
     training() {
@@ -305,6 +305,8 @@ export class Run {
 
     logPage(plan) {
         const S=this.stats;
+        const ap=this.mode==='endless'&&!plan.overtime?{act:Math.floor(plan.index/ENDLESS.bossEvery),page:plan.index%ENDLESS.bossEvery}:{act:plan.act,page:plan.overtime?plan.otPage:plan.index};
+        S.at={act:ap.act,page:ap.page,boss:!!plan.boss&&this.mode!=='endless',overtime:!!plan.overtime};
         S.log.push({act:plan.act,index:plan.index,node:plan.boss?'boss':plan.overtime?'overtime':(this.mode==='endless'?'endless':(plan.node||'battle')),game:plan.game||plan.event||null,hp:this.hooks.hp(),s:{kills:S.kills,damage:S.damage,taken:S.taken,dealt:S.dealt,cards:S.cards,time:S.time,score:S.score}});
     }
 
@@ -320,7 +322,7 @@ export class Run {
         const pool=node==='encounter'?NOTEBOOK.events.filter(e=>e.id!==this.lastEvent):null;
         const ev=pool?pool[Math.floor(this.rng.next()*pool.length)]:null;
         const layout=this.arrangePeace(list[k],node==='treasure'?3:1);
-        const plan={act:this.act,index:this.index,peace:true,node,boss:false,layoutKey:node+k,layout,hpMult:ACTS[this.act].hpMult,waves:[],barrels:0,crates:0};
+        const plan={act:this.act,index:this.index,peace:true,node,boss:false,layoutKey:node+k,layout,hpMult:actDef(this.act).hpMult,waves:[],barrels:0,crates:0};
         const spot=i=>({x:layout.npcs[i][0],z:layout.npcs[i][1]});
         if (ev) {
             this.lastEvent=ev.id;
@@ -349,7 +351,7 @@ export class Run {
 
     planLibrary() {
         const L=LIBRARY;
-        const plan={act:this.act,index:this.index,peace:true,node:'library',boss:false,layoutKey:'library',layout:L,hpMult:ACTS[this.act].hpMult,waves:[],barrels:0,crates:0};
+        const plan={act:this.act,index:this.index,peace:true,node:'library',boss:false,layoutKey:'library',layout:L,hpMult:actDef(this.act).hpMult,waves:[],barrels:0,crates:0};
         const pool=relicPool().filter(id=>!hasRelic(id));
         for (let i=pool.length-1;i>0;i--) {
             const j=Math.floor(this.rng.next()*(i+1));
@@ -431,7 +433,7 @@ export class Run {
         const flip=this.rng.next()<0.5?-1:1;
         const host=def.host||M.host;
         const layout={...base,props:base.decor,npcs:[[host[0]*flip,host[1]]]};
-        return {act:this.act,index:this.index,peace:true,node:'event',boss:false,layoutKey:key,layout,hpMult:ACTS[this.act].hpMult,waves:[],barrels:0,crates:0,game:id,gameFlip:flip,npcs:[{model:def.model,x:host[0]*flip,z:host[1]}]};
+        return {act:this.act,index:this.index,peace:true,node:'event',boss:false,layoutKey:key,layout,hpMult:actDef(this.act).hpMult,waves:[],barrels:0,crates:0,game:id,gameFlip:flip,npcs:[{model:def.model,x:host[0]*flip,z:host[1]}]};
     }
 
     prize(ok) {
@@ -511,7 +513,7 @@ export class Run {
             const n=this.index+1;
             return [{kind:n%ENDLESS.bossEvery===ENDLESS.bossEvery-1?'boss':'next'}];
         }
-        const rooms=ACTS[this.act].rooms;
+        const rooms=actDef(this.act).rooms;
         if (this.index>=rooms) {
             if (this.act>=ACTS.length-1) {
                 return [{kind:'finish'},{kind:'continue'}];
@@ -598,8 +600,10 @@ export class Run {
             return true;
         }
         if (ex.kind==='continue') {
-            this.overtime=true;
-            this.otPage=0;
+            this.act++;
+            this.index=0;
+            this.stats.act=this.act;
+            this.stats.xp+=TUNING.levels.xpAct;
             this.node='battle';
             this.go(i);
             return true;
@@ -627,7 +631,7 @@ export class Run {
             this.go(via);
             return;
         }
-        if (this.index>ACTS[this.act].rooms) {
+        if (this.index>actDef(this.act).rooms) {
             this.act++;
             this.index=0;
             this.stats.act=this.act;
@@ -691,7 +695,7 @@ export class Run {
         const rareChance=kind==='rare'?1:(kind==='normal'?0:(rareBoost??R.rareChance));
         const upChance=this.plan.boss?R.bossUpChance:0;
         const lv=effectiveLevel();
-        const pool=unlockedCards(lv);
+        const pool=unlockedCards(lv).filter(id=>!this.capped(id));
         const fresh=(UNLOCKS[lv]||[]).concat(UNLOCKS[lv-1]||[]).filter(id=>pool.includes(id));
         const owned=new Set(this.deckList.map(c=>c.id));
         const out=[];
@@ -742,6 +746,9 @@ export class Run {
     takeCards(cards,then=()=>this.openExits()) {
         const merged=[];
         for (const c of cards) {
+            if (this.capped(c.id)) {
+                continue;
+            }
             const m=this.addCard(c);
             if (m) {
                 merged.push(m);
@@ -1019,9 +1026,15 @@ export class Run {
         });
     }
 
+    capped(id) {
+        return this.deckList.filter(c=>c.id===id).length>=TUNING.deck.maxCopies;
+    }
+
     randomCard(rarity) {
-        const pool=unlockedCards(effectiveLevel()).filter(id=>(CARDS[id].rarity==='rare')===(rarity==='rare'));
-        return createCard(pool[Math.floor(this.rng.next()*pool.length)],false);
+        const open=unlockedCards(effectiveLevel()).filter(id=>!this.capped(id));
+        const same=open.filter(id=>(CARDS[id].rarity==='rare')===(rarity==='rare'));
+        const pool=same.length?same:open;
+        return pool.length?createCard(pool[Math.floor(this.rng.next()*pool.length)],false):null;
     }
 
     applyEffects(list,done) {
@@ -1096,6 +1109,10 @@ export class Run {
         }
         else if (kind==='card') {
             const card=this.randomCard(arg);
+            if (!card) {
+                cont();
+                return;
+            }
             this.note('note.gained',{},card.id);
             this.hooks.cardFx('gain',card.id,()=>this.takeCards([card],cont));
         }
@@ -1150,7 +1167,7 @@ export class Run {
 
     ambush(elite,after,done) {
         const p=this.plan;
-        const base=planRoom(this.act,Math.min(this.index,ACTS[this.act].rooms-1),this.rng,null);
+        const base=planRoom(this.act,Math.min(this.index,actDef(this.act).rooms-1),this.rng,null);
         p.waves=base.waves.slice(0,2);
         p.hpMult=base.hpMult;
         p.mod=elite?'elite':null;
@@ -1228,7 +1245,7 @@ export class Run {
                 }
                 if (this.plan.boss) {
                     this.stats.bosses++;
-                    if (this.notebook()&&!this.overtime&&this.act>=ACTS.length-1) {
+                    if (this.notebook()&&!this.overtime&&this.act===ACTS.length-1) {
                         this.stats.act=ACTS.length;
                         this.stats.xp+=TUNING.levels.xpAct+TUNING.levels.xpVictory;
                         this.stats.score+=ENDLESS.scoreVictory;

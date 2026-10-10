@@ -275,6 +275,18 @@ export const ACTS=[
     {rooms:6,budget:[10,11,12,13,14,15],waves:[2,3,3,3,3,3],pool:{doodle:2,blob:2,sprayer:2,stampSoldier:2,inkCloud:2,compass:2,bird:2,eraserMonster:2},hpMult:1.28,bossMult:1.65,bossHp:1.35,modChance:[0.4,0.4,0.5,0.5,0.6,0.6],elite:true}
 ];
 
+export const ACT_EXTRA={budget:1,budgetMax:20,hp:0.08,hpMax:1.6,boss:0.15,bossMax:2.1};
+
+export function actDef(a) {
+    if (a<ACTS.length) {
+        return ACTS[a];
+    }
+    const L=ACTS[ACTS.length-1];
+    const X=ACT_EXTRA;
+    const k=a-ACTS.length+1;
+    return {...L,budget:L.budget.map(b=>Math.min(X.budgetMax,b+k*X.budget)),hpMult:Math.min(X.hpMax,L.hpMult+k*X.hp),bossMult:Math.min(X.bossMax,L.bossMult+k*X.boss)};
+}
+
 export const ENDLESS={
     bossEvery:5,
     hpPerPage:0.05,

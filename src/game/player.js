@@ -81,6 +81,7 @@ export class Player {
         this.safeT=0;
         this.bulletProofT=0;
         this.shield=0;
+        this.shieldT=0;
         this.fortT=0;
         this.fortAge=0;
         this.events={onDash:null,onFire:null,onHurt:null,onDown:null,onShield:null};
@@ -644,8 +645,14 @@ export class Player {
         }
     }
 
-    setShield(n) {
+    setShield(n,dur=0) {
         this.shield=n;
+        if (dur>0) {
+            this.shieldT=dur;
+        }
+        if (n<=0) {
+            this.shieldT=0;
+        }
         if (!this.panels) {
             return;
         }
@@ -1093,6 +1100,12 @@ export class Player {
         }
         this.dashCd=Math.max(0,this.dashCd-dt*(this.hasteT>0?this.hasteMult:1)*this.courseDash);
         this.hasteT=Math.max(0,this.hasteT-dt);
+        if (this.shieldT>0) {
+            this.shieldT-=dt;
+            if (this.shieldT<=0) {
+                this.setShield(0);
+            }
+        }
         if (input.consumeDash()&&this.dashCd<=0&&!(this.leapT>0)) {
             let dx=this.aimDirX;
             let dz=this.aimDirZ;
