@@ -5,9 +5,9 @@ import {createCard} from './card.js';
 export const TUTOR_STEPS=[
     {key:'move',goals:['pad'],anim:'move',ctl:'move'},
     {key:'shoot',goals:['kill'],anim:'shoot',ctl:'shoot',foes:'dummy'},
-    {key:'dash',goals:['dodge'],anim:'dodge',ctl:'dash',foes:'pen'},
+    {key:'dash',goals:['dodge'],anim:'dodge',ctl:'dash',foes:'pen',failRemind:2},
     {key:'cards',goals:['card','cancel'],anim:'cards',ctl:'cards',foes:'dummy',hand:true},
-    {key:'deck',goals:['deck','detail'],draw:'deck',hand:true},
+    {key:'deck',goals:['deck','detail'],draw:'deck',hand:true,waitClose:true},
     {key:'ult',goals:['ult'],anim:'ult',ctl:'ult',foes:'dummy',hand:true,ult:true,hold:true},
     {key:'rules',info:true,draw:'goal'},
     {key:'warn',info:true,anim:'warn'},
@@ -67,6 +67,7 @@ export class TutorialDirector {
         }
         this.phase='task';
         this.taskT=0;
+        this.fails=0;
         this.slots=[];
         if (s.goals.includes('pad')) {
             this.placePad();
@@ -83,6 +84,18 @@ export class TutorialDirector {
             this.hooks.showHand(!!s.ult);
         }
         this.hooks.task(s);
+    }
+
+    hurt() {
+        const s=this.step();
+        if (this.phase!=='task'||!s||!s.failRemind) {
+            return;
+        }
+        this.fails=(this.fails||0)+1;
+        if (this.fails>=s.failRemind) {
+            this.fails=0;
+            this.hooks.remind(s,this.index);
+        }
     }
 
     reopen() {
@@ -111,8 +124,13 @@ export class TutorialDirector {
         }
         this.counts[kind]=(this.counts[kind]||0)+1;
         this.taskT=0;
+        this.fails=0;
         this.hooks.progress(kind,this.counts[kind],this.pad);
         if (this.met()) {
+            if (s.waitClose) {
+                this.phase='await';
+                return;
+            }
             if (s.hold) {
                 this.phase='hold';
                 this.timer=TUNING.tutorial.holdTime;
@@ -159,7 +177,7 @@ export class TutorialDirector {
             return;
         }
         this.taskT=(this.taskT||0)+dt;
-        if (this.taskT>=TUNING.tutorial.remind) {
+        if (!this.step().failRemind&&this.taskT>=TUNING.tutorial.remind) {
             this.taskT=0;
             this.hooks.remind(this.step(),this.index);
         }

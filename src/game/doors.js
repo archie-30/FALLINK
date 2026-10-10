@@ -265,11 +265,11 @@ export class Doors {
         const sill=new THREE.Mesh(box(W,0.06,t),dark);
         sill.position.set(0,0.03,-t/2);
         g.add(sill);
-        const back=new THREE.Mesh(box(W+D.side*2,H*0.9,0.12),light);
-        back.position.set(0,H*0.45,-t-A);
+        const back=new THREE.Mesh(box(W+D.side*2,H*D.backH,0.12),light);
+        back.position.set(0,H*D.backH/2,-t-A);
         g.add(back);
         const backRim=new THREE.Mesh(box(W+D.side*2+0.1,0.12,0.16),dark);
-        backRim.position.set(0,H*0.9,-t-A);
+        backRim.position.set(0,H*D.backH,-t-A);
         g.add(backRim);
         const leaves=[];
         for (const sx of [-1,1]) {

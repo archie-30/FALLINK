@@ -78,6 +78,7 @@ export class Player {
         this.reloadT=0;
         this.hp=this.maxHp;
         this.invuln=0;
+        this.lateHit=null;
         this.safeT=0;
         this.bulletProofT=0;
         this.shield=0;
@@ -850,6 +851,7 @@ export class Player {
             }
             return false;
         }
+        this.lateHit={t:0,hp:this.hp,dmg};
         this.hp=Math.max(0,this.hp-dmg);
         this.invuln=P.invulnTime+(this.ghost?0:hurtInvulnBonus());
         if (!this.ghost) {
@@ -1091,7 +1093,25 @@ export class Player {
         }
         this.dashCd=Math.max(0,this.dashCd-dt*(this.hasteT>0?this.hasteMult:1)*this.courseDash);
         this.hasteT=Math.max(0,this.hasteT-dt);
+        if (this.lateHit) {
+            this.lateHit.t+=dt;
+            if (this.lateHit.t>P.lateDodge) {
+                this.lateHit=null;
+            }
+        }
         if (input.consumeDash()&&this.dashCd<=0&&!(this.leapT>0)) {
+            const L=this.lateHit;
+            if (L&&this.hp>0) {
+                this.lateHit=null;
+                this.hp=L.hp;
+                this.dodged=true;
+                if (this.events.onLateDodge) {
+                    this.events.onLateDodge(this,L.dmg);
+                }
+                if (this.events.onDodge) {
+                    this.events.onDodge(this);
+                }
+            }
             let dx=this.aimDirX;
             let dz=this.aimDirZ;
             if (moveLen>0.1) {
@@ -1104,7 +1124,7 @@ export class Player {
             if (!this.ghost) {
                 flashRelic('sneakers',P.dashIframe+dashIframeBonus());
             }
-            this.dodged=false;
+            this.dodged=!!L&&this.hp>0;
             this.dashCd=P.dashCooldown;
             this.moveYaw=Math.atan2(dx,dz);
             this.stv+=P.dashStretch;

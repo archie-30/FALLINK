@@ -4727,7 +4727,12 @@ export class SkinEditor extends Panel {
                 ctx.fillRect(-ts/2,-ts/2,ts,ts);
                 drawShape(ctx,sketchRect(-ts/2,-ts/2,ts,ts,{width:sel?2.4:1.2,seed:1600+i+slot.key.length*7}),sel?PALETTE.red:(locked?PALETTE.midGray:PALETTE.ink),v);
                 const bob=sel?Math.sin(time.real*4)*1.5:0;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(-ts/2+1.5,-ts/2+1.5,ts-3,ts-3);
+                ctx.clip();
                 drawAccIcon(ctx,slot.key,id,0,bob+(slot.key==='backwear'?0:2),ts/40,cur,locked);
+                ctx.restore();
                 if (locked) {
                     drawLock(ctx,ts/2-9,-ts/2+10,0.75,PALETTE.nearGray);
                 }
