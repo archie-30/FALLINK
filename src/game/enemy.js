@@ -4293,7 +4293,22 @@ class Alarm extends Enemy {
         const far=i=>Math.hypot(cs[i].x-p.pos.x,cs[i].z-p.pos.z)>=P.minDist;
         const free=i=>!this.beamBlocks(cs[i].x,cs[i].z);
         let pick=[];
-        {
+        if (this.evolved) {
+            const pairs=[[0,1],[2,3],[0,2],[1,3]];
+            const opts=[0,1,2,3].filter(j=>j!==this.lastPair);
+            const tries=[j=>pairs[j].every(far)&&pairs[j].every(free),j=>pairs[j].every(far),()=>true];
+            let c=[];
+            for (const f of tries) {
+                c=opts.filter(f);
+                if (c.length) {
+                    break;
+                }
+            }
+            const j=c[Math.floor(rng.next()*c.length)];
+            this.lastPair=j;
+            pick=pairs[j];
+        }
+        else {
             const all=[0,1,2,3].filter(i=>i!==this.lastPad);
             const tries=[i=>far(i)&&free(i),far,free,()=>true];
             let c=[];

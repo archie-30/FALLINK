@@ -113,8 +113,9 @@ export class Input {
         this.dash.y=this.aim.cy+Math.sin(K.angles[0])*ring;
         const R=this.reloadBtn;
         R.r=sr*K.reloadMul;
-        R.x=this.move.cx+Math.cos(K.reloadAngle)*(r+K.gap+R.r);
-        R.y=this.move.cy+Math.sin(K.reloadAngle)*(r+K.gap+R.r);
+        const ra=Math.PI-K.angles[0];
+        R.x=this.move.cx+Math.cos(ra)*(r+K.gap+R.r);
+        R.y=this.move.cy+Math.sin(ra)*(r+K.gap+R.r);
         for (const k of this.skills) {
             const big=k.slot===2?K.ultMul:1;
             k.r=sr*big;

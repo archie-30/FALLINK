@@ -911,6 +911,9 @@ function boot() {
         fx.fovPunch(W.recoilFov*(PW.kick||1));
     };
     player.events.onHurt=(p,dx,dz,dmg)=>{
+        if (run.tutorial()&&run.director&&run.director.hurt) {
+            run.director.hurt();
+        }
         if (run.mode==='training') {
             trainStats.hurt++;
             trainStats.hurtT=1;
@@ -925,6 +928,13 @@ function boot() {
             run.stats.taken+=dmg;
         }
         particles.burst(p.pos.x,1.0,p.pos.z,PT.redHurt,{color:'red',speed:[2,6],up:[2,6],size:[0.08,0.16]});
+    };
+    player.events.onLateDodge=(p,dmg)=>{
+        bleed=Math.max(0,bleed-DF.bleed);
+        if (run.stats) {
+            run.stats.damage=Math.max(0,run.stats.damage-1);
+            run.stats.taken=Math.max(0,run.stats.taken-dmg);
+        }
     };
     player.events.onGuard=(p,dx,dz)=>{
         audio.play('clear',1.3);
@@ -3169,6 +3179,9 @@ function boot() {
         homingBullets.update(dt,room);
         lobs.update(dt);
         deck.update(dt);
+        if (run.tutorial()&&run.director&&run.director.phase==='await'&&!deckView.open) {
+            run.director.complete();
+        }
         const tutDeck=run.tutorial()&&coach.strip&&coach.strip.step.key==='deck'&&coach.strip.stamp<0?coach.strip:null;
         hand.pileHint=!!tutDeck&&!deckView.open&&(tutDeck.counts.detail||0)<1;
         deckView.tutHint=tutDeck?((tutDeck.counts.detail||0)>=1?'done':'pick'):null;
