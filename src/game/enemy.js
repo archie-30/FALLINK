@@ -3876,7 +3876,6 @@ class Alarm extends Enemy {
         this.beams=[];
         this.waves=[];
         this.pads=[];
-        this.padT=0;
         this.lastPad=-1;
         this.relight=false;
         this.tickT=0;
@@ -4139,17 +4138,7 @@ class Alarm extends Enemy {
         const far=i=>Math.hypot(cs[i].x-p.pos.x,cs[i].z-p.pos.z)>=P.minDist;
         const free=i=>!this.beamBlocks(cs[i].x,cs[i].z);
         let pick=[];
-        if (this.evolved) {
-            const pairs=[[0,3],[1,2]];
-            const opts=[0,1].filter(j=>j!==this.lastPad);
-            let j=opts.find(q=>pairs[q].every(far)&&pairs[q].every(free));
-            if (j===undefined) {
-                j=opts[0];
-            }
-            this.lastPad=j;
-            pick=pairs[j];
-        }
-        else {
+        {
             const all=[0,1,2,3].filter(i=>i!==this.lastPad);
             const tries=[i=>far(i)&&free(i),far,free,()=>true];
             let c=[];
@@ -4165,11 +4154,13 @@ class Alarm extends Enemy {
         }
         const need=this.evolved?P.hold2:P.hold;
         this.pads=pick.map(i=>({x:cs[i].x,z:cs[i].z,hold:0,need,done:false,t:0}));
-        this.padT=0;
         this.relight=false;
         this.tickT=0;
         for (const q of this.pads) {
             ctx.particles.burst(q.x,0.3,q.z,10,{color:'red',speed:[2,5],up:[2,5]});
+        }
+        if (ctx.notice) {
+            ctx.notice(t('alarm.padHint'));
         }
     }
 
@@ -4192,6 +4183,19 @@ class Alarm extends Enemy {
             if (this.tickT<=0) {
                 this.tickT=B.tick[0]+(B.tick[1]-B.tick[0])*k;
                 this.sfx(ctx,'alarmTick',B.pitch[0]+(B.pitch[1]-B.pitch[0])*k);
+            }
+        }
+    }
+
+    guardPads(ctx) {
+        const P=this.def.pad;
+        const p=ctx.player;
+        if (this.state==='snooze'||this.state==='burst') {
+            return;
+        }
+        for (const q of this.pads) {
+            if (!q.done&&Math.hypot(p.pos.x-q.x,p.pos.z-q.z)<P.r) {
+                p.safeT=Math.max(p.safeT||0,P.safe);
             }
         }
     }
@@ -4220,38 +4224,20 @@ class Alarm extends Enemy {
             }
         }
         if (done>=this.pads.length) {
-            this.snooze(ctx,true);
-            return;
-        }
-        if (this.evolved) {
-            this.padT+=dt;
-            if (this.padT>=P.window) {
-                if (done>0) {
-                    this.snooze(ctx,false);
-                }
-                else {
-                    this.pads=[];
-                }
-            }
+            this.snooze(ctx);
         }
     }
 
-    snooze(ctx,full) {
+    snooze(ctx) {
         const S=this.def.snooze;
         this.clearHazards();
         this.pads=[];
         this.stunT=0;
         this.lockT=0;
-        if (full) {
-            this.bar=0;
-            this.snoozeT=this.evolved?S.time2:S.time;
-            if (ctx.addInk) {
-                ctx.addInk(S.ink);
-            }
-        }
-        else {
-            this.bar*=0.5;
-            this.snoozeT=S.half;
+        this.bar=0;
+        this.snoozeT=this.evolved?S.time2:S.time;
+        if (ctx.addInk) {
+            ctx.addInk(S.ink);
         }
         this.setState('snooze');
         this.say={text:t('alarm.snooze'),t:0,dur:this.snoozeT,keep:true};
@@ -4287,7 +4273,7 @@ class Alarm extends Enemy {
             const a0=rng.range(0,Math.PI*2);
             const dir=rng.sign();
             for (let i=0;i<n;i++) {
-                this.beam({a:a0+i/n*Math.PI*2,speed:dir*B.spin,warn:B.warn,dur:B.time,width:B.width2,len:B.len,inner:B.inner,burst:true});
+                this.beam({a:a0+i/n*Math.PI*2,speed:dir*B.spin,warn:B.warn,dur:B.time,width:B.width2,len:B.len,inner:B.inner,burst:true,t:-B.beamDelay});
             }
             ctx.particles.burst(this.pos.x,2,this.pos.z,30,{color:'red',speed:[5,12],up:[2,8]});
         }
@@ -4373,6 +4359,7 @@ class Alarm extends Enemy {
         this.thought=false;
         super.update(dt,ctx);
         if (!this.thought&&this.alive&&this.state!=='spawn'&&!this.evolving&&!this.dummy) {
+            this.guardPads(ctx);
             this.tickPads(dt,ctx);
         }
     }
@@ -4387,6 +4374,7 @@ class Alarm extends Enemy {
         this.faceT+=this.state==='snooze'?0:dt;
         this.kicks[0]*=Math.exp(-5*dt);
         this.kicks[1]*=Math.exp(-5*dt);
+        this.guardPads(ctx);
         this.tickHazards(dt,ctx);
         this.tickBar(dt,ctx);
         this.tickPads(dt,ctx);
@@ -4411,7 +4399,7 @@ class Alarm extends Enemy {
         }
         if (this.state==='attack'&&!this.beams.length&&!this.waves.length) {
             this.setState('move');
-            this.patternT=rng.range(d.gap[0],d.gap[1]);
+            this.patternT=rng.range(d.gap[0],d.gap[1])+(this.pattern==='bells'?d.bells.rest:0);
         }
     }
 
@@ -4423,6 +4411,9 @@ class Alarm extends Enemy {
         let li=8;
         const roles={h:null,m:null,s:null};
         for (const b of this.beams) {
+            if (b.t<0) {
+                continue;
+            }
             const cx=Math.cos(b.a);
             const cz=Math.sin(b.a);
             if (b.role) {

@@ -692,6 +692,7 @@ export const TUNING={
     hud:{
         bigCmd:{y:30,yFrac:0.24,size:34,dimSize:22,pop:0.22,grow:0.35,stroke:5},
         trainBossY:6,
+        banner:{title:26,sub:16,pad:18,lead:1.45,maxW:620},
         toastTime:3,
         toastMax:4,
         facing:{dist:0.75,len:0.32,half:0.2,alpha:0.85,guideFrom:1.1,guideLen:4.5,guideAlpha:0.28,dash:7,gap:7},

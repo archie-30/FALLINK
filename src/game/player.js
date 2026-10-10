@@ -78,6 +78,7 @@ export class Player {
         this.reloadT=0;
         this.hp=this.maxHp;
         this.invuln=0;
+        this.safeT=0;
         this.shield=0;
         this.fortT=0;
         this.fortAge=0;
@@ -752,6 +753,7 @@ export class Player {
         this.moveYaw=0;
         this.poseMoveYaw=0;
         this.invuln=0;
+        this.safeT=0;
         this.moveFrame.visible=true;
         this.poseStep=-1;
         this.applyPose();
@@ -808,7 +810,7 @@ export class Player {
     }
 
     isInvulnerable() {
-        return this.invuln>0||this.fortT>0||(TUNING.player.dashInvuln&&(this.dashT>0||this.dashIT>0));
+        return this.invuln>0||this.safeT>0||this.fortT>0||(TUNING.player.dashInvuln&&(this.dashT>0||this.dashIT>0));
     }
 
     get maxHp() {
@@ -1048,6 +1050,7 @@ export class Player {
         const room=ctx.room;
         this.prev.copy(this.pos);
         this.invuln=Math.max(0,this.invuln-dt);
+        this.safeT=Math.max(0,(this.safeT||0)-dt);
         if (this.fortT>0) {
             this.fortT-=dt;
             this.fortAge+=dt;

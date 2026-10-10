@@ -2,6 +2,7 @@ import {PALETTE,rgba} from '../data/palette.js';
 import {TUNING} from '../data/tuning.js';
 import {t} from '../data/strings.js';
 import {time} from '../core/loop.js';
+import {textScale} from '../core/settings.js';
 import {sketchRect,sketchLine,sketchPath,hatchFill,rectPoly,drawShape} from './sketch.js';
 import {EASE} from '../core/easing.js';
 import {wrapText} from './cardView.js';
@@ -596,23 +597,30 @@ export class Hud {
         ctx.globalAlpha=out;
         ctx.translate(w/2,h*0.2);
         ctx.scale(inA,inA);
-        const maxW=Math.min(w-48,760);
-        ctx.font='bold 38px '+FONT;
+        const BN=TUNING.hud.banner;
+        const k2=textScale();
+        const tf=Math.round(BN.title*k2);
+        const sf=Math.round(BN.sub*k2);
+        const pad=Math.round(BN.pad*k2);
+        const lead=Math.round(sf*BN.lead);
+        const maxW=Math.min(w-48,BN.maxW);
+        ctx.font='bold '+tf+'px '+FONT;
         let tw=ctx.measureText(this.bannerText).width;
-        const ts=tw>maxW-48?(maxW-48)/tw:1;
+        const ts=tw>maxW-pad*2?(maxW-pad*2)/tw:1;
         tw*=ts;
-        ctx.font='16px '+FONT;
-        const subs=this.bannerSub?wrapText(ctx,this.bannerSub,maxW-48):[];
+        ctx.font=sf+'px '+FONT;
+        const subs=this.bannerSub?wrapText(ctx,this.bannerSub,maxW-pad*2):[];
         let sw=0;
         for (const l of subs) {
             sw=Math.max(sw,ctx.measureText(l).width);
         }
-        const bw=Math.round(Math.max(tw,sw)+48);
-        const bh=Math.round(68+subs.length*24);
+        const bw=Math.round(Math.max(tw,sw)+pad*2);
+        const top=Math.round(tf*ts*0.5+pad*0.6);
+        const bh=Math.round(top*2+subs.length*lead+(subs.length?pad*0.2:0));
         ctx.fillStyle=rgba('paper',0.85);
-        ctx.fillRect(-bw/2,-36,bw,bh);
+        ctx.fillRect(-bw/2,-top,bw,bh);
         ctx.save();
-        ctx.translate(-bw/2,-36);
+        ctx.translate(-bw/2,-top);
         drawShape(ctx,sketchRect(0,0,bw,bh,{width:2,seed:701}),PALETTE.ink);
         ctx.restore();
         ctx.fillStyle=PALETTE.ink;
@@ -620,13 +628,13 @@ export class Hud {
         ctx.textBaseline='middle';
         ctx.save();
         ctx.scale(ts,ts);
-        ctx.font='bold 38px '+FONT;
+        ctx.font='bold '+tf+'px '+FONT;
         ctx.fillText(this.bannerText,0,-2/ts);
         ctx.restore();
-        ctx.font='16px '+FONT;
+        ctx.font=sf+'px '+FONT;
         ctx.fillStyle=PALETTE.nearGray;
         for (let i=0;i<subs.length;i++) {
-            ctx.fillText(subs[i],0,34+i*24);
+            ctx.fillText(subs[i],0,top+lead*(i+0.35));
         }
         ctx.restore();
     }

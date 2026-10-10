@@ -268,6 +268,7 @@ function boot() {
     ctx.enemyMgr=enemies;
     ctx.sfx=(n,p)=>audio.play(n,p);
     ctx.addInk=n=>ink.add(n);
+    ctx.notice=s=>overlay.hud.toast(s);
     const effects=new CardEffects({player,playerBullets,pierceBullets,homingBullets,enemyBullets,lobs,enemies,particles,decals,rings,muzzle,fx,room:null,clones,puppet,weaponSys,ink,scene:actors,fxScene},TUNING);
     ctx.dangerRings=dangerRings;
     ctx.weaponSys=weaponSys;
